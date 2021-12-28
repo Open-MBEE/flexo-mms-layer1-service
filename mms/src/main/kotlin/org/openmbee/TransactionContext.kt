@@ -21,7 +21,8 @@ fun pp(insert: String, indentLevel: Int=2): String {
 private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
     return """
         graph m-graph:Transactions {
-            mt: mms:created ?_now ;
+            mt: a mms:Transaction ;
+                mms:created ?_now ;
                 mms:serviceId ?_serviceId ;
                 mms:requestPath ?_requestPath ;
                 mms:requestBody ?_requestBody ;
@@ -34,8 +35,8 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
 abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val indentLevel: Int=1) {
     protected val sparqlString = StringBuilder()
 
-    fun raw(sparql: String): Instance {
-        sparqlString.append(sparql.trimIndent()+"\n")
+    fun raw(vararg sparql: String): Instance {
+        sparqlString.append(sparql.joinToString("\n") { it.trimIndent()+"\n" })
 
         return this as Instance
     }
@@ -96,6 +97,16 @@ class UpdateBuilder(
 
         return raw("""
             insert {
+                ${InsertBuilder(context, 4).setup().toString()}
+            }
+        """)
+    }
+
+    fun insertData(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
+        if(context.numInserts++ > 0) raw(";")
+
+        return raw("""
+            insert data {
                 ${InsertBuilder(context, 4).setup().toString()}
             }
         """)
@@ -169,5 +180,4 @@ class TransactionContext(
     fun update(setup: UpdateBuilder.() -> UpdateBuilder): UpdateBuilder {
         return UpdateBuilder(this,).setup()
     }
-
 }

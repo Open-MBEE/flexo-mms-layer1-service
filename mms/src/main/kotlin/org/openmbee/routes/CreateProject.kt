@@ -15,49 +15,7 @@ import org.openmbee.plugins.client
 import java.util.*
 
 
-private const val SPARQL_BGP_USER_EXISTS = """
-    # user must exist
-    graph m-graph:AccessControl {
-        mu: a mms:User .
-    }
-"""
-
-private const val SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT = """
-    # user must have permission to create project
-    graph m-graph:AccessControl.Members {
-        mu: a mms:User .
-        
-        optional {
-            mu: mms:group ?group .
-            ?group a mms:Group .
-        }
-    }
-    
-    graph m-graph:AccessControl.Policies {
-        ?policy a mms:Policy ;
-            mms:scope mms-object:Scope.Cluster ;
-            mms:role ?role ;
-            .
-        
-        {
-            # policy about user
-            ?policy mms:subject mu: .
-        } union {
-            # or policy about group user belongs to
-            ?policy mms:subject ?group .
-        }
-    }
-    
-    graph m-graph:AccessControl.Definitions {
-        ?role a mms:Role ;
-            mms:permissions ?directRolePermissions ;
-            .
-        
-        ?directRolePermissions a mms:Permission ;
-            mms:implies* mms-object:Permission.CreateProject ;
-            .
-    }
-"""
+private val SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT = permittedActionSparqlBgp(Permission.CREATE_PROJECT, Scope.CLUSTER)
 
 private const val SPARQL_BGP_ORG_EXISTS = """
     # org must exist
@@ -95,7 +53,7 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
             mp: ?mp_p ?mp_o .
         }
 
-        graph mt: {
+        graph m-graph:Transactions {
             mt: ?mt_p ?mt_o .
         }
     }

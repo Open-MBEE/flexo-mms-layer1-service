@@ -30,15 +30,19 @@ m-graph:AccessControl.Policies {
 		mms:subject m-group:SuperAdmins ;
 		mms:scope mms-object:Scope.Cluster ;
 		mms:role 
-			mms-object:Role.AccessControlAdmin,
-			mms-object:Role.ClusterAdmin,
-			mms-object:Role.MetadataAdmin,
-			mms-object:Role.ModelAdmin ;
+			mms-object:Role.AdminAccessControl,
+			mms-object:Role.AdminCluster,
+			mms-object:Role.AdminMetadata,
+			mms-object:Role.AdminModel ;
 		.
 }
 
 m-graph:AccessControl.Definitions {
-	# Scopes
+
+	# ====================================
+	# ==             Scopes             ==
+	# ====================================
+
 
 	mms-object:Scope.Cluster a mms:Scope ;
 		dct:title "Organization level scope" ;
@@ -60,7 +64,102 @@ m-graph:AccessControl.Definitions {
 		.
 
 
-	# Permissions
+
+	# ====================================
+	# ==   Object-Centric Permissions   ==
+	# ====================================
+
+	mms-object:Permission.CreateOrg a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadOrg a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateOrg a mms:Permission ;
+		mms:implies mms-object:Permission.ReadOrg ;
+		.
+
+	mms-object:Permission.DeleteOrg a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateOrg ;
+		.
+
+
+	mms-object:Permission.CreateProject a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadProject a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateProject a mms:Permission ;
+		mms:implies mms-object:Permission.ReadProject ;
+		.
+
+	mms-object:Permission.DeleteProject a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateProject ;
+		.
+
+
+
+	# ====================================
+	# ==    Graph-Centric Permissions   ==
+	# ====================================
+
+
+	# AccessControl.* graphs
+
+	mms-object:Permission.ReadAccessControl a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteAccessControl a mms:Permission ;
+		mms:implies mms-object:Permission.ReadAccessControl ;
+		mms:implies mms-object:Permission.CreatePolicy ;
+		mms:implies mms-object:Permission.CreateRole ;
+		mms:implies mms-object:Permission.CreateGroup ;
+		mms:implies mms-object:Permission.CreateUser ;
+		.
+
+	mms-object:Permission.AdminAccessControl a mms:Permission ;
+		mms:implies mms-object:Permission.WriteAccessControl ;
+		mms:implies mms-object:Permission.DeletePolicy ;
+		mms:implies mms-object:Permission.DeleteRole ;
+		mms:implies mms-object:Permission.DeleteGroup ;
+		mms:implies mms-object:Permission.DeleteUser ;
+		.
+
+
+	# The Cluster graph
+
+	mms-object:Permission.ReadCluster a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteCluster a mms:Permission ;
+		mms:implies mms-object:Permission.ReadCluster ;
+		mms:implies mms-object:Permission.CreateOrg ;
+		mms:implies mms-object:Permission.CreateProject ;
+		.
+
+	mms-object:Permission.AdminCluster a mms:Permission ;
+		mms:implies mms-object:Permission.WriteCluster ;
+		mms:implies mms-object:Permission.DeleteOrg ;
+		mms:implies mms-object:Permission.DeleteProject ;
+		.
+
+
+	# Project Metadata graphs
+
+	mms-object:Permission.ReadMetadata a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteMetadata a mms:Permission ;
+		mms:implies mms-object:Permission.ReadMetadata ;
+		.
+
+	mms-object:Permission.AdminMetadata a mms:Permission ;
+		mms:implies mms-object:Permission.WriteMetadata ;
+		.
+
+
+	# Project Model graphs
 
 	mms-object:Permission.ReadModel a mms:Permission ;
 		.
@@ -75,102 +174,62 @@ m-graph:AccessControl.Definitions {
 
 
 
-	mms-object:Permission.ReadMetadata a mms:Permission ;
-		.
-
-	mms-object:Permission.WriteMetadata a mms:Permission ;
-		mms:implies mms-object:Permission.ReadMetadata ;
-		.
-
-	mms-object:Permission.AdminMetadata a mms:Permission ;
-		mms:implies mms-object:Permission.WriteMetadata ;
-		.
+	# ===================================
+	# ==             Roles             ==
+	# ===================================
 
 
-	mms-object:Permission.CreateProject a mms:Permission ;
-		.
-
-
-	mms-object:Permission.ReadCluster a mms:Permission ;
-		.
-
-	mms-object:Permission.WriteCluster a mms:Permission ;
-		mms:implies mms-object:Permission.CreateProject ;
-		mms:implies mms-object:Permission.ReadCluster ;
-		.
-
-	mms-object:Permission.AdminCluster a mms:Permission ;
-		mms:implies mms-object:Permission.WriteCluster ;
-		.
-
-
-
-	mms-object:Permission.ReadAccessControl a mms:Permission ;
-		.
-
-	mms-object:Permission.WriteAccessControl a mms:Permission ;
-		mms:implies mms-object:Permission.ReadAccessControl ;
-		.
-
-	mms-object:Permission.AdminAccessControl a mms:Permission ;
-		mms:implies mms-object:Permission.WriteAccessControl ;
-		.
-
-
-
-	# Roles
-
-	mms-object:Role.ModelReader a mms:Role ;
+	mms-object:Role.ReadModel a mms:Role ;
 		mms:permissions mms-object:Permission.ReadModel ;
 		.
 
-	mms-object:Role.ModelWriter a mms:Role ;
+	mms-object:Role.WriteModel a mms:Role ;
 		mms:permissions mms-object:Permission.WriteModel ;
 		.
 
-	mms-object:Role.ModelAdmin a mms:Role ;
+	mms-object:Role.AdminModel a mms:Role ;
 		mms:permissions mms-object:Permission.AdminModel ;
 		.
 
 
 
-	mms-object:Role.MetadataReader a mms:Role ;
+	mms-object:Role.ReadMetadata a mms:Role ;
 		mms:permissions mms-object:Permission.ReadMetadata ;
 		.
 
-	mms-object:Role.MetadataWriter a mms:Role ;
+	mms-object:Role.WriteMetadata a mms:Role ;
 		mms:permissions mms-object:Permission.WriteMetadata ;
 		.
 
-	mms-object:Role.MetadataAdmin a mms:Role ;
+	mms-object:Role.AdminMetadata a mms:Role ;
 		mms:permissions mms-object:Permission.AdminMetadata ;
 		.
 
 
 
-	mms-object:Role.ClusterReader a mms:Role ;
+	mms-object:Role.ReadCluster a mms:Role ;
 		mms:permissions mms-object:Permission.ReadCluster ;
 		.
 
-	mms-object:Role.ClusterWriter a mms:Role ;
+	mms-object:Role.WriteCluster a mms:Role ;
 		mms:permissions mms-object:Permission.WriteCluster ;
 		.
 
-	mms-object:Role.ClusterAdmin a mms:Role ;
+	mms-object:Role.AdminCluster a mms:Role ;
 		mms:permissions mms-object:Permission.AdminCluster ;
 		.
 
 
 
-	mms-object:Role.AccessControlReader a mms:Role ;
+	mms-object:Role.ReadAccessControl a mms:Role ;
 		mms:permissions mms-object:Permission.ReadAccessControl ;
 		.
 
-	mms-object:Role.AccessControlWriter a mms:Role ;
+	mms-object:Role.WriteAccessControl a mms:Role ;
 		mms:permissions mms-object:Permission.WriteAccessControl ;
 		.
 
-	mms-object:Role.AccessControlAdmin a mms:Role ;
+	mms-object:Role.AdminAccessControl a mms:Role ;
 		mms:permissions mms-object:Permission.AdminAccessControl ;
 		.
 }
