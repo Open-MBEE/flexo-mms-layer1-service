@@ -55,11 +55,15 @@ fun Application.writeOrg() {
                 return@put;
             }
 
+            // read request body
+            val requestBody = call.receiveText()
+
             // create transaction context
             val context = TransactionContext(
                 userId=userId,
                 orgId=orgId,
                 request=call.request,
+                requestBody=requestBody,
             )
 
             // initialize prefixes
@@ -73,7 +77,7 @@ fun Application.writeOrg() {
 
             // read put contents
             parseBody(
-                body=call.receiveText(),
+                body=requestBody,
                 prefixes=prefixes,
                 baseIri=orgNode.uri,
                 model=workingModel,

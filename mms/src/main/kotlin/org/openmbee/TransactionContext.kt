@@ -26,6 +26,7 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
                 mms:serviceId ?_serviceId ;
                 mms:requestPath ?_requestPath ;
                 mms:requestBody ?_requestBody ;
+                mms:requestBodyContentType ?_requestBodyContentType ;
                 ${pp(customProperties?: "", 4)}
                 .
         }
@@ -138,6 +139,7 @@ class UpdateBuilder(
                 "_serviceId" to SERVICE_ID,
                 "_requestPath" to context.requestPath,
                 "_requestBody" to context.requestBody,
+                "_requestBodyContentType" to context.requestBodyContentType,
             )
 
             datatyped(
@@ -158,12 +160,12 @@ class TransactionContext(
     _commitId: String?=null,
     var request: ApplicationRequest,
     var commitMessage: String?=null,
-    _requestBody: String?=null,
+    val requestBody: String="",
 ) {
     val transactionId = UUID.randomUUID().toString()
     val commitId = _commitId ?: transactionId
     val requestPath = request.path()
-    val requestBody = _requestBody ?: ""
+    val requestBodyContentType = request.contentType().toString()
 
     var numInserts = 0
 

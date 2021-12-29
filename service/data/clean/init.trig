@@ -45,7 +45,7 @@ m-graph:AccessControl.Definitions {
 
 
 	mms-object:Scope.Cluster a mms:Scope ;
-		dct:title "Organization level scope" ;
+		dct:title "Cluster level scope" ;
 		.
 
 	mms-object:Scope.Organization a mms:Scope ;

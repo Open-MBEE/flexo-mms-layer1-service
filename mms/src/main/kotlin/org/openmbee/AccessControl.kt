@@ -81,7 +81,7 @@ fun autoPolicySparqlBgp(builder: InsertBuilder, prefixes: PrefixMapBuilder, scop
         graph("m-graph:AccessControl") {
             raw(
                 """
-                ${prefixes["m-policy"]}Auto${scope.id}Owner.${UUID.randomUUID()} a mms:Policy ;
+                m-policy:Auto${scope.id}Owner.${UUID.randomUUID()} a mms:Policy ;
                     mms:subject mu: ;
                     mms:scope mms-object:Scope.${scope.id} ;
                     mms:role ${roles.joinToString(",") { "mms-object:Role.${it.id}" }}  ;
