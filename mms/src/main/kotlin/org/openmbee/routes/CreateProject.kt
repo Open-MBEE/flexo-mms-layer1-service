@@ -15,7 +15,7 @@ import org.openmbee.plugins.client
 import java.util.*
 
 
-private val SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT = permittedActionSparqlBgp(Permission.CREATE_PROJECT, Scope.CLUSTER)
+private val SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT = permittedActionSparqlBgp(Permission.CREATE_PROJECT, Scope.ORG)
 
 private const val SPARQL_BGP_ORG_EXISTS = """
     # org must exist

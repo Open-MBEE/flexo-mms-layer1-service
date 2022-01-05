@@ -21,11 +21,11 @@ enum class Permission(val id: String) {
     DELETE_PROJECT("DeleteProject"),
 }
 
-enum class Scope(val id: String) {
-    CLUSTER("Cluster"),
-    ORG("Org"),
-    PROJECT("Project"),
-    BRANCH("Branch"),
+enum class Scope(val id: String, vararg val values: String) {
+    CLUSTER("Cluster", "m"),
+    ORG("Org", "m", "mo"),
+    PROJECT("Project", "m", "mo", "mp"),
+    BRANCH("Branch", "m", "mo", "mp", "mpb"),
 }
 
 enum class Role(val id: String) {
@@ -40,19 +40,19 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
             mu: a mms:User .
             
             optional {
-                mu: mms:group ?group .
+                mu: mms:group* ?group .
                 ?group a mms:Group .
             }
         }
         
-        # a policy exists that applies to this user/group within the given scope
+        # a policy exists that applies to this user/group within an appropriate scope
         graph m-graph:AccessControl.Policies {
             ?policy a mms:Policy ;
                 mms:scope ?scope ;
                 mms:role ?role ;
                 .
-    
-            mms-object:Scope.${scope.id} mms:inherits* ?scope .
+            
+            ?scope rdf:type/rdfs:subClassOf*/mms:implies* mms-object:Scope.${scope.id} .
             
             {
                 # policy about user
@@ -60,6 +60,10 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
             } union {
                 # or policy about group user belongs to
                 ?policy mms:subject ?group .
+            }
+            
+            values ?scope {
+                ${scope.values.joinToString(" ") { "$it:" } }
             }
         }
         

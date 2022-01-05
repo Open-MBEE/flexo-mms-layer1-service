@@ -83,7 +83,6 @@ fun Application.writeOrg() {
                 model=workingModel,
             )
 
-
             // set system-controlled properties and remove conflicting triples from user input
             orgNode.run {
                 removeAll(RDF.type)
