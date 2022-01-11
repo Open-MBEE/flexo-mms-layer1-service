@@ -54,7 +54,9 @@ suspend fun HttpClient.executeSparqlAsk(sparqlBgp: String, prefixes: PrefixMapBu
             append(HttpHeaders.Accept, ContentType.parse("application/sparql-results+json"))
         }
         contentType(ContentType.parse("application/sparql-query"))
-        body="${prefixes.toString()}\n" + "ask { $sparqlBgp }"
+        body = "${prefixes}\n" + "ask { $sparqlBgp }"
+
+        println(body)
     }
 
     // read response body

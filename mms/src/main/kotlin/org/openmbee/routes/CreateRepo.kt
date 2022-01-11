@@ -8,6 +8,7 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import org.apache.jena.rdf.model.Resource
+import org.apache.jena.rdf.model.impl.ResourceImpl
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
@@ -15,7 +16,7 @@ import org.openmbee.plugins.client
 import java.util.*
 
 
-private val SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT = permittedActionSparqlBgp(Permission.CREATE_PROJECT, Scope.ORG)
+private val SPARQL_BGP_USER_PERMITTED_CREATE_REPO = permittedActionSparqlBgp(Permission.CREATE_REPO, Scope.REPO)
 
 private const val SPARQL_BGP_ORG_EXISTS = """
     # org must exist
@@ -24,18 +25,18 @@ private const val SPARQL_BGP_ORG_EXISTS = """
     }
 """
 
-private const val SPARQL_BGP_PROJECT_NOT_EXISTS = """
-    # project must not yet exist
+private const val SPARQL_BGP_REPO_NOT_EXISTS = """
+    # repo must not yet exist
     graph m-graph:Cluster {
         filter not exists {
-            mp: a mms:Project .
+            mor: a mms:Repo .
         }
     }
 """
 
-private const val SPARQL_BGP_PROJECT_METADATA_GRAPH_EMPTY = """
-    # project metadata graph must be empty
-    graph mp-graph:Metadata {
+private const val SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY = """
+    # repo metadata graph must be empty
+    graph mor-graph:Metadata {
         filter not exists {
             ?s ?p ?o .
         }
@@ -45,12 +46,27 @@ private const val SPARQL_BGP_PROJECT_METADATA_GRAPH_EMPTY = """
 
 private const val SPARQL_CONSTRUCT_TRANSACTION = """
     construct  {
-        mp: ?mp_p ?mp_o .
+        mor: ?mor_p ?mor_o .
+        
+        ?thing ?thing_p ?thing_o .
+        
+        ?m_s ?m_p ?m_o .
         
         mt: ?mt_p ?mt_o .
     } where {
-        graph mp-graph:Metadata {
-            mp: ?mp_p ?mp_o .
+        graph m-graph:Cluster {
+            mor: a mms:Repo ;
+                ?mor_p ?mor_o ;
+                .
+
+            optional {
+                ?thing mms:repo mor: ; 
+                    ?thing_p ?thing_o .
+            }
+        }
+    
+        graph mor-graph:Metadata {
+            ?m_s ?m_p ?m_o .
         }
 
         graph m-graph:Transactions {
@@ -60,17 +76,18 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
 """
 
 @OptIn(InternalAPI::class)
-fun Application.writeProject() {
+fun Application.createRepo() {
     routing {
-        put("/projects/{projectId}") {
-            val projectId = call.parameters["projectId"]!!
+        put("/orgs/{orgId}/repos/{repoId}") {
+            val orgId = call.parameters["orgId"]!!
+            val repoId = call.parameters["repoId"]!!
 
             val userId = call.request.headers["mms5-user"]?: ""
 
             // missing userId
             if(userId.isEmpty()) {
                 call.respondText("Missing header: `MMS5-User`")
-                return@put;
+                return@put
             }
 
 
@@ -79,7 +96,8 @@ fun Application.writeProject() {
             // create transaction context
             val context = TransactionContext(
                 userId=userId,
-                projectId=projectId,
+                orgId=orgId,
+                repoId=repoId,
                 branchId=branchId,
                 request=call.request,
             )
@@ -90,8 +108,11 @@ fun Application.writeProject() {
             // create a working model to prepare the Update
             val workingModel = KModel(prefixes)
 
-            // create project node
-            val projectNode = workingModel.createResource(prefixes["mp"])
+            // create org node
+            var orgNode = workingModel.createResource(prefixes["mo"])
+
+            // create repo node
+            val repoNode = workingModel.createResource(prefixes["mor"])
 
             // read entire request body
             val requestBody = call.receiveText()
@@ -100,45 +121,15 @@ fun Application.writeProject() {
             parseBody(
                 body=requestBody,
                 prefixes=prefixes,
-                baseIri=projectNode.uri,
+                baseIri=repoNode.uri,
                 model=workingModel,
             )
 
-            // prepare org resource
-            var orgResource: Resource? = null
-
             // set system-controlled properties and remove conflicting triples from user input
-            projectNode.run {
+            repoNode.run {
                 removeAll(RDF.type)
                 removeAll(MMS.id)
-
-                // normalize mms:org
-                run {
-                    listProperties(MMS.org)
-                        // only triples that point to named nodes
-                        .filterKeep { it.`object`.isResource }
-                        // traverse through them
-                        .forEach {
-                            // more than one provided
-                            if(null != orgResource) {
-                                throw InvalidDocumentSemanticsException("The `mms:org` relation has a maximum cardinality of 1; but more than 1 were provided")
-                            }
-                            else {
-                                orgResource = it.`object`.asResource()
-                            }
-                        }
-
-                    // none provided
-                    if(null == orgResource) {
-                        throw InvalidDocumentSemanticsException("The `mms:org` relation has a minimum cardinality of 1; but none were provided")
-                    }
-
-                    // remove everything
-                    removeAll(MMS.org)
-
-                    // add back the approved org
-                    addProperty(MMS.org, orgResource)
-                }
+                removeAll(MMS.org)
 
                 // normalize dct:title
                 run {
@@ -151,19 +142,15 @@ fun Application.writeProject() {
                         }
                 }
 
-                addProperty(RDF.type, MMS.Project)
-                addProperty(MMS.id, projectId)
+                // add back the approved properties
+                addProperty(RDF.type, MMS.Repo)
+                addProperty(MMS.id, repoId)
+                addProperty(MMS.org, orgNode)
             }
 
-            // update prefixes with orgId
-            val orgId = orgResource!!.uri.replaceFirst(prefixes["m-org"]!!, "")
-            context.orgId = orgId
-            prefixes = context.prefixes
-
-            // serialize project node
-            val projectTriples = KModel(prefixes) {
-                removeNsPrefix("m-project")
-                add(projectNode.listProperties())
+            // serialize repo node
+            val repoTriples = KModel(prefixes) {
+                add(repoNode.listProperties())
             }.stringify(emitPrefixes=false)
 
             // generate sparql update
@@ -172,62 +159,57 @@ fun Application.writeProject() {
                     txn()
 
                     graph("m-graph:Cluster") {
-                        raw(projectTriples)
+                        raw(repoTriples)
                     }
 
-                    graph("mp-graph:Metadata") {
+                    graph("mor-graph:Metadata") {
                         raw("""
-                            mpb: a mms:Branch ;
+                            morb: a mms:Branch ;
                                 mms:id ?_branchId ;
-                                mms:commit mpc: ;
+                                mms:commit morc: ;
                                 .
                     
-                            mpc: a mms:Commit ;
+                            morc: a mms:Commit ;
                                 mms:parent rdf:nil ;
                                 mms:submitted ?_now ;
                                 mms:message ?_commitMessage ;
-                                mms:data mpc-data: ;
+                                mms:data morc-data: ;
                                 .
                     
-                            mpc-data: a mms:Dataset ;
-                                mms:source <> ;
+                            morc-data: a mms:Load ;
+                                .
+                            
+                            mor-lock:_MMS_INIT.REPO a mms:Lock ;
+                                mms:commit morc: ;
+                                mms:model ?_model ;
+                                .
+                            
+                            ?_model a mms:Model ;
                                 .
                         """)
                     }
+
+                    autoPolicySparqlBgp(
+                        builder=this,
+                        prefixes=prefixes,
+                        scope=Scope.REPO,
+                        roles=listOf(Role.ADMIN_REPO),
+                    )
                 }
                 where {
                     raw(listOf(
-                        SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT,
+                        SPARQL_BGP_USER_PERMITTED_CREATE_REPO,
 
                         SPARQL_BGP_ORG_EXISTS,
 
-                        SPARQL_BGP_PROJECT_NOT_EXISTS,
+                        SPARQL_BGP_REPO_NOT_EXISTS,
 
-                        SPARQL_BGP_PROJECT_METADATA_GRAPH_EMPTY,
+                        SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY,
                     ).joinToString("\n"))
-                }
-
-                insert {
-                    graph("m-graph:AccessControl") {
-                        raw("""
-                            ?_autoPolicy a mms:Policy ;
-                                mms:subject mu: ;
-                                mms:scope mms-object:Scope.Project ;
-                                mms:role mms-object:Role.AdminMetadata, mms-object:Role.AdminModel ;
-                                .
-                        """)
-                    }
-                }
-                where {
-                    graph("m-graph:Transactions") {
-                        raw("""
-                            mt: mms:commitId mpc: .
-                        """)
-                    }
                 }
             }.toString {
                 iri(
-                    "_autoPolicy" to "${prefixes["m-policy"]}AutoProjectOwner.${UUID.randomUUID()}",
+                    "_model" to "${prefixes["mor-graph"]}Model._MMS_INIT.REPO",
                 )
             }
 
@@ -238,7 +220,7 @@ fun Application.writeProject() {
             val updateResponse = client.submitSparqlUpdate(sparqlUpdate)
 
 
-            // create construct query to confirm transaction and fetch project details
+            // create construct query to confirm transaction and fetch repo details
             val sparqlConstruct = parameterizedSparql(SPARQL_CONSTRUCT_TRANSACTION) {
                 prefixes(context.prefixes)
             }
@@ -263,12 +245,12 @@ fun Application.writeProject() {
                 // parse model
                 parseBody(
                     body=selectResponseText,
-                    baseIri=projectNode.uri,
+                    baseIri=repoNode.uri,
                     model=constructModel,
                 )
 
                 // transaction failed
-                if(!constructModel.createResource(prefixes["mt"]).listProperties(MMS.commitId).hasNext()) {
+                if(!constructModel.createResource(prefixes["mt"]).listProperties(RDF.type).hasNext()) {
                     var reason = "Transaction failed due to an unknown reason"
 
                     // user
@@ -277,12 +259,12 @@ fun Application.writeProject() {
                         if(!client.executeSparqlAsk(SPARQL_BGP_USER_EXISTS, prefixes)) {
                             reason = "User <${prefixes["mu"]}> does not exist."
                         }
-                        // user does not have permission to create project
-                        else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT, prefixes)) {
-                            reason = "User <${prefixes["mu"]}> is not permitted to create projects."
+                        // user does not have permission to create repo
+                        else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_REPO, prefixes)) {
+                            reason = "User <${prefixes["mu"]}> is not permitted to create repos."
 
                             // log ask query that fails
-                            log.warn("The following ASK query failed as the suspected reason for CreateProject failure: \n${parameterizedSparql(SPARQL_BGP_USER_PERMITTED_CREATE_PROJECT) { prefixes(prefixes) }}")
+                            log.warn("The following ASK query failed as the suspected reason for CreateRepo failure: \n${parameterizedSparql(SPARQL_BGP_USER_PERMITTED_CREATE_REPO) { prefixes(prefixes) }}")
                         }
                     }
 
@@ -290,13 +272,13 @@ fun Application.writeProject() {
                     if(!client.executeSparqlAsk(SPARQL_BGP_ORG_EXISTS, prefixes)) {
                         reason = "The provided org <${prefixes["mo"]}> does not exist."
                     }
-                    // project already exists
-                    else if(!client.executeSparqlAsk(SPARQL_BGP_PROJECT_NOT_EXISTS, prefixes)) {
-                        reason = "The destination project <${prefixes["mp"]}> already exists."
+                    // repo already exists
+                    else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_NOT_EXISTS, prefixes)) {
+                        reason = "The destination repo <${prefixes["mr"]}> already exists."
                     }
-                    // project metadata graph not empty
-                    else if(!client.executeSparqlAsk(SPARQL_BGP_PROJECT_METADATA_GRAPH_EMPTY, prefixes)) {
-                        reason = "The destination project's metadata graph <${prefixes["mp-graph"]}> is not empty."
+                    // repo metadata graph not empty
+                    else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY, prefixes)) {
+                        reason = "The destination repo's metadata graph <${prefixes["mr-graph"]}> is not empty."
                     }
 
 

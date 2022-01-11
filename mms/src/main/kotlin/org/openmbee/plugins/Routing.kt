@@ -10,9 +10,9 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.routes.readOrg
-import org.openmbee.routes.readProject
+import org.openmbee.routes.readRepo
 import org.openmbee.routes.writeOrg
-import org.openmbee.routes.writeProject
+import org.openmbee.routes.createRepo
 
 
 val client = HttpClient(CIO)
@@ -36,8 +36,8 @@ fun Application.configureRouting() {
         readOrg()
         writeOrg()
 
-        readProject()
-        writeProject()
+        readRepo()
+        createRepo()
 
         get("/") {
             call.respondText("Hello World!")

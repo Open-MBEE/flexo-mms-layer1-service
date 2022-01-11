@@ -1,13 +1,9 @@
 package org.openmbee
 
-import io.ktor.client.request.*
 import io.ktor.request.*
 import org.apache.jena.datatypes.xsd.XSDDatatype
-import org.apache.jena.graph.Graph
-import org.apache.jena.update.Update
 import java.time.Instant
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 
@@ -25,6 +21,7 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
                 mms:created ?_now ;
                 mms:serviceId ?_serviceId ;
                 mms:requestPath ?_requestPath ;
+                mms:requestMethod ?_requestMethod ;
                 mms:requestBody ?_requestBody ;
                 mms:requestBodyContentType ?_requestBodyContentType ;
                 ${pp(customProperties?: "", 4)}
@@ -77,8 +74,8 @@ class InsertBuilder(
     fun txn(properties: MutableMap<String, String> = HashMap()): InsertBuilder {
         if(null != context.userId) properties["mms:user"] = "mu:"
         if(null != context.orgId) properties["mms:org"] = "mo:"
-        if(null != context.projectId) properties["mms:project"] = "mp:"
-        if(null != context.branchId) properties["mms:branch"] = "mpb:"
+        if(null != context.repoId) properties["mms:repo"] = "mor:"
+        if(null != context.branchId) properties["mms:branch"] = "morb:"
 
         val propertiesSparql = properties.entries.fold("") { out, (pred, obj) -> "$out$pred $obj ;\n" }
 
@@ -132,12 +129,13 @@ class UpdateBuilder(
             literal(
                 "_userId" to (context.userId?: ""),
                 "_orgId" to (context.orgId?: ""),
-                "_projectId" to (context.projectId?: ""),
+                "_repoId" to (context.repoId?: ""),
                 "_branchId" to (context.branchId?: ""),
                 "_commitId" to context.commitId,
                 "_transactionId" to context.transactionId,
                 "_serviceId" to SERVICE_ID,
                 "_requestPath" to context.requestPath,
+                "_requestMethod" to context.requestMethod,
                 "_requestBody" to context.requestBody,
                 "_requestBodyContentType" to context.requestBodyContentType,
             )
@@ -155,7 +153,7 @@ class UpdateBuilder(
 class TransactionContext(
     var userId: String?=null,
     var orgId: String?=null,
-    var projectId: String?=null,
+    var repoId: String?=null,
     var branchId: String?=null,
     _commitId: String?=null,
     var request: ApplicationRequest,
@@ -165,6 +163,7 @@ class TransactionContext(
     val transactionId = UUID.randomUUID().toString()
     val commitId = _commitId ?: transactionId
     val requestPath = request.path()
+    val requestMethod = request.httpMethod.value
     val requestBodyContentType = request.contentType().toString()
 
     var numInserts = 0
@@ -173,7 +172,7 @@ class TransactionContext(
         get() = prefixesFor(
             userId = userId,
             orgId = orgId,
-            projectId = projectId,
+            repoId = repoId,
             branchId = branchId,
             commitId = commitId,
             transactionId = transactionId,

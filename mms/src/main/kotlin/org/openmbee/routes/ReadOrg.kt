@@ -6,20 +6,48 @@ import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.openmbee.parameterizedSparql
+import org.openmbee.*
 import org.openmbee.plugins.client
-import org.openmbee.prefixesFor
-import org.openmbee.submitSparqlConstruct
 
 
-private const val SPARQL_QUERY_ORG = """
+private val SPARQL_QUERY_ORG = """
     construct {
-        ?_org ?p ?o .
+        ?_org ?org_p ?org_o .
+        
+        ?thing ?thing_p ?thing_o .
+        
+        ?context a mms:Context ;
+            mms:permit mms-object:Permission.ReadOrg ;
+            mms:policy ?policy ;
+            .
+        
+        ?policy ?policy_p ?policy_o .
+        
+        ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
     } where {
         graph m-graph:Cluster {
             ?_org a mms:Org ;
-                ?p ?o .
+                ?org_p ?org_o .
+            
+            optional {
+                ?thing mms:org ?_org ;
+                    ?thing_p ?thing_o .
+            }
         }
+        
+        ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
+        
+        graph m-graph:AccessControl.Policies {
+            ?policy ?policy_p ?policy_o .
+
+            optional {
+                ?orgPolicy a mms:Policy ;
+                    mms:scope ?_org ;
+                    ?orgPolicy_p ?orgPolicy_o .
+            }
+        }
+        
+        bind(bnode() as ?context)
     }
 """
 
@@ -29,11 +57,19 @@ fun Application.readOrg() {
         get("/orgs/{orgId?}") {
             val orgId = call.parameters["orgId"]
 
+            val userId = call.request.headers["mms5-user"]?: ""
+
+            // missing userId
+            if(userId.isEmpty()) {
+                call.respondText("Missing header: `MMS5-User`")
+                return@get
+            }
+
             var constructQuery: String
 
             // get by orgId
             if(false == orgId?.isNullOrBlank()) {
-                val prefixes = prefixesFor(orgId=orgId)
+                val prefixes = prefixesFor(userId=userId, orgId=orgId)
 
                 constructQuery = prefixes.toString() + parameterizedSparql(SPARQL_QUERY_ORG) {
                     iri(
@@ -43,7 +79,7 @@ fun Application.readOrg() {
             }
             // get all orgs
             else {
-                val prefixes = prefixesFor()
+                val prefixes = prefixesFor(userId=userId)
 
                 constructQuery = prefixes.toString() + parameterizedSparql(SPARQL_QUERY_ORG) {
                     this

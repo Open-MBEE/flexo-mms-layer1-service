@@ -29,6 +29,8 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
         mo: ?mo_p ?mo_o .
         
         mt: ?mt_p ?mt_o .
+        
+        ?policy ?policy_p ?policy_o .
     } where {
         graph m-graph:Cluster {
             mo: ?mo_p ?mo_o .
@@ -36,6 +38,11 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
 
         graph m-graph:Transactions {
             mt: ?mt_p ?mt_o .
+        }
+        
+        graph m-graph:AccessControl.Policies {
+            ?policy mms:scope mo: ;
+                ?policy_p ?policy_o .
         }
     }
 """
@@ -52,7 +59,7 @@ fun Application.writeOrg() {
             // missing userId
             if(userId.isEmpty()) {
                 call.respondText("Missing header: `MMS5-User`")
-                return@put;
+                return@put
             }
 
             // read request body
@@ -123,7 +130,7 @@ fun Application.writeOrg() {
                         builder=this,
                         prefixes=prefixes,
                         scope=Scope.ORG,
-                        roles=listOf(Role.ADMIN_METADATA, Role.ADMIN_MODEL),
+                        roles=listOf(Role.ADMIN_ORG),
                     )
                 }
                 where {
@@ -181,7 +188,7 @@ fun Application.writeOrg() {
                         if(!client.executeSparqlAsk(SPARQL_BGP_USER_EXISTS, prefixes)) {
                             reason = "User <${prefixes["mu"]}> does not exist."
                         }
-                        // user does not have permission to create project
+                        // user does not have permission to create org
                         else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_ORG, prefixes)) {
                             reason = "User <${prefixes["mu"]}> is not permitted to create orgs."
 

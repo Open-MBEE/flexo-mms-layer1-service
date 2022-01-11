@@ -3,6 +3,8 @@ package org.openmbee.plugins
 import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.application.*
+import io.ktor.auth.*
+import io.ktor.auth.jwt.*
 import io.ktor.response.*
 import io.ktor.request.*
 
@@ -23,5 +25,10 @@ fun Application.configureHTTP() {
         anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
     }
     install(ConditionalHeaders)
+    install(Authentication) {
+        jwt {
+
+        }
+    }
 
 }

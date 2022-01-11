@@ -4,7 +4,7 @@ import java.util.*
 
 const val SPARQL_BGP_USER_EXISTS = """
     # user must exist
-    graph m-graph:AccessControl.Members {
+    graph m-graph:AccessControl.Agents {
         mu: a mms:User .
     }
 """
@@ -15,20 +15,31 @@ enum class Permission(val id: String) {
     UPDATE_ORG("UpdateOrg"),
     DELETE_ORG("DeleteOrg"),
 
-    CREATE_PROJECT("CreateProject"),
-    READ_PROJECT("ReadProject"),
-    UPDATE_PROJECT("UpdateProject"),
-    DELETE_PROJECT("DeleteProject"),
+    CREATE_REPO("CreateRepo"),
+    READ_REPO("ReadRepo"),
+    UPDATE_REPO("UpdateRepo"),
+    DELETE_REPO("DeleteRepo"),
 }
 
-enum class Scope(val id: String, vararg val values: String) {
+enum class Scope(val type: String, val id: String) {
     CLUSTER("Cluster", "m"),
-    ORG("Org", "m", "mo"),
-    PROJECT("Project", "m", "mo", "mp"),
-    BRANCH("Branch", "m", "mo", "mp", "mpb"),
+    ORG("Org", "mo"),
+    // COLLECTION("Repo", "m", "mo", "moc"),
+    REPO("Repo", "mor"),
+    BRANCH("Branch", "morb"),
+    // LOCK("Lock",
+    //     "m", "mo", "mor", "mor-lock"),
+}
+
+fun Scope.values() = sequence<String> {
+    for(i in 1..id.length) {
+        yield(id.substring(0, i))
+    }
 }
 
 enum class Role(val id: String) {
+    ADMIN_ORG("AdminOrg"),
+    ADMIN_REPO("AdminRepo"),
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
 }
@@ -36,7 +47,7 @@ enum class Role(val id: String) {
 fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
     return """
         # user exists and may belong to some group
-        graph m-graph:AccessControl.Members {
+        graph m-graph:AccessControl.Agents {
             mu: a mms:User .
             
             optional {
@@ -52,8 +63,6 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                 mms:role ?role ;
                 .
             
-            ?scope rdf:type/rdfs:subClassOf*/mms:implies* mms-object:Scope.${scope.id} .
-            
             {
                 # policy about user
                 ?policy mms:subject mu: .
@@ -62,15 +71,23 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                 ?policy mms:subject ?group .
             }
             
+            # intersect scopes relevant to context
             values ?scope {
-                ${scope.values.joinToString(" ") { "$it:" } }
+                ${scope.values().joinToString(" ") { "$it:" } }
             }
         }
         
-        # 
+        # lookup scope's class
+        graph m-graph:Cluster {
+            ?scope rdf:type ?scopeType .
+        }
+        
+        # lookup scope class, role, and permissions
         graph m-graph:AccessControl.Definitions {
+            ?scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
+
             ?role a mms:Role ;
-                mms:permissions ?directRolePermissions ;
+                mms:permits ?directRolePermissions ;
                 .
             
             ?directRolePermissions a mms:Permission ;
@@ -82,12 +99,12 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
 
 fun autoPolicySparqlBgp(builder: InsertBuilder, prefixes: PrefixMapBuilder, scope: Scope, roles: List<Role>): InsertBuilder {
     return builder.run {
-        graph("m-graph:AccessControl") {
+        graph("m-graph:AccessControl.Policies") {
             raw(
                 """
-                m-policy:Auto${scope.id}Owner.${UUID.randomUUID()} a mms:Policy ;
+                m-policy:Auto${scope.type}Owner.${UUID.randomUUID()} a mms:Policy ;
                     mms:subject mu: ;
-                    mms:scope mms-object:Scope.${scope.id} ;
+                    mms:scope ${scope.id}: ;
                     mms:role ${roles.joinToString(",") { "mms-object:Role.${it.id}" }}  ;
                     .
             """

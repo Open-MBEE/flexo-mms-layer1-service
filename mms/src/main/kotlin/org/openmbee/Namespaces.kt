@@ -44,7 +44,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
         "dct" to "http://purl.org/dc/terms/",
     )
 
-    with("https://openmbee.org/rdf/mms") {
+    with("https://mms.openmbee.org/rdf") {
         add(
             "mms" to "$this/ontology/",
             "mms-object" to "$this/objects/",
@@ -58,7 +58,6 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
             "m-object" to "$this/objects/",
             "m-graph" to "$this/graphs/",
             "m-org" to "$this/orgs/",
-            "m-project" to "$this/projects/",
             "m-user" to "$this/users/",
             "m-group" to "$this/groups/",
             "m-policy" to "$this/policies/",
@@ -69,7 +68,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
 fun prefixesFor(
     userId: String?=null,
     orgId: String?=null,
-    projectId: String?=null,
+    repoId: String?=null,
     branchId: String?=null,
     commitId: String?=null,
     transactionId: String?=null,
@@ -89,6 +88,35 @@ fun prefixesFor(
                 add(
                     "mo" to this,
                 )
+
+                if(null != repoId) {
+                    with("$this/repos/$repoId") {
+                        add(
+                            "mor" to this,
+                            "mor-commit" to "$this/commits/",
+                            "mor-branch" to "$this/branches/",
+                            "mor-lock" to "$this/locks/",
+                            "mor-graph" to "$this/graphs/",
+                        )
+
+                        if(null != branchId) {
+                            with("$this/branches/$branchId") {
+                                add(
+                                    "morb" to this,
+                                )
+                            }
+                        }
+
+                        if(null != commitId) {
+                            with("$this/commits/$commitId") {
+                                add(
+                                    "morc" to this,
+                                    "morc-data" to "$this/data"
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -97,35 +125,6 @@ fun prefixesFor(
                 add(
                     "mt" to this,
                 )
-            }
-        }
-
-        if(null != projectId) {
-            with("$ROOT_CONTEXT/projects/$projectId") {
-                add(
-                    "mp" to this,
-                    "mp-branch" to "$this/branches/",
-                    "mp-lock" to "$this/locks/",
-                    "mp-graph" to "$this/graphs/",
-                    "mp-commit" to "$this/commits/",
-                )
-
-                if(null != branchId) {
-                    with("$this/branches/$branchId") {
-                        add(
-                            "mpb" to this,
-                        )
-                    }
-                }
-
-                if(null != commitId) {
-                    with("$this/commits/$commitId") {
-                        add(
-                            "mpc" to this,
-                            "mpc-data" to "$this/data"
-                        )
-                    }
-                }
             }
         }
 
@@ -139,7 +138,7 @@ object MMS {
 
     // classes
     val Org = ResourceImpl("${_BASE}Org")
-    val Project = ResourceImpl("${_BASE}Project")
+    val Repo = ResourceImpl("${_BASE}Repo")
 
     // object properties
     val id  = PropertyImpl("${_BASE}id")
@@ -148,19 +147,18 @@ object MMS {
     val created = PropertyImpl("${_BASE}created")
     val serviceId = PropertyImpl("${_BASE}serviceId")
     val org = PropertyImpl("${_BASE}org")
-    val project = PropertyImpl("${_BASE}project")
+    val repo = PropertyImpl("${_BASE}repo")
     val user = PropertyImpl("${_BASE}user")
     val completed = PropertyImpl("${_BASE}completed")
     val requestBody = PropertyImpl("${_BASE}requestBody")
     val requestPath = PropertyImpl("${_BASE}requestPath")
 
     val orgId = PropertyImpl("${_BASE}orgId")
-    val projectId = PropertyImpl("${_BASE}projectId")
+    val repoId = PropertyImpl("${_BASE}repoId")
     val commitId = PropertyImpl("${_BASE}commitId")
 
     // access control properties
     val implies = PropertyImpl("${_BASE}implies")
-    val inherits = PropertyImpl("${_BASE}inherits")
 }
 
 object MMS_DATATYPE {
