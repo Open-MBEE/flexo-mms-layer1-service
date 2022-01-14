@@ -69,6 +69,7 @@ fun prefixesFor(
     userId: String?=null,
     orgId: String?=null,
     repoId: String?=null,
+    refId: String?=null,
     branchId: String?=null,
     commitId: String?=null,
     transactionId: String?=null,
@@ -96,6 +97,7 @@ fun prefixesFor(
                             "mor-commit" to "$this/commits/",
                             "mor-branch" to "$this/branches/",
                             "mor-lock" to "$this/locks/",
+                            "mor-snapshot" to "$this/snapshots/",
                             "mor-graph" to "$this/graphs/",
                         )
 
@@ -159,10 +161,15 @@ object MMS {
 
     // access control properties
     val implies = PropertyImpl("${_BASE}implies")
+
+    val stagingGraph = PropertyImpl("${_BASE}stagingGraph")
+    val baseModel = PropertyImpl("${_BASE}baseModel")
+    val baseModelGraph = PropertyImpl("${_BASE}baseModelGraph")
 }
 
 object MMS_DATATYPE {
     private val _BASE = SPARQL_PREFIXES["mms-datatype"]
 
     val commitMessage = BaseDatatype("${_BASE}commitMessage")
+    val sparql = BaseDatatype("${_BASE}sparql")
 }

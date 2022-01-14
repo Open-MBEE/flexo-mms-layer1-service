@@ -41,15 +41,17 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
         }
         
         graph m-graph:AccessControl.Policies {
-            ?policy mms:scope mo: ;
-                ?policy_p ?policy_o .
+            optional {
+                ?policy mms:scope mo: ;
+                    ?policy_p ?policy_o .
+            }
         }
     }
 """
 
 
 @OptIn(InternalAPI::class)
-fun Application.writeOrg() {
+fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
             val orgId = call.parameters["orgId"]!!
@@ -146,88 +148,72 @@ fun Application.writeOrg() {
             log.info(sparqlUpdate)
 
             // submit update
-            val updateResponse = client.submitSparqlUpdate(sparqlUpdate)
+            val updateResponse = call.submitSparqlUpdate(sparqlUpdate)
 
 
             // create construct query to confirm transaction and fetch project details
-            val sparqlConstruct = parameterizedSparql(SPARQL_CONSTRUCT_TRANSACTION) {
+            val constructResponseText = call.submitSparqlConstruct(SPARQL_CONSTRUCT_TRANSACTION) {
                 prefixes(context.prefixes)
             }
 
             // log
-            log.info(sparqlConstruct)
-
-            // fetch transaction results
-            val constructResponse = client.submitSparqlConstruct(sparqlConstruct)
-
-            // download select results
-            val constructResponseText = constructResponse.readText()
-
-            // log
             log.info("Triplestore responded with:\n$constructResponseText")
 
-
-            // 200 OK
-            if(constructResponse.status.isSuccess()) {
-                val constructModel = KModel(prefixes)
-
-                // parse model
+            // parse model
+            val constructModel = KModel(prefixes).apply {
                 parseBody(
-                    body=constructResponseText,
-                    baseIri=orgNode.uri,
-                    model=constructModel,
+                    body = constructResponseText,
+                    baseIri = orgNode.uri,
+                    model = this,
                 )
-
-                // transaction failed
-                if(!constructModel.createResource(prefixes["mt"]).listProperties(RDF.type).hasNext()) {
-                    var reason = "Transaction failed due to an unknown reason"
-
-                    // user
-                    if(null != userId) {
-                        // user does not exist
-                        if(!client.executeSparqlAsk(SPARQL_BGP_USER_EXISTS, prefixes)) {
-                            reason = "User <${prefixes["mu"]}> does not exist."
-                        }
-                        // user does not have permission to create org
-                        else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_ORG, prefixes)) {
-                            reason = "User <${prefixes["mu"]}> is not permitted to create orgs."
-
-                            // log ask query that fails
-                            log.warn("The following ASK query failed as the suspected reason for CreateOrg failure: \n${parameterizedSparql("\nask {\n$SPARQL_BGP_USER_PERMITTED_CREATE_ORG\n}") { prefixes(prefixes) }}")
-                        }
-                    }
-
-                    // org already exists
-                    if(!client.executeSparqlAsk(SPARQL_BGP_ORG_NOT_EXISTS, prefixes)) {
-                        reason = "The provided org <${prefixes["mo"]}> already exists."
-                    }
-
-                    call.respondText(reason, status=HttpStatusCode.InternalServerError, contentType=ContentType.Text.Plain)
-                    return@put
-                }
             }
+
+            val transactionNode = constructModel.createResource(prefixes["mt"])
+
+            // transaction failed
+            if(!transactionNode.listProperties().hasNext()) {
+                var reason = "Transaction failed due to an unknown reason"
+
+                // user
+                if(null != userId) {
+                    // user does not exist
+                    if(!call.executeSparqlAsk(SPARQL_BGP_USER_EXISTS) {prefixes(prefixes)}) {
+                        reason = "User <${prefixes["mu"]}> does not exist."
+                    }
+                    // user does not have permission to create org
+                    else if(!call.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_ORG) {prefixes(prefixes)}) {
+                        reason = "User <${prefixes["mu"]}> is not permitted to create orgs."
+
+                        // log ask query that fails
+                        log.warn("The following ASK query failed as the suspected reason for CreateOrg failure: \n${parameterizedSparql("\nask {\n$SPARQL_BGP_USER_PERMITTED_CREATE_ORG\n}") { prefixes(prefixes) }}")
+                    }
+                }
+
+                // org already exists
+                if(!call.executeSparqlAsk(SPARQL_BGP_ORG_NOT_EXISTS) {prefixes(prefixes)}) {
+                    reason = "The provided org <${prefixes["mo"]}> already exists."
+                }
+
+                call.respondText(reason, status=HttpStatusCode.InternalServerError, contentType=ContentType.Text.Plain)
+                return@put
+            }
+
 
             // respond
             call.respondText(constructResponseText, status=constructResponse.status, contentType=constructResponse.contentType())
 
-            // delete transaction graph
+            // delete transaction
             run {
-                // prepare SPARQL DROP
-                val sparqlDrop = parameterizedSparql("""
+                // submit update
+                val dropResponse = call.submitSparqlUpdate("""
                     delete where {
                         graph m-graph:Transactions {
                             mt: ?p ?o .
                         }
                     }
-                """.trimIndent()) {
+                """) {
                     prefixes(prefixes)
                 }
-
-                // log update
-                log.info(sparqlDrop)
-
-                // submit update
-                val dropResponse = client.submitSparqlUpdate(sparqlDrop)
 
                 // log response
                 log.info(dropResponse.readText())

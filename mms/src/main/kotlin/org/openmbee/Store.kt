@@ -2,11 +2,12 @@ package org.openmbee
 
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
-import io.ktor.client.*
+import io.ktor.application.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.util.*
+import org.openmbee.plugins.client
 
 
 val ROOT_CONTEXT = (System.getenv("MMS5_ROOT_CONTEXT")?: "https://mms.openmbee.org/demo").replace("/+$".toRegex(), "")
@@ -14,49 +15,81 @@ val STORE_QUERY_URI = System.getenv("MMS5_STORE_QUERY")?: "http://localhost:8081
 val STORE_UPDATE_URI = System.getenv("MMS5_STORE_UPDATE")?: "http://localhost:8081/bigdata/namespace/kb/sparql"
 val SERVICE_ID = System.getenv("MMS5_SERVICE_ID")?: "local-dev-0"
 
+fun prepareSparql(pattern: String, setup: (Parameterizer.() -> Parameterizer)?): String {
+    return if(setup != null) parameterizedSparql(pattern, setup) else pattern
+}
+
+suspend fun handleSparqlResponse(response: HttpResponse): String {
+    // read response body
+    val responseText = response.readText()
+
+    // non-200
+    if(!response.status.isSuccess())  {
+        throw Non200Response(responseText, response.status)
+    }
+
+    return responseText
+}
+
 @OptIn(InternalAPI::class)
-suspend fun HttpClient.submitSparqlUpdate(sparql: String): HttpResponse {
-    return post(STORE_UPDATE_URI) {
+suspend fun ApplicationCall.submitSparqlUpdate(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+    val sparql = prepareSparql(pattern, setup)
+
+    this.application.log.info("SPARQL Update:\n$sparql")
+
+    return handleSparqlResponse(client.post(STORE_UPDATE_URI) {
         headers {
             append(HttpHeaders.Accept, ContentType.Application.Json)
         }
         contentType(ContentType.parse("application/sparql-update"))
         body=sparql
-    }
+    })
 }
 
 @OptIn(InternalAPI::class)
-suspend fun HttpClient.submitSparqlConstruct(sparql: String): HttpResponse {
-    return post(STORE_QUERY_URI) {
+suspend fun ApplicationCall.submitSparqlConstruct(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+    val sparql = prepareSparql(pattern, setup)
+
+    this.application.log.info("SPARQL Query CONSTRUCT:\n$sparql")
+
+    return handleSparqlResponse(client.post(STORE_QUERY_URI) {
         headers {
             append(HttpHeaders.Accept, ContentType.parse("text/turtle"))
         }
         contentType(ContentType.parse("application/sparql-query"))
         body=sparql
-    }
+    })
 }
 
 @OptIn(InternalAPI::class)
-suspend fun HttpClient.submitSparqlQuery(sparql: String): HttpResponse {
-    return post(STORE_QUERY_URI) {
+suspend fun ApplicationCall.submitSparqlSelect(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+    val sparql = prepareSparql(pattern, setup)
+
+    this.application.log.info("SPARQL Query SELECT:\n$sparql")
+
+    return handleSparqlResponse(client.post(STORE_QUERY_URI) {
         headers {
             append(HttpHeaders.Accept, ContentType.parse("application/sparql-results+json"))
         }
         contentType(ContentType.parse("application/sparql-query"))
         body=sparql
-    }
+    })
 }
 
 @OptIn(InternalAPI::class)
-suspend fun HttpClient.executeSparqlAsk(sparqlBgp: String, prefixes: PrefixMapBuilder): Boolean {
-    val askResponse = post<HttpResponse>(STORE_QUERY_URI) {
+suspend fun ApplicationCall.executeSparqlAsk(sparqlBgp: String, setup: (Parameterizer.() -> Parameterizer)?=null): Boolean {
+    val pattern = "ask { $sparqlBgp }"
+
+    val sparql = if(setup != null) parameterizedSparql(pattern, setup) else pattern
+
+    this.application.log.info("SPARQL Query ASK:\n$sparql")
+
+    val askResponse = client.post<HttpResponse>(STORE_QUERY_URI) {
         headers {
             append(HttpHeaders.Accept, ContentType.parse("application/sparql-results+json"))
         }
         contentType(ContentType.parse("application/sparql-query"))
-        body = "${prefixes}\n" + "ask { $sparqlBgp }"
-
-        println(body)
+        body = "ask { $sparqlBgp }"
     }
 
     // read response body

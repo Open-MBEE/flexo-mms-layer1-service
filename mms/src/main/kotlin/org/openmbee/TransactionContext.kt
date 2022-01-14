@@ -63,15 +63,21 @@ class GraphBuilder(
 ): SparqlBuilder<GraphBuilder>(indentLevel)
 
 class WhereBuilder(
-    private val context: TransactionContext,
+    context: TransactionContext,
     indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(context, indentLevel)
+
+class DeleteBuilder(
+    context: TransactionContext,
+    indentLevel: Int,
+): PatternBuilder<DeleteBuilder>(context, indentLevel)
 
 class InsertBuilder(
     private val context: TransactionContext,
     indentLevel: Int,
 ): PatternBuilder<InsertBuilder>(context, indentLevel) {
-    fun txn(properties: MutableMap<String, String> = HashMap()): InsertBuilder {
+    fun txn(vararg extras: Pair<String, String>): InsertBuilder {
+        val properties = extras.toMap().toMutableMap()
         if(null != context.userId) properties["mms:user"] = "mu:"
         if(null != context.orgId) properties["mms:org"] = "mo:"
         if(null != context.repoId) properties["mms:repo"] = "mor:"
@@ -90,27 +96,49 @@ class UpdateBuilder(
     private val context: TransactionContext,
     indentLevel: Int=0,
 ): SparqlBuilder<UpdateBuilder>(indentLevel) {
+    fun delete(setup: DeleteBuilder.() -> DeleteBuilder): UpdateBuilder {
+        if(context.operationCount++ > 0) raw(";")
+
+        context.previousBlock = OperationBlock.DELETE
+
+        return raw("""
+            delete {
+                ${DeleteBuilder(context, 4).setup()}
+            }
+        """)
+    }
+
     fun insert(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(context.numInserts++ > 0) raw(";")
+        if(context.previousBlock != OperationBlock.DELETE) {
+            if(context.operationCount++ > 0) raw(";")
+        }
+
+        context.previousBlock = OperationBlock.INSERT
 
         return raw("""
             insert {
-                ${InsertBuilder(context, 4).setup().toString()}
+                ${InsertBuilder(context, 4).setup()}
             }
         """)
     }
 
     fun insertData(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(context.numInserts++ > 0) raw(";")
+        if(context.previousBlock != OperationBlock.DELETE) {
+            if(context.operationCount++ > 0) raw(";")
+        }
+
+        context.previousBlock = OperationBlock.INSERT
 
         return raw("""
             insert data {
-                ${InsertBuilder(context, 4).setup().toString()}
+                ${InsertBuilder(context, 4).setup()}
             }
         """)
     }
 
     fun where(setup: WhereBuilder.() -> WhereBuilder): UpdateBuilder {
+        context.previousBlock = OperationBlock.WHERE
+
         return raw("""
             where {
                 ${WhereBuilder(context, 4).setup()}
@@ -150,6 +178,13 @@ class UpdateBuilder(
     }
 }
 
+enum class OperationBlock(val id: String) {
+    NONE(""),
+    DELETE("DELETE"),
+    INSERT("INSERT"),
+    WHERE("WHERE"),
+}
+
 class TransactionContext(
     var userId: String?=null,
     var orgId: String?=null,
@@ -166,7 +201,8 @@ class TransactionContext(
     val requestMethod = request.httpMethod.value
     val requestBodyContentType = request.contentType().toString()
 
-    var numInserts = 0
+    var operationCount = 0
+    var previousBlock = OperationBlock.NONE
 
     val prefixes: PrefixMapBuilder
         get() = prefixesFor(

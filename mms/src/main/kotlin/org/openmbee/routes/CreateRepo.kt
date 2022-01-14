@@ -7,13 +7,10 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.rdf.model.impl.ResourceImpl
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 import org.openmbee.plugins.client
-import java.util.*
 
 
 private val SPARQL_BGP_USER_PERMITTED_CREATE_REPO = permittedActionSparqlBgp(Permission.CREATE_REPO, Scope.REPO)
@@ -38,7 +35,7 @@ private const val SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY = """
     # repo metadata graph must be empty
     graph mor-graph:Metadata {
         filter not exists {
-            ?s ?p ?o .
+            ?e_s ?e_p ?e_o .
         }
     }
 """
@@ -49,6 +46,8 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
         mor: ?mor_p ?mor_o .
         
         ?thing ?thing_p ?thing_o .
+        
+        ?policy ?policy_p ?policy_o .
         
         ?m_s ?m_p ?m_o .
         
@@ -64,6 +63,11 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
                     ?thing_p ?thing_o .
             }
         }
+
+        graph m-graph:AccessControl.Policies {
+            ?policy mms:scope mor: ;
+                ?policy_p ?policy_o .
+        }
     
         graph mor-graph:Metadata {
             ?m_s ?m_p ?m_o .
@@ -74,6 +78,10 @@ private const val SPARQL_CONSTRUCT_TRANSACTION = """
         }
     }
 """
+
+fun String.normalizeIndentation(spaces: Int=0): String {
+    return this.trimIndent().prependIndent(" ".repeat(spaces)).replace("^\\s+".toRegex(), "")
+}
 
 @OptIn(InternalAPI::class)
 fun Application.createRepo() {
@@ -154,7 +162,7 @@ fun Application.createRepo() {
             }.stringify(emitPrefixes=false)
 
             // generate sparql update
-            val sparqlUpdate = context.update {
+            val updateResponse = call.submitSparqlUpdate(context.update {
                 insert {
                     txn()
 
@@ -164,11 +172,6 @@ fun Application.createRepo() {
 
                     graph("mor-graph:Metadata") {
                         raw("""
-                            morb: a mms:Branch ;
-                                mms:id ?_branchId ;
-                                mms:commit morc: ;
-                                .
-                    
                             morc: a mms:Commit ;
                                 mms:parent rdf:nil ;
                                 mms:submitted ?_now ;
@@ -178,13 +181,20 @@ fun Application.createRepo() {
                     
                             morc-data: a mms:Load ;
                                 .
-                            
-                            mor-lock:_MMS_INIT.REPO a mms:Lock ;
+
+                            morb: a mms:Branch ;
+                                mms:id ?_branchId ;
                                 mms:commit morc: ;
-                                mms:model ?_model ;
                                 .
                             
                             ?_model a mms:Model ;
+                                mms:ref morb: ;
+                                mms:graph ?_modelGraph ;
+                                .
+                                
+                            ?_staging a mms:Staging ;
+                                mms:ref morb: ;
+                                mms:graph ?_stagingGraph ;
                                 .
                         """)
                     }
@@ -209,33 +219,24 @@ fun Application.createRepo() {
                 }
             }.toString {
                 iri(
-                    "_model" to "${prefixes["mor-graph"]}Model._MMS_INIT.REPO",
+                    "_model" to "${prefixes["mor-snapshot"]}Model.${context.transactionId}",
+                    "_modelGraph" to "${prefixes["mor-graph"]}Model.${context.transactionId}",
+                    "_staging" to "${prefixes["mor-snapshot"]}Staging.${context.transactionId}",
+                    "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${context.transactionId}",
                 )
-            }
-
-            // log
-            log.info(sparqlUpdate)
-
-            // submit update
-            val updateResponse = client.submitSparqlUpdate(sparqlUpdate)
+            })
 
 
             // create construct query to confirm transaction and fetch repo details
-            val sparqlConstruct = parameterizedSparql(SPARQL_CONSTRUCT_TRANSACTION) {
+            val constructResponse = call.submitSparqlConstruct(SPARQL_CONSTRUCT_TRANSACTION) {
                 prefixes(context.prefixes)
             }
 
-            // log
-            log.info(sparqlConstruct)
-
-            // fetch transaction results
-            val constructResponse = client.submitSparqlConstruct(sparqlConstruct)
-
             // download select results
-            val selectResponseText = constructResponse.readText()
+            val constructResponseText = constructResponse.readText()
 
             // log
-            log.info("Triplestore responded with:\n$selectResponseText")
+            log.info("Triplestore responded with ${constructResponse.status.value}:\n$constructResponseText")
 
 
             // 200 OK
@@ -244,7 +245,7 @@ fun Application.createRepo() {
 
                 // parse model
                 parseBody(
-                    body=selectResponseText,
+                    body=constructResponseText,
                     baseIri=repoNode.uri,
                     model=constructModel,
                 )
@@ -253,33 +254,62 @@ fun Application.createRepo() {
                 if(!constructModel.createResource(prefixes["mt"]).listProperties(RDF.type).hasNext()) {
                     var reason = "Transaction failed due to an unknown reason"
 
+                    val bgpTestsMap = mapOf(
+                        "orgExists" to SPARQL_BGP_ORG_EXISTS,
+                        "repoNotExist" to SPARQL_BGP_REPO_NOT_EXISTS,
+                        "repoEmpty" to SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY,
+                    ).toMutableMap()
+
                     // user
                     if(null != userId) {
-                        // user does not exist
-                        if(!client.executeSparqlAsk(SPARQL_BGP_USER_EXISTS, prefixes)) {
-                            reason = "User <${prefixes["mu"]}> does not exist."
-                        }
-                        // user does not have permission to create repo
-                        else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_REPO, prefixes)) {
-                            reason = "User <${prefixes["mu"]}> is not permitted to create repos."
+                        bgpTestsMap.putAll(mapOf(
+                            "userExists" to SPARQL_BGP_USER_EXISTS,
+                            "userAllowed" to SPARQL_BGP_USER_PERMITTED_CREATE_REPO,
+                        ))
 
-                            // log ask query that fails
-                            log.warn("The following ASK query failed as the suspected reason for CreateRepo failure: \n${parameterizedSparql(SPARQL_BGP_USER_PERMITTED_CREATE_REPO) { prefixes(prefixes) }}")
-                        }
+                        // // user does not exist
+                        // if(!client.executeSparqlAsk(SPARQL_BGP_USER_EXISTS, prefixes)) {
+                        //     reason = "User <${prefixes["mu"]}> does not exist."
+                        // }
+                        // // user does not have permission to create repo
+                        // else if(!client.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_REPO, prefixes)) {
+                        //     reason = "User <${prefixes["mu"]}> is not permitted to create repos."
+                        //
+                        //     // log ask query that fails
+                        //     log.warn("The following ASK query failed as the suspected reason for CreateRepo failure: \n${parameterizedSparql(SPARQL_BGP_USER_PERMITTED_CREATE_REPO) { prefixes(prefixes) }}")
+                        // }
                     }
 
-                    // org does not exist
-                    if(!client.executeSparqlAsk(SPARQL_BGP_ORG_EXISTS, prefixes)) {
-                        reason = "The provided org <${prefixes["mo"]}> does not exist."
+
+                    val inspectResponse = call.submitSparqlSelect("""
+                        select distinct ${bgpTestsMap.keys.joinToString(" ") { "?$it" }} {
+                            ${bgpTestsMap.entries.joinToString(" union ") {
+                                entry -> """
+                                    {
+                                        ${entry.value.normalizeIndentation(10 * 4)}
+                                        bind(true as ?${entry.key})
+                                    }
+                                """.normalizeIndentation(4)
+                            }}
+                        }
+                    """) {
+                        prefixes(prefixes)
                     }
-                    // repo already exists
-                    else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_NOT_EXISTS, prefixes)) {
-                        reason = "The destination repo <${prefixes["mr"]}> already exists."
-                    }
-                    // repo metadata graph not empty
-                    else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY, prefixes)) {
-                        reason = "The destination repo's metadata graph <${prefixes["mr-graph"]}> is not empty."
-                    }
+
+                    log.info("Server said: ${inspectResponse.readText()}")
+                    //
+                    // // org does not exist
+                    // if(!client.executeSparqlAsk(SPARQL_BGP_ORG_EXISTS, prefixes)) {
+                    //     reason = "The provided org <${prefixes["mo"]}> does not exist."
+                    // }
+                    // // repo already exists
+                    // else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_NOT_EXISTS, prefixes)) {
+                    //     reason = "The destination repo <${prefixes["mor"]}> already exists."
+                    // }
+                    // // repo metadata graph not empty
+                    // else if(!client.executeSparqlAsk(SPARQL_BGP_REPO_METADATA_GRAPH_EMPTY, prefixes)) {
+                    //     reason = "The destination repo's metadata graph <${prefixes["mor-graph"]}> is not empty."
+                    // }
 
 
                     call.respondText(reason, status=HttpStatusCode.InternalServerError, contentType=ContentType.Text.Plain)
@@ -288,26 +318,20 @@ fun Application.createRepo() {
             }
 
             // respond
-            call.respondText(selectResponseText, status=constructResponse.status, contentType=constructResponse.contentType())
+            call.respondText(constructResponseText, status=constructResponse.status, contentType=constructResponse.contentType())
 
             // delete transaction graph
             run {
                 // prepare SPARQL DROP
-                val sparqlDrop = parameterizedSparql("""
+                val dropResponse = call.submitSparqlUpdate("""
                     delete where {
                         graph m-graph:Transactions {
                             mt: ?p ?o .
                         }
                     }
-                """.trimIndent()) {
+                """) {
                     prefixes(prefixes)
                 }
-
-                // log update
-                log.info(sparqlDrop)
-
-                // submit update
-                val dropResponse = client.submitSparqlUpdate(sparqlDrop)
 
                 // log response
                 log.info(dropResponse.readText())

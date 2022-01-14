@@ -1,4 +1,3 @@
-val rdf4j_version: String by project
 val jena_version: String by project
 val klaxon_version: String by project
 val ktor_version: String by project
@@ -27,13 +26,6 @@ dependencies {
     implementation("commons-cli:commons-cli:1.4")
 
     implementation("com.beust:klaxon:$klaxon_version")
-
-    implementation("org.eclipse.rdf4j:rdf4j-queryrender:${rdf4j_version}")
-    implementation("org.eclipse.rdf4j:rdf4j-queryparser-sparql:${rdf4j_version}")
-    implementation("org.eclipse.rdf4j:rdf4j-repository-api:${rdf4j_version}")
-    implementation("org.eclipse.rdf4j:rdf4j-repository-sparql:${rdf4j_version}")
-    implementation("org.eclipse.rdf4j:rdf4j-http-client:${rdf4j_version}")
-    implementation("org.eclipse.rdf4j:rdf4j-sparqlbuilder:${rdf4j_version}")
 
     implementation("org.apache.jena:jena-arq:${jena_version}")
 

@@ -14,6 +14,11 @@ fun Application.configureHTTP() {
     install(DefaultHeaders) {
         header("X-Engine", "Ktor") // will send this header with each response
     }
+    install(StatusPages) {
+        exception<Throwable> { cause ->
+            call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
+        }
+    }
     install(CORS) {
         method(HttpMethod.Options)
         method(HttpMethod.Put)

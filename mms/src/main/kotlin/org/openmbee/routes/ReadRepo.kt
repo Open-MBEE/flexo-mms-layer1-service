@@ -15,6 +15,8 @@ private const val SPARQL_QUERY_REPO = """
         ?_repo ?repo_p ?repo_o .
         
         ?thing ?thing_p ?thing_o .
+        
+        ?m_s ?m_p ?m_o .
     } where {
         graph m-graph:Cluster {
             ?_repo a mms:Repo ;
@@ -25,6 +27,10 @@ private const val SPARQL_QUERY_REPO = """
                 ?thing mms:repo ?_repo ; 
                     ?thing_p ?thing_o .
             }
+        }
+        
+        graph mor-graph:Metadata {
+            ?m_s ?m_p ?m_o .
         }
     }
 """
@@ -73,7 +79,7 @@ fun Application.readRepo() {
                 }.toString()
             }
 
-            val selectResponse = client.submitSparqlConstruct(constructQuery)
+            val selectResponse = call.submitSparqlConstruct(constructQuery)
 
             call.respondText(selectResponse.readText(), status=selectResponse.status, contentType=selectResponse.contentType())
         }

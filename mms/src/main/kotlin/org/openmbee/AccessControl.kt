@@ -19,6 +19,11 @@ enum class Permission(val id: String) {
     READ_REPO("ReadRepo"),
     UPDATE_REPO("UpdateRepo"),
     DELETE_REPO("DeleteRepo"),
+
+    CREATE_BRANCH("CreateBranch"),
+    READ_BRANCH("ReadBranch"),
+    UPDATE_BRANCH("UpdateBranch"),
+    DELETE_BRANCH("DeleteBranch"),
 }
 
 enum class Scope(val type: String, val id: String) {

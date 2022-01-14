@@ -14,7 +14,7 @@ prefix m-user: <users/>
 prefix m-group: <groups/>
 prefix m-policy: <policies/>
 
-m-graph:AccessControl.Agents {
+graph m-graph:AccessControl.Agents {
 	m-user:root a mms:User ;
 		mms:group m-group:SuperAdmins ;
 		mms:id "root" ;
@@ -30,7 +30,7 @@ m-graph:AccessControl.Agents {
 	# m-user:public 
 }
 
-m-graph:AccessControl.Policies {
+graph m-graph:AccessControl.Policies {
 	m-policy:DefaultSuperAdmin a mms:Policy ;
 		mms:subject m-group:SuperAdmins ;
 		mms:scope m: ;
@@ -47,15 +47,22 @@ m-graph:AccessControl.Policies {
 		mms:role
 			mms-object:Role.ReadAll ;
 		.
+
+
+	m-policy:AutoRepoOwner.xyz a mms:Policy ;
+		mms:subject m-user:bregalia ;
+		mms:scope m:orgs\/openmbee\/repos\/example ;
+		mms:roles
+			mms-object:Role.AdminRepo
+		.
 }
 
-
-m-graph:Cluster {
+graph m-graph:Cluster {
 	m: a mms:Cluster ;
 		.
 }
 
-m-graph:AccessControl.Definitions {
+graph m-graph:AccessControl.Definitions {
 
 	# ====================================
 	# ==             Scopes             ==
@@ -109,6 +116,8 @@ m-graph:AccessControl.Definitions {
 	mms-object:Permission.CreateOrg a mms:Permission ;
 		.
 
+
+
 	mms-object:Permission.ReadOrg a mms:Permission ;
 		.
 
@@ -118,11 +127,42 @@ m-graph:AccessControl.Definitions {
 
 	mms-object:Permission.DeleteOrg a mms:Permission ;
 		mms:implies mms-object:Permission.UpdateOrg ;
+		mms:implies mms-object:Permission.CreateRepo ;
 		.
 
 
 	mms-object:Permission.CreateRepo a mms:Permission ;
 		.
+
+	mms-object:Permission.ReadRepo a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateRepo a mms:Permission ;
+		mms:implies mms-object:Permission.ReadRepo ;
+		.
+
+	mms-object:Permission.DeleteRepo a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateRepo ;
+		mms:implies mms-object:Permission.CreateBranch ;
+		mms:implies mms-object:Permission.DeleteBranch ;
+		.
+
+
+	mms-object:Permission.CreateBranch a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadBranch a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateBranch a mms:Permission ;
+		mms:implies mms-object:Permission.ReadBranch ;
+		.
+
+	mms-object:Permission.DeleteBranch a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateBranch ;
+		.
+
+
 
 	mms-object:Permission.CreateProject a mms:Permission ;
 		mms:implies
@@ -245,7 +285,6 @@ m-graph:AccessControl.Definitions {
 	# Org admins are able to delete the org and create new projects
 	mms-object:Role.AdminOrg a mms:Role ;
 		mms:permits mms-object:Permission.DeleteOrg ;
-		mms:permits mms-object:Permission.CreateProject ;
 		.
 
 	mms-object:Role.WriteOrg a mms:Role ;
@@ -258,6 +297,19 @@ m-graph:AccessControl.Definitions {
 
 
 	# 
+
+	mms-object:Role.AdminRepo a mms:Role ;
+		mms:permits mms-object:Permission.DeleteRepo ;
+		.
+
+	mms-object:Role.WriteRepo a mms:Role ;
+		mms:permits mms-object:Permission.UpdateRepo ;
+		.
+
+	mms-object:Role.ReadRepo a mms:Role ;
+		mms:permits mms-object:Permission.ReadRepo ;
+		.
+
 
 
 	mms-object:Role.ReadModel a mms:Role ;

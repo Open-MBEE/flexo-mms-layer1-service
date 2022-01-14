@@ -87,7 +87,7 @@ fun Application.readOrg() {
             }
 
 
-            val selectResponse = client.submitSparqlConstruct(constructQuery)
+            val selectResponse = call.submitSparqlConstruct(constructQuery)
 
             call.respondText(selectResponse.readText(), status=selectResponse.status, contentType=selectResponse.contentType())
         }
