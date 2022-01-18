@@ -52,9 +52,9 @@ A virtual SPARQL endpoint is exposed for each `branch` and `lock` that exists wi
 #### Querying Models
 SPARQL Query endpoint for reading from a model:
  - Branches
-     - `/orgs/{orgId}/repos/{repoId}/branches/{branchId}/sparql`
+     - `/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query`
  - Locks
-     - `/orgs/{orgId}/repos/{repoId}/locks/{lockId}/sparql`
+     - `/orgs/{orgId}/repos/{repoId}/locks/{lockId}/query`
 
 
 #### Updating Models
