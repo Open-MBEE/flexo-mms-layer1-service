@@ -1,5 +1,19 @@
 package org.openmbee
 
+import org.apache.jena.rdf.model.impl.PropertyImpl
+
+val GLOBAL_CRUD_CONDITIONS = conditions {
+    inspect("userExists") {
+        handler = { prefixes -> "User <${prefixes["mu"]}> does not exist." }
+
+        """
+            graph m-graph:AccessControl.Agents {
+                mu: a mms:User .
+            }
+        """
+    }
+}
+
 enum class ConditionType {
     INSPECT,
     REQUIRE,
@@ -63,6 +77,23 @@ class ConditionsGroup(var conditions: List<Condition>) {
 
     fun append(setup: ConditionsBuilder.()->Unit): ConditionsGroup {
         return ConditionsGroup(ConditionsBuilder(conditions.toMutableList()).apply{setup()}.conditions)
+    }
+
+    fun handle(model: KModel): Nothing {
+        // inspect node
+        val inspectNode = model.createResource("mms://inspect")
+        val passes = inspectNode.listProperties(PropertyImpl("mms://pass")).toList()
+            .map { it.`object`.asLiteral().string }.toHashSet()
+
+        // each conditions
+        for(condition in conditions) {
+            // inspection key is missing from set of passes
+            if(!passes.contains(condition.key)) {
+                throw RequirementNotMetException(condition.handler(model.prefixes))
+            }
+        }
+
+        throw Exception("Unable to verify transaction from CONSTRUCT response")
     }
 }
 

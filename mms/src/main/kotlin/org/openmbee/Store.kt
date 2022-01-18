@@ -41,7 +41,7 @@ suspend fun ApplicationCall.submitSparqlUpdate(pattern: String, setup: (Paramete
         headers {
             append(HttpHeaders.Accept, ContentType.Application.Json)
         }
-        contentType(ContentType.parse("application/sparql-update"))
+        contentType(RdfContentTypes.SparqlUpdate)
         body=sparql
     })
 }
@@ -54,9 +54,9 @@ suspend fun ApplicationCall.submitSparqlConstruct(pattern: String, setup: (Param
 
     return handleSparqlResponse(client.post(STORE_QUERY_URI) {
         headers {
-            append(HttpHeaders.Accept, ContentType.parse("text/turtle"))
+            append(HttpHeaders.Accept, RdfContentTypes.Turtle)
         }
-        contentType(ContentType.parse("application/sparql-query"))
+        contentType(RdfContentTypes.SparqlQuery)
         body=sparql
     })
 }
@@ -69,9 +69,9 @@ suspend fun ApplicationCall.submitSparqlSelect(pattern: String, setup: (Paramete
 
     return handleSparqlResponse(client.post(STORE_QUERY_URI) {
         headers {
-            append(HttpHeaders.Accept, ContentType.parse("application/sparql-results+json"))
+            append(HttpHeaders.Accept, RdfContentTypes.SparqlResultsJson)
         }
-        contentType(ContentType.parse("application/sparql-query"))
+        contentType(RdfContentTypes.SparqlQuery)
         body=sparql
     })
 }
@@ -86,9 +86,9 @@ suspend fun ApplicationCall.executeSparqlAsk(sparqlBgp: String, setup: (Paramete
 
     val askResponse = client.post<HttpResponse>(STORE_QUERY_URI) {
         headers {
-            append(HttpHeaders.Accept, ContentType.parse("application/sparql-results+json"))
+            append(HttpHeaders.Accept, RdfContentTypes.SparqlResultsJson)
         }
-        contentType(ContentType.parse("application/sparql-query"))
+        contentType(RdfContentTypes.SparqlQuery)
         body = "ask { $sparqlBgp }"
     }
 

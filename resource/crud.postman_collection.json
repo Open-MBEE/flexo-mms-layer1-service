@@ -1,0 +1,737 @@
+{
+	"info": {
+		"_postman_id": "3f7ddd04-65ba-47a4-9848-b63c5d401a47",
+		"name": "MMS5 CRUD",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Orgs",
+			"item": [
+				{
+					"name": "All Orgs",
+					"item": [
+						{
+							"name": "Read All Orgs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{app_url}}/orgs",
+									"host": [
+										"{{app_url}}"
+									],
+									"path": [
+										"orgs"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Create Org",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/turtle",
+								"type": "text"
+							},
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<> dct:title \"{{demo_org_title}}\"@en ;\n    ."
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read Org",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Org",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "text"
+							},
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix foaf: <http://xmlns.com/foaf/0.1/>\nprefix custom: <https://custom.example/ontology/>\n\ninsert {\n    <> foaf:homepage <https://www.openmbee.org/> ;\n        foaf:mbox <mailto:openmbee@gmail.com> ;\n        .\n}\ndelete {\n    <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Org",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "text/turtle",
+								"type": "text"
+							},
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Repos",
+			"item": [
+				{
+					"name": "4xx",
+					"item": [
+						{
+							"name": "Create Project: No Such Org",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "text/turtle",
+										"type": "text"
+									},
+									{
+										"key": "MMS5-User",
+										"value": "root",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "<>\n    dct:title \"TMT\"@en ;\n    mms:org m-org:not-exist ;\n    <https://demo.org/custom/prop> \"2\" ;\n    .\n"
+								},
+								"url": {
+									"raw": "http://localhost:8080/projects/tmt",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "8080",
+									"path": [
+										"projects",
+										"tmt"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Project: User Permission",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "text/turtle",
+										"type": "text"
+									},
+									{
+										"key": "MMS5-User",
+										"value": "blake",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "<>\n    dct:title \"TMT\"@en ;\n    mms:org m-org:openmbee ;\n    <https://demo.org/custom/prop> \"2\" ;\n    .\n"
+								},
+								"url": {
+									"raw": "http://localhost:8080/projects/tmt",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "8080",
+									"path": [
+										"projects",
+										"tmt"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "All Repos",
+					"item": [
+						{
+							"name": "Read All Repos",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:8080/orgs/:ORG_ID/repos",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "8080",
+									"path": [
+										"orgs",
+										":ORG_ID",
+										"repos"
+									],
+									"variable": [
+										{
+											"key": "ORG_ID",
+											"value": null
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Create Repo",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<>\n    dct:title \"{{demo_project_title}}\"@en ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read Repo",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Commit",
+			"item": [
+				{
+					"name": "01. Initial",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ninsert data {\n    :Alice a :Person ;\n        foaf:name \"Alice\" ;\n        .\n\n    :Rex a :Dog ;\n        :owner :Alice ;\n        :likes :PeanutButter ;\n        foaf:name \"Rex\" ;\n        .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "02. Append",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ninsert data {\n    :Bob a :Person ;\n        foaf:name \"Bob\" ;\n        foaf:knows :Alice ;\n        .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "03. Delete",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete data {\n    :Bob foaf:knows :Alice .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "04. Delete and Append",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex :likes :PeanutButter .\n}\ninsert {\n    :Rex :likes :Bacon .\n}\nwhere {\n\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "05. Modify",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex :owner :Alice .\n}\ninsert {\n    :Rex :owner :Bob .\n}\nwhere {\n    :Rex :owner :Alice .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "06. Unsatisfied Condition",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "default"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex foaf:name \"Rex\" .\n}\ninsert {\n    :Rex foaf:name \"Max\" .\n}\nwhere {\n    :Rex :owner :Charlie .\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"update"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"pm.request.headers.add({",
+					"    key: 'MMS5-User',",
+					"    value: pm.environment.get('Username'),",
+					"});",
+					"",
+					"if(['GET', 'PATCH'].includes(pm.request.method)) {",
+					"    pm.request.headers.add({",
+					"        key: 'Accept',",
+					"        value: 'text/turtle',",
+					"    });",
+					"}",
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "demo_org_id",
+			"value": "openmbee"
+		},
+		{
+			"key": "demo_org_title",
+			"value": "OpenMBEE"
+		},
+		{
+			"key": "demo_repo_id",
+			"value": "demo"
+		},
+		{
+			"key": "demo_repo_title",
+			"value": "Demo"
+		},
+		{
+			"key": "app_url",
+			"value": "http://localhost:8080"
+		}
+	]
+}

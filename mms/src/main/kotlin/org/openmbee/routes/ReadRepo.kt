@@ -1,13 +1,10 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.*
-import org.openmbee.plugins.client
 
 
 private const val SPARQL_QUERY_REPO = """
@@ -79,9 +76,9 @@ fun Application.readRepo() {
                 }.toString()
             }
 
-            val selectResponse = call.submitSparqlConstruct(constructQuery)
+            val constructResponseText = call.submitSparqlConstruct(constructQuery)
 
-            call.respondText(selectResponse.readText(), status=selectResponse.status, contentType=selectResponse.contentType())
+            call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
         }
     }
 }

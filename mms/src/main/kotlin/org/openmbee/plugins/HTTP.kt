@@ -1,12 +1,11 @@
 package org.openmbee.plugins
 
-import io.ktor.features.*
-import io.ktor.http.*
 import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.auth.jwt.*
+import io.ktor.features.*
+import io.ktor.http.*
 import io.ktor.response.*
-import io.ktor.request.*
 
 fun Application.configureHTTP() {
     install(ForwardedHeaderSupport) // WARNING: for security, do not include this if not behind a reverse proxy

@@ -1,9 +1,8 @@
 package org.openmbee
 
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
 import io.ktor.application.*
-import org.openmbee.plugins.*
+import org.openmbee.plugins.configureHTTP
+import org.openmbee.plugins.configureRouting
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 

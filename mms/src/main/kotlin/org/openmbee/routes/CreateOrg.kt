@@ -1,8 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -10,44 +8,28 @@ import io.ktor.util.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
-import org.openmbee.plugins.client
-import java.util.*
 
-private val SPARQL_BGP_USER_PERMITTED_CREATE_ORG = permittedActionSparqlBgp(Permission.CREATE_ORG, Scope.CLUSTER)
 
-private const val SPARQL_BGP_ORG_NOT_EXISTS = """
-    # org must not yet exist
-    graph m-graph:Cluster {
-        filter not exists {
-            mo: a mms:Org .
-        }
+private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
+    require("userPermitted") {
+        handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to CreateOrg." }
+
+        permittedActionSparqlBgp(Permission.CREATE_ORG, Scope.CLUSTER)
     }
-"""
 
-private const val SPARQL_CONSTRUCT_TRANSACTION = """
-    construct  {
-        mo: ?mo_p ?mo_o .
-        
-        mt: ?mt_p ?mt_o .
-        
-        ?policy ?policy_p ?policy_o .
-    } where {
-        graph m-graph:Cluster {
-            mo: ?mo_p ?mo_o .
-        }
+    require("orgNotExists") {
+        handler = { prefixes -> "The provided org <${prefixes["mo"]}> already exists." }
 
-        graph m-graph:Transactions {
-            mt: ?mt_p ?mt_o .
-        }
-        
-        graph m-graph:AccessControl.Policies {
-            optional {
-                ?policy mms:scope mo: ;
-                    ?policy_p ?policy_o .
+        """
+            # org must not yet exist
+            graph m-graph:Cluster {
+                filter not exists {
+                    mo: a mms:Org .
+                }
             }
-        }
+        """
     }
-"""
+}
 
 
 @OptIn(InternalAPI::class)
@@ -137,8 +119,7 @@ fun Application.createOrg() {
                 }
                 where {
                     raw(
-                        SPARQL_BGP_USER_PERMITTED_CREATE_ORG,
-                        SPARQL_BGP_ORG_NOT_EXISTS,
+                        *DEFAULT_CONDITIONS.requiredPatterns()
                     )
                 }
             }.toString()
@@ -150,9 +131,37 @@ fun Application.createOrg() {
             // submit update
             val updateResponse = call.submitSparqlUpdate(sparqlUpdate)
 
+            val localConditions = DEFAULT_CONDITIONS
 
             // create construct query to confirm transaction and fetch project details
-            val constructResponseText = call.submitSparqlConstruct(SPARQL_CONSTRUCT_TRANSACTION) {
+            val constructResponseText = call.submitSparqlConstruct("""
+                construct  {
+                    mt: ?mt_p ?mt_o .
+
+                    mo: ?mo_p ?mo_o .                    
+                    
+                    ?policy ?policy_p ?policy_o .
+                    
+                    <mms://inspect> <mms://pass> ?inspect .
+                } where {
+                    {
+                        graph m-graph:Transactions {
+                            mt: ?mt_p ?mt_o .
+                        }
+
+                        graph m-graph:Cluster {
+                            mo: ?mo_p ?mo_o .
+                        }
+                        
+                        graph m-graph:AccessControl.Policies {
+                            optional {
+                                ?policy mms:scope mo: ;
+                                    ?policy_p ?policy_o .
+                            }
+                        }
+                    } union ${localConditions.unionInspectPatterns()}
+                }
+            """) {
                 prefixes(context.prefixes)
             }
 
@@ -172,40 +181,19 @@ fun Application.createOrg() {
 
             // transaction failed
             if(!transactionNode.listProperties().hasNext()) {
-                var reason = "Transaction failed due to an unknown reason"
+                // use response to diagnose cause
+                localConditions.handle(constructModel);
 
-                // user
-                if(null != userId) {
-                    // user does not exist
-                    if(!call.executeSparqlAsk(SPARQL_BGP_USER_EXISTS) {prefixes(prefixes)}) {
-                        reason = "User <${prefixes["mu"]}> does not exist."
-                    }
-                    // user does not have permission to create org
-                    else if(!call.executeSparqlAsk(SPARQL_BGP_USER_PERMITTED_CREATE_ORG) {prefixes(prefixes)}) {
-                        reason = "User <${prefixes["mu"]}> is not permitted to create orgs."
-
-                        // log ask query that fails
-                        log.warn("The following ASK query failed as the suspected reason for CreateOrg failure: \n${parameterizedSparql("\nask {\n$SPARQL_BGP_USER_PERMITTED_CREATE_ORG\n}") { prefixes(prefixes) }}")
-                    }
-                }
-
-                // org already exists
-                if(!call.executeSparqlAsk(SPARQL_BGP_ORG_NOT_EXISTS) {prefixes(prefixes)}) {
-                    reason = "The provided org <${prefixes["mo"]}> already exists."
-                }
-
-                call.respondText(reason, status=HttpStatusCode.InternalServerError, contentType=ContentType.Text.Plain)
-                return@put
+                // the above always throws, so this is unreachable
             }
 
-
             // respond
-            call.respondText(constructResponseText, status=constructResponse.status, contentType=constructResponse.contentType())
+            call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
             // delete transaction
             run {
                 // submit update
-                val dropResponse = call.submitSparqlUpdate("""
+                val dropResponseText = call.submitSparqlUpdate("""
                     delete where {
                         graph m-graph:Transactions {
                             mt: ?p ?o .
@@ -216,7 +204,7 @@ fun Application.createOrg() {
                 }
 
                 // log response
-                log.info(dropResponse.readText())
+                log.info(dropResponseText)
             }
         }
     }

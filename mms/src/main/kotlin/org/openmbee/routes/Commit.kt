@@ -1,24 +1,18 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
-import org.apache.jena.rdf.model.impl.PropertyImpl
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
 import org.apache.jena.sparql.modify.request.UpdateDataInsert
 import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
 import org.apache.jena.sparql.modify.request.UpdateModify
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.*
-import org.openmbee.plugins.client
-
-private val SPARQL_BGP_USER_PERMITTED_UPDATE_BRANCH = permittedActionSparqlBgp(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
 private const val SPARQL_BGP_STAGING_EXISTS = """
     graph mor-graph:Metadata {
@@ -42,27 +36,17 @@ private const val SPARQL_BGP_STAGING_EXISTS = """
     }
 """
 
-private val DEFAULT_UPDATE_CONDITIONS = conditions {
-    inspect("userExists") {
-        handler = { prefixes -> "User <${prefixes["mu"]}> does not exist." }
+private val DEFAULT_UPDATE_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
+    require("userPermitted") {
+        handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to UpdateBranch." }
 
-        """
-            graph m-graph:AccessControl.Agents {
-                mu: a mms:User .
-            }
-        """
+        permittedActionSparqlBgp(Permission.UPDATE_BRANCH, Scope.BRANCH)
     }
 
     require("stagingExists") {
         handler = { prefixes -> "The destination branch <${prefixes["morb"]}> is corrupt. No staging snapshot found." }
 
         SPARQL_BGP_STAGING_EXISTS
-    }
-
-    require("userPermitted") {
-        handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to UpdateBranch." }
-
-        SPARQL_BGP_USER_PERMITTED_UPDATE_BRANCH
     }
 }
 
@@ -310,19 +294,10 @@ fun Application.updateModel() {
 
             // transaction failed
             if(!transactionNode.listProperties().hasNext()) {
-                // inspect
-                val inspectNode = constructModel.createResource("mms://inspect")
-                val passes = inspectNode.listProperties(PropertyImpl("mms://pass")).toList()
-                    .map { it.`object`.asLiteral().string }.toHashSet()
+                // use response to diagnose cause
+                localConditions.handle(constructModel);
 
-                for(inspection in inspections.entries) {
-                    // inspection key is missing from set of passes
-                    if(!passes.contains(inspection.key)) {
-                        throw RequirementNotMetException(inspection.value.second(prefixes))
-                    }
-                }
-
-                throw Exception("Unable to verify transaction from CONSTRUCT response")
+                // the above always throws, so this is unreachable
             }
 
             // fetch staging graph
@@ -342,8 +317,7 @@ fun Application.updateModel() {
             // forward response to client
             call.respondText(
                 constructResponseText,
-                contentType = constructResponse.contentType(),
-                status = constructResponse.status
+                contentType = RdfContentTypes.Turtle
             )
 
 
@@ -372,7 +346,7 @@ fun Application.updateModel() {
 
             // delete transaction
             run {
-                val dropResponse = call.submitSparqlUpdate("""
+                val dropResponseText = call.submitSparqlUpdate("""
                     delete where {
                         graph m-graph:Transactions {
                             mt: ?p ?o .
@@ -383,7 +357,7 @@ fun Application.updateModel() {
                 }
 
                 // log response
-                log.info(dropResponse.readText())
+                log.info(dropResponseText)
             }
         }
     }

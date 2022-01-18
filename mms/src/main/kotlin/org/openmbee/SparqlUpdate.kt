@@ -1,11 +1,11 @@
 package org.openmbee
 
 import io.ktor.http.*
+import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.*
-import org.apache.jena.graph.Triple
 
 
 class RequirementNotMetException(info: String): Exception("A required condition was not met. $info")

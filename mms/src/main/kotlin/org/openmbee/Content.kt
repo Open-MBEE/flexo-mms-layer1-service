@@ -1,5 +1,6 @@
 package org.openmbee
 
+import io.ktor.http.*
 import org.apache.commons.io.IOUtils
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.jena.datatypes.BaseDatatype
@@ -14,10 +15,18 @@ import org.apache.jena.riot.system.ErrorHandlerFactory
 import java.nio.charset.StandardCharsets
 
 
-class KModel(prefixes: PrefixMapBuilder, setup: (KModel.() -> Model)?=null): ModelCom(Factory.createGraphMem()) {
+object RdfContentTypes {
+    val Turtle = ContentType("text", "turtle")
+    val SparqlQuery = ContentType("application", "sparql-query")
+    val SparqlUpdate = ContentType("application", "sparql-update")
+    val SparqlResultsJson = ContentType("application", "sparql-results+json")
+}
+
+class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Model)?=null): ModelCom(Factory.createGraphMem()) {
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
+
     }
 
     fun addNodes(subject: Resource, vararg pairs: Pair<Property, String>): KModel {

@@ -7,7 +7,6 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.*
-import org.openmbee.plugins.client
 
 
 private val SPARQL_QUERY_ORG = """
@@ -87,9 +86,9 @@ fun Application.readOrg() {
             }
 
 
-            val selectResponse = call.submitSparqlConstruct(constructQuery)
+            val selectResponseText = call.submitSparqlConstruct(constructQuery)
 
-            call.respondText(selectResponse.readText(), status=selectResponse.status, contentType=selectResponse.contentType())
+            call.respondText(selectResponseText, contentType=RdfContentTypes.Turtle)
         }
     }
 }
