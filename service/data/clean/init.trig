@@ -14,7 +14,7 @@ prefix m-user: <users/>
 prefix m-group: <groups/>
 prefix m-policy: <policies/>
 
-graph m-graph:AccessControl.Agents {
+m-graph:AccessControl.Agents {
 	m-user:root a mms:User ;
 		mms:group m-group:SuperAdmins ;
 		mms:id "root" ;
@@ -30,7 +30,7 @@ graph m-graph:AccessControl.Agents {
 	# m-user:public 
 }
 
-graph m-graph:AccessControl.Policies {
+m-graph:AccessControl.Policies {
 	m-policy:DefaultSuperAdmin a mms:Policy ;
 		mms:subject m-group:SuperAdmins ;
 		mms:scope m: ;
@@ -57,12 +57,12 @@ graph m-graph:AccessControl.Policies {
 		.
 }
 
-graph m-graph:Cluster {
+m-graph:Cluster {
 	m: a mms:Cluster ;
 		.
 }
 
-graph m-graph:AccessControl.Definitions {
+m-graph:AccessControl.Definitions {
 
 	# ====================================
 	# ==             Scopes             ==
