@@ -1,8 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -55,8 +53,7 @@ fun Application.readOrg() {
     routing {
         get("/orgs/{orgId?}") {
             val orgId = call.parameters["orgId"]
-
-            val userId = call.request.headers["mms5-user"]?: ""
+            val userId = call.mmsUserId
 
             // missing userId
             if(userId.isEmpty()) {
@@ -86,7 +83,7 @@ fun Application.readOrg() {
             }
 
 
-            val selectResponseText = call.submitSparqlConstruct(constructQuery)
+            val selectResponseText = call.submitSparqlConstructOrDescribe(constructQuery)
 
             call.respondText(selectResponseText, contentType=RdfContentTypes.Turtle)
         }

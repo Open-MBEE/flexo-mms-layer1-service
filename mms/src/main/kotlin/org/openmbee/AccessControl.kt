@@ -1,5 +1,6 @@
 package org.openmbee
 
+import io.ktor.application.*
 import java.util.*
 
 const val SPARQL_BGP_USER_EXISTS = """
@@ -48,6 +49,9 @@ enum class Role(val id: String) {
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
 }
+
+val ApplicationCall.mmsUserId: String
+    get() = this.request.headers["mms5-user"]?: ""
 
 fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
     return """

@@ -165,6 +165,9 @@ object MMS {
     val stagingGraph = PropertyImpl("${_BASE}stagingGraph")
     val baseModel = PropertyImpl("${_BASE}baseModel")
     val baseModelGraph = PropertyImpl("${_BASE}baseModelGraph")
+
+    val ref = PropertyImpl("${_BASE}ref")
+    val graph = PropertyImpl("${_BASE}graph")
 }
 
 object MMS_DATATYPE {

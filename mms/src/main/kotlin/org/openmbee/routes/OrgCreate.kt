@@ -37,8 +37,7 @@ fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
             val orgId = call.parameters["orgId"]!!
-
-            val userId = call.request.headers["mms5-user"]?: ""
+            val userId = call.mmsUserId
 
             // missing userId
             if(userId.isEmpty()) {
@@ -134,7 +133,7 @@ fun Application.createOrg() {
             val localConditions = DEFAULT_CONDITIONS
 
             // create construct query to confirm transaction and fetch project details
-            val constructResponseText = call.submitSparqlConstruct("""
+            val constructResponseText = call.submitSparqlConstructOrDescribe("""
                 construct  {
                     mt: ?mt_p ?mt_o .
 

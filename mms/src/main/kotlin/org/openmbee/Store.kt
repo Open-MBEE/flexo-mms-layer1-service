@@ -47,7 +47,7 @@ suspend fun ApplicationCall.submitSparqlUpdate(pattern: String, setup: (Paramete
 }
 
 @OptIn(InternalAPI::class)
-suspend fun ApplicationCall.submitSparqlConstruct(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+suspend fun ApplicationCall.submitSparqlConstructOrDescribe(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
     val sparql = prepareSparql(pattern, setup)
 
     this.application.log.info("SPARQL Query CONSTRUCT:\n$sparql")
@@ -62,10 +62,10 @@ suspend fun ApplicationCall.submitSparqlConstruct(pattern: String, setup: (Param
 }
 
 @OptIn(InternalAPI::class)
-suspend fun ApplicationCall.submitSparqlSelect(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+suspend fun ApplicationCall.submitSparqlSelectOrAsk(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
     val sparql = prepareSparql(pattern, setup)
 
-    this.application.log.info("SPARQL Query SELECT:\n$sparql")
+    this.application.log.info("SPARQL Query SELECT/ASK:\n$sparql")
 
     return handleSparqlResponse(client.post(STORE_QUERY_URI) {
         headers {

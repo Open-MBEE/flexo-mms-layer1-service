@@ -58,14 +58,13 @@ fun Resource.iriAt(property: Property): String? {
 
 
 @OptIn(InternalAPI::class)
-fun Application.updateModel() {
+fun Application.commitBranch() {
     routing {
         post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
             val orgId = call.parameters["orgId"]
             val repoId = call.parameters["repoId"]
             val branchId = call.parameters["branchId"]
-
-            val userId = call.request.headers["mms5-user"]?: ""
+            val userId = call.mmsUserId
 
             // missing userId
             if(userId.isEmpty()) {
@@ -254,7 +253,7 @@ fun Application.updateModel() {
             }
 
             // create construct query to confirm transaction and fetch base model details
-            val constructResponseText = call.submitSparqlConstruct("""
+            val constructResponseText = call.submitSparqlConstructOrDescribe("""
                 construct {
                     mt: ?mt_p ?mt_o .
                     

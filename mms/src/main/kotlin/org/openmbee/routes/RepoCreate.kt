@@ -1,8 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -108,8 +106,7 @@ fun Application.createRepo() {
         put("/orgs/{orgId}/repos/{repoId}") {
             val orgId = call.parameters["orgId"]!!
             val repoId = call.parameters["repoId"]!!
-
-            val userId = call.request.headers["mms5-user"]?: ""
+            val userId = call.mmsUserId
 
             // missing userId
             if(userId.isEmpty()) {
@@ -243,7 +240,7 @@ fun Application.createRepo() {
 
 
             // create construct query to confirm transaction and fetch repo details
-            val constructResponseText = call.submitSparqlConstruct(SPARQL_CONSTRUCT_TRANSACTION(localConditions)) {
+            val constructResponseText = call.submitSparqlConstructOrDescribe(SPARQL_CONSTRUCT_TRANSACTION(localConditions)) {
                 prefixes(context.prefixes)
             }
 

@@ -38,8 +38,7 @@ fun Application.readRepo() {
         get("/orgs/{orgId}/repos/{repoId?}") {
             val orgId = call.parameters["orgId"]
             val repoId = call.parameters["repoId"]
-
-            val userId = call.request.headers["mms5-user"]?: ""
+            val userId = call.mmsUserId
 
             // missing userId
             if(userId.isEmpty()) {
@@ -76,7 +75,7 @@ fun Application.readRepo() {
                 }.toString()
             }
 
-            val constructResponseText = call.submitSparqlConstruct(constructQuery)
+            val constructResponseText = call.submitSparqlConstructOrDescribe(constructQuery)
 
             call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
         }
