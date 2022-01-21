@@ -72,6 +72,7 @@ fun prefixesFor(
     refId: String?=null,
     branchId: String?=null,
     commitId: String?=null,
+    lockId: String?=null,
     transactionId: String?=null,
     source: PrefixMapBuilder?= SPARQL_PREFIXES
 ): PrefixMapBuilder {
@@ -113,8 +114,17 @@ fun prefixesFor(
                             with("$this/commits/$commitId") {
                                 add(
                                     "morc" to this,
-                                    "morc-data" to "$this/data"
+                                    "morc-lock" to "$this/locks",
+                                    "morc-data" to "$this/data",
                                 )
+
+                                if(null != lockId) {
+                                    with("$this/locks/$lockId") {
+                                        add(
+                                            "morcl" to this,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -141,12 +151,24 @@ object MMS {
     // classes
     val Org = ResourceImpl("${_BASE}Org")
     val Repo = ResourceImpl("${_BASE}Repo")
+    val Collection = ResourceImpl("${_BASE}Collection")
+    val Snapshot = ResourceImpl("${_BASE}Snapshot")
+    val Update = ResourceImpl("${_BASE}Update")
+    val Load = ResourceImpl("${_BASE}Load")
+    val Commit = ResourceImpl("${_BASE}Commit")
+    val Branch = ResourceImpl("${_BASE}Branch")
+    val Lock = ResourceImpl("${_BASE}Lock")
+
+    val User = ResourceImpl("${_BASE}User")
+    val Group = ResourceImpl("${_BASE}Group")
+    val Policy = ResourceImpl("${_BASE}Policy")
 
     // object properties
     val id  = PropertyImpl("${_BASE}id")
 
     // transaction properties
     val created = PropertyImpl("${_BASE}created")
+    val createdBy = PropertyImpl("${_BASE}createdBy")
     val serviceId = PropertyImpl("${_BASE}serviceId")
     val org = PropertyImpl("${_BASE}org")
     val repo = PropertyImpl("${_BASE}repo")
@@ -167,7 +189,9 @@ object MMS {
     val baseModelGraph = PropertyImpl("${_BASE}baseModelGraph")
 
     val ref = PropertyImpl("${_BASE}ref")
+    val commit = PropertyImpl("${_BASE}commit")
     val graph = PropertyImpl("${_BASE}graph")
+
 }
 
 object MMS_DATATYPE {

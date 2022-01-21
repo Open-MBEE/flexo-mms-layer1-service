@@ -25,6 +25,11 @@ enum class Permission(val id: String) {
     READ_BRANCH("ReadBranch"),
     UPDATE_BRANCH("UpdateBranch"),
     DELETE_BRANCH("DeleteBranch"),
+
+    CREATE_LOCK("CreateLock"),
+    READ_LOCK("ReadLock"),
+    UPDATE_LOCK("UpdateLock"),
+    DELETE_LOCK("DeleteLock"),
 }
 
 enum class Scope(val type: String, val id: String) {
@@ -33,8 +38,7 @@ enum class Scope(val type: String, val id: String) {
     // COLLECTION("Repo", "m", "mo", "moc"),
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
-    // LOCK("Lock",
-    //     "m", "mo", "mor", "mor-lock"),
+    LOCK("Lock", "morcl"),
 }
 
 fun Scope.values() = sequence<String> {
@@ -48,6 +52,7 @@ enum class Role(val id: String) {
     ADMIN_REPO("AdminRepo"),
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
+    ADMIN_LOCK("AdminLock"),
 }
 
 val ApplicationCall.mmsUserId: String

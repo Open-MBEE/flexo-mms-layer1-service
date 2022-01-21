@@ -14,6 +14,45 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
     }
 }
 
+val ORG_CRUD_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
+    require("orgExists") {
+        handler = { prefixes -> "Org <${prefixes["mo"]}> does not exist." }
+
+        """
+            # org must exist
+            graph m-graph:Cluster {
+                mo: a mms:Org .
+            }
+        """
+    }
+}
+
+val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    require("repoExists") {
+        handler = { prefixes -> "Repo <${prefixes["mor"]}> does not exist." }
+
+        """
+            # repo must exist
+            graph m-graph:Cluster {
+                mor: a mms:Repo .
+            }
+        """
+    }
+}
+
+val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    require("commitExists") {
+        handler = { prefixes -> "Commit <${prefixes["morc"]}> does not exist." }
+
+        """
+            # commit must exist
+            graph mor-graph:Metadata {
+                morc: a mms:Commit .
+            }
+        """
+    }
+}
+
 enum class ConditionType {
     INSPECT,
     REQUIRE,
@@ -28,6 +67,13 @@ class Condition(val type: ConditionType, val key: String) {
 
 
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
+    fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
+        return require(permission.id) {
+            handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to ${permission.id}." }
+
+            permittedActionSparqlBgp(permission, scope)
+        }
+    }
 
     fun inspect(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.INSPECT, key).apply {
@@ -60,14 +106,14 @@ class ConditionsGroup(var conditions: List<Condition>) {
     }
 
     fun inspectPatterns(varName: String="inspect"): List<String> {
-        return inspect().map {
+        return conditions.map {
             """
                 {
                     ${it.pattern}
                     
                     bind("${it.key}" as ?$varName)
                 }
-            """.trimIndent()
+            """
         }
     }
 

@@ -7,10 +7,8 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
-import org.apache.jena.sparql.modify.request.UpdateDataDelete
-import org.apache.jena.sparql.modify.request.UpdateDataInsert
-import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
-import org.apache.jena.sparql.modify.request.UpdateModify
+import org.apache.jena.sparql.modify.request.*
+import org.apache.jena.update.Update
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.*
 
@@ -36,12 +34,8 @@ private const val SPARQL_BGP_STAGING_EXISTS = """
     }
 """
 
-private val DEFAULT_UPDATE_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    require("userPermitted") {
-        handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to UpdateBranch." }
-
-        permittedActionSparqlBgp(Permission.UPDATE_BRANCH, Scope.BRANCH)
-    }
+private val DEFAULT_UPDATE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
     require("stagingExists") {
         handler = { prefixes -> "The destination branch <${prefixes["morb"]}> is corrupt. No staging snapshot found." }
@@ -54,6 +48,19 @@ private val DEFAULT_UPDATE_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
 fun Resource.iriAt(property: Property): String? {
     return this.listProperties(property).next()?.`object`?.asResource()?.uri
+}
+
+fun assertOperationsAllowed(operations: List<Update>) {
+    if(operations.size > 1) {
+        if(operations.size == 2) {
+            // special case operations can be combined
+            if((operations[0] is UpdateDeleteWhere || operations[0] is UpdateDataDelete) && operations[1] is UpdateDataInsert) {
+                return
+            }
+        }
+
+        throw Exception("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
+    }
 }
 
 
@@ -101,51 +108,40 @@ fun Application.commitBranch() {
 
             val operations = sparqlUpdateAst.operations
 
-            if(operations.size > 1) {
-                throw Exception("MMS currently only supports a single SPARQL Update operation at a time")
-            }
+            assertOperationsAllowed(operations)
 
             for(operation in operations) {
                 operation.visit(object: SelectiveUpdateVisitor() {
-                    override fun visit(update: UpdateDataInsert?) {
+                    override fun visit(update: UpdateDataInsert) {
                         log.info("UpdateDataInsert")
-                        if(update != null) {
-                            insertBgpString = asSparqlGroup(update.quads);
-                        }
+                        insertBgpString = asSparqlGroup(update.quads);
                     }
 
-                    override fun visit(update: UpdateDataDelete?) {
+                    override fun visit(update: UpdateDataDelete) {
                         log.info("UpdateDataDelete")
-
-                        if(update != null) {
-                            deleteBgpString = asSparqlGroup(update.quads)
-                        }
+                        deleteBgpString = asSparqlGroup(update.quads)
                     }
 
-                    override fun visit(update: UpdateDeleteWhere?) {
+                    override fun visit(update: UpdateDeleteWhere) {
                         log.info("UpdateDeleteWhere")
 
-                        if(update != null) {
-                            deleteBgpString = asSparqlGroup(update.quads)
-                            whereString = deleteBgpString
-                        }
+                        deleteBgpString = asSparqlGroup(update.quads)
+                        whereString = deleteBgpString
                     }
 
-                    override fun visit(update: UpdateModify?) {
+                    override fun visit(update: UpdateModify) {
                         log.info("UpdateModify")
-                        if(update != null) {
-                            if(update.hasDeleteClause()) {
-                                deleteBgpString = asSparqlGroup(update.deleteQuads)
-                            }
-
-                            if(update.hasInsertClause()) {
-                                insertBgpString = asSparqlGroup(update.insertQuads)
-                            }
-
-                            whereString = asSparqlGroup(update.wherePattern.apply {
-                                visit(NoQuadsElementVisitor)
-                            })
+                        if(update.hasDeleteClause()) {
+                            deleteBgpString = asSparqlGroup(update.deleteQuads)
                         }
+
+                        if(update.hasInsertClause()) {
+                            insertBgpString = asSparqlGroup(update.insertQuads)
+                        }
+
+                        whereString = asSparqlGroup(update.wherePattern.apply {
+                            visit(NoQuadsElementVisitor)
+                        })
                     }
                 })
 
@@ -241,7 +237,7 @@ fun Application.commitBranch() {
             val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
                 if(whereString.isNotEmpty()) {
                     inspect("userWhere") {
-                        handler = { "Update condition is not satisfiable" }
+                        handler = { "User update condition is not satisfiable" }
 
                         """
                             graph ?stagingGraph {
@@ -302,14 +298,15 @@ fun Application.commitBranch() {
             // fetch staging graph
             val stagingGraph = transactionNode.iriAt(MMS.stagingGraph)
 
-            // fetch base model
-            val baseModel = transactionNode.iriAt(MMS.baseModel)
-
-            // fetch base model graph
-            val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
+            // // fetch base model
+            // val baseModel = transactionNode.iriAt(MMS.baseModel)
+            //
+            // // fetch base model graph
+            // val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
 
             // something is wrong
-            if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
+            if(stagingGraph == null) {
+            // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
                 throw Exception("failed to fetch graph/model")
             }
 
@@ -324,7 +321,7 @@ fun Application.commitBranch() {
             call.submitSparqlUpdate("""
                 copy ?_stagingGraph to ?_modelGraph;
                 
-                insert {
+                insert data {
                     graph mor-graph:Metadata {
                         ?_model a mms:Model ;
                             mms:ref morb: ;

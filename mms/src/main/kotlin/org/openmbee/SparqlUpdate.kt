@@ -6,6 +6,7 @@ import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.*
+import org.apache.jena.update.Update
 
 
 class RequirementNotMetException(info: String): Exception("A required condition was not met. $info")
@@ -19,6 +20,7 @@ class UpdateOperationNotAllowedException(operation: String): Exception(operation
 class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 class Non200Response(body: String, status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
+
 
 abstract class SelectiveUpdateVisitor: UpdateVisitor {
     override fun visit(update: UpdateDrop?) {

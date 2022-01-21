@@ -166,7 +166,7 @@ fun Application.queryBranch() {
                     val subQuery = ElementSubQuery(Query().apply {
                         setQuerySelectType()
                         addResultVar(modelGraphVar)
-                        queryPattern = ElementNamedGraph(NodeFactory.createURI("${prefixes["m-graph"]}Metadata"), pathBlock)
+                        queryPattern = ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), pathBlock)
                         limit = 1
                     })
 

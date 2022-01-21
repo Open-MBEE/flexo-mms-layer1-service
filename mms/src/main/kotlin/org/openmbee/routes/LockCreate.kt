@@ -5,22 +5,24 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
+import org.apache.jena.rdf.model.impl.ResourceImpl
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
+import javax.annotation.Resource
 
 
-private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    permit(Permission.CREATE_ORG, Scope.CLUSTER)
+private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+    permit(Permission.CREATE_LOCK, Scope.REPO)
 
-    require("orgNotExists") {
-        handler = { prefixes -> "The provided org <${prefixes["mo"]}> already exists." }
+    require("lockNotExists") {
+        handler = { prefixes -> "The provided lock <${prefixes["morcl"]}> already exists." }
 
         """
-            # org must not yet exist
+            # lock must not yet exist
             graph m-graph:Cluster {
                 filter not exists {
-                    mo: a mms:Org .
+                    morcl: a mms:Lock .
                 }
             }
         """
@@ -29,10 +31,13 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
 
 @OptIn(InternalAPI::class)
-fun Application.createOrg() {
+fun Application.createLock() {
     routing {
-        put("/orgs/{orgId}") {
-            val orgId = call.parameters["orgId"]!!
+        put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
+            val orgId = call.parameters["orgId"]
+            val repoId = call.parameters["repoId"]
+            val commitId = call.parameters["commitId"]
+            val lockId = call.parameters["lockId"]!!
             val userId = call.mmsUserId
 
             // missing userId
@@ -41,6 +46,9 @@ fun Application.createOrg() {
                 return@put
             }
 
+            // assert id is valid
+            call.assertLegalId(lockId)
+
             // read request body
             val requestBody = call.receiveText()
 
@@ -48,31 +56,36 @@ fun Application.createOrg() {
             val context = TransactionContext(
                 userId=userId,
                 orgId=orgId,
+                repoId=repoId,
+                commitId=commitId,
+                lockId=lockId,
                 request=call.request,
                 requestBody=requestBody,
             )
 
             // initialize prefixes
-            var prefixes = context.prefixes
+            val prefixes = context.prefixes
 
             // create a working model to prepare the Update
             val workingModel = KModel(prefixes)
 
-            // create org node
-            val orgNode = workingModel.createResource(prefixes["mo"])
+            // create lock node
+            val lockNode = workingModel.createResource(prefixes["morcl"])
 
             // read put contents
             parseBody(
                 body=requestBody,
                 prefixes=prefixes,
-                baseIri=orgNode.uri,
+                baseIri=lockNode.uri,
                 model=workingModel,
             )
 
             // set system-controlled properties and remove conflicting triples from user input
-            orgNode.run {
+            lockNode.run {
                 removeAll(RDF.type)
                 removeAll(MMS.id)
+                removeAll(MMS.commit)
+                removeAll(MMS.createdBy)
 
                 // normalize dct:title
                 run {
@@ -85,14 +98,15 @@ fun Application.createOrg() {
                         }
                 }
 
-                addProperty(RDF.type, MMS.Org)
-                addProperty(MMS.id, orgId)
+                addProperty(RDF.type, MMS.Lock)
+                addProperty(MMS.id, lockId)
+                addProperty(MMS.commit, ResourceImpl(prefixes["morc"]))
+                addProperty(MMS.createdBy, ResourceImpl(prefixes["mu"]))
             }
 
-            // serialize org node
-            val orgTriples = KModel(prefixes) {
-                removeNsPrefix("m-org")
-                add(orgNode.listProperties())
+            // serialize lock node
+            val lockTriples = KModel(prefixes) {
+                add(lockNode.listProperties())
             }.stringify(emitPrefixes=false)
 
             // generate sparql update
@@ -100,16 +114,16 @@ fun Application.createOrg() {
                 insert {
                     txn()
 
-                    graph("m-graph:Cluster") {
-                        raw(orgTriples)
+                    graph("mor-graph:Metadata") {
+                        raw(lockTriples)
                     }
 
                     // auto-policy
                     autoPolicySparqlBgp(
                         builder=this,
                         prefixes=prefixes,
-                        scope=Scope.ORG,
-                        roles=listOf(Role.ADMIN_ORG),
+                        scope=Scope.LOCK,
+                        roles=listOf(Role.ADMIN_LOCK),
                     )
                 }
                 where {
@@ -133,7 +147,7 @@ fun Application.createOrg() {
                 construct  {
                     mt: ?mt_p ?mt_o .
 
-                    mo: ?mo_p ?mo_o .                    
+                    morcl: ?morcl_p ?morcl_o .
                     
                     ?policy ?policy_p ?policy_o .
                     
@@ -144,13 +158,13 @@ fun Application.createOrg() {
                             mt: ?mt_p ?mt_o .
                         }
 
-                        graph m-graph:Cluster {
-                            mo: ?mo_p ?mo_o .
+                        graph mor-graph:Metadata {
+                            morcl: ?morcl_p ?morcl_o .
                         }
                         
                         graph m-graph:AccessControl.Policies {
                             optional {
-                                ?policy mms:scope mo: ;
+                                ?policy mms:scope morcl: ;
                                     ?policy_p ?policy_o .
                             }
                         }
@@ -167,7 +181,7 @@ fun Application.createOrg() {
             val constructModel = KModel(prefixes).apply {
                 parseBody(
                     body = constructResponseText,
-                    baseIri = orgNode.uri,
+                    baseIri = lockNode.uri,
                     model = this,
                 )
             }

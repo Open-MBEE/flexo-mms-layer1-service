@@ -189,13 +189,14 @@ class TransactionContext(
     var orgId: String?=null,
     var repoId: String?=null,
     var branchId: String?=null,
-    _commitId: String?=null,
+    commitId: String?=null,
+    var lockId: String?=null,
     var request: ApplicationRequest,
     var commitMessage: String?=null,
     val requestBody: String="",
 ) {
     val transactionId = UUID.randomUUID().toString()
-    val commitId = _commitId ?: transactionId
+    val commitId = commitId ?: transactionId
     val requestPath = request.path()
     val requestMethod = request.httpMethod.value
     val requestBodyContentType = request.contentType().toString()
@@ -210,6 +211,7 @@ class TransactionContext(
             repoId = repoId,
             branchId = branchId,
             commitId = commitId,
+            lockId = lockId,
             transactionId = transactionId,
         )
 

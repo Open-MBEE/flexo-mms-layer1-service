@@ -101,3 +101,14 @@ suspend fun ApplicationCall.executeSparqlAsk(sparqlBgp: String, setup: (Paramete
     // cast the ask response
     return askResponseJson?.boolean("boolean")?: false
 }
+
+
+class IllegalIdException: Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.") {}
+
+private val LEGAL_ID_REGEX = """[._\pL-]{3,}""".toRegex()
+
+fun ApplicationCall.assertLegalId(id: String) {
+    if(!id.matches(LEGAL_ID_REGEX)) {
+        throw IllegalIdException()
+    }
+}
