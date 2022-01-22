@@ -39,6 +39,7 @@ enum class Scope(val type: String, val id: String) {
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morcl"),
+    DIFF("Diff", "morcd"),
 }
 
 fun Scope.values() = sequence<String> {
@@ -54,6 +55,7 @@ enum class Role(val id: String) {
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),
     ADMIN_BRANCH("AdminBranch"),
+    ADMIN_DIFF("AdminDiff"),
 }
 
 val ApplicationCall.mmsUserId: String

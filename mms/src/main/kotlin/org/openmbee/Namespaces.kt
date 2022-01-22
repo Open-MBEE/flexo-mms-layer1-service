@@ -159,6 +159,7 @@ object MMS {
     val Commit = ResourceImpl("${_BASE}Commit")
     val Branch = ResourceImpl("${_BASE}Branch")
     val Lock = ResourceImpl("${_BASE}Lock")
+    val Diff = ResourceImpl("${_BASE}Diff")
 
     val User = ResourceImpl("${_BASE}User")
     val Group = ResourceImpl("${_BASE}Group")
@@ -189,8 +190,8 @@ object MMS {
     val commit = PropertyImpl("${_BASE}commit")
     val graph = PropertyImpl("${_BASE}graph")
 
-    val checkout = PropertyImpl("${_BASE}checkout")
-    val merge = PropertyImpl("${_BASE}merge")
+    val diffSrc = PropertyImpl("${_BASE}diffSrc")
+    val diffDst = PropertyImpl("${_BASE}diffDst")
 
     private val _TXN = "${_BASE}txn."
     object TXN {
