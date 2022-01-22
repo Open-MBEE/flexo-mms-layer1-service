@@ -10,14 +10,15 @@ import org.openmbee.queryModel
 
 
 @OptIn(InternalAPI::class)
-fun Application.queryBranch() {
+fun Application.queryLock() {
     routing {
-        post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect?}") {
+        post("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}/query/{inspect?}") {
             val prefixes = call.normalize {
                 user()
                 org()
                 repo()
-                branch()
+                commit()
+                lock()
             }.prefixes
 
             val inspectValue = call.parameters["inspect"]?: ""
@@ -27,7 +28,7 @@ fun Application.queryBranch() {
                 } else true
             } else false
 
-            call.queryModel(prefixes["morb"]!!, prefixes, inspectOnly)
+            call.queryModel(prefixes["morcl"]!!, prefixes, inspectOnly)
         }
     }
 }

@@ -1,7 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -32,28 +31,13 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
-            val orgId = call.parameters["orgId"]!!
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@put
+            val context = call.normalize {
+                user()
+                org(legal=true)
             }
 
-            // read request body
-            val requestBody = call.receiveText()
-
-            // create transaction context
-            val context = TransactionContext(
-                userId=userId,
-                orgId=orgId,
-                request=call.request,
-                requestBody=requestBody,
-            )
-
-            // initialize prefixes
-            var prefixes = context.prefixes
+            // ref prefixes
+            val prefixes = context.prefixes
 
             // create a working model to prepare the Update
             val workingModel = KModel(prefixes)
@@ -63,7 +47,7 @@ fun Application.createOrg() {
 
             // read put contents
             parseBody(
-                body=requestBody,
+                body=context.requestBody,
                 prefixes=prefixes,
                 baseIri=orgNode.uri,
                 model=workingModel,
@@ -86,7 +70,7 @@ fun Application.createOrg() {
                 }
 
                 addProperty(RDF.type, MMS.Org)
-                addProperty(MMS.id, orgId)
+                addProperty(MMS.id, context.orgId)
             }
 
             // serialize org node

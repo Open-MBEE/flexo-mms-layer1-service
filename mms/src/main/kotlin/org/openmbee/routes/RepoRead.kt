@@ -4,7 +4,10 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.openmbee.*
+import org.openmbee.RdfContentTypes
+import org.openmbee.normalize
+import org.openmbee.parameterizedSparql
+import org.openmbee.submitSparqlConstructOrDescribe
 
 
 private const val SPARQL_QUERY_REPO = """
@@ -36,23 +39,20 @@ private const val SPARQL_QUERY_REPO = """
 fun Application.readRepo() {
     routing {
         get("/orgs/{orgId}/repos/{repoId?}") {
-            val orgId = call.parameters["orgId"]
-            val repoId = call.parameters["repoId"]
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@get
+            val context = call.normalize {
+                user()
+                org()
+                repo()
             }
+
+            // ref prefixes
+            val prefixes = context.prefixes
 
             // construct query string
             var constructQuery: String
 
             // get repo by orgId and repoId
-            if(false == repoId?.isNullOrBlank()) {
-                val prefixes = prefixesFor(orgId=orgId, repoId=repoId)
-
+            if(false == context.repoId?.isBlank()) {
                 constructQuery = parameterizedSparql(SPARQL_QUERY_REPO) {
                     prefixes(prefixes)
 
@@ -60,19 +60,17 @@ fun Application.readRepo() {
                         "_org" to prefixes["mo"]!!,
                         "_repo" to prefixes["mor"]!!,
                     )
-                }.toString()
+                }
             }
             // get all repos by orgId
             else {
-                val prefixes = prefixesFor(orgId=orgId)
-
                 constructQuery = parameterizedSparql(SPARQL_QUERY_REPO) {
                     prefixes(prefixes)
 
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
-                }.toString()
+                }
             }
 
             val constructResponseText = call.submitSparqlConstructOrDescribe(constructQuery)

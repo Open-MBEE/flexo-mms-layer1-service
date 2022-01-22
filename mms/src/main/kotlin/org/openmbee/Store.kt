@@ -107,8 +107,8 @@ class IllegalIdException: Exception("Illegal ID string. Must be at least 3 chara
 
 private val LEGAL_ID_REGEX = """[._\pL-]{3,}""".toRegex()
 
-fun ApplicationCall.assertLegalId(id: String) {
-    if(!id.matches(LEGAL_ID_REGEX)) {
+fun assertLegalId(id: String) {
+    if(!id.matches(LEGAL_ID_REGEX) || id.startsWith("__") || id.length > 256) {
         throw IllegalIdException()
     }
 }

@@ -1,7 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -9,7 +8,6 @@ import org.apache.jena.rdf.model.impl.ResourceImpl
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
-import javax.annotation.Resource
 
 
 private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
@@ -34,36 +32,15 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 fun Application.createLock() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
-            val orgId = call.parameters["orgId"]
-            val repoId = call.parameters["repoId"]
-            val commitId = call.parameters["commitId"]
-            val lockId = call.parameters["lockId"]!!
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@put
+            val context = call.normalize {
+                user()
+                org()
+                repo()
+                commit()
+                lock(legal=true)
             }
 
-            // assert id is valid
-            call.assertLegalId(lockId)
-
-            // read request body
-            val requestBody = call.receiveText()
-
-            // create transaction context
-            val context = TransactionContext(
-                userId=userId,
-                orgId=orgId,
-                repoId=repoId,
-                commitId=commitId,
-                lockId=lockId,
-                request=call.request,
-                requestBody=requestBody,
-            )
-
-            // initialize prefixes
+            // ref prefixes
             val prefixes = context.prefixes
 
             // create a working model to prepare the Update
@@ -74,7 +51,7 @@ fun Application.createLock() {
 
             // read put contents
             parseBody(
-                body=requestBody,
+                body=context.requestBody,
                 prefixes=prefixes,
                 baseIri=lockNode.uri,
                 model=workingModel,
@@ -99,7 +76,7 @@ fun Application.createLock() {
                 }
 
                 addProperty(RDF.type, MMS.Lock)
-                addProperty(MMS.id, lockId)
+                addProperty(MMS.id, context.lockId)
                 addProperty(MMS.commit, ResourceImpl(prefixes["morc"]))
                 addProperty(MMS.createdBy, ResourceImpl(prefixes["mu"]))
             }

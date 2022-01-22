@@ -53,6 +53,7 @@ enum class Role(val id: String) {
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),
+    ADMIN_BRANCH("AdminBranch"),
 }
 
 val ApplicationCall.mmsUserId: String

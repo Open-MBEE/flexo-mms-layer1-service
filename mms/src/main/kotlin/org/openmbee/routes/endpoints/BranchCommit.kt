@@ -68,36 +68,19 @@ fun assertOperationsAllowed(operations: List<Update>) {
 fun Application.commitBranch() {
     routing {
         post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
-            val orgId = call.parameters["orgId"]
-            val repoId = call.parameters["repoId"]
-            val branchId = call.parameters["branchId"]
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@post
+            val context = call.normalize {
+                user()
+                org()
+                repo()
+                branch()
             }
-
-            // create transaction context
-            val context = TransactionContext(
-                userId=userId,
-                orgId=orgId,
-                repoId=repoId,
-                branchId=branchId,
-                request=call.request,
-            )
 
             // ref prefixes
             val prefixes = context.prefixes
 
-
-            // read entire request body
-            val requestBody = call.receiveText()
-
             // parse query
             val sparqlUpdateAst = try {
-                UpdateFactory.create(requestBody)
+                UpdateFactory.create(context.requestBody)
             } catch(parse: Exception) {
                 throw UpdateSyntaxException(parse)
             }
@@ -110,27 +93,15 @@ fun Application.commitBranch() {
 
             assertOperationsAllowed(operations)
 
-            for(operation in operations) {
-                operation.visit(object: SelectiveUpdateVisitor() {
-                    override fun visit(update: UpdateDataInsert) {
-                        log.info("UpdateDataInsert")
-                        insertBgpString = asSparqlGroup(update.quads);
-                    }
-
-                    override fun visit(update: UpdateDataDelete) {
-                        log.info("UpdateDataDelete")
-                        deleteBgpString = asSparqlGroup(update.quads)
-                    }
-
-                    override fun visit(update: UpdateDeleteWhere) {
-                        log.info("UpdateDeleteWhere")
-
+            for(update in operations) {
+                when(update) {
+                    is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
+                    is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
+                    is UpdateDeleteWhere -> {
                         deleteBgpString = asSparqlGroup(update.quads)
                         whereString = deleteBgpString
                     }
-
-                    override fun visit(update: UpdateModify) {
-                        log.info("UpdateModify")
+                    is UpdateModify -> {
                         if(update.hasDeleteClause()) {
                             deleteBgpString = asSparqlGroup(update.deleteQuads)
                         }
@@ -143,13 +114,16 @@ fun Application.commitBranch() {
                             visit(NoQuadsElementVisitor)
                         })
                     }
-                })
+                    is UpdateAdd -> {
 
-
-                log.info("INSERT: $insertBgpString")
-                log.info("DELETE: $deleteBgpString")
-                log.info("WHERE: $whereString")
+                    }
+                    else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+                }
             }
+
+            log.info("INSERT: $insertBgpString")
+            log.info("DELETE: $deleteBgpString")
+            log.info("WHERE: $whereString")
 
             val interimIri = "${prefixes["mor-lock"]}Iterim.${context.transactionId}";
 
@@ -174,9 +148,9 @@ fun Application.commitBranch() {
                 }
                 insert {
                     txn(
-                        "mms:stagingGraph" to "?stagingGraph",
-                        "mms:baseModel" to "?model",
-                        "mms:baseModelGraph" to "?modelGraph",
+                        "mms-txn:stagingGraph" to "?stagingGraph",
+                        "mms-txn:baseModel" to "?model",
+                        "mms-txn:baseModelGraph" to "?modelGraph",
                     )
 
                     if(insertBgpString.isNotEmpty()) {
@@ -230,7 +204,7 @@ fun Application.commitBranch() {
                 )
 
                 datatyped(
-                    "_updateBody" to (requestBody to MMS_DATATYPE.sparql)
+                    "_updateBody" to (context.requestBody to MMS_DATATYPE.sparql)
                 )
             })
 
@@ -296,7 +270,7 @@ fun Application.commitBranch() {
             }
 
             // fetch staging graph
-            val stagingGraph = transactionNode.iriAt(MMS.stagingGraph)
+            val stagingGraph = transactionNode.iriAt(MMS.TXN.stagingGraph)
 
             // // fetch base model
             // val baseModel = transactionNode.iriAt(MMS.baseModel)

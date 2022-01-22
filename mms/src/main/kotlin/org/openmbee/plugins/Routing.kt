@@ -11,6 +11,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.routes.*
 import org.openmbee.routes.endpoints.queryBranch
+import org.openmbee.routes.endpoints.queryLock
 
 
 val client = HttpClient(CIO)
@@ -39,7 +40,9 @@ fun Application.configureRouting() {
 
         commitBranch()
         queryBranch()
-        // queryLock()
+
+        createLock()
+        queryLock()
 
         get("/") {
             call.respondText("Hello World!")

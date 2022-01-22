@@ -47,6 +47,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
     with("https://mms.openmbee.org/rdf") {
         add(
             "mms" to "$this/ontology/",
+            "mms-txn" to "$this/ontology/txn.",
             "mms-object" to "$this/objects/",
             "mms-datatype" to "$this/datatypes/",
         )
@@ -184,14 +185,20 @@ object MMS {
     // access control properties
     val implies = PropertyImpl("${_BASE}implies")
 
-    val stagingGraph = PropertyImpl("${_BASE}stagingGraph")
-    val baseModel = PropertyImpl("${_BASE}baseModel")
-    val baseModelGraph = PropertyImpl("${_BASE}baseModelGraph")
-
     val ref = PropertyImpl("${_BASE}ref")
     val commit = PropertyImpl("${_BASE}commit")
     val graph = PropertyImpl("${_BASE}graph")
 
+    val checkout = PropertyImpl("${_BASE}checkout")
+    val merge = PropertyImpl("${_BASE}merge")
+
+    private val _TXN = "${_BASE}txn."
+    object TXN {
+        val stagingGraph = PropertyImpl("${_TXN}stagingGraph")
+        val baseModel = PropertyImpl("${_TXN}baseModel")
+        val baseModelGraph = PropertyImpl("${_TXN}baseModelGraph")
+        val sourceGraph = PropertyImpl("${_TXN}baseModelGraph")
+    }
 }
 
 object MMS_DATATYPE {

@@ -1,22 +1,42 @@
 package org.openmbee
 
+import io.ktor.application.*
+import io.ktor.request.*
+import io.ktor.response.*
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
+import org.apache.jena.query.Query
+import org.apache.jena.query.QueryFactory
+import org.apache.jena.sparql.core.PathBlock
+import org.apache.jena.sparql.core.TriplePath
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
+import org.apache.jena.sparql.path.Path
+import org.apache.jena.sparql.path.PathFactory
 import org.apache.jena.sparql.syntax.*
+import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformCopyBase
+import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformer
+import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+
+private val UTF8Name = StandardCharsets.UTF_8.name()
+
+const val MMS_VARIABLE_PREFIX = "__mms_"
+
+val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
+
+val REF_GRAPH_PATH: Path = PathFactory.pathSeq(
+    PathFactory.pathInverse(PathFactory.pathLink(MMS.ref.asNode())),
+    PathFactory.pathLink(MMS.graph.asNode())
+)
+
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 class NefariousVariableNameException(name: String): Exception("Nefarious variable name detected: ?$name")
 
-private val UTF8Name = StandardCharsets.UTF_8.name()
 
-
-const val MMS_VARIABLE_PREFIX = "__mms_"
-val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
 
 class VariableAccumulator(private val variables: MutableCollection<Var>): PatternVarsVisitor(variables) {
     private fun walk(el: Element) {
@@ -100,5 +120,159 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
 
         // unhandled node type
         return NodeFactory.createURI("mms://error/unhandled-node-type")
+    }
+}
+
+
+suspend fun ApplicationCall.queryModel(refIri: String, prefixes: PrefixMapBuilder, inspectOnly: Boolean?=false) {
+    // read entire request body
+    val inputQueryString = receiveText()
+
+    // parse query
+    val inputQuery = try {
+        QueryFactory.create(inputQueryString)
+    } catch(parse: Exception) {
+        throw QuerySyntaxException(parse)
+    }
+
+    if(inputQueryString.contains(NEFARIOUS_VARIABLE_REGEX)) {
+        // look in select vars
+        for(resultVar in inputQuery.resultVars) {
+            if(resultVar.startsWith(MMS_VARIABLE_PREFIX)) {
+                throw NefariousVariableNameException(resultVar)
+            }
+        }
+
+        val variables = mutableListOf<Var>()
+        ElementWalker.walk(inputQuery.queryPattern, VariableAccumulator(variables))
+        for(variable in variables) {
+            if(variable.varName.startsWith(MMS_VARIABLE_PREFIX)) {
+                throw NefariousVariableNameException(variable.varName)
+            }
+        }
+    }
+
+    val rewriter = GraphNodeRewriter(prefixes)
+
+    val outputQuery = QueryTransformOps.transform(inputQuery, object: ElementTransformCopyBase() {
+        fun transform(el: Element): Element {
+            return ElementTransformer.transform(el, this)
+        }
+
+        override fun transform(group: ElementGroup, members: MutableList<Element>): Element {
+            return ElementGroup().apply {
+                elements.addAll(members.map { transform(it) })
+            }
+        }
+
+        override fun transform(exists: ElementExists, el: Element): Element {
+            return ElementExists(transform(el))
+        }
+
+        override fun transform(exists: ElementNotExists, el: Element): Element {
+            return ElementNotExists(transform(el))
+        }
+
+        override fun transform(exists: ElementOptional, el: Element): Element {
+            return ElementOptional(transform(el))
+        }
+
+        override fun transform(union: ElementUnion, members: MutableList<Element>): Element {
+            return ElementUnion().apply {
+                elements.addAll(members.map { transform(it) })
+            }
+        }
+
+        override fun transform(minus: ElementMinus, el: Element): Element {
+            return ElementMinus(transform(el))
+        }
+
+        override fun transform(subq: ElementSubQuery, query: Query): Element {
+            return ElementSubQuery(query.apply { queryPattern = transform(queryPattern) })
+        }
+
+        override fun transform(el: ElementService?, service: Node?, elt1: Element?): Element {
+            throw ServiceNotAllowedException()
+        }
+
+        override fun transform(graph: ElementNamedGraph, gn: Node, subElt: Element): Element {
+            return ElementNamedGraph(rewriter.rewrite(gn), subElt)
+        }
+    }).apply {
+        // rewrite from and from named
+        graphURIs.replaceAll { rewriter.rewrite(it) }
+        namedGraphURIs.replaceAll { rewriter.rewrite(it) }
+
+        // // set default graph
+        // graphURIs.add(0, "${MMS_VARIABLE_PREFIX}modelGraph")
+
+        // // include repo graph in all named graphs
+        // namedGraphURIs.add(0, prefixes["mor-graph"])
+
+        // create new group
+        val group = ElementGroup()
+
+        // create metadata graph URI node
+        val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
+
+        // add all prepend root elements
+        rewriter.prepend.forEach { group.addElement(it) }
+
+        // add model graph selector
+        run {
+            val pathBlock = ElementPathBlock(PathBlock().apply {
+                add(
+                    TriplePath(NodeFactory.createURI(refIri), REF_GRAPH_PATH, modelGraphVar)
+                )
+            })
+
+            val subQuery = ElementSubQuery(Query().apply {
+                setQuerySelectType()
+                addResultVar(modelGraphVar)
+                queryPattern = ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), pathBlock)
+                limit = 1
+            })
+
+            group.addElement(subQuery)
+        }
+
+        // wrap original element in metadata graph
+        group.addElement(ElementNamedGraph(modelGraphVar, queryPattern))
+
+        // add all append root elements
+        rewriter.append.forEach { group.addElement(it) }
+
+        // set new pattern
+        queryPattern = group
+
+        // unset query result star
+        if(isQueryResultStar) {
+            isQueryResultStar = false
+        }
+
+        // resetResultVars()
+        application.log.info("vars: "+resultVars)
+    }
+
+
+    val outputQueryString = outputQuery.serialize()
+
+    if(inspectOnly == true) {
+        respondText(outputQueryString)
+        return
+    }
+    else {
+        application.log.info(outputQueryString)
+    }
+
+    if(outputQuery.isSelectType || outputQuery.isAskType) {
+        val queryResponseText = submitSparqlSelectOrAsk(outputQueryString)
+
+        respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
+    }
+    else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
+        val queryResponseText = submitSparqlConstructOrDescribe(outputQueryString)
+
+        respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
 }

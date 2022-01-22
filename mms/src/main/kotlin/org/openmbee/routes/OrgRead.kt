@@ -52,36 +52,25 @@ private val SPARQL_QUERY_ORG = """
 fun Application.readOrg() {
     routing {
         get("/orgs/{orgId?}") {
-            val orgId = call.parameters["orgId"]
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@get
+            val context = call.normalize {
+                user()
+                org()
             }
 
-            var constructQuery: String
+            val prefixes = context.prefixes
+
+            val parameterizer = Parameterizer(SPARQL_QUERY_ORG).apply {
+                prefixes(prefixes)
+            }
 
             // get by orgId
-            if(false == orgId?.isNullOrBlank()) {
-                val prefixes = prefixesFor(userId=userId, orgId=orgId)
-
-                constructQuery = prefixes.toString() + parameterizedSparql(SPARQL_QUERY_ORG) {
-                    iri(
-                        "_org" to prefixes["mo"]!!,
-                    )
-                }
-            }
-            // get all orgs
-            else {
-                val prefixes = prefixesFor(userId=userId)
-
-                constructQuery = prefixes.toString() + parameterizedSparql(SPARQL_QUERY_ORG) {
-                    this
-                }
+            if(false == context.orgId?.isBlank()) {
+                parameterizer.iri(
+                    "_org" to prefixes["mo"]!!,
+                )
             }
 
+            val constructQuery = parameterizer.toString()
 
             val selectResponseText = call.submitSparqlConstructOrDescribe(constructQuery)
 

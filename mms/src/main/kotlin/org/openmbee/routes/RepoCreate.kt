@@ -1,7 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -89,29 +88,14 @@ fun String.normalizeIndentation(spaces: Int=0): String {
 fun Application.createRepo() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}") {
-            val orgId = call.parameters["orgId"]!!
-            val repoId = call.parameters["repoId"]!!
-            val userId = call.mmsUserId
-
-            // missing userId
-            if(userId.isEmpty()) {
-                call.respondText("Missing header: `MMS5-User`")
-                return@put
+            val context = call.normalize {
+                branchId = "main"
+                user()
+                org()
+                repo(legal=true)
             }
 
-
-            val branchId = "main"
-
-            // create transaction context
-            val context = TransactionContext(
-                userId=userId,
-                orgId=orgId,
-                repoId=repoId,
-                branchId=branchId,
-                request=call.request,
-            )
-
-            // initialize prefixes
+            // ref prefixes
             var prefixes = context.prefixes
 
             // create a working model to prepare the Update
@@ -123,12 +107,9 @@ fun Application.createRepo() {
             // create repo node
             val repoNode = workingModel.createResource(prefixes["mor"])
 
-            // read entire request body
-            val requestBody = call.receiveText()
-
             // read put contents
             parseBody(
-                body=requestBody,
+                body=context.requestBody,
                 prefixes=prefixes,
                 baseIri=repoNode.uri,
                 model=workingModel,
@@ -153,7 +134,7 @@ fun Application.createRepo() {
 
                 // add back the approved properties
                 addProperty(RDF.type, MMS.Repo)
-                addProperty(MMS.id, repoId)
+                addProperty(MMS.id, context.repoId)
                 addProperty(MMS.org, orgNode)
             }
 
