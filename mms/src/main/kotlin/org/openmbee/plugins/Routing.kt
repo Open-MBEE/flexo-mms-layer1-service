@@ -11,6 +11,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.routes.*
 import org.openmbee.routes.endpoints.queryBranch
+import org.openmbee.routes.endpoints.queryDiff
 import org.openmbee.routes.endpoints.queryLock
 
 
@@ -38,11 +39,15 @@ fun Application.configureRouting() {
         createRepo()
         readRepo()
 
+        createBranch()
         commitBranch()
         queryBranch()
 
         createLock()
         queryLock()
+        
+        createDiff()
+        queryDiff()
 
         get("/") {
             call.respondText("Hello World!")

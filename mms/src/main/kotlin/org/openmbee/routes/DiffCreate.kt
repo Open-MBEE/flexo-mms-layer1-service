@@ -39,7 +39,7 @@ private fun hashString(input: String, algorithm: String): String {
 @OptIn(InternalAPI::class)
 fun Application.createDiff() {
     routing {
-        post("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}/diff") {
+        post("/orgs/{orgId}/repos/{repoId}/locks/{lockId}/diff") {
             val context = call.normalize {
                 user()
                 org()

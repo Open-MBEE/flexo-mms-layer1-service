@@ -31,7 +31,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 @OptIn(InternalAPI::class)
 fun Application.createLock() {
     routing {
-        put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
+        put("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
             val context = call.normalize {
                 user()
                 org()

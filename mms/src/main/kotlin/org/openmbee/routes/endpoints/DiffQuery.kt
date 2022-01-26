@@ -10,15 +10,16 @@ import org.openmbee.queryModel
 
 
 @OptIn(InternalAPI::class)
-fun Application.queryLock() {
+fun Application.queryDiff() {
     routing {
-        post("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}/query/{inspect?}") {
+        post("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}/diff/{diffId}/query/{inspect?}") {
             val transaction = call.normalize {
                 user()
                 org()
                 repo()
                 commit()
                 lock()
+                diff()
             }
 
             val inspectValue = call.parameters["inspect"]?: ""
@@ -29,7 +30,8 @@ fun Application.queryLock() {
             } else false
 
             val prefixes = transaction.prefixes
-            call.queryModel(transaction.requestBody, prefixes["morcl"]!!, prefixes, inspectOnly)
+
+            call.queryModel(transaction.requestBody, prefixes["morcld"]!!, prefixes, inspectOnly)
         }
     }
 }

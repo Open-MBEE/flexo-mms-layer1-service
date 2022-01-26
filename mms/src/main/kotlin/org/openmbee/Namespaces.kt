@@ -74,6 +74,7 @@ fun prefixesFor(
     branchId: String?=null,
     commitId: String?=null,
     lockId: String?=null,
+    diffId: String?=null,
     transactionId: String?=null,
     source: PrefixMapBuilder?= SPARQL_PREFIXES
 ): PrefixMapBuilder {
@@ -125,6 +126,14 @@ fun prefixesFor(
                                             "morcl" to this,
                                         )
                                     }
+
+                                    if(null !== diffId) {
+                                        with("$this/diffs/${diffId}") {
+                                            add(
+                                                "morcld" to this,
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -147,64 +156,64 @@ fun prefixesFor(
 
 
 object MMS {
-    private val _BASE = SPARQL_PREFIXES["mms"]
+    private val BASE = SPARQL_PREFIXES["mms"]
 
     // classes
-    val Org = ResourceImpl("${_BASE}Org")
-    val Repo = ResourceImpl("${_BASE}Repo")
-    val Collection = ResourceImpl("${_BASE}Collection")
-    val Snapshot = ResourceImpl("${_BASE}Snapshot")
-    val Update = ResourceImpl("${_BASE}Update")
-    val Load = ResourceImpl("${_BASE}Load")
-    val Commit = ResourceImpl("${_BASE}Commit")
-    val Branch = ResourceImpl("${_BASE}Branch")
-    val Lock = ResourceImpl("${_BASE}Lock")
-    val Diff = ResourceImpl("${_BASE}Diff")
+    val Org = ResourceImpl("${BASE}Org")
+    val Repo = ResourceImpl("${BASE}Repo")
+    val Collection = ResourceImpl("${BASE}Collection")
+    val Snapshot = ResourceImpl("${BASE}Snapshot")
+    val Update = ResourceImpl("${BASE}Update")
+    val Load = ResourceImpl("${BASE}Load")
+    val Commit = ResourceImpl("${BASE}Commit")
+    val Branch = ResourceImpl("${BASE}Branch")
+    val Lock = ResourceImpl("${BASE}Lock")
+    val Diff = ResourceImpl("${BASE}Diff")
 
-    val User = ResourceImpl("${_BASE}User")
-    val Group = ResourceImpl("${_BASE}Group")
-    val Policy = ResourceImpl("${_BASE}Policy")
+    val User = ResourceImpl("${BASE}User")
+    val Group = ResourceImpl("${BASE}Group")
+    val Policy = ResourceImpl("${BASE}Policy")
 
     // object properties
-    val id  = PropertyImpl("${_BASE}id")
+    val id  = PropertyImpl("${BASE}id")
 
     // transaction properties
-    val created = PropertyImpl("${_BASE}created")
-    val createdBy = PropertyImpl("${_BASE}createdBy")
-    val serviceId = PropertyImpl("${_BASE}serviceId")
-    val org = PropertyImpl("${_BASE}org")
-    val repo = PropertyImpl("${_BASE}repo")
-    val user = PropertyImpl("${_BASE}user")
-    val completed = PropertyImpl("${_BASE}completed")
-    val requestBody = PropertyImpl("${_BASE}requestBody")
-    val requestPath = PropertyImpl("${_BASE}requestPath")
+    val created = PropertyImpl("${BASE}created")
+    val createdBy = PropertyImpl("${BASE}createdBy")
+    val serviceId = PropertyImpl("${BASE}serviceId")
+    val org = PropertyImpl("${BASE}org")
+    val repo = PropertyImpl("${BASE}repo")
+    val user = PropertyImpl("${BASE}user")
+    val completed = PropertyImpl("${BASE}completed")
+    val requestBody = PropertyImpl("${BASE}requestBody")
+    val requestPath = PropertyImpl("${BASE}requestPath")
 
-    val orgId = PropertyImpl("${_BASE}orgId")
-    val repoId = PropertyImpl("${_BASE}repoId")
-    val commitId = PropertyImpl("${_BASE}commitId")
+    val orgId = PropertyImpl("${BASE}orgId")
+    val repoId = PropertyImpl("${BASE}repoId")
+    val commitId = PropertyImpl("${BASE}commitId")
 
     // access control properties
-    val implies = PropertyImpl("${_BASE}implies")
+    val implies = PropertyImpl("${BASE}implies")
 
-    val ref = PropertyImpl("${_BASE}ref")
-    val commit = PropertyImpl("${_BASE}commit")
-    val graph = PropertyImpl("${_BASE}graph")
+    val ref = PropertyImpl("${BASE}ref")
+    val commit = PropertyImpl("${BASE}commit")
+    val graph = PropertyImpl("${BASE}graph")
 
-    val diffSrc = PropertyImpl("${_BASE}diffSrc")
-    val diffDst = PropertyImpl("${_BASE}diffDst")
+    val diffSrc = PropertyImpl("${BASE}diffSrc")
+    val diffDst = PropertyImpl("${BASE}diffDst")
 
-    private val _TXN = "${_BASE}txn."
+    private val BASE_TXN = "${BASE}txn."
     object TXN {
-        val stagingGraph = PropertyImpl("${_TXN}stagingGraph")
-        val baseModel = PropertyImpl("${_TXN}baseModel")
-        val baseModelGraph = PropertyImpl("${_TXN}baseModelGraph")
-        val sourceGraph = PropertyImpl("${_TXN}baseModelGraph")
+        val stagingGraph = PropertyImpl("${BASE_TXN}stagingGraph")
+        val baseModel = PropertyImpl("${BASE_TXN}baseModel")
+        val baseModelGraph = PropertyImpl("${BASE_TXN}baseModelGraph")
+        val sourceGraph = PropertyImpl("${BASE_TXN}baseModelGraph")
     }
 }
 
 object MMS_DATATYPE {
-    private val _BASE = SPARQL_PREFIXES["mms-datatype"]
+    private val BASE = SPARQL_PREFIXES["mms-datatype"]
 
-    val commitMessage = BaseDatatype("${_BASE}commitMessage")
-    val sparql = BaseDatatype("${_BASE}sparql")
+    val commitMessage = BaseDatatype("${BASE}commitMessage")
+    val sparql = BaseDatatype("${BASE}sparql")
 }

@@ -13,12 +13,12 @@ import org.openmbee.queryModel
 fun Application.queryBranch() {
     routing {
         post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect?}") {
-            val prefixes = call.normalize {
+            val transaction = call.normalize {
                 user()
                 org()
                 repo()
                 branch()
-            }.prefixes
+            }
 
             val inspectValue = call.parameters["inspect"]?: ""
             val inspectOnly = if(inspectValue.isNotEmpty()) {
@@ -27,7 +27,8 @@ fun Application.queryBranch() {
                 } else true
             } else false
 
-            call.queryModel(prefixes["morb"]!!, prefixes, inspectOnly)
+            val prefixes = transaction.prefixes
+            call.queryModel(transaction.requestBody, prefixes["morb"]!!, prefixes, inspectOnly)
         }
     }
 }

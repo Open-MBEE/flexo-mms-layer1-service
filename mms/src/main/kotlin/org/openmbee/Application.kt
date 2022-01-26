@@ -29,6 +29,7 @@ class Normalizer(val call: ApplicationCall) {
     var commitId: String? = null
     var lockId: String? = null
     var branchId: String? = null
+    var diffId: String? = null
 
     fun user(): Normalizer {
         // missing userId
@@ -40,7 +41,7 @@ class Normalizer(val call: ApplicationCall) {
 
     fun org(legal: Boolean=false): Normalizer {
         orgId = call.parameters["orgId"]
-        if(legal) assertLegalId(repoId!!)
+        if(legal) assertLegalId(orgId!!)
         return this
     }
 
@@ -52,19 +53,24 @@ class Normalizer(val call: ApplicationCall) {
 
     fun commit(legal: Boolean=false): Normalizer {
         commitId = call.parameters["commitId"]
-        if(legal) assertLegalId(repoId!!)
+        if(legal) assertLegalId(commitId!!)
         return this
     }
 
     fun lock(legal: Boolean=false): Normalizer {
         lockId = call.parameters["lockId"]
-        if(legal) assertLegalId(repoId!!)
+        if(legal) assertLegalId(lockId!!)
         return this
     }
 
     fun branch(legal: Boolean=false): Normalizer {
         branchId = call.parameters["branchId"]
-        if(legal) assertLegalId(repoId!!)
+        if(legal) assertLegalId(branchId!!)
+        return this
+    }
+
+    fun diff(): Normalizer {
+        diffId = call.parameters["diffId"]
         return this
     }
 }
@@ -81,6 +87,7 @@ suspend fun ApplicationCall.normalize(setup: Normalizer.()->Normalizer): Transac
         commitId = norm.commitId,
         lockId = norm.lockId,
         branchId = norm.branchId,
+        diffId = norm.diffId,
         request = request,
         requestBody = body,
     )

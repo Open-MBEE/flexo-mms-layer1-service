@@ -191,6 +191,7 @@ class TransactionContext(
     var branchId: String?=null,
     commitId: String?=null,
     var lockId: String?=null,
+    var diffId: String?=null,
     var request: ApplicationRequest,
     var commitMessage: String?=null,
     val requestBody: String="",
@@ -212,6 +213,7 @@ class TransactionContext(
             branchId = branchId,
             commitId = commitId,
             lockId = lockId,
+            diffId = diffId,
             transactionId = transactionId,
         )
 

@@ -124,10 +124,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
 }
 
 
-suspend fun ApplicationCall.queryModel(refIri: String, prefixes: PrefixMapBuilder, inspectOnly: Boolean?=false) {
-    // read entire request body
-    val inputQueryString = receiveText()
-
+suspend fun ApplicationCall.queryModel(inputQueryString: String, refIri: String, prefixes: PrefixMapBuilder, inspectOnly: Boolean?=false) {
     // parse query
     val inputQuery = try {
         QueryFactory.create(inputQueryString)
