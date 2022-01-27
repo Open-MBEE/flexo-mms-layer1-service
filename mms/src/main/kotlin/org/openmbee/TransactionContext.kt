@@ -124,7 +124,7 @@ class InsertBuilder(
     private val mms: MmsL1Context,
     indentLevel: Int,
 ): PatternBuilder<InsertBuilder>(mms, indentLevel) {
-    fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?): InsertBuilder {
+    fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
         val properties = extras.toMap().toMutableMap()
         if(null != mms.userId) properties["mms:user"] = "mu:"
         if(null != mms.orgId) properties["mms:org"] = "mo:"

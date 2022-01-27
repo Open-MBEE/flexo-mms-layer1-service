@@ -52,7 +52,7 @@ private val SPARQL_QUERY_ORG = """
 fun Application.readOrg() {
     routing {
         get("/orgs/{orgId?}") {
-            call.crud {
+            call.mmsL1 {
                 pathParams {
                     org()
                 }

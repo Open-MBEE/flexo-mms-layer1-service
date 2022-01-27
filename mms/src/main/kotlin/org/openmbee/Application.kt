@@ -2,6 +2,7 @@ package org.openmbee
 
 import io.ktor.application.*
 import io.ktor.client.request.*
+import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.util.*
@@ -147,6 +148,15 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall=mms.call)
     fun diff() {
         mms.diffId = call.parameters["diffId"]
     }
+
+    fun inspect() {
+        val inspectValue = call.parameters["inspect"]?: ""
+        mms.inspectOnly = if(inspectValue.isNotEmpty()) {
+            if(inspectValue != "inspect") {
+                throw NotFoundException()
+            } else true
+        } else false
+    }
 }
 
 
@@ -222,6 +232,10 @@ open class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
         return resourceFromParamPrefix("mor")
     }
 
+    fun branchNode(): Resource {
+        return resourceFromParamPrefix("morb")
+    }
+
     fun commitNode(): Resource {
         return resourceFromParamPrefix("morc")
     }
@@ -233,9 +247,42 @@ open class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
     fun diffNode(): Resource {
         return resourceFromParamPrefix("morcld")
     }
+
+    fun transactionNode(): Resource {
+        return resourceFromParamPrefix("mt")
+    }
+
+    fun normalizeRefOrCommit(node: Resource) {
+        val refs = node.listProperties(MMS.ref).toList()
+        val commits = node.listProperties(MMS.commit).toList()
+        val sourceCount = refs.size + commits.size
+        if(1 == sourceCount) {
+            if(1 == refs.size) {
+                mms.refSource = if(!refs[0].`object`.isURIResource) {
+                    throw Exception("Ref source must be an IRI")
+                } else {
+                    refs[0].`object`.asResource().uri
+                }
+            }
+            else {
+                mms.commitSource = if(!commits[0].`object`.isURIResource) {
+                    throw Exception("Commit source must be an IRI")
+                } else {
+                    commits[0].`object`.asResource().uri
+                }
+            }
+        }
+        else if(0 == sourceCount) {
+            throw Exception("Must specify a ref or commit source using mms:ref or mms:commit predicate, respectively.")
+        }
+        else if(sourceCount > 1) {
+            throw Exception("Too many sources specified.")
+        }
+    }
 }
 
 class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
+    val log = call.application.log
     val transactionId = UUID.randomUUID().toString()
 
     val userId = call.mmsUserId
@@ -245,6 +292,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
     var lockId: String? = null
     var branchId: String? = null
     var diffId: String? = null
+
+    var inspectOnly: Boolean = false
+
+    var refSource: String? = null
+    var commitSource: String? = null
 
     var commitMessage: String? = null
 
@@ -278,6 +330,27 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
         }.stringify(emitPrefixes=false)
     }
 
+
+    fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
+        return append {
+            require("validSource") {
+                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" }
+
+                """
+                    graph mor-graph:Metadata {
+                        ${if(refSource != null) """
+                            ?_refSource a/rdfs:subClassOf* mms:Ref ;
+                                mms:commit ?commitSource ;
+                                .
+                        """ else ""} 
+                       
+                       ?commitSource a mms:Commit .
+                    }
+                """
+            }
+        }
+    }
+
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> UpdateBuilder): String {
         return UpdateBuilder(this,).setup().toString()
     }
@@ -305,7 +378,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
     }
 
     @OptIn(InternalAPI::class)
-    suspend fun executeSparqlConstructOrDescribe(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+    suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (Parameterizer.() -> Parameterizer)?=null): String {
         val sparql = prepareSparql(pattern) {
             if(setup != null) setup()
             prefixes(prefixes)
@@ -315,14 +388,23 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
 
         return handleSparqlResponse(client.post(STORE_QUERY_URI) {
             headers {
-                append(HttpHeaders.Accept, RdfContentTypes.Turtle)
+                append(HttpHeaders.Accept, acceptType)
             }
             contentType(RdfContentTypes.SparqlQuery)
             body=sparql
         })
     }
 
-    fun validateTransaction(results: String, conditions: ConditionsGroup) {
+
+    suspend fun executeSparqlConstructOrDescribe(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+        return executeSparqlQuery(pattern, RdfContentTypes.Turtle, setup)
+    }
+
+    suspend fun executeSparqlSelectOrAsk(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
+        return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
+    }
+
+    fun validateTransaction(results: String, conditions: ConditionsGroup): KModel {
         val model = KModel(prefixes) {
             parseTurtle(
                 body = results,
@@ -339,10 +421,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String) {
 
             // the above always throws, so this is unreachable
         }
+
+        return model
     }
 }
 
-suspend fun ApplicationCall.crud(setup: suspend MmsL1Context.()->Unit): TransactionContext {
+suspend fun ApplicationCall.mmsL1(setup: suspend MmsL1Context.()->Unit): TransactionContext {
     val requestBody = receiveText()
 
     val norm = MmsL1Context(this, requestBody).apply{ setup() }

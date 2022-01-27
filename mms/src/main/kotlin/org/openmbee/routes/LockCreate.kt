@@ -4,8 +4,6 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.apache.jena.rdf.model.impl.ResourceImpl
-import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -32,7 +30,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 fun Application.createLock() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}/commit/{commitId}/locks/{lockId}") {
-            call.crud {
+            call.mmsL1 {
                 pathParams {
                     org()
                     repo()

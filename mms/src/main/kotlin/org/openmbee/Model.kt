@@ -1,7 +1,6 @@
 package org.openmbee
 
 import io.ktor.application.*
-import io.ktor.request.*
 import io.ktor.response.*
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
@@ -124,7 +123,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
 }
 
 
-suspend fun ApplicationCall.queryModel(inputQueryString: String, refIri: String, prefixes: PrefixMapBuilder, inspectOnly: Boolean?=false) {
+suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
     // parse query
     val inputQuery = try {
         QueryFactory.create(inputQueryString)
@@ -248,28 +247,28 @@ suspend fun ApplicationCall.queryModel(inputQueryString: String, refIri: String,
         }
 
         // resetResultVars()
-        application.log.info("vars: "+resultVars)
+        log.info("vars: "+resultVars)
     }
 
 
     val outputQueryString = outputQuery.serialize()
 
     if(inspectOnly == true) {
-        respondText(outputQueryString)
+        call.respondText(outputQueryString)
         return
     }
     else {
-        application.log.info(outputQueryString)
+        log.info(outputQueryString)
     }
 
     if(outputQuery.isSelectType || outputQuery.isAskType) {
         val queryResponseText = submitSparqlSelectOrAsk(outputQueryString)
 
-        respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
+        call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
-        val queryResponseText = submitSparqlConstructOrDescribe(outputQueryString)
+        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString)
 
-        respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
+        call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
 }

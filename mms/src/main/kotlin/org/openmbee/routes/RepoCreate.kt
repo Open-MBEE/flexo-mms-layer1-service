@@ -4,7 +4,6 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -81,7 +80,7 @@ fun String.normalizeIndentation(spaces: Int=0): String {
 fun Application.createRepo() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}") {
-            call.crud {
+            call.mmsL1 {
                 branchId = "main"
 
                 pathParams {

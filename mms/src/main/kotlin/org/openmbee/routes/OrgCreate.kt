@@ -30,7 +30,7 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
-            call.crud {
+            call.mmsL1 {
                 pathParams {
                     org(legal=true)
                 }

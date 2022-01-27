@@ -36,7 +36,7 @@ private const val SPARQL_QUERY_REPO = """
 fun Application.readRepo() {
     routing {
         get("/orgs/{orgId}/repos/{repoId?}") {
-            call.crud {
+            call.mmsL1 {
                 pathParams {
                     org()
                     repo()
