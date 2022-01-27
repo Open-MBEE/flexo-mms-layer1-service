@@ -31,166 +31,89 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 @OptIn(InternalAPI::class)
 fun Application.createLock() {
     routing {
-        put("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
-            val context = call.normalize {
-                user()
-                org()
-                repo()
-                commit()
-                lock(legal=true)
-            }
-
-            // ref prefixes
-            val prefixes = context.prefixes
-
-            // create a working model to prepare the Update
-            val workingModel = KModel(prefixes)
-
-            // create lock node
-            val lockNode = workingModel.createResource(prefixes["morcl"])
-
-            // read put contents
-            parseBody(
-                body=context.requestBody,
-                prefixes=prefixes,
-                baseIri=lockNode.uri,
-                model=workingModel,
-            )
-
-            // set system-controlled properties and remove conflicting triples from user input
-            lockNode.run {
-                removeAll(RDF.type)
-                removeAll(MMS.id)
-                removeAll(MMS.commit)
-                removeAll(MMS.createdBy)
-
-                // normalize dct:title
-                run {
-                    // remove triples that don't point to literals
-                    listProperties(DCTerms.title)
-                        .forEach {
-                            if(!it.`object`.isLiteral) {
-                                workingModel.remove(it)
-                            }
-                        }
+        put("/orgs/{orgId}/repos/{repoId}/commit/{commitId}/locks/{lockId}") {
+            call.crud {
+                pathParams {
+                    org()
+                    repo()
+                    commit()
+                    lock(legal = true)
                 }
 
-                addProperty(RDF.type, MMS.Lock)
-                addProperty(MMS.id, context.lockId)
-                addProperty(MMS.commit, ResourceImpl(prefixes["morc"]))
-                addProperty(MMS.createdBy, ResourceImpl(prefixes["mu"]))
-            }
+                val lockTriples = filterIncomingStatements("morcl") {
+                    lockNode().apply {
+                        sanitizeCrudObject()
 
-            // serialize lock node
-            val lockTriples = KModel(prefixes) {
-                add(lockNode.listProperties())
-            }.stringify(emitPrefixes=false)
-
-            // generate sparql update
-            val sparqlUpdate = context.update {
-                insert {
-                    txn()
-
-                    graph("mor-graph:Metadata") {
-                        raw(lockTriples)
+                        addProperty(RDF.type, MMS.Lock)
+                        addProperty(MMS.id, lockId)
+                        addProperty(MMS.commit, commitNode())
+                        addProperty(MMS.createdBy, userNode())
                     }
-
-                    // auto-policy
-                    autoPolicySparqlBgp(
-                        builder=this,
-                        prefixes=prefixes,
-                        scope=Scope.LOCK,
-                        roles=listOf(Role.ADMIN_LOCK),
-                    )
                 }
-                where {
-                    raw(
-                        *DEFAULT_CONDITIONS.requiredPatterns()
-                    )
-                }
-            }.toString()
 
-
-            // log
-            log.info(sparqlUpdate)
-
-            // submit update
-            val updateResponse = call.submitSparqlUpdate(sparqlUpdate)
-
-            val localConditions = DEFAULT_CONDITIONS
-
-            // create construct query to confirm transaction and fetch project details
-            val constructResponseText = call.submitSparqlConstructOrDescribe("""
-                construct  {
-                    mt: ?mt_p ?mt_o .
-
-                    morcl: ?morcl_p ?morcl_o .
-                    
-                    ?policy ?policy_p ?policy_o .
-                    
-                    <mms://inspect> <mms://pass> ?inspect .
-                } where {
-                    {
-                        graph m-graph:Transactions {
-                            mt: ?mt_p ?mt_o .
+                val updateString = buildSparqlUpdate {
+                    insert {
+                        txn {
+                            autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
                         }
 
-                        graph mor-graph:Metadata {
+                        graph("mor-graph:Metadata") {
+                            raw(lockTriples)
+                        }
+                    }
+                    where {
+                        raw(*DEFAULT_CONDITIONS.requiredPatterns())
+                    }
+                }
+
+                executeSparqlUpdate(updateString)
+
+                val localConditions = DEFAULT_CONDITIONS
+
+                // create construct query to confirm transaction and fetch project details
+                val constructString = buildSparqlQuery {
+                    construct  {
+                        txn()
+
+                        raw("""
                             morcl: ?morcl_p ?morcl_o .
+                        """)
+                    }
+                    where {
+                        group {
+                            raw("""
+                                graph mor-graph:Metadata {
+                                    morcl: ?morcl_p ?morcl_o .
+                                }
+                            """)
                         }
-                        
-                        graph m-graph:AccessControl.Policies {
-                            optional {
-                                ?policy mms:scope morcl: ;
-                                    ?policy_p ?policy_o .
+                        raw("""union ${localConditions.unionInspectPatterns()}""")
+                    }
+                }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+                validateTransaction(constructResponseText, localConditions)
+
+                call.respondText(constructResponseText, RdfContentTypes.Turtle)
+
+                // log
+                log.info("Triplestore responded with:\n$constructResponseText")
+
+                // delete transaction
+                run {
+                    // submit update
+                    val dropResponseText = executeSparqlUpdate("""
+                        delete where {
+                            graph m-graph:Transactions {
+                                mt: ?p ?o .
                             }
                         }
-                    } union ${localConditions.unionInspectPatterns()}
+                    """)
+
+                    // log response
+                    log.info(dropResponseText)
                 }
-            """) {
-                prefixes(context.prefixes)
-            }
-
-            // log
-            log.info("Triplestore responded with:\n$constructResponseText")
-
-            // parse model
-            val constructModel = KModel(prefixes).apply {
-                parseBody(
-                    body = constructResponseText,
-                    baseIri = lockNode.uri,
-                    model = this,
-                )
-            }
-
-            val transactionNode = constructModel.createResource(prefixes["mt"])
-
-            // transaction failed
-            if(!transactionNode.listProperties().hasNext()) {
-                // use response to diagnose cause
-                localConditions.handle(constructModel);
-
-                // the above always throws, so this is unreachable
-            }
-
-            // respond
-            call.respondText(constructResponseText, RdfContentTypes.Turtle)
-
-            // delete transaction
-            run {
-                // submit update
-                val dropResponseText = call.submitSparqlUpdate("""
-                    delete where {
-                        graph m-graph:Transactions {
-                            mt: ?p ?o .
-                        }
-                    }
-                """) {
-                    prefixes(prefixes)
-                }
-
-                // log response
-                log.info(dropResponseText)
             }
         }
     }

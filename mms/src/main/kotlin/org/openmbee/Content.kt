@@ -22,7 +22,7 @@ object RdfContentTypes {
     val SparqlResultsJson = ContentType("application", "sparql-results+json")
 }
 
-class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Model)?=null): ModelCom(Factory.createGraphMem()) {
+class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): ModelCom(Factory.createGraphMem()) {
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
@@ -69,16 +69,17 @@ class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Model)?=null):
     }
 }
 
-fun parseBody(body: String, baseIri: String, model: Model, prefixes: PrefixMapBuilder?=null) {
-    val putContent = (prefixes?.toString()?: "") + "\n" + body
+fun parseTurtle(body: String, model: Model, baseIri: String?=null, prefixes: PrefixMapBuilder?=null) {
+    val documentString = "${prefixes?: ""}\n$body"
 
     // parse input document
-    RDFParser.create()
-        .source(IOUtils.toInputStream(putContent, StandardCharsets.UTF_8))
-        .lang(RDFLanguages.TURTLE)
-        .errorHandler(ErrorHandlerFactory.errorHandlerWarn)
-        .base(baseIri)
-        .parse(model)
+    RDFParser.create().apply {
+        source(IOUtils.toInputStream(documentString, StandardCharsets.UTF_8))
+        lang(RDFLanguages.TURTLE)
+        errorHandler(ErrorHandlerFactory.errorHandlerWarn)
+        if(baseIri != null) base(baseIri)
+        parse(model)
+    }
 }
 
 class InvalidDocumentSemanticsException(detail: String): Exception("The input document contains invalid semantics: $detail") {}

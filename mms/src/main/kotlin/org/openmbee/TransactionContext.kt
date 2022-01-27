@@ -4,6 +4,7 @@ import io.ktor.request.*
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import java.time.Instant
 import java.util.*
+import javax.management.Query
 
 
 private val CODE_INDENT = "    "
@@ -44,103 +45,196 @@ abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val 
 }
 
 abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
-    private val context: TransactionContext,
+    private val mms: MmsL1Context,
     indentLevel: Int,
 ): SparqlBuilder<Instance>(indentLevel) {
     fun graph(graph: String, setup: GraphBuilder.() -> GraphBuilder): Instance {
         return raw("""
             graph $graph {
-                ${GraphBuilder(context, 4).setup()}
+                ${GraphBuilder(mms, 4).setup()}
             }
        """)
     }
+
+    fun group(setup: GroupBuilder.() -> Unit): Instance {
+        return raw("""
+            {
+                ${GroupBuilder(mms, 4).setup()}
+            }
+        """)
+    }
 }
 
+class GroupBuilder(
+    mms: MmsL1Context,
+    indentLevel: Int,
+): SparqlBuilder<GroupBuilder>(indentLevel)
+
 class GraphBuilder(
-    private val context: TransactionContext,
+    mms: MmsL1Context,
     indentLevel: Int,
 ): SparqlBuilder<GraphBuilder>(indentLevel)
 
 class WhereBuilder(
-    context: TransactionContext,
+    mms: MmsL1Context,
     indentLevel: Int,
-): PatternBuilder<WhereBuilder>(context, indentLevel)
+): PatternBuilder<WhereBuilder>(mms, indentLevel) {
+    fun txn(): WhereBuilder {
+        return raw("""
+            graph m-graph:Transactions {
+                mt: ?mt_p ?mt_o .
+            }
+            
+            graph m-graph:AccessControl.Policies {
+                optional {
+                    ?policy mms:scope mo: ;
+                        ?policy_p ?policy_o .
+                }
+            }    
+        """)
+    }
+}
 
 class DeleteBuilder(
-    context: TransactionContext,
+    mms: MmsL1Context,
     indentLevel: Int,
-): PatternBuilder<DeleteBuilder>(context, indentLevel)
+): PatternBuilder<DeleteBuilder>(mms, indentLevel)
+
+class TxnBuilder(
+    private val insertBuilder: InsertBuilder,
+) {
+    fun autoPolicy(scope: Scope, vararg roles: Role) {
+        insertBuilder.run {
+            graph("m-graph:AccessControl.Policies") {
+                raw(
+                    """
+                    m-policy:Auto${scope.type}Owner.${UUID.randomUUID()} a mms:Policy ;
+                        mms:subject mu: ;
+                        mms:scope ${scope.id}: ;
+                        mms:role ${roles.joinToString(",") { "mms-object:Role.${it.id}" }}  ;
+                        .
+                """
+                )
+            }
+        }
+    }
+}
 
 class InsertBuilder(
-    private val context: TransactionContext,
+    private val mms: MmsL1Context,
     indentLevel: Int,
-): PatternBuilder<InsertBuilder>(context, indentLevel) {
-    fun txn(vararg extras: Pair<String, String>): InsertBuilder {
+): PatternBuilder<InsertBuilder>(mms, indentLevel) {
+    fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?): InsertBuilder {
         val properties = extras.toMap().toMutableMap()
-        if(null != context.userId) properties["mms:user"] = "mu:"
-        if(null != context.orgId) properties["mms:org"] = "mo:"
-        if(null != context.repoId) properties["mms:repo"] = "mor:"
-        if(null != context.branchId) properties["mms:branch"] = "morb:"
+        if(null != mms.userId) properties["mms:user"] = "mu:"
+        if(null != mms.orgId) properties["mms:org"] = "mo:"
+        if(null != mms.repoId) properties["mms:repo"] = "mor:"
+        if(null != mms.branchId) properties["mms:branch"] = "morb:"
 
         val propertiesSparql = properties.entries.fold("") { out, (pred, obj) -> "$out$pred $obj ;\n" }
 
         raw(SPARQL_INSERT_TRANSACTION(propertiesSparql))
+
+        if(setup != null) {
+            TxnBuilder(this).setup()
+        }
 
         return this
     }
 }
 
 
+class ConstructBuilder(
+    private val mms: MmsL1Context,
+    indentLevel: Int,
+): PatternBuilder<ConstructBuilder>(mms, indentLevel) {
+    fun txn(): ConstructBuilder {
+        return raw("""
+            mt: ?mt_p ?mt_o .
+            
+            ?policy ?policy_p ?policy_o .
+            
+            <mms://inspect> <mms://pass> ?inspect .
+        """)
+    }
+}
+
+
+class QueryBuilder(
+    private val mms: MmsL1Context,
+    indentLevel: Int=0,
+): SparqlBuilder<QueryBuilder>(indentLevel) {
+    fun construct(setup: ConstructBuilder.() -> Unit): QueryBuilder {
+        return raw("""
+            construct {
+                ${ConstructBuilder(mms, 4).setup()}    
+            }
+        """)
+    }
+
+    fun where(setup: WhereBuilder.() -> Unit): QueryBuilder {
+        return raw("""
+            where {
+                ${WhereBuilder(mms, 4).setup()}    
+            }
+        """)
+    }
+}
+
+
 class UpdateBuilder(
-    private val context: TransactionContext,
+    private val mms: MmsL1Context,
     indentLevel: Int=0,
 ): SparqlBuilder<UpdateBuilder>(indentLevel) {
-    fun delete(setup: DeleteBuilder.() -> DeleteBuilder): UpdateBuilder {
-        if(context.operationCount++ > 0) raw(";")
+    var operationCount = 0
+    var previousBlock = OperationBlock.NONE
 
-        context.previousBlock = OperationBlock.DELETE
+    fun delete(setup: DeleteBuilder.() -> DeleteBuilder): UpdateBuilder {
+        if(operationCount++ > 0) raw(";")
+
+        previousBlock = OperationBlock.DELETE
 
         return raw("""
             delete {
-                ${DeleteBuilder(context, 4).setup()}
+                ${DeleteBuilder(mms, 4).setup()}
             }
         """)
     }
 
     fun insert(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(context.previousBlock != OperationBlock.DELETE) {
-            if(context.operationCount++ > 0) raw(";")
+        if(previousBlock != OperationBlock.DELETE) {
+            if(operationCount++ > 0) raw(";")
         }
 
-        context.previousBlock = OperationBlock.INSERT
+        previousBlock = OperationBlock.INSERT
 
         return raw("""
             insert {
-                ${InsertBuilder(context, 4).setup()}
+                ${InsertBuilder(mms, 4).setup()}
             }
         """)
     }
 
     fun insertData(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(context.previousBlock != OperationBlock.DELETE) {
-            if(context.operationCount++ > 0) raw(";")
+        if(previousBlock != OperationBlock.DELETE) {
+            if(operationCount++ > 0) raw(";")
         }
 
-        context.previousBlock = OperationBlock.INSERT
+        previousBlock = OperationBlock.INSERT
 
         return raw("""
             insert data {
-                ${InsertBuilder(context, 4).setup()}
+                ${InsertBuilder(mms, 4).setup()}
             }
         """)
     }
 
     fun where(setup: WhereBuilder.() -> WhereBuilder): UpdateBuilder {
-        context.previousBlock = OperationBlock.WHERE
+        previousBlock = OperationBlock.WHERE
 
         return raw("""
             where {
-                ${WhereBuilder(context, 4).setup()}
+                ${WhereBuilder(mms, 4).setup()}
             }
         """)
     }
@@ -151,25 +245,25 @@ class UpdateBuilder(
 
     fun toString(config: Parameterizer.() -> Parameterizer): String {
         return parameterizedSparql(sparqlString.toString()) {
-            prefixes(context.prefixes)
+            prefixes(mms.prefixes)
 
             literal(
-                "_userId" to (context.userId?: ""),
-                "_orgId" to (context.orgId?: ""),
-                "_repoId" to (context.repoId?: ""),
-                "_branchId" to (context.branchId?: ""),
-                "_commitId" to context.commitId,
-                "_transactionId" to context.transactionId,
+                "_userId" to (mms.userId?: ""),
+                "_orgId" to (mms.orgId?: ""),
+                "_repoId" to (mms.repoId?: ""),
+                "_branchId" to (mms.branchId?: ""),
+                "_commitId" to mms.commitId,
+                "_transactionId" to mms.transactionId,
                 "_serviceId" to SERVICE_ID,
-                "_requestPath" to context.requestPath,
-                "_requestMethod" to context.requestMethod,
-                "_requestBody" to context.requestBody,
-                "_requestBodyContentType" to context.requestBodyContentType,
+                "_requestPath" to mms.requestPath,
+                "_requestMethod" to mms.requestMethod,
+                "_requestBody" to mms.requestBody,
+                "_requestBodyContentType" to mms.requestBodyContentType,
             )
 
             datatyped(
                 "_now" to (Instant.now().toString() to XSDDatatype.XSDdateTime),
-                "_commitMessage" to ((context.commitMessage?: "") to MMS_DATATYPE.commitMessage),
+                "_commitMessage" to ((mms.commitMessage?: "") to MMS_DATATYPE.commitMessage),
             )
 
             config()

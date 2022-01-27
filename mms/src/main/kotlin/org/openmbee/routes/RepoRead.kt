@@ -4,10 +4,7 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.openmbee.RdfContentTypes
-import org.openmbee.normalize
-import org.openmbee.parameterizedSparql
-import org.openmbee.submitSparqlConstructOrDescribe
+import org.openmbee.*
 
 
 private const val SPARQL_QUERY_REPO = """
@@ -39,43 +36,33 @@ private const val SPARQL_QUERY_REPO = """
 fun Application.readRepo() {
     routing {
         get("/orgs/{orgId}/repos/{repoId?}") {
-            val context = call.normalize {
-                user()
-                org()
-                repo()
-            }
-
-            // ref prefixes
-            val prefixes = context.prefixes
-
-            // construct query string
-            var constructQuery: String
-
-            // get repo by orgId and repoId
-            if(false == context.repoId?.isBlank()) {
-                constructQuery = parameterizedSparql(SPARQL_QUERY_REPO) {
-                    prefixes(prefixes)
-
-                    iri(
-                        "_org" to prefixes["mo"]!!,
-                        "_repo" to prefixes["mor"]!!,
-                    )
+            call.crud {
+                pathParams {
+                    org()
+                    repo()
                 }
-            }
-            // get all repos by orgId
-            else {
-                constructQuery = parameterizedSparql(SPARQL_QUERY_REPO) {
-                    prefixes(prefixes)
 
+                val parameterizer = Parameterizer(SPARQL_QUERY_REPO, prefixes).apply {
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
                 }
+
+                // get by orgId
+                if(false == repoId?.isBlank()) {
+                    parameterizer.apply{
+                        iri(
+                            "_repo" to prefixes["mor"]!!,
+                        )
+                    }
+                }
+
+                val constructString = parameterizer.toString()
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+                call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
             }
-
-            val constructResponseText = call.submitSparqlConstructOrDescribe(constructQuery)
-
-            call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
         }
     }
 }

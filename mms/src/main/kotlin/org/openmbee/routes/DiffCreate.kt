@@ -58,7 +58,7 @@ fun Application.createDiff() {
             val branchNode = workingModel.createResource(prefixes["morb"])
 
             // read put contents
-            parseBody(
+            parseTurtle(
                 body=context.requestBody,
                 prefixes=prefixes,
                 baseIri=branchNode.uri,
@@ -299,7 +299,7 @@ fun Application.createDiff() {
 
             // parse model
             val constructModel = KModel(prefixes).apply {
-                parseBody(
+                parseTurtle(
                     body = constructResponseText,
                     baseIri = branchNode.uri,
                     model = this,

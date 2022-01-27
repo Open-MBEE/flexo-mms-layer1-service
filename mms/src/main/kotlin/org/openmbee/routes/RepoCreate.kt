@@ -11,21 +11,14 @@ import org.openmbee.*
 
 private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String = { """
     construct  {
-        mor: ?mor_p ?mor_o .
         
         ?thing ?thing_p ?thing_o .
         
-        ?policy ?policy_p ?policy_o .
-        
         ?m_s ?m_p ?m_o .
         
-        mt: ?mt_p ?mt_o .
     } where {
         {
-            graph m-graph:Transactions {
-                mt: ?mt_p ?mt_o .
-            }
-    
+  
             graph m-graph:Cluster {
                 mor: a mms:Repo ;
                     ?mor_p ?mor_o ;
@@ -88,162 +81,140 @@ fun String.normalizeIndentation(spaces: Int=0): String {
 fun Application.createRepo() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}") {
-            val context = call.normalize {
+            call.crud {
                 branchId = "main"
-                user()
-                org()
-                repo(legal=true)
-            }
 
-            // ref prefixes
-            var prefixes = context.prefixes
+                pathParams {
+                    org()
+                    repo(legal = true)
+                }
 
-            // create a working model to prepare the Update
-            val workingModel = KModel(prefixes)
+                val repoTriples = filterIncomingStatements("mor") {
+                    repoNode().apply {
+                        sanitizeCrudObject()
 
-            // create org node
-            var orgNode = workingModel.createResource(prefixes["mo"])
+                        addProperty(RDF.type, MMS.Repo)
+                        addProperty(MMS.id, repoId)
+                        addProperty(MMS.org, orgNode())
+                    }
+                }
 
-            // create repo node
-            val repoNode = workingModel.createResource(prefixes["mor"])
+                val localConditions = DEFAULT_CONDITIONS
 
-            // read put contents
-            parseBody(
-                body=context.requestBody,
-                prefixes=prefixes,
-                baseIri=repoNode.uri,
-                model=workingModel,
-            )
+                val updateString = buildSparqlUpdate {
+                    insert {
+                        txn {
+                            autoPolicy(Scope.REPO, Role.ADMIN_REPO)
+                        }
 
-            // set system-controlled properties and remove conflicting triples from user input
-            repoNode.run {
-                removeAll(RDF.type)
-                removeAll(MMS.id)
-                removeAll(MMS.org)
+                        graph("m-graph:Cluster") {
+                            raw(repoTriples)
+                        }
 
-                // normalize dct:title
+                        graph("mor-graph:Metadata") {
+                            raw(
+                                """
+                                morc: a mms:Commit ;
+                                    mms:parent rdf:nil ;
+                                    mms:submitted ?_now ;
+                                    mms:message ?_commitMessage ;
+                                    mms:data morc-data: ;
+                                    .
+                        
+                                morc-data: a mms:Load ;
+                                    .
+    
+                                morb: a mms:Branch ;
+                                    mms:id ?_branchId ;
+                                    mms:commit morc: ;
+                                    .
+                                
+                                ?_model a mms:Model ;
+                                    mms:ref morb: ;
+                                    mms:graph ?_modelGraph ;
+                                    .
+                                    
+                                ?_staging a mms:Staging ;
+                                    mms:ref morb: ;
+                                    mms:graph ?_stagingGraph ;
+                                    .
+                            """
+                            )
+                        }
+                    }
+                    where {
+                        raw(*localConditions.requiredPatterns())
+                    }
+                }
+
+                executeSparqlUpdate(updateString) {
+                    iri(
+                        "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                        "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                        "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
+                        "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                    )
+                }
+
+                val constructString = buildSparqlQuery {
+                    construct {
+                        txn()
+
+                        raw(
+                            """
+                            mor: ?mor_p ?mor_o .
+                            
+                            ?thing ?thing_p ?thing_o .
+                        """
+                        )
+                    }
+                    where {
+                        group {
+                            txn()
+
+                            raw(
+                                """
+                                graph m-graph:Cluster {
+                                    mor: a mms:Repo ;
+                                        ?mor_p ?mor_o .
+                                           
+                                    optional {
+                                        ?thing mms:repo mor: ; 
+                                            ?thing_p ?thing_o .
+                                    }
+                                }
+                                
+                                graph mor-graph:Metadata {
+                                    ?m_s ?m_p ?m_o .
+                                }
+                            """
+                            )
+                        }
+                        raw("""union ${localConditions.unionInspectPatterns()}""")
+                    }
+                }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+                validateTransaction(constructResponseText, localConditions)
+
+                // respond
+                call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+
+                // delete transaction graph
                 run {
-                    // remove triples that don't point to literals
-                    listProperties(DCTerms.title)
-                        .forEach {
-                            if(!it.`object`.isLiteral) {
-                                workingModel.remove(it)
+                    // prepare SPARQL DROP
+                    val dropResponseText = executeSparqlUpdate("""
+                        delete where {
+                            graph m-graph:Transactions {
+                                mt: ?p ?o .
                             }
                         }
+                    """)
+
+                    // log response
+                    log.info(dropResponseText)
                 }
-
-                // add back the approved properties
-                addProperty(RDF.type, MMS.Repo)
-                addProperty(MMS.id, context.repoId)
-                addProperty(MMS.org, orgNode)
-            }
-
-            // serialize repo node
-            val repoTriples = KModel(prefixes) {
-                add(repoNode.listProperties())
-            }.stringify(emitPrefixes=false)
-
-            val localConditions = DEFAULT_CONDITIONS
-
-            // generate sparql update
-            val updateResponse = call.submitSparqlUpdate(context.update {
-                insert {
-                    txn()
-
-                    graph("m-graph:Cluster") {
-                        raw(repoTriples)
-                    }
-
-                    graph("mor-graph:Metadata") {
-                        raw("""
-                            morc: a mms:Commit ;
-                                mms:parent rdf:nil ;
-                                mms:submitted ?_now ;
-                                mms:message ?_commitMessage ;
-                                mms:data morc-data: ;
-                                .
-                    
-                            morc-data: a mms:Load ;
-                                .
-
-                            morb: a mms:Branch ;
-                                mms:id ?_branchId ;
-                                mms:commit morc: ;
-                                .
-                            
-                            ?_model a mms:Model ;
-                                mms:ref morb: ;
-                                mms:graph ?_modelGraph ;
-                                .
-                                
-                            ?_staging a mms:Staging ;
-                                mms:ref morb: ;
-                                mms:graph ?_stagingGraph ;
-                                .
-                        """)
-                    }
-
-                    autoPolicySparqlBgp(
-                        builder=this,
-                        prefixes=prefixes,
-                        scope=Scope.REPO,
-                        roles=listOf(Role.ADMIN_REPO),
-                    )
-                }
-                where {
-                    raw(
-                        *localConditions.requiredPatterns()
-                    )
-                }
-            }.toString {
-                iri(
-                    "_model" to "${prefixes["mor-snapshot"]}Model.${context.transactionId}",
-                    "_modelGraph" to "${prefixes["mor-graph"]}Model.${context.transactionId}",
-                    "_staging" to "${prefixes["mor-snapshot"]}Staging.${context.transactionId}",
-                    "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${context.transactionId}",
-                )
-            })
-
-
-            // create construct query to confirm transaction and fetch repo details
-            val constructResponseText = call.submitSparqlConstructOrDescribe(SPARQL_CONSTRUCT_TRANSACTION(localConditions)) {
-                prefixes(context.prefixes)
-            }
-
-            val constructModel = KModel(prefixes)
-
-            // parse model
-            parseBody(
-                body=constructResponseText,
-                baseIri=repoNode.uri,
-                model=constructModel,
-            )
-
-            val transactionNode = constructModel.createResource(prefixes["mt"])
-
-            // transaction failed
-            if(!transactionNode.listProperties().hasNext()) {
-                localConditions.handle(constructModel)
-            }
-
-            // respond
-            call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
-
-            // delete transaction graph
-            run {
-                // prepare SPARQL DROP
-                val dropResponseText = call.submitSparqlUpdate("""
-                    delete where {
-                        graph m-graph:Transactions {
-                            mt: ?p ?o .
-                        }
-                    }
-                """) {
-                    prefixes(prefixes)
-                }
-
-                // log response
-                log.info(dropResponseText)
             }
         }
     }

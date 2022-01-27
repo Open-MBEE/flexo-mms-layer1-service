@@ -156,7 +156,8 @@ fun prefixesFor(
 
 
 object MMS {
-    private val BASE = SPARQL_PREFIXES["mms"]
+    private val BASE = SPARQL_PREFIXES["mms"]!!
+    val uri = BASE
 
     // classes
     val Org = ResourceImpl("${BASE}Org")

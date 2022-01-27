@@ -32,6 +32,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 fun Application.createBranch() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}") {
+
             val context = call.normalize {
                 user()
                 org()
@@ -49,7 +50,7 @@ fun Application.createBranch() {
             val branchNode = workingModel.createResource(prefixes["morb"])
 
             // read put contents
-            parseBody(
+            parseTurtle(
                 body=context.requestBody,
                 prefixes=prefixes,
                 baseIri=branchNode.uri,
@@ -224,7 +225,7 @@ fun Application.createBranch() {
 
             // parse model
             val constructModel = KModel(prefixes).apply {
-                parseBody(
+                parseTurtle(
                     body = constructResponseText,
                     baseIri = branchNode.uri,
                     model = this,

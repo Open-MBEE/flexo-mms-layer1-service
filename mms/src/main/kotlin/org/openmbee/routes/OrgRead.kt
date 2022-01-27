@@ -52,29 +52,27 @@ private val SPARQL_QUERY_ORG = """
 fun Application.readOrg() {
     routing {
         get("/orgs/{orgId?}") {
-            val context = call.normalize {
-                user()
-                org()
+            call.crud {
+                pathParams {
+                    org()
+                }
+
+                val parameterizer = Parameterizer(SPARQL_QUERY_ORG, prefixes)
+
+                // get by orgId
+                if(false == orgId?.isBlank()) {
+                    parameterizer.iri(
+                        "_org" to prefixes["mo"]!!,
+                    )
+                }
+
+                val constructString = parameterizer.toString()
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+                call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
             }
 
-            val prefixes = context.prefixes
-
-            val parameterizer = Parameterizer(SPARQL_QUERY_ORG).apply {
-                prefixes(prefixes)
-            }
-
-            // get by orgId
-            if(false == context.orgId?.isBlank()) {
-                parameterizer.iri(
-                    "_org" to prefixes["mo"]!!,
-                )
-            }
-
-            val constructQuery = parameterizer.toString()
-
-            val selectResponseText = call.submitSparqlConstructOrDescribe(constructQuery)
-
-            call.respondText(selectResponseText, contentType=RdfContentTypes.Turtle)
         }
     }
 }

@@ -5,8 +5,8 @@ import org.apache.jena.query.ParameterizedSparqlString
 import org.apache.jena.shared.PrefixMapping
 
 
-class Parameterizer(sparql: String, prefixes: PrefixMapping?=null) {
-    private val pss = if(null != prefixes) ParameterizedSparqlString(sparql, prefixes) else ParameterizedSparqlString(sparql)
+class Parameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
+    private val pss = if(null != prefixes) ParameterizedSparqlString(sparql, prefixes.toPrefixMappings()) else ParameterizedSparqlString(sparql)
 
     fun prefixes(prefixes: PrefixMapBuilder): Parameterizer {
         pss.setNsPrefixes(prefixes.map)

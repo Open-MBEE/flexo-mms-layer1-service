@@ -4,7 +4,6 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -31,159 +30,86 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
-            val context = call.normalize {
-                user()
-                org(legal=true)
-            }
+            call.crud {
+                pathParams {
+                    org(legal=true)
+                }
 
-            // ref prefixes
-            val prefixes = context.prefixes
+                val orgTriples = filterIncomingStatements("mo") {
+                    orgNode().apply {
+                        sanitizeCrudObject()
 
-            // create a working model to prepare the Update
-            val workingModel = KModel(prefixes)
+                        addProperty(RDF.type, MMS.org)
+                        addProperty(MMS.id, orgId!!)
+                    }
+                }
 
-            // create org node
-            val orgNode = workingModel.createResource(prefixes["mo"])
+                val updateString = buildSparqlUpdate {
+                    insert {
+                        txn {
+                            autoPolicy(Scope.ORG, Role.ADMIN_ORG)
+                        }
 
-            // read put contents
-            parseBody(
-                body=context.requestBody,
-                prefixes=prefixes,
-                baseIri=orgNode.uri,
-                model=workingModel,
-            )
+                        graph("m-graph:Cluster") {
+                            raw(orgTriples)
+                        }
+                    }
+                    where {
+                        raw(*DEFAULT_CONDITIONS.requiredPatterns())
+                    }
+                }
 
-            // set system-controlled properties and remove conflicting triples from user input
-            orgNode.run {
-                removeAll(RDF.type)
-                removeAll(MMS.id)
+                executeSparqlUpdate(updateString)
 
-                // normalize dct:title
+                val localConditions = DEFAULT_CONDITIONS
+
+                // create construct query to confirm transaction and fetch project details
+                val constructString = buildSparqlQuery {
+                    construct {
+                        txn()
+
+                        raw("""
+                            mo: ?mo_p ?mo_o .                 
+                        """)
+                    }
+                    where {
+                        group {
+                            txn()
+
+                            graph("m-graph:Cluster") {
+                                raw("""
+                                    mo: ?mo_p ?mo_o .
+                                """)
+                            }
+                        }
+                        raw("""union ${localConditions.unionInspectPatterns()}""")
+                    }
+                }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+                // log
+                log.info("Triplestore responded with:\n$constructResponseText")
+
+                validateTransaction(constructResponseText, localConditions)
+
+                // respond
+                call.respondText(constructResponseText, RdfContentTypes.Turtle)
+
+                // delete transaction
                 run {
-                    // remove triples that don't point to literals
-                    listProperties(DCTerms.title)
-                        .forEach {
-                            if(!it.`object`.isLiteral) {
-                                workingModel.remove(it)
+                    // submit update
+                    val dropResponseText = executeSparqlUpdate("""
+                        delete where {
+                            graph m-graph:Transactions {
+                                mt: ?p ?o .
                             }
                         }
+                    """)
+
+                    // log response
+                    log.info(dropResponseText)
                 }
-
-                addProperty(RDF.type, MMS.Org)
-                addProperty(MMS.id, context.orgId)
-            }
-
-            // serialize org node
-            val orgTriples = KModel(prefixes) {
-                removeNsPrefix("m-org")
-                add(orgNode.listProperties())
-            }.stringify(emitPrefixes=false)
-
-            // generate sparql update
-            val sparqlUpdate = context.update {
-                insert {
-                    txn()
-
-                    graph("m-graph:Cluster") {
-                        raw(orgTriples)
-                    }
-
-                    // auto-policy
-                    autoPolicySparqlBgp(
-                        builder=this,
-                        prefixes=prefixes,
-                        scope=Scope.ORG,
-                        roles=listOf(Role.ADMIN_ORG),
-                    )
-                }
-                where {
-                    raw(
-                        *DEFAULT_CONDITIONS.requiredPatterns()
-                    )
-                }
-            }.toString()
-
-
-            // log
-            log.info(sparqlUpdate)
-
-            // submit update
-            val updateResponse = call.submitSparqlUpdate(sparqlUpdate)
-
-            val localConditions = DEFAULT_CONDITIONS
-
-            // create construct query to confirm transaction and fetch project details
-            val constructResponseText = call.submitSparqlConstructOrDescribe("""
-                construct  {
-                    mt: ?mt_p ?mt_o .
-
-                    mo: ?mo_p ?mo_o .                    
-                    
-                    ?policy ?policy_p ?policy_o .
-                    
-                    <mms://inspect> <mms://pass> ?inspect .
-                } where {
-                    {
-                        graph m-graph:Transactions {
-                            mt: ?mt_p ?mt_o .
-                        }
-
-                        graph m-graph:Cluster {
-                            mo: ?mo_p ?mo_o .
-                        }
-                        
-                        graph m-graph:AccessControl.Policies {
-                            optional {
-                                ?policy mms:scope mo: ;
-                                    ?policy_p ?policy_o .
-                            }
-                        }
-                    } union ${localConditions.unionInspectPatterns()}
-                }
-            """) {
-                prefixes(context.prefixes)
-            }
-
-            // log
-            log.info("Triplestore responded with:\n$constructResponseText")
-
-            // parse model
-            val constructModel = KModel(prefixes).apply {
-                parseBody(
-                    body = constructResponseText,
-                    baseIri = orgNode.uri,
-                    model = this,
-                )
-            }
-
-            val transactionNode = constructModel.createResource(prefixes["mt"])
-
-            // transaction failed
-            if(!transactionNode.listProperties().hasNext()) {
-                // use response to diagnose cause
-                localConditions.handle(constructModel);
-
-                // the above always throws, so this is unreachable
-            }
-
-            // respond
-            call.respondText(constructResponseText, RdfContentTypes.Turtle)
-
-            // delete transaction
-            run {
-                // submit update
-                val dropResponseText = call.submitSparqlUpdate("""
-                    delete where {
-                        graph m-graph:Transactions {
-                            mt: ?p ?o .
-                        }
-                    }
-                """) {
-                    prefixes(prefixes)
-                }
-
-                // log response
-                log.info(dropResponseText)
             }
         }
     }

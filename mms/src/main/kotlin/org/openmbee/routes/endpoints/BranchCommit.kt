@@ -1,7 +1,6 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -252,7 +251,7 @@ fun Application.commitBranch() {
 
             val constructModel = KModel(prefixes).apply {
                 // parse model
-                parseBody(
+                parseTurtle(
                     body = constructResponseText,
                     baseIri = prefixes["mor"]!!,
                     model = this,
