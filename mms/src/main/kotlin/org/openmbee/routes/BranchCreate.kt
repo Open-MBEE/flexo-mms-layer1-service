@@ -8,7 +8,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
 
-private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_BRANCH, Scope.REPO)
 
     require("branchNotExists") {
@@ -26,11 +26,10 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 }
 
 
-@OptIn(InternalAPI::class)
 fun Application.createBranch() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}") {
-            call.mmsL1 {
+            call.mmsL1(Permission.CREATE_BRANCH) {
                 pathParams {
                     org()
                     repo()
@@ -46,16 +45,19 @@ fun Application.createBranch() {
 
                         addProperty(RDF.type, MMS.Branch)
                         addProperty(MMS.id, branchId)
+                        addProperty(MMS.etag, transactionId)
                         addProperty(MMS.createdBy, userNode())
                     }
                 }
+
+                log.info(branchTriples)
 
                 val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
                 val updateString = buildSparqlUpdate {
                     insert {
                         txn(
-                            "mms-txn:sourceGraph" to "sourceGraph",
+                            "mms-txn:sourceGraph" to "?sourceGraph",
                         ) {
                             autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
                         }
@@ -71,22 +73,26 @@ fun Application.createBranch() {
                     where {
                         raw(*localConditions.requiredPatterns())
 
-                        graph("mor-graph:Metadata") {
-                            raw("""
-                                optional {
-                                    ?snapshot a/rdfs:subClassOf* mms:Snapshot ;
+                        raw("""
+                            optional {
+                                graph m-graph:Schema {
+                                    ?snapshotClass rdfs:subClassOf* mms:Snapshot .
+                                }
+                                
+                                graph mor-graph:Metadata {
+                                    ?snapshot a ?snapshotClass ;
                                         mms:ref/mms:commit ?commitSource ;
                                         mms:graph ?sourceGraph ;
                                         .
                                 }
-                            """)
-                        }
+                            }
+                        """)
                     }
                 }
 
                 executeSparqlUpdate(updateString) {
                     iri(
-                        if(refSource != null) "refSource" to refSource!!
+                        if(refSource != null) "_refSource" to refSource!!
                         else "commitSource" to commitSource!!,
                     )
                 }

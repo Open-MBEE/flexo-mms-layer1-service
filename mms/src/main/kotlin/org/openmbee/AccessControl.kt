@@ -1,35 +1,12 @@
 package org.openmbee
 
 import io.ktor.application.*
-import java.util.*
 
-const val SPARQL_BGP_USER_EXISTS = """
-    # user must exist
-    graph m-graph:AccessControl.Agents {
-        mu: a mms:User .
-    }
-"""
-
-enum class Permission(val id: String) {
-    CREATE_ORG("CreateOrg"),
-    READ_ORG("ReadOrg"),
-    UPDATE_ORG("UpdateOrg"),
-    DELETE_ORG("DeleteOrg"),
-
-    CREATE_REPO("CreateRepo"),
-    READ_REPO("ReadRepo"),
-    UPDATE_REPO("UpdateRepo"),
-    DELETE_REPO("DeleteRepo"),
-
-    CREATE_BRANCH("CreateBranch"),
-    READ_BRANCH("ReadBranch"),
-    UPDATE_BRANCH("UpdateBranch"),
-    DELETE_BRANCH("DeleteBranch"),
-
-    CREATE_LOCK("CreateLock"),
-    READ_LOCK("ReadLock"),
-    UPDATE_LOCK("UpdateLock"),
-    DELETE_LOCK("DeleteLock"),
+enum class Crud(val id: String) {
+    CREATE("Create"),
+    READ("Read"),
+    UPDATE("Update"),
+    DELETE("Delete"),
 }
 
 enum class Scope(val type: String, val id: String) {
@@ -47,6 +24,38 @@ fun Scope.values() = sequence<String> {
         yield(id.substring(0, i))
     }
 }
+
+enum class Permission(
+    val crud: Crud,
+    val scope: Scope,
+    val id: String ="${crud.id}${scope.type}",
+) {
+    CREATE_ORG(Crud.CREATE, Scope.ORG),
+    READ_ORG(Crud.READ, Scope.ORG),
+    UPDATE_ORG(Crud.UPDATE, Scope.ORG),
+    DELETE_ORG(Crud.DELETE, Scope.ORG),
+
+    CREATE_REPO(Crud.CREATE, Scope.REPO),
+    READ_REPO(Crud.READ, Scope.REPO),
+    UPDATE_REPO(Crud.UPDATE, Scope.REPO),
+    DELETE_REPO(Crud.DELETE, Scope.REPO),
+
+    CREATE_BRANCH(Crud.CREATE, Scope.BRANCH),
+    READ_BRANCH(Crud.READ, Scope.BRANCH),
+    UPDATE_BRANCH(Crud.UPDATE, Scope.BRANCH),
+    DELETE_BRANCH(Crud.DELETE, Scope.BRANCH),
+
+    CREATE_LOCK(Crud.CREATE, Scope.LOCK),
+    READ_LOCK(Crud.READ, Scope.LOCK),
+    UPDATE_LOCK(Crud.UPDATE, Scope.LOCK),
+    DELETE_LOCK(Crud.DELETE, Scope.LOCK),
+
+    CREATE_DIFF(Crud.CREATE, Scope.DIFF),
+    READ_DIFF(Crud.READ, Scope.DIFF),
+    UPDATE_DIFF(Crud.UPDATE, Scope.DIFF),
+    DELETE_DIFF(Crud.DELETE, Scope.DIFF),
+}
+
 
 enum class Role(val id: String) {
     ADMIN_ORG("AdminOrg"),
@@ -112,20 +121,4 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                 .
         }
     """.trimIndent()
-}
-
-fun autoPolicySparqlBgp(builder: InsertBuilder, prefixes: PrefixMapBuilder, scope: Scope, roles: List<Role>): InsertBuilder {
-    return builder.run {
-        graph("m-graph:AccessControl.Policies") {
-            raw(
-                """
-                m-policy:Auto${scope.type}Owner.${UUID.randomUUID()} a mms:Policy ;
-                    mms:subject mu: ;
-                    mms:scope ${scope.id}: ;
-                    mms:role ${roles.joinToString(",") { "mms-object:Role.${it.id}" }}  ;
-                    .
-            """
-            )
-        }
-    }
 }

@@ -15,16 +15,7 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
 }
 
 val ORG_CRUD_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    require("orgExists") {
-        handler = { prefixes -> "Org <${prefixes["mo"]}> does not exist." }
-
-        """
-            # org must exist
-            graph m-graph:Cluster {
-                mo: a mms:Org .
-            }
-        """
-    }
+    orgExists()
 }
 
 val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
@@ -53,6 +44,19 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
+val LOCK_CRUD_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+    require("lockExists") {
+        handler = { prefixes -> "Lock <${prefixes["morcl"]}> does not exist." }
+
+        """
+            # lock must exist
+            graph mor-graph:Metadata {
+                morcl: a mms:Lock .
+            }
+        """
+    }
+}
+
 enum class ConditionType {
     INSPECT,
     REQUIRE,
@@ -72,6 +76,19 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
             handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to ${permission.id}." }
 
             permittedActionSparqlBgp(permission, scope)
+        }
+    }
+
+    fun orgExists() {
+        require("orgExists") {
+            handler = { prefixes -> "Org <${prefixes["mo"]}> does not exist." }
+
+            """
+                # org must exist
+                graph m-graph:Cluster {
+                    mo: a mms:Org .
+                }
+            """
         }
     }
 

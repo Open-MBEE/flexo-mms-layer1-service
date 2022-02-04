@@ -1,15 +1,23 @@
 package org.openmbee
 
-import io.ktor.request.*
 import org.apache.jena.datatypes.xsd.XSDDatatype
+import org.apache.jena.query.ParameterizedSparqlString
+import org.apache.jena.rdf.model.impl.LiteralImpl
+import org.apache.jena.update.Update
 import java.time.Instant
 import java.util.*
-import javax.management.Query
 
+
+enum class UpdateOperationBlock(val id: String) {
+    NONE(""),
+    DELETE("DELETE"),
+    INSERT("INSERT"),
+    WHERE("WHERE"),
+}
 
 private val CODE_INDENT = "    "
 
-fun pp(insert: String, indentLevel: Int=2): String {
+private fun pp(insert: String, indentLevel: Int=2): String {
     return insert.prependIndent(CODE_INDENT.repeat(indentLevel)).trimStart()
 }
 
@@ -30,6 +38,10 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
     """.trimIndent()
 }
 
+fun escapeLiteral(value: String): String {
+    return ParameterizedSparqlString().appendLiteral(value).toString()
+}
+
 abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val indentLevel: Int=1) {
     protected val sparqlString = StringBuilder()
 
@@ -48,10 +60,10 @@ abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
     private val mms: MmsL1Context,
     indentLevel: Int,
 ): SparqlBuilder<Instance>(indentLevel) {
-    fun graph(graph: String, setup: GraphBuilder.() -> GraphBuilder): Instance {
+    fun graph(graph: String, setup: GraphBuilder.() -> Unit): Instance {
         return raw("""
             graph $graph {
-                ${GraphBuilder(mms, 4).setup()}
+                ${GraphBuilder(mms, 4).apply{ setup() }}
             }
        """)
     }
@@ -59,7 +71,7 @@ abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
     fun group(setup: GroupBuilder.() -> Unit): Instance {
         return raw("""
             {
-                ${GroupBuilder(mms, 4).setup()}
+                ${GroupBuilder(mms, 4).apply{ setup() }}
             }
         """)
     }
@@ -75,9 +87,39 @@ class GraphBuilder(
     indentLevel: Int,
 ): SparqlBuilder<GraphBuilder>(indentLevel)
 
-class WhereBuilder(
+class KeyedValuesBuilder(
     mms: MmsL1Context,
     indentLevel: Int,
+): SparqlBuilder<KeyedValuesBuilder>(indentLevel) {
+    private val block = StringBuilder()
+
+    fun literal(vararg list: String) {
+        for(value in list) {
+            block.append("${ParameterizedSparqlString().appendLiteral(value)} ")
+        }
+    }
+
+    override fun toString(): String {
+        return block.toString()
+    }
+}
+
+class ValuesBuilder(
+    private val mms: MmsL1Context,
+    private val indentLevel: Int,
+): SparqlBuilder<ValuesBuilder>(indentLevel) {
+    fun key(key: String, setup: KeyedValuesBuilder.()->Unit): ValuesBuilder {
+        return raw("""
+            values ?$key {
+                ${KeyedValuesBuilder(mms, indentLevel).apply{ setup }}
+            }
+        """)
+    }
+}
+
+class WhereBuilder(
+    private val mms: MmsL1Context,
+    private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(mms, indentLevel) {
     fun txn(): WhereBuilder {
         return raw("""
@@ -92,6 +134,10 @@ class WhereBuilder(
                 }
             }    
         """)
+    }
+
+    fun values(setup: ValuesBuilder.() -> Unit): ValuesBuilder {
+        return ValuesBuilder(mms, indentLevel).apply { setup }
     }
 }
 
@@ -167,7 +213,7 @@ class QueryBuilder(
     fun construct(setup: ConstructBuilder.() -> Unit): QueryBuilder {
         return raw("""
             construct {
-                ${ConstructBuilder(mms, 4).setup()}    
+                ${ConstructBuilder(mms, 4).apply{ setup() }}    
             }
         """)
     }
@@ -175,68 +221,125 @@ class QueryBuilder(
     fun where(setup: WhereBuilder.() -> Unit): QueryBuilder {
         return raw("""
             where {
-                ${WhereBuilder(mms, 4).setup()}    
+                ${WhereBuilder(mms, 4).apply{ setup() }}    
             }
         """)
     }
 }
 
+class ComposeUpdateBuilder(
+    private val mms: MmsL1Context,
+    private val indentLevel: Int=0,
+): PatternBuilder<ComposeUpdateBuilder>(mms, indentLevel) {
+    var deleteString = ""
+    var insertString = ""
+    var whereString = ""
+
+    fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?=null) {
+        insertString += InsertBuilder(mms, indentLevel).apply {
+            txn(*extras)
+        }
+
+        whereString += WhereBuilder(mms, indentLevel).apply {
+            txn(*extras)
+        }
+    }
+
+    fun conditions(conditions: ConditionsGroup) {
+        insertString += raw(*conditions.requiredPatterns())
+    }
+
+    fun delete(setup: DeleteBuilder.() -> DeleteBuilder) {
+        deleteString += DeleteBuilder(mms, indentLevel).setup()
+    }
+
+    fun insert(setup: InsertBuilder.() -> InsertBuilder) {
+        insertString += InsertBuilder(mms, indentLevel).setup()
+    }
+
+    fun where(setup: WhereBuilder.() -> WhereBuilder) {
+        whereString += WhereBuilder(mms, indentLevel).setup()
+    }
+
+    override fun toString(): String {
+        return """
+            delete {
+                $deleteString
+            }
+            insert {
+                $insertString
+            }
+            where {
+                $whereString
+            }
+        """
+    }
+}
+
+class LostUpdateOperationException: Exception("An update operation was lost")
 
 class UpdateBuilder(
     private val mms: MmsL1Context,
     indentLevel: Int=0,
 ): SparqlBuilder<UpdateBuilder>(indentLevel) {
     var operationCount = 0
-    var previousBlock = OperationBlock.NONE
+    var previousBlock = UpdateOperationBlock.NONE
 
-    fun delete(setup: DeleteBuilder.() -> DeleteBuilder): UpdateBuilder {
+    var pendingDeleteString = ""
+    var pendingInsertString = ""
+    var pendingInsertDataString = ""
+    var pendingWhereString = ""
+
+    fun compose(setup: ComposeUpdateBuilder.() -> ComposeUpdateBuilder): UpdateBuilder {
+        return raw("${ComposeUpdateBuilder(mms, 4).setup()}")
+    }
+
+    fun delete(setup: DeleteBuilder.() -> Unit): UpdateBuilder {
         if(operationCount++ > 0) raw(";")
 
-        previousBlock = OperationBlock.DELETE
+        previousBlock = UpdateOperationBlock.DELETE
 
         return raw("""
             delete {
-                ${DeleteBuilder(mms, 4).setup()}
+                ${DeleteBuilder(mms, 4).apply{ setup() }}
+                
+                $pendingDeleteString
             }
-        """)
+        """).apply {
+            pendingDeleteString = ""
+        }
     }
 
-    fun insert(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(previousBlock != OperationBlock.DELETE) {
+    fun insert(setup: InsertBuilder.() -> Unit): UpdateBuilder {
+        if(previousBlock != UpdateOperationBlock.DELETE) {
             if(operationCount++ > 0) raw(";")
         }
 
-        previousBlock = OperationBlock.INSERT
+        previousBlock = UpdateOperationBlock.INSERT
 
         return raw("""
             insert {
-                ${InsertBuilder(mms, 4).setup()}
+                ${InsertBuilder(mms, 4).apply{ setup() }}
+                
+                $pendingInsertString
             }
-        """)
-    }
-
-    fun insertData(setup: InsertBuilder.() -> InsertBuilder): UpdateBuilder {
-        if(previousBlock != OperationBlock.DELETE) {
-            if(operationCount++ > 0) raw(";")
+        """).apply {
+            pendingInsertString = ""
         }
-
-        previousBlock = OperationBlock.INSERT
-
-        return raw("""
-            insert data {
-                ${InsertBuilder(mms, 4).setup()}
-            }
-        """)
     }
 
-    fun where(setup: WhereBuilder.() -> WhereBuilder): UpdateBuilder {
-        previousBlock = OperationBlock.WHERE
+    fun where(setup: WhereBuilder.() -> Unit): UpdateBuilder {
+        previousBlock = UpdateOperationBlock.WHERE
 
         return raw("""
             where {
-                ${WhereBuilder(mms, 4).setup()}
+                ${WhereBuilder(mms, 4).apply{ setup() }}
+                
+                $pendingWhereString
             }
-        """)
+        """).apply {
+            pendingWhereString = ""
+        }
     }
 
     override fun toString(): String {
@@ -245,7 +348,11 @@ class UpdateBuilder(
 
     fun toString(config: Parameterizer.() -> Parameterizer): String {
         return parameterizedSparql(sparqlString.toString()) {
-            prefixes(mms.prefixes)
+            if(pendingDeleteString.isNotEmpty() || pendingInsertString.isNotEmpty() || pendingInsertDataString.isNotEmpty() || pendingWhereString.isNotEmpty()) {
+                throw LostUpdateOperationException()
+            }
+
+            // prefixes(mms.prefixes)
 
             literal(
                 "_userId" to (mms.userId?: ""),
@@ -268,50 +375,5 @@ class UpdateBuilder(
 
             config()
         }
-    }
-}
-
-enum class OperationBlock(val id: String) {
-    NONE(""),
-    DELETE("DELETE"),
-    INSERT("INSERT"),
-    WHERE("WHERE"),
-}
-
-class TransactionContext(
-    var userId: String?=null,
-    var orgId: String?=null,
-    var repoId: String?=null,
-    var branchId: String?=null,
-    commitId: String?=null,
-    var lockId: String?=null,
-    var diffId: String?=null,
-    var request: ApplicationRequest,
-    var commitMessage: String?=null,
-    val requestBody: String="",
-) {
-    val transactionId = UUID.randomUUID().toString()
-    val commitId = commitId ?: transactionId
-    val requestPath = request.path()
-    val requestMethod = request.httpMethod.value
-    val requestBodyContentType = request.contentType().toString()
-
-    var operationCount = 0
-    var previousBlock = OperationBlock.NONE
-
-    val prefixes: PrefixMapBuilder
-        get() = prefixesFor(
-            userId = userId,
-            orgId = orgId,
-            repoId = repoId,
-            branchId = branchId,
-            commitId = commitId,
-            lockId = lockId,
-            diffId = diffId,
-            transactionId = transactionId,
-        )
-
-    fun update(setup: UpdateBuilder.() -> UpdateBuilder): UpdateBuilder {
-        return UpdateBuilder(this,).setup()
     }
 }

@@ -26,11 +26,10 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 }
 
 
-@OptIn(InternalAPI::class)
 fun Application.createLock() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}/commit/{commitId}/locks/{lockId}") {
-            call.mmsL1 {
+            call.mmsL1(Permission.CREATE_LOCK) {
                 pathParams {
                     org()
                     repo()

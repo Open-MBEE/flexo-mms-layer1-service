@@ -3,7 +3,6 @@ package org.openmbee.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -76,11 +75,10 @@ fun String.normalizeIndentation(spaces: Int=0): String {
     return this.trimIndent().prependIndent(" ".repeat(spaces)).replace("^\\s+".toRegex(), "")
 }
 
-@OptIn(InternalAPI::class)
 fun Application.createRepo() {
     routing {
         put("/orgs/{orgId}/repos/{repoId}") {
-            call.mmsL1 {
+            call.mmsL1(Permission.CREATE_REPO) {
                 branchId = "main"
 
                 pathParams {

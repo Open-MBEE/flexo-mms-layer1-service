@@ -1,6 +1,5 @@
 package org.openmbee
 
-import io.ktor.application.*
 import io.ktor.response.*
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
@@ -262,7 +261,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
     }
 
     if(outputQuery.isSelectType || outputQuery.isAskType) {
-        val queryResponseText = submitSparqlSelectOrAsk(outputQueryString)
+        val queryResponseText = executeSparqlSelectOrAsk(outputQueryString)
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
@@ -270,5 +269,8 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString)
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
+    }
+    else {
+        throw Exception("Query operation not supported")
     }
 }

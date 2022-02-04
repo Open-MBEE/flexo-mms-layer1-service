@@ -62,6 +62,37 @@ m-graph:Cluster {
 		.
 }
 
+m-graph:Schema {
+	mms:Ref a rdfs:Class ;
+		rdfs:label "Ref" ;
+		.
+
+	mms:Branch a rdfs:Class ;
+		rdfs:label "Branch" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Lock a rdfs:Class ;
+		rdfs:label "Lock" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Commit a rdfs:Class ;
+		rdfs:label "Commit" ;
+		.
+
+
+	mms:ref a rdf:Property ;
+		rdfs:label "ref" ;
+		rdfs:range mms:Ref ;
+		.
+
+	mms:commit a rdf:Property ;
+		rdfs:label "commit" ;
+		rdfs:range mms:Commit ;
+		.
+}
+
 m-graph:AccessControl.Definitions {
 
 	# ====================================

@@ -1,6 +1,7 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -25,12 +26,10 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     }
 }
 
-
-@OptIn(InternalAPI::class)
 fun Application.createOrg() {
     routing {
         put("/orgs/{orgId}") {
-            call.mmsL1 {
+            call.mmsL1(Permission.CREATE_ORG) {
                 pathParams {
                     org(legal=true)
                 }
@@ -39,8 +38,21 @@ fun Application.createOrg() {
                     orgNode().apply {
                         sanitizeCrudObject()
 
-                        addProperty(RDF.type, MMS.org)
+                        addProperty(RDF.type, MMS.Org)
                         addProperty(MMS.id, orgId!!)
+                        addProperty(MMS.etag, transactionId)
+                    }
+                }
+
+                val localConditions = DEFAULT_CONDITIONS.append {
+                    assertPreconditions(this) {
+                        """
+                            graph mor-graph:Metadata {
+                                mo: mms:etag ?etag .
+                                
+                                $it
+                            }
+                        """
                     }
                 }
 
@@ -55,13 +67,12 @@ fun Application.createOrg() {
                         }
                     }
                     where {
-                        raw(*DEFAULT_CONDITIONS.requiredPatterns())
+                        raw(*localConditions.requiredPatterns())
                     }
                 }
 
                 executeSparqlUpdate(updateString)
 
-                val localConditions = DEFAULT_CONDITIONS
 
                 // create construct query to confirm transaction and fetch project details
                 val constructString = buildSparqlQuery {
@@ -69,7 +80,9 @@ fun Application.createOrg() {
                         txn()
 
                         raw("""
-                            mo: ?mo_p ?mo_o .                 
+                            mo: ?mo_p ?mo_o .
+                            
+                            <mms://inspect> <mms://etag> ?etag .
                         """)
                     }
                     where {
@@ -91,7 +104,9 @@ fun Application.createOrg() {
                 // log
                 log.info("Triplestore responded with:\n$constructResponseText")
 
-                validateTransaction(constructResponseText, localConditions)
+                val model = validateTransaction(constructResponseText, localConditions)
+
+                checkPreconditions(model, prefixes["mo"]!!)
 
                 // respond
                 call.respondText(constructResponseText, RdfContentTypes.Turtle)

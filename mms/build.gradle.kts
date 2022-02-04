@@ -1,5 +1,6 @@
 val jena_version: String by project
 val klaxon_version: String by project
+val kotlinx_json_version: String by project
 val ktor_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
@@ -7,6 +8,7 @@ val logback_version: String by project
 plugins {
     application
     kotlin("jvm") version "1.6.10"
+    kotlin("plugin.serialization") version "1.6.10"
 }
 
 group = "org.openmbee"
@@ -24,6 +26,7 @@ dependencies {
     implementation(kotlin("stdlib"))
 
     implementation("commons-cli:commons-cli:1.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinx_json_version")
 
     implementation("com.beust:klaxon:$klaxon_version")
 

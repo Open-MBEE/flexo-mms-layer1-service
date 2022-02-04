@@ -196,6 +196,7 @@ object MMS {
     // access control properties
     val implies = PropertyImpl("${BASE}implies")
 
+    val etag = PropertyImpl("${BASE}etag")
     val ref = PropertyImpl("${BASE}ref")
     val commit = PropertyImpl("${BASE}commit")
     val graph = PropertyImpl("${BASE}graph")

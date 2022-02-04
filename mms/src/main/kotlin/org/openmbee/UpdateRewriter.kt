@@ -4,7 +4,6 @@ import io.ktor.http.*
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
-import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.*
 
 
@@ -19,51 +18,6 @@ class UpdateOperationNotAllowedException(operation: String): Exception(operation
 class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 class Non200Response(body: String, status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
-
-
-abstract class SelectiveUpdateVisitor: UpdateVisitor {
-    override fun visit(update: UpdateDrop?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("DROP")
-        }
-    }
-
-    override fun visit(update: UpdateClear?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("CLEAR")
-        }
-    }
-
-    override fun visit(update: UpdateCreate?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("CREATE")
-        }
-    }
-
-    override fun visit(update: UpdateLoad?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("LOAD")
-        }
-    }
-
-    override fun visit(update: UpdateAdd?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("ADD")
-        }
-    }
-
-    override fun visit(update: UpdateCopy?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("COPY")
-        }
-    }
-
-    override fun visit(update: UpdateMove?) {
-        if(update != null) {
-            throw UpdateOperationNotAllowedException("MOVE")
-        }
-    }
-}
 
 
 object NoQuadsElementVisitor: ElementVisitor {
@@ -123,17 +77,6 @@ object NoQuadsElementVisitor: ElementVisitor {
         el?.query?.queryPattern?.visit(NoQuadsElementVisitor)
     }
 }
-
-
-
-fun assertAllTriples(quads: List<Quad>?) {
-    quads?.forEach { quad ->
-        if(quad.graph != null && !quad.isDefaultGraph) {
-            throw QuadsNotAllowedException(quad.graph.toString())
-        }
-    }
-}
-
 
 fun assertNoQuads(element: Element1?) {
     element?.element?.visit(NoQuadsElementVisitor)

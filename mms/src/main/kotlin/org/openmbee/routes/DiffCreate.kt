@@ -3,7 +3,6 @@ package org.openmbee.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 import java.security.MessageDigest
@@ -34,11 +33,10 @@ private fun hashString(input: String, algorithm: String): String {
 }
 
 
-@OptIn(InternalAPI::class)
 fun Application.createDiff() {
     routing {
         post("/orgs/{orgId}/repos/{repoId}/locks/{lockId}/diff") {
-            call.mmsL1 {
+            call.mmsL1(Permission.CREATE_DIFF) {
                 pathParams {
                     org()
                     repo()
@@ -123,38 +121,42 @@ fun Application.createDiff() {
                                 }
                             }
                             
-                            graph mor-graph:Metadata {
-                                optional {
-                                    ?snapshot a/rdfs:subClassOf* mms:Snapshot ;
+                            optional {
+                                graph m-graph:Schema {
+                                    ?snapshotClass rdfs:subClassOf* mms:Snapshot .
+                                }
+                            
+                                graph mor-graph:Metadata {
+                                    ?snapshot a ?snapshotClass ;
                                         mms:ref/mms:commit ?commitSource ;
                                         mms:graph ?sourceGraph ;
                                         .
                                 }
-                                
-                                bind(
-                                    sha256(
-                                        concat(str(morc:), "\n", str(?commitSource))
-                                    ) as ?diffId
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(morc:), "/diffs/", ?diffId)
-                                    ) as ?diff
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                                    ) as ?diffInsGraph
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                                    ) as ?diffDelGraph
-                                )
                             }
+                            
+                            bind(
+                                sha256(
+                                    concat(str(morc:), "\n", str(?commitSource))
+                                ) as ?diffId
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(morc:), "/diffs/", ?diffId)
+                                ) as ?diff
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(mor-graph:), "Diff.Ins.", ?diffId)
+                                ) as ?diffInsGraph
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(mor-graph:), "Diff.Del.", ?diffId)
+                                ) as ?diffDelGraph
+                            )
                         """)
                     }
                 }

@@ -1,13 +1,36 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.openmbee.*
 
+private val SPARQL_BGP_ORG = """
+    graph m-graph:Cluster {
+        ?_org a mms:Org ;
+            ?org_p ?org_o .
+        
+        optional {
+            ?thing mms:org ?_org ;
+                ?thing_p ?thing_o .
+        }
+    }
+    
+    ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
+"""
 
-private val SPARQL_QUERY_ORG = """
+private val SPARQL_SELECT_ORG = """
+    select ?etag {
+        $SPARQL_BGP_ORG
+    } order by asc(?etag)
+"""
+
+private val SPARQL_CONSTRUCT_ORG = """
     construct {
         ?_org ?org_p ?org_o .
         
@@ -21,18 +44,10 @@ private val SPARQL_QUERY_ORG = """
         ?policy ?policy_p ?policy_o .
         
         ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
-    } where {
-        graph m-graph:Cluster {
-            ?_org a mms:Org ;
-                ?org_p ?org_o .
-            
-            optional {
-                ?thing mms:org ?_org ;
-                    ?thing_p ?thing_o .
-            }
-        }
         
-        ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
+        <mms://inspect> <mms://etag> ?etag .
+    } where {
+        $SPARQL_BGP_ORG
         
         graph m-graph:AccessControl.Policies {
             ?policy ?policy_p ?policy_o .
@@ -48,31 +63,60 @@ private val SPARQL_QUERY_ORG = """
     }
 """
 
-@OptIn(InternalAPI::class)
 fun Application.readOrg() {
     routing {
-        get("/orgs/{orgId?}") {
-            call.mmsL1 {
-                pathParams {
-                    org()
+        route("/orgs/{orgId?}") {
+            head {
+                call.mmsL1(Permission.READ_ORG) {
+                    pathParams {
+                        org()
+                    }
+
+                    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                        // get by orgId
+                        if(false == orgId?.isBlank()) {
+                            iri(
+                                "_org" to prefixes["mo"]!!,
+                            )
+                        }
+                    }
+
+                    val results = Json.parseToJsonElement(selectResponseText).jsonObject
+
+                    checkPreconditions(results)
+
+                    call.respondText("", status = HttpStatusCode.OK)
                 }
-
-                val parameterizer = Parameterizer(SPARQL_QUERY_ORG, prefixes)
-
-                // get by orgId
-                if(false == orgId?.isBlank()) {
-                    parameterizer.iri(
-                        "_org" to prefixes["mo"]!!,
-                    )
-                }
-
-                val constructString = parameterizer.toString()
-
-                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
-
-                call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
             }
 
+            get {
+                call.mmsL1(Permission.READ_ORG) {
+                    pathParams {
+                        org()
+                    }
+
+                    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                        // get by orgId
+                        if(false == orgId?.isBlank()) {
+                            iri(
+                                "_org" to prefixes["mo"]!!,
+                            )
+                        }
+                    }
+
+                    val model = KModel(prefixes) {
+                        parseTurtle(
+                            body = constructResponseText,
+                            model = this,
+                        )
+                    }
+
+                    checkPreconditions(model, prefixes["mo"]!!)
+
+                    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+                }
+
+            }
         }
     }
 }

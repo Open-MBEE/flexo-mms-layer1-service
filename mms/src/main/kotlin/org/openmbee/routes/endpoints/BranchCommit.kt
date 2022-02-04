@@ -1,6 +1,8 @@
 package org.openmbee.routes
 
 import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
@@ -63,11 +65,10 @@ fun assertOperationsAllowed(operations: List<Update>) {
 }
 
 
-@OptIn(InternalAPI::class)
 fun Application.commitBranch() {
     routing {
         post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
-            call.mmsL1 {
+            call.mmsL1(Permission.UPDATE_BRANCH) {
                 pathParams {
                     org()
                     repo()
@@ -122,6 +123,30 @@ fun Application.commitBranch() {
                 log.info("WHERE: $whereString")
 
 
+                val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
+                    if(whereString.isNotEmpty()) {
+                        inspect("userWhere") {
+                            handler = { "User update condition is not satisfiable" }
+
+                            """
+                                graph ?stagingGraph {
+                                    $whereString
+                                }
+                            """
+                        }
+                    }
+
+                    assertPreconditions(this) {
+                        """
+                            graph mor-graph:Metadata {
+                                morb: mms:etag ?etag .
+                                
+                                $it
+                            }
+                        """
+                    }
+                }
+
                 val interimIri = "${prefixes["mor-lock"]}Iterim.${transactionId}";
 
                 // generate sparql update
@@ -160,6 +185,7 @@ fun Application.commitBranch() {
                             raw("""
                                 # new commit
                                 morc: a mms:Commit ;
+                                    mms:etag ?_txnId ;
                                     mms:parent ?baseCommit ;
                                     mms:message ?_commitMessage ;
                                     mms:submitted ?_now ;
@@ -191,9 +217,8 @@ fun Application.commitBranch() {
                             }
                         }
 
-                        raw(
-                            *DEFAULT_UPDATE_CONDITIONS.requiredPatterns()
-                        )
+                        raw(*localConditions.requiredPatterns())
+
                     }
                 }
 
@@ -204,24 +229,14 @@ fun Application.commitBranch() {
                     )
 
                     datatyped(
-                        "_updateBody" to (requestBody to MMS_DATATYPE.sparql)
+                        "_updateBody" to (requestBody to MMS_DATATYPE.sparql),
+                    )
+
+                    literal(
+                        "_txnId" to transactionId,
                     )
                 }
 
-
-                val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
-                    if(whereString.isNotEmpty()) {
-                        inspect("userWhere") {
-                            handler = { "User update condition is not satisfiable" }
-
-                            """
-                                graph ?stagingGraph {
-                                    $whereString
-                                }
-                            """
-                        }
-                    }
-                }
 
                 // create construct query to confirm transaction and fetch base model details
                 val constructResponseText = buildSparqlQuery {
@@ -270,10 +285,18 @@ fun Application.commitBranch() {
                     throw Exception("failed to fetch graph/model")
                 }
 
+
+                // set etag header
+                call.response.header(HttpHeaders.ETag, transactionId)
+
+                // provide location of new resource
+                call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
+
                 // forward response to client
                 call.respondText(
                     constructResponseText,
-                    contentType = RdfContentTypes.Turtle
+                    status = HttpStatusCode.Created,
+                    contentType = RdfContentTypes.Turtle,
                 )
 
 
