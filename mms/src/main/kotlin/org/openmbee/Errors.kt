@@ -12,22 +12,35 @@ abstract class HttpException(msg: String, private val statusCode: HttpStatusCode
 }
 
 
+
 open class Http304Exception(msg: String): HttpException(msg, HttpStatusCode.NotModified) {
     override suspend fun handle(call: ApplicationCall, text: String?) {
         super.handle(call, "")
     }
 }
 
-// open class Http400Exception(msg: String): HttpException(msg, HttpStatusCode.BadRequest)
-
-open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
-
-
 class NotModifiedException(msg: String?=null): Http304Exception(msg?: "")
 
-class InvalidHeaderValue(description: String): BadRequestException("Request contains an invalid header value for $description")
+
+
+open class Http400Exception(msg: String): HttpException(msg, HttpStatusCode.BadRequest)
+
+class InvalidHeaderValue(description: String): Http400Exception("Request contains an invalid header value for $description")
+
+class VariablesNotAllowedInUpdateException(position: String="any"): Http400Exception("Variables are not allowed in $position position for an update operation on this resource")
+
+class ConstraintViolationException(detail: String): Http400Exception("The input document violates the constraints for an MMS object: $detail")
+
+class InvalidDocumentSemanticsException(detail: String): Http400Exception("The input document contains invalid semantics: $detail")
+
+
+open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
 
 class PreconditionFailedException(type: String): Http412Exception("$type precondition failed")
 
 
+
+open class Http500Excpetion(msg: String): HttpException(msg, HttpStatusCode.InternalServerError)
+
+class ServerBugException(msg: String?=null): Http500Excpetion("Possible server implementation bug: ${msg?: "(no description)"}")
 

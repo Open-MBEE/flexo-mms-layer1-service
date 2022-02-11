@@ -102,12 +102,14 @@ fun asSparqlGroup(vararg elements: Element): String {
         .trim().replace("([^.])$".toRegex(), "$1 .")
 }
 
-fun asSparqlGroup(quads: List<Quad>): String {
+fun asSparqlGroup(quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): String {
     return asSparqlGroup(ElementTriplesBlock().apply {
         for(quad in quads) {
             if(quad.graph != null && !quad.isDefaultGraph) {
                 throw QuadsNotAllowedException(quad.graph.toString())
             }
+
+            if(quadFilter != null && !quadFilter(quad)) continue;
 
             addTriple(Triple(quad.subject, quad.predicate, quad.`object`))
         }

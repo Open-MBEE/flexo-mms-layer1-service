@@ -12,7 +12,7 @@ enum class Crud(val id: String) {
 enum class Scope(val type: String, val id: String) {
     CLUSTER("Cluster", "m"),
     ORG("Org", "mo"),
-    // COLLECTION("Repo", "m", "mo", "moc"),
+    COLLECTION("Collection", "moc"),
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morcl"),
@@ -34,6 +34,11 @@ enum class Permission(
     READ_ORG(Crud.READ, Scope.ORG),
     UPDATE_ORG(Crud.UPDATE, Scope.ORG),
     DELETE_ORG(Crud.DELETE, Scope.ORG),
+
+    CREATE_COLLECTION(Crud.CREATE, Scope.COLLECTION),
+    READ_COLLECTION(Crud.READ, Scope.COLLECTION),
+    UPDATE_COLLECTION(Crud.UPDATE, Scope.COLLECTION),
+    DELETE_COLLECTION(Crud.DELETE, Scope.COLLECTION),
 
     CREATE_REPO(Crud.CREATE, Scope.REPO),
     READ_REPO(Crud.READ, Scope.REPO),

@@ -47,14 +47,14 @@ fun Application.createDiff() {
                 diffId = transactionId
 
                 val diffTriples = filterIncomingStatements("morb") {
-                    diffNode().run {
+                    diffNode().apply {
                         normalizeRefOrCommit(this)
 
-                        sanitizeCrudObject()
-
-                        addProperty(RDF.type, MMS.Diff)
-                        addProperty(MMS.diffSrc, lockNode())
-                        addProperty(MMS.createdBy, userNode())
+                        sanitizeCrudObject {
+                            addProperty(RDF.type, MMS.Diff)
+                            addProperty(MMS.diffSrc, lockNode())
+                            addProperty(MMS.createdBy, userNode())
+                        }
                     }
                 }
 

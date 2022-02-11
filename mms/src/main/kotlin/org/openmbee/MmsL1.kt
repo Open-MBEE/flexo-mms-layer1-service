@@ -8,9 +8,6 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.util.*
 import org.apache.commons.io.IOUtils
-import org.apache.jena.rdf.model.Property
-import org.apache.jena.rdf.model.RDFNode
-import org.apache.jena.rdf.model.Resource
 import org.apache.jena.riot.RDFLanguages
 import org.apache.jena.riot.RDFParser
 import org.apache.jena.riot.system.ErrorHandlerFactory
@@ -21,8 +18,14 @@ import org.apache.jena.vocabulary.RDFS
 import org.openmbee.plugins.client
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
-import org.apache.jena.rdf.model.ResourceFactory
+import org.apache.jena.rdf.model.*
 import org.apache.jena.rdf.model.impl.PropertyImpl
+import org.apache.jena.sparql.core.Quad
+import org.apache.jena.sparql.modify.request.UpdateDataDelete
+import org.apache.jena.sparql.modify.request.UpdateDataInsert
+import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
+import org.apache.jena.sparql.modify.request.UpdateModify
+import org.apache.jena.update.UpdateFactory
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -44,6 +47,11 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
     fun org(legal: Boolean=false) {
         mms.orgId = call.parameters["orgId"]
         if(legal) assertLegalId(mms.orgId!!)
+    }
+
+    fun collection(legal: Boolean=false) {
+        mms.collectionId = call.parameters["collectionId"]
+        if(legal) assertLegalId(mms.collectionId!!)
     }
 
     fun repo(legal: Boolean=false) {
@@ -109,15 +117,80 @@ val FORBIDDEN_PREDICATES_REGEX = listOf(
     MMS.uri,
 ).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
 
-fun Resource.sanitizeCrudObject() {
-    removeNonLiterals(DCTerms.title)
+interface ObjectValue {
 
-    listProperties().toList().forEach {
-        val predicateUri = it.predicate.uri
-        if(predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)) {
-            it.remove()
+}
+
+class Sanitizer(val mms: MmsL1Context, val node: Resource) {
+    val explicitUris = hashMapOf<String, Resource>()
+    val explicitLiterals = hashMapOf<String, String>()
+
+    fun setProperty(property: Property, value: Resource) {
+        val inputs = node.listProperties(property)
+
+        // user document includes triple(s) about this property
+        if(inputs.hasNext()) {
+            // ensure value is acceptable
+            for(input in inputs) {
+                // not acceptable
+                if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property to anything other than <${node.uri}>")
+
+                // remove from model
+                input.remove()
+            }
+        }
+
+        // set value
+        explicitUris[property.uri] = value
+    }
+
+    fun setProperty(property: Property, value: String) {
+        val inputs = node.listProperties(property)
+
+        // user document includes triple(s) about this property
+        if(inputs.hasNext()) {
+            // ensure value is acceptable
+            for(input in inputs) {
+                // not acceptable
+                if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property to anything other than \"${value}\"")
+
+                // remove from model
+                input.remove()
+            }
+        }
+
+        // set value
+        explicitLiterals[property.uri] = value
+    }
+
+    fun finalize() {
+        // check each property
+        node.listProperties().toList().forEach {
+            val predicateUri = it.predicate.uri
+
+            // sensitive property
+            if(predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)) {
+                throw ConstraintViolationException("user not allowed to set <$predicateUri> property because it belongs to a restricted namespace")
+            }
+        }
+
+        // add back explicit properties
+        for(entry in explicitUris) {
+            val property = ResourceFactory.createProperty(entry.key)
+            node.addProperty(property, entry.value)
+        }
+
+        // add back explicit literals
+        for(entry in explicitLiterals) {
+            val property = ResourceFactory.createProperty(entry.key)
+            node.addProperty(property, entry.value)
         }
     }
+}
+
+fun Quad.isSanitary(): Boolean {
+    val predicateUri = this.predicate.uri
+    return predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)
 }
 
 class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
@@ -147,6 +220,10 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
 
     fun orgNode(): Resource {
         return resourceFromParamPrefix("mo")
+    }
+
+    fun collectionNode(): Resource {
+        return resourceFromParamPrefix("moc")
     }
 
     fun repoNode(): Resource {
@@ -180,24 +257,54 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
         if(1 == sourceCount) {
             if(1 == refs.size) {
                 mms.refSource = if(!refs[0].`object`.isURIResource) {
-                    throw Exception("Ref source must be an IRI")
+                    throw ConstraintViolationException("object of `mms:ref` predicate must be an IRI")
                 } else {
                     refs[0].`object`.asResource().uri
                 }
+
+                refs[0].remove()
             }
             else {
                 mms.commitSource = if(!commits[0].`object`.isURIResource) {
-                    throw Exception("Commit source must be an IRI")
+                    throw ConstraintViolationException("object of `mms:commit` predicate must be an IRI")
                 } else {
                     commits[0].`object`.asResource().uri
                 }
+
+                commits[0].remove()
             }
         }
         else if(0 == sourceCount) {
-            throw Exception("Must specify a ref or commit source using mms:ref or mms:commit predicate, respectively.")
+            throw ConstraintViolationException("must specify a ref or commit source using `mms:ref` or `mms:commit` predicate, respectively")
         }
         else if(sourceCount > 1) {
-            throw Exception("Too many sources specified.")
+            throw ConstraintViolationException("must specify exactly one ref or commit; but too many sources were specified")
+        }
+    }
+
+    fun Resource.extract1OrMoreUris(predicate: Property): List<Resource> {
+        val statements = listProperties(MMS.collects).toList()
+        if(statements.isEmpty()) {
+            throw ConstraintViolationException("missing triples having required property `${mms.prefixes.terse(predicate)}`")
+        }
+
+        return statements.map {
+            if(!it.`object`.isURIResource) {
+                throw ConstraintViolationException("object of `mms:collects` predicate must be an IRI")
+            }
+
+            it.`object`.asResource()
+        }
+    }
+
+    fun Resource.sanitizeCrudObject(setup: (Sanitizer.()->Unit)?=null) {
+        removeNonLiterals(DCTerms.title)
+
+        if(setup != null) {
+            Sanitizer(mms, this@sanitizeCrudObject).apply {
+                setup(this)
+                finalize()
+            }
         }
     }
 }
@@ -228,6 +335,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     val userId = call.mmsUserId
     var orgId: String? = null
+    var collectionId: String? = null
     var repoId: String? = null
     var commitId: String = transactionId
     var lockId: String? = null
@@ -249,6 +357,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         get() = prefixesFor(
             userId = userId,
             orgId = orgId,
+            collectionId = collectionId,
             repoId = repoId,
             branchId = branchId,
             commitId = commitId,
@@ -371,6 +480,25 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return model
     }
 
+    fun injectPreconditions(): String {
+        log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
+        log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
+
+        return """
+            ${if(ifMatch?.isStar == false) """
+                values ?etag {
+                    ${ifMatch.etags.joinToString(" ") { escapeLiteral(it) }}
+                }
+            """ else ""}
+            
+            ${if(ifNoneMatch != null) """
+                filter(?etag != ?etagNot)
+                values ?etagNot {
+                    ${ifNoneMatch.etags.joinToString(" ") { escapeLiteral(it) }}
+                }
+            """ else ""}
+        """
+    }
 
     fun assertPreconditions(builder: ConditionsBuilder, inject: (String)->String) {
         if((ifMatch != null && !ifMatch.isStar) || ifNoneMatch != null) {
@@ -381,25 +509,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             builder.require("userPreconditions") {
                 handler = { "User preconditions failed" }
 
-                inject(""" 
-                    ${if(ifNoneMatch != null) "filter(?etag != ?etagNot)" else ""}
-                    
-                    ${if(ifMatch != null && !ifMatch.isStar)
-                        """
-                            values ?etag {
-                                ${ifMatch.etags.joinToString(" ") { escapeLiteral(it) }}
-                            }
-                        }
-                    """ else ""}
-                    
-                    ${if(ifNoneMatch != null)
-                        """
-                            values ?etagNot {
-                                ${ifNoneMatch.etags.joinToString(" ") { escapeLiteral(it) }}
-                            }
-                        }
-                    """ else ""}
-                """)
+                inject(injectPreconditions())
             }
         }
     }
@@ -416,6 +526,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 }.toHashSet())
         } else null
     }
+
 
     fun checkPreconditions(results: JsonObject) {
         // resource does not exist
@@ -436,6 +547,14 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun checkPreconditions(model: KModel, resourceUri: String) {
+        // create resource node in model
+        val resourceNode = model.createResource(resourceUri)
+
+        // resource not exists; 404
+        if(!resourceNode.listProperties().hasNext()) {
+            throw NotFoundException()
+        }
+
         // etags
         val inspectNode = model.createResource("mms://inspect")
         val etags = inspectNode.listProperties(ETAG_PROPERTY).toList()
@@ -448,7 +567,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // no etags were parsed
         if(etags.size == 0) {
-            throw Exception("Failed to parse ETag")
+            throw ServerBugException("Constructed model did not contain any etag values.")
         }
 
         // set etag value in response header
@@ -457,13 +576,6 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         // `create` operation; exit
         if(permission.crud == Crud.CREATE) return
 
-        // create resource node in model
-        val resourceNode = model.createResource(resourceUri)
-
-        // resource not exists; 404
-        if(!resourceNode.listProperties().hasNext()) {
-            throw NotFoundException()
-        }
 
         // check If-Match preconditions
         if(ifMatch != null && !ifMatch.isStar) {
@@ -485,6 +597,203 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 throw PreconditionFailedException("If-None-Match")
             }
         }
+    }
+}
+
+
+// TODO: move these functions to another file
+
+fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
+    return {
+        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
+    }
+}
+
+fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
+    return {
+        if(it.subject.isVariable) {
+            throw VariablesNotAllowedInUpdateException("subject")
+        }
+        else if(!it.subject.isURI || it.subject.uri != subjectIri) {
+            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
+        }
+        else if(it.predicate.isVariable) {
+            throw VariablesNotAllowedInUpdateException("predicate")
+        }
+        else if(it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)) {
+            throw Http400Exception("User not allowed to set property using predicate <${it.predicate.uri}>")
+        }
+
+        true
+    }
+}
+
+suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditions: ConditionsGroup) {
+    val baseIri = prefixes[objectKey]!!
+
+    // parse query
+    val sparqlUpdateAst = try {
+        UpdateFactory.create(requestBody, baseIri)
+    } catch(parse: Exception) {
+        throw UpdateSyntaxException(parse)
+    }
+
+    var deleteBgpString = ""
+    var insertBgpString = ""
+    var whereString = ""
+
+    val operations = sparqlUpdateAst.operations
+
+    val dataFilter = quadDataFilter(baseIri)
+    val patternFilter = quadPatternFilter(baseIri)
+
+    for(update in operations) {
+        when(update) {
+            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, dataFilter)
+            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, dataFilter)
+            is UpdateDeleteWhere -> {
+                deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                whereString = deleteBgpString
+            }
+            is UpdateModify -> {
+                if(update.hasDeleteClause()) {
+                    deleteBgpString = asSparqlGroup(update.deleteQuads, patternFilter)
+                }
+
+                if(update.hasInsertClause()) {
+                    insertBgpString = asSparqlGroup(update.insertQuads, patternFilter)
+                }
+
+                whereString = asSparqlGroup(update.wherePattern.apply {
+                    visit(NoQuadsElementVisitor)
+                })
+            }
+            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+        }
+    }
+
+    log.info("INSERT: $insertBgpString")
+    log.info("DELETE: $deleteBgpString")
+    log.info("WHERE: $whereString")
+
+    conditions.append {
+        if(whereString.isNotEmpty()) {
+            require("userWhere") {
+                handler = { "User update condition is not satisfiable" }
+
+                """
+                    graph $graph {
+                        $whereString
+                    }
+                """
+            }
+        }
+
+        assertPreconditions(this) {
+            """
+                graph $graph {
+                    $objectKey: mms:etag ?etag .
+                    
+                    $it
+                }
+            """
+        }
+    }
+
+
+    // generate sparql update
+    val updateString = buildSparqlUpdate {
+        delete {
+            graph(graph) {
+                raw("""
+                    # delete old etag
+                    $objectKey: mms:etag ?etag .
+                """)
+
+                if(deleteBgpString.isNotEmpty()) {
+                    raw(deleteBgpString)
+                }
+            }
+        }
+        insert {
+            txn()
+
+            graph(graph) {
+                raw("""
+                    # set new etag
+                    $objectKey: mms:etag ?_txnId .
+                """)
+
+                if(insertBgpString.isNotEmpty()) {
+                    raw(insertBgpString)
+                }
+            }
+        }
+        where {
+            raw(*conditions.requiredPatterns())
+
+            raw("""
+                # match old etag
+                $objectKey: mms:etag ?etag .
+            """)
+        }
+    }
+
+
+    executeSparqlUpdate(updateString)
+
+
+    // create construct query to confirm transaction and fetch base model details
+    val constructString = buildSparqlQuery {
+        construct {
+            txn()
+
+            raw("""
+                $objectKey: ?w_p ?w_o .
+            """)
+        }
+        where {
+            txn()
+
+            group {
+                raw("""
+                    graph $graph {
+                        $objectKey: ?w_p ?w_o .
+                    }
+                """)
+            }
+            raw("""union ${conditions.unionInspectPatterns()}""")
+        }
+    }
+
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+    // log
+    log.info("Triplestore responded with \n$constructResponseText")
+
+    val constructModel = validateTransaction(constructResponseText, conditions)
+
+    // set etag header
+    call.response.header(HttpHeaders.ETag, transactionId)
+
+    // forward response to client
+    call.respondText(
+        constructResponseText,
+        contentType = RdfContentTypes.Turtle,
+    )
+
+    // delete transaction
+    run {
+        val dropResponseText = executeSparqlUpdate("""
+            delete where {
+                graph m-graph:Transactions {
+                    mt: ?p ?o .
+                }
+            }
+        """)
+
+        // log response
+        log.info(dropResponseText)
     }
 }
 

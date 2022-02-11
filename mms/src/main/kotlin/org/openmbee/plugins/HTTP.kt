@@ -15,12 +15,12 @@ fun Application.configureHTTP() {
         header("X-Engine", "Ktor") // will send this header with each response
     }
     install(StatusPages) {
-        exception<HttpException> { cause ->
-            cause.handle(call)
-        }
-        // exception<Throwable> { cause ->
-        //     call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
+        // exception<HttpException> { cause ->
+        //     cause.handle(call)
         // }
+        exception<Throwable> { cause ->
+            call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
+        }
     }
     install(CORS) {
         method(HttpMethod.Options)

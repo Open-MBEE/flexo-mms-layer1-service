@@ -36,18 +36,18 @@ fun Application.createOrg() {
 
                 val orgTriples = filterIncomingStatements("mo") {
                     orgNode().apply {
-                        sanitizeCrudObject()
-
-                        addProperty(RDF.type, MMS.Org)
-                        addProperty(MMS.id, orgId!!)
-                        addProperty(MMS.etag, transactionId)
+                        sanitizeCrudObject {
+                            addProperty(RDF.type, MMS.Org)
+                            addProperty(MMS.id, orgId!!)
+                            addProperty(MMS.etag, transactionId)
+                        }
                     }
                 }
 
                 val localConditions = DEFAULT_CONDITIONS.append {
                     assertPreconditions(this) {
                         """
-                            graph mor-graph:Metadata {
+                            graph m-graph:Cluster {
                                 mo: mms:etag ?etag .
                                 
                                 $it

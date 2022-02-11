@@ -1,11 +1,9 @@
-package org.openmbee.routes
+package org.openmbee.routes.endpoints
 
 import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -239,7 +237,7 @@ fun Application.commitBranch() {
 
 
                 // create construct query to confirm transaction and fetch base model details
-                val constructResponseText = buildSparqlQuery {
+                val constructString = buildSparqlQuery {
                     construct {
                         txn()
 
@@ -262,6 +260,8 @@ fun Application.commitBranch() {
                         raw("""union ${localConditions.unionInspectPatterns()}""")
                     }
                 }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
                 // log
                 log.info("Triplestore responded with \n$constructResponseText")

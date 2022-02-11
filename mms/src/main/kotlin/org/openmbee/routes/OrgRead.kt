@@ -13,6 +13,7 @@ import org.openmbee.*
 private val SPARQL_BGP_ORG = """
     graph m-graph:Cluster {
         ?_org a mms:Org ;
+            mms:etag ?etag ;
             ?org_p ?org_o .
         
         optional {

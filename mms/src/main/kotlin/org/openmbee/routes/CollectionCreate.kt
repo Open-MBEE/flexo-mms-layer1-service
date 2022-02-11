@@ -9,7 +9,6 @@ import org.openmbee.*
 
 private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String = { """
     construct  {
-        
         ?thing ?thing_p ?thing_o .
         
         ?m_s ?m_p ?m_o .
@@ -44,54 +43,52 @@ private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String 
 private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_REPO, Scope.REPO)
 
-    require("repoNotExists") {
-        handler = { prefixes -> "The provided repo <${prefixes["mor"]}> already exists." }
+    require("collectionNotExists") {
+        handler = { prefixes -> "The provided collection <${prefixes["moc"]}> already exists." }
 
         """
             # repo must not yet exist
             graph m-graph:Cluster {
                 filter not exists {
-                    mor: a mms:Repo .
+                    moc: a mms:Collection .
                 }
             }
         """
     }
 
-    require("repoMetadataGraphEmpty") {
-        handler = { prefixes -> "The Metadata graph <${prefixes["mor-graph"]}Metadata> is not empty." }
+    require("collectionMetadataGraphEmpty") {
+        handler = { prefixes -> "The Metadata graph <${prefixes["moc-graph"]}Metadata> is not empty." }
 
         """
             # repo metadata graph must be empty
-            graph mor-graph:Metadata {
+            graph moc-graph:Metadata {
                 filter not exists {
                     ?e_s ?e_p ?e_o .
                 }
             }
         """
     }
+
+
 }
 
-fun String.normalizeIndentation(spaces: Int=0): String {
-    return this.trimIndent().prependIndent(" ".repeat(spaces)).replace("^\\s+".toRegex(), "")
-}
-
-fun Application.createRepo() {
+fun Application.createCollection() {
     routing {
-        put("/orgs/{orgId}/repos/{repoId}") {
+        put("/orgs/{orgId}/collections/{collectionId}") {
             call.mmsL1(Permission.CREATE_REPO) {
                 branchId = "main"
 
                 pathParams {
                     org()
-                    repo(legal = true)
+                    collection(legal = true)
                 }
 
-                val repoTriples = filterIncomingStatements("mor") {
-                    repoNode().apply {
+                val collectionTriples = filterIncomingStatements("moc") {
+                    collectionNode().apply {
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Repo)
-                            addProperty(MMS.id, repoId)
-                            addProperty(MMS.org, orgNode())
+                            setProperty(RDF.type, MMS.Collection)
+                            setProperty(MMS.id, collectionId!!)
+                            setProperty(MMS.org, orgNode())
                         }
                     }
                 }
@@ -101,38 +98,24 @@ fun Application.createRepo() {
                 val updateString = buildSparqlUpdate {
                     insert {
                         txn {
-                            autoPolicy(Scope.REPO, Role.ADMIN_REPO)
+                            autoPolicy(Scope.COLLECTION, Role.ADMIN_REPO)
                         }
 
                         graph("m-graph:Cluster") {
-                            raw(repoTriples)
+                            raw(collectionTriples)
                         }
 
-                        graph("mor-graph:Metadata") {
+                        graph("moc-graph:Metadata") {
                             raw("""
-                                morc: a mms:Commit ;
+                                mocc: a mms:Commit ;
                                     mms:parent rdf:nil ;
                                     mms:submitted ?_now ;
                                     mms:message ?_commitMessage ;
-                                    mms:data morc-data: ;
-                                    .
-                        
-                                morc-data: a mms:Load ;
-                                    .
-    
-                                morb: a mms:Branch ;
-                                    mms:id ?_branchId ;
-                                    mms:commit morc: ;
-                                    .
-                                
-                                ?_model a mms:Model ;
-                                    mms:ref morb: ;
-                                    mms:graph ?_modelGraph ;
                                     .
                                     
-                                ?_staging a mms:Staging ;
-                                    mms:ref morb: ;
-                                    mms:graph ?_stagingGraph ;
+                                mocb: a mms:Branch ;
+                                    mms:id ?_branchId ;
+                                    mms:commit mocc: ;
                                     .
                             """)
                         }
@@ -142,25 +125,18 @@ fun Application.createRepo() {
                     }
                 }
 
-                executeSparqlUpdate(updateString) {
-                    iri(
-                        "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
-                        "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
-                        "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                        "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
-                    )
-                }
+                executeSparqlUpdate(updateString)
 
                 val constructString = buildSparqlQuery {
                     construct {
                         txn()
 
                         raw("""
-                            mor: ?mor_p ?mor_o .
+                            moc: ?moc_p ?moc_o .
                             
                             ?thing ?thing_p ?thing_o .
                             
-                           ?m_s ?m_p ?m_o .
+                            ?m_s ?m_p ?m_o .
                         """)
                     }
                     where {
@@ -169,16 +145,16 @@ fun Application.createRepo() {
 
                             raw("""
                                 graph m-graph:Cluster {
-                                    mor: a mms:Repo ;
-                                        ?mor_p ?mor_o .
+                                    moc: a mms:Collection ;
+                                        ?moc_p ?moc_o .
                                            
                                     optional {
-                                        ?thing mms:repo mor: ; 
+                                        ?thing mms:collection moc: ; 
                                             ?thing_p ?thing_o .
                                     }
                                 }
                                 
-                                graph mor-graph:Metadata {
+                                graph moc-graph:Metadata {
                                     ?m_s ?m_p ?m_o .
                                 }
                             """)

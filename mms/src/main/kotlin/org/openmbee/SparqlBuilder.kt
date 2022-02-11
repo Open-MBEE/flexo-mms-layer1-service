@@ -39,7 +39,7 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
 }
 
 fun escapeLiteral(value: String): String {
-    return ParameterizedSparqlString().appendLiteral(value).toString()
+    return ParameterizedSparqlString().apply{ appendLiteral(value) }.toString()
 }
 
 abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val indentLevel: Int=1) {
@@ -168,7 +168,7 @@ class TxnBuilder(
 
 class InsertBuilder(
     private val mms: MmsL1Context,
-    indentLevel: Int,
+    val indentLevel: Int,
 ): PatternBuilder<InsertBuilder>(mms, indentLevel) {
     fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
         val properties = extras.toMap().toMutableMap()
@@ -186,6 +186,10 @@ class InsertBuilder(
         }
 
         return this
+    }
+
+    fun values(setup: ValuesBuilder.() -> Unit): ValuesBuilder {
+        return ValuesBuilder(mms, indentLevel).apply { setup }
     }
 }
 

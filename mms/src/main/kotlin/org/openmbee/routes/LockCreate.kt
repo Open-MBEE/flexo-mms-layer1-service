@@ -3,7 +3,6 @@ package org.openmbee.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -39,12 +38,12 @@ fun Application.createLock() {
 
                 val lockTriples = filterIncomingStatements("morcl") {
                     lockNode().apply {
-                        sanitizeCrudObject()
-
-                        addProperty(RDF.type, MMS.Lock)
-                        addProperty(MMS.id, lockId)
-                        addProperty(MMS.commit, commitNode())
-                        addProperty(MMS.createdBy, userNode())
+                        sanitizeCrudObject {
+                            addProperty(RDF.type, MMS.Lock)
+                            addProperty(MMS.id, lockId)
+                            addProperty(MMS.commit, commitNode())
+                            addProperty(MMS.createdBy, userNode())
+                        }
                     }
                 }
 

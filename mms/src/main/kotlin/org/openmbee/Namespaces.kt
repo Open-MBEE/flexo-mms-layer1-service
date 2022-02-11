@@ -1,6 +1,9 @@
 package org.openmbee
 
 import org.apache.jena.datatypes.BaseDatatype
+import org.apache.jena.graph.NodeFactory
+import org.apache.jena.rdf.model.Property
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.rdf.model.impl.PropertyImpl
 import org.apache.jena.rdf.model.impl.ResourceImpl
 import org.apache.jena.shared.PrefixMapping
@@ -22,6 +25,20 @@ class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.(
         return map[prefix]
     }
 
+    fun find(namespace: String): String? {
+        for(entry in map) {
+            if(entry.value == namespace) return entry.key
+        }
+
+        return null;
+    }
+
+    fun terse(predicate: Property): String {
+        val prefixId = find(predicate.nameSpace) ?: ""
+        val suffix = predicate.uri.substring(0, prefixId.length)
+        return if(prefixId.isNotEmpty()) "$prefixId:$suffix" else "<$suffix>"
+    }
+
     override fun toString(): String {
         return map.entries.fold("") {
             out, (key, value) -> out + "prefix $key: <$value>\n"
@@ -34,6 +51,7 @@ class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.(
         }
     }
 }
+
 
 val SPARQL_PREFIXES = PrefixMapBuilder() {
     add(
@@ -69,6 +87,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
 fun prefixesFor(
     userId: String?=null,
     orgId: String?=null,
+    collectionId: String?=null,
     repoId: String?=null,
     refId: String?=null,
     branchId: String?=null,
@@ -92,6 +111,15 @@ fun prefixesFor(
                 add(
                     "mo" to this,
                 )
+
+                if(null != collectionId) {
+                    with("$this/collections/$collectionId") {
+                        add(
+                            "moc" to this,
+                            "moc-graph" to "$this/graphs/",
+                        )
+                    }
+                }
 
                 if(null != repoId) {
                     with("$this/repos/$repoId") {
@@ -160,56 +188,55 @@ object MMS {
     val uri = BASE
 
     // classes
-    val Org = ResourceImpl("${BASE}Org")
-    val Repo = ResourceImpl("${BASE}Repo")
-    val Collection = ResourceImpl("${BASE}Collection")
-    val Snapshot = ResourceImpl("${BASE}Snapshot")
-    val Update = ResourceImpl("${BASE}Update")
-    val Load = ResourceImpl("${BASE}Load")
-    val Commit = ResourceImpl("${BASE}Commit")
-    val Branch = ResourceImpl("${BASE}Branch")
-    val Lock = ResourceImpl("${BASE}Lock")
-    val Diff = ResourceImpl("${BASE}Diff")
+    val Org = ResourceFactory.createResource("${BASE}Org")
+    val Repo = ResourceFactory.createResource("${BASE}Repo")
+    val Collection = ResourceFactory.createResource("${BASE}Collection")
+    val Snapshot = ResourceFactory.createResource("${BASE}Snapshot")
+    val Update = ResourceFactory.createResource("${BASE}Update")
+    val Load = ResourceFactory.createResource("${BASE}Load")
+    val Commit = ResourceFactory.createResource("${BASE}Commit")
+    val Branch = ResourceFactory.createResource("${BASE}Branch")
+    val Lock = ResourceFactory.createResource("${BASE}Lock")
+    val Diff = ResourceFactory.createResource("${BASE}Diff")
 
-    val User = ResourceImpl("${BASE}User")
-    val Group = ResourceImpl("${BASE}Group")
-    val Policy = ResourceImpl("${BASE}Policy")
+    val User = ResourceFactory.createResource("${BASE}User")
+    val Group = ResourceFactory.createResource("${BASE}Group")
+    val Policy = ResourceFactory.createResource("${BASE}Policy")
 
     // object properties
-    val id  = PropertyImpl("${BASE}id")
+    val id  = ResourceFactory.createProperty(BASE, "id")
 
     // transaction properties
-    val created = PropertyImpl("${BASE}created")
-    val createdBy = PropertyImpl("${BASE}createdBy")
-    val serviceId = PropertyImpl("${BASE}serviceId")
-    val org = PropertyImpl("${BASE}org")
-    val repo = PropertyImpl("${BASE}repo")
-    val user = PropertyImpl("${BASE}user")
-    val completed = PropertyImpl("${BASE}completed")
-    val requestBody = PropertyImpl("${BASE}requestBody")
-    val requestPath = PropertyImpl("${BASE}requestPath")
+    val created = ResourceFactory.createProperty(BASE, "created")
+    val createdBy = ResourceFactory.createProperty(BASE, "createdBy")
+    val serviceId = ResourceFactory.createProperty(BASE, "serviceId")
+    val org = ResourceFactory.createProperty(BASE, "org")
+    val repo = ResourceFactory.createProperty(BASE, "repo")
+    val user = ResourceFactory.createProperty(BASE, "user")
+    val completed = ResourceFactory.createProperty(BASE, "completed")
+    val requestBody = ResourceFactory.createProperty(BASE, "requestBody")
+    val requestPath = ResourceFactory.createProperty(BASE, "requestPath")
 
-    val orgId = PropertyImpl("${BASE}orgId")
-    val repoId = PropertyImpl("${BASE}repoId")
-    val commitId = PropertyImpl("${BASE}commitId")
+    val commitId = ResourceFactory.createProperty(BASE, "commitId")
 
     // access control properties
-    val implies = PropertyImpl("${BASE}implies")
+    val implies = ResourceFactory.createProperty(BASE, "implies")
 
-    val etag = PropertyImpl("${BASE}etag")
-    val ref = PropertyImpl("${BASE}ref")
-    val commit = PropertyImpl("${BASE}commit")
-    val graph = PropertyImpl("${BASE}graph")
+    val etag = ResourceFactory.createProperty(BASE, "etag")
+    val ref = ResourceFactory.createProperty(BASE, "ref")
+    val collects = ResourceFactory.createProperty(BASE, "collects")
+    val commit = ResourceFactory.createProperty(BASE, "commit")
+    val graph = ResourceFactory.createProperty(BASE, "graph")
 
-    val diffSrc = PropertyImpl("${BASE}diffSrc")
-    val diffDst = PropertyImpl("${BASE}diffDst")
+    val diffSrc = ResourceFactory.createProperty(BASE, "diffSrc")
+    val diffDst = ResourceFactory.createProperty(BASE, "diffDst")
 
     private val BASE_TXN = "${BASE}txn."
     object TXN {
-        val stagingGraph = PropertyImpl("${BASE_TXN}stagingGraph")
-        val baseModel = PropertyImpl("${BASE_TXN}baseModel")
-        val baseModelGraph = PropertyImpl("${BASE_TXN}baseModelGraph")
-        val sourceGraph = PropertyImpl("${BASE_TXN}baseModelGraph")
+        val stagingGraph = ResourceFactory.createProperty(BASE_TXN, "stagingGraph")
+        val baseModel = ResourceFactory.createProperty(BASE_TXN, "baseModel")
+        val baseModelGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
+        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
     }
 }
 

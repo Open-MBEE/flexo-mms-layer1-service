@@ -82,4 +82,3 @@ fun parseTurtle(body: String, model: Model, baseIri: String?=null, prefixes: Pre
     }
 }
 
-class InvalidDocumentSemanticsException(detail: String): Exception("The input document contains invalid semantics: $detail") {}

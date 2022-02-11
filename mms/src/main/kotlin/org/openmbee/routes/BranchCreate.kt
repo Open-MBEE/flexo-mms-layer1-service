@@ -3,7 +3,6 @@ package org.openmbee.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.util.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.*
 
@@ -41,12 +40,12 @@ fun Application.createBranch() {
                         // assert ref/commit triples
                         normalizeRefOrCommit(this)
 
-                        sanitizeCrudObject()
-
-                        addProperty(RDF.type, MMS.Branch)
-                        addProperty(MMS.id, branchId)
-                        addProperty(MMS.etag, transactionId)
-                        addProperty(MMS.createdBy, userNode())
+                        sanitizeCrudObject {
+                            addProperty(RDF.type, MMS.Branch)
+                            addProperty(MMS.id, branchId)
+                            addProperty(MMS.etag, transactionId)
+                            addProperty(MMS.createdBy, userNode())
+                        }
                     }
                 }
 
