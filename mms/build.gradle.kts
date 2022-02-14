@@ -11,10 +11,10 @@ plugins {
     kotlin("plugin.serialization") version "1.6.10"
 }
 
-group = "org.openmbee"
+group = "org.openmbee.mms5"
 version = "0.0.1"
 application {
-//    mainClass.set("org.openmbee.ApplicationKt")
+//    mainClass.set("org.openmbee.mms5.ApplicationKt")
     mainClass.set("io.ktor.server.netty.EngineMain")
 }
 

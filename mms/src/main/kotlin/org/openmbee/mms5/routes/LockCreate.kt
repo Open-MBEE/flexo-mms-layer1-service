@@ -48,13 +48,46 @@ fun Application.createLock() {
                 }
 
                 // locate base snapshot
-                executeSparqlQuery("""
-                    select * {
-                        graph mor-graph:Metadata {
-                            morc: mms:parent* ?commit .
-                            
-                            ?snapshot a mms:Snapshot ;
-                                mms:commit ?commit .
+                val constructModel = executeSparqlConstructOrDescribe("""
+                    construct {
+                        ?commit mms:parent ?parent .
+                    
+                        ?snapshot mms:ref ?ref ;
+                            mms:graph ?graph .
+                    
+                        ?ref mms:commit ?commit .
+                    } where {
+                        {
+                            graph m-graph:Schema {
+                                ?snapshotClass rdfs:subClassOf* mms:Snapshot .
+                            }
+                    
+                            graph mor-graph:Metadata {
+                                morc: mms:parent* ?commit .
+                    
+                                ?commit mms:parent ?parent .
+                    
+                                ?snapshot a ?snapshotClass ;
+                                    mms:ref ?ref ;
+                                    mms:graph ?graph .
+                    
+                                ?ref mms:commit ?commit .
+                            }
+                    
+                            filter not exists {
+                                graph m-graph:Schema {
+                                    ?newerSnapshotClass rdfs:subClassOf* mms:Snapshot .
+                                }
+                    
+                                graph mor-graph:Metadata {
+                                    morc: mms:parent* ?newerCommit .
+                    
+                                    ?newerCommit mms:parent* ?commit .
+                    
+                                    ?newerSnapshot a ?newerSnapshotClass ;
+                                        mms:ref/mms:commit ?newerCommit .
+                                }
+                            }
                         }
                     }
                 """)

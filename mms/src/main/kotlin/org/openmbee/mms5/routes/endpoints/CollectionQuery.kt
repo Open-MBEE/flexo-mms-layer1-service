@@ -19,7 +19,7 @@ fun Application.queryCollection() {
                 outputQuery.apply {
                     // set default graph
                     graphURIs.clear()
-                    graphURIs.addAll()
+                    // graphURIs.addAll()
                 }
             }
 

@@ -241,21 +241,17 @@ fun Application.commitBranch() {
                     construct {
                         txn()
 
-                        raw(
-                            """
+                        raw("""
                             morc: ?commit_p ?commit_o .
-                        """
-                        )
+                        """)
                     }
                     where {
                         group {
-                            raw(
-                                """
+                            raw("""
                                 graph mor-graph:Metadata {
                                     morc: ?commit_p ?commit_o .
                                 }    
-                            """
-                            )
+                            """)
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
                     }
