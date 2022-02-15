@@ -89,9 +89,9 @@ fun Application.createRepo() {
                 val repoTriples = filterIncomingStatements("mor") {
                     repoNode().apply {
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Repo)
-                            addProperty(MMS.id, repoId)
-                            addProperty(MMS.org, orgNode())
+                            setProperty(RDF.type, MMS.Repo)
+                            setProperty(MMS.id, repoId!!)
+                            setProperty(MMS.org, orgNode())
                         }
                     }
                 }

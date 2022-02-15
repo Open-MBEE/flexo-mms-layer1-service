@@ -6,6 +6,7 @@ import io.ktor.auth.jwt.*
 import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.response.*
+import org.openmbee.mms5.HttpException
 
 fun Application.configureHTTP() {
     install(ForwardedHeaderSupport) // WARNING: for security, do not include this if not behind a reverse proxy
@@ -14,9 +15,9 @@ fun Application.configureHTTP() {
         header("X-Engine", "Ktor") // will send this header with each response
     }
     install(StatusPages) {
-        // exception<HttpException> { cause ->
-        //     cause.handle(call)
-        // }
+        exception<HttpException> { cause ->
+            cause.handle(call)
+        }
         exception<Throwable> { cause ->
             call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
         }

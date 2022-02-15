@@ -31,7 +31,8 @@ private val SPARQL_SELECT_ORG = """
 
 private val SPARQL_CONSTRUCT_ORG = """
     construct {
-        ?_org ?org_p ?org_o .
+        ?_org ?org_p ?org_o ;
+            mms:etag ?etag .
         
         ?thing ?thing_p ?thing_o .
         
@@ -43,8 +44,6 @@ private val SPARQL_CONSTRUCT_ORG = """
         ?policy ?policy_p ?policy_o .
         
         ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
-        
-        <mms://inspect> <mms://etag> ?etag .
     } where {
         $SPARQL_BGP_ORG
         

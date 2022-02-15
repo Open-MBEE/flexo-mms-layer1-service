@@ -21,20 +21,20 @@ val client = HttpClient(CIO)
 @OptIn(InternalAPI::class)
 fun Application.configureRouting() {
     install(Locations) {}
-    install(AutoHeadResponse)
+    // install(AutoHeadResponse)
 
     routing {
-        install(StatusPages) {
-            exception<HttpException> { cause ->
-                cause.handle(call)
-            }
+        // install(StatusPages) {
+        //     exception<HttpException> { cause ->
+        //         cause.handle(call)
+        //     }
             // exception<AuthenticationException> { cause ->
             //     call.respond(HttpStatusCode.Unauthorized)
             // }
             // exception<AuthorizationException> { cause ->
             //     call.respond(HttpStatusCode.Forbidden)
             // }
-        }
+        // }
 
         createOrg()
         readOrg()

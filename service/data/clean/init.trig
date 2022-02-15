@@ -14,6 +14,64 @@ prefix m-user: <users/>
 prefix m-group: <groups/>
 prefix m-policy: <policies/>
 
+
+# MMS basic classes hierarchy and properties schema
+m-graph:Schema {
+	mms:Ref a rdfs:Class ;
+		rdfs:label "Ref" ;
+		.
+
+	mms:Branch a rdfs:Class ;
+		rdfs:label "Branch" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Lock a rdfs:Class ;
+		rdfs:label "Lock" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Commit a rdfs:Class ;
+		rdfs:label "Commit" ;
+		.
+
+	mms:Snapshot a rdfs:Class ;
+		rdfs:label "Snapshot" ;
+		.
+
+	mms:Model a rdfs:Class ;
+		rdfs:label "Model" ;
+		rdfs:subClassOf mms:Snapshot ;
+		.
+
+	mms:Staging a rdfs:Class ;
+		rdfs:label "Staging" ;
+		rdfs:subClassOf mms:Snapshot ;
+		.
+	
+
+	mms:ref a rdf:Property ;
+		rdfs:label "ref" ;
+		rdfs:range mms:Ref ;
+		.
+
+	mms:commit a rdf:Property ;
+		rdfs:label "commit" ;
+		rdfs:range mms:Commit ;
+		.
+}
+
+
+
+# reserved cluster graph declares this location as an MMS cluster
+m-graph:Cluster {
+	m: a mms:Cluster ;
+		.
+}
+
+
+
+# 
 m-graph:AccessControl.Agents {
 	m-user:root a mms:User ;
 		mms:group m-group:SuperAdmins ;
@@ -30,6 +88,9 @@ m-graph:AccessControl.Agents {
 	# m-user:public 
 }
 
+
+
+# 
 m-graph:AccessControl.Policies {
 	m-policy:DefaultSuperAdmin a mms:Policy ;
 		mms:subject m-group:SuperAdmins ;
@@ -57,42 +118,9 @@ m-graph:AccessControl.Policies {
 		.
 }
 
-m-graph:Cluster {
-	m: a mms:Cluster ;
-		.
-}
-
-m-graph:Schema {
-	mms:Ref a rdfs:Class ;
-		rdfs:label "Ref" ;
-		.
-
-	mms:Branch a rdfs:Class ;
-		rdfs:label "Branch" ;
-		rdfs:subClassOf mms:Ref ;
-		.
-
-	mms:Lock a rdfs:Class ;
-		rdfs:label "Lock" ;
-		rdfs:subClassOf mms:Ref ;
-		.
-
-	mms:Commit a rdfs:Class ;
-		rdfs:label "Commit" ;
-		.
 
 
-	mms:ref a rdf:Property ;
-		rdfs:label "ref" ;
-		rdfs:range mms:Ref ;
-		.
-
-	mms:commit a rdf:Property ;
-		rdfs:label "commit" ;
-		rdfs:range mms:Commit ;
-		.
-}
-
+# 
 m-graph:AccessControl.Definitions {
 
 	# ====================================

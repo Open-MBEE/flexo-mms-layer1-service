@@ -39,10 +39,10 @@ fun Application.createLock() {
                 val lockTriples = filterIncomingStatements("morcl") {
                     lockNode().apply {
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Lock)
-                            addProperty(MMS.id, lockId)
-                            addProperty(MMS.commit, commitNode())
-                            addProperty(MMS.createdBy, userNode())
+                            setProperty(RDF.type, MMS.Lock)
+                            setProperty(MMS.id, lockId!!)
+                            setProperty(MMS.commit, commitNode())
+                            setProperty(MMS.createdBy, userNode())
                         }
                     }
                 }

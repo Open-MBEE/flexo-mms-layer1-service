@@ -532,11 +532,13 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
 
-    fun checkPreconditions(results: JsonObject) {
+    fun checkPreconditions(response: JsonObject) {
+        // destructure bindings
+        val bindings = response["results"]!!.jsonObject["bindings"]!!.jsonArray
+
         // resource does not exist
-        val bindings = results.jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
         if(0 == bindings.size) {
-            throw NotFoundException()
+            throw Http404Exception()
         }
 
         // compose etag
@@ -560,8 +562,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }
 
         // etags
-        val inspectNode = model.createResource("mms://inspect")
-        val etags = inspectNode.listProperties(ETAG_PROPERTY).toList()
+        val etags = resourceNode.listProperties(MMS.etag).toList()
         val etag = if(etags.size == 1) {
             etags[0].`object`.asLiteral().string
         } else {

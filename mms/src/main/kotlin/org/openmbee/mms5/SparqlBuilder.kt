@@ -78,7 +78,7 @@ abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
 class GroupBuilder(
     mms: MmsL1Context,
     indentLevel: Int,
-): SparqlBuilder<GroupBuilder>(indentLevel)
+): WhereBuilder(mms, indentLevel)
 
 class GraphBuilder(
     mms: MmsL1Context,
@@ -115,7 +115,7 @@ class ValuesBuilder(
     }
 }
 
-class WhereBuilder(
+open class WhereBuilder(
     private val mms: MmsL1Context,
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(mms, indentLevel) {

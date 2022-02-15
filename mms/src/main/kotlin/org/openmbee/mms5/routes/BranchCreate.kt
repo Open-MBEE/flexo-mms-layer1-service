@@ -41,10 +41,10 @@ fun Application.createBranch() {
                         normalizeRefOrCommit(this)
 
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Branch)
-                            addProperty(MMS.id, branchId)
-                            addProperty(MMS.etag, transactionId)
-                            addProperty(MMS.createdBy, userNode())
+                            setProperty(RDF.type, MMS.Branch)
+                            setProperty(MMS.id, branchId!!)
+                            setProperty(MMS.etag, transactionId)
+                            setProperty(MMS.createdBy, userNode())
                         }
                     }
                 }

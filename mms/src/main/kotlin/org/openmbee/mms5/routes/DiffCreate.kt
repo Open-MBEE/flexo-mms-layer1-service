@@ -51,9 +51,9 @@ fun Application.createDiff() {
                         normalizeRefOrCommit(this)
 
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Diff)
-                            addProperty(MMS.diffSrc, lockNode())
-                            addProperty(MMS.createdBy, userNode())
+                            setProperty(RDF.type, MMS.Diff)
+                            setProperty(MMS.diffSrc, lockNode())
+                            setProperty(MMS.createdBy, userNode())
                         }
                     }
                 }

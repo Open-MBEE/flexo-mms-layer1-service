@@ -35,9 +35,9 @@ fun Application.createOrg() {
                 val orgTriples = filterIncomingStatements("mo") {
                     orgNode().apply {
                         sanitizeCrudObject {
-                            addProperty(RDF.type, MMS.Org)
-                            addProperty(MMS.id, orgId!!)
-                            addProperty(MMS.etag, transactionId)
+                            setProperty(RDF.type, MMS.Org)
+                            setProperty(MMS.id, orgId!!)
+                            setProperty(MMS.etag, transactionId)
                         }
                     }
                 }
@@ -79,8 +79,6 @@ fun Application.createOrg() {
 
                         raw("""
                             mo: ?mo_p ?mo_o .
-                            
-                            <mms://inspect> <mms://etag> ?etag .
                         """)
                     }
                     where {

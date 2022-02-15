@@ -34,6 +34,9 @@ class ConstraintViolationException(detail: String): Http400Exception("The input 
 class InvalidDocumentSemanticsException(detail: String): Http400Exception("The input document contains invalid semantics: $detail")
 
 
+open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)
+
+
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
 
 class PreconditionFailedException(type: String): Http412Exception("$type precondition failed")
