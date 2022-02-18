@@ -26,7 +26,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
     }
 }
 
-private val SPARQL_CONSTRUCT_SNAPSHOT = { where: String -> """
+private const val SPARQL_CONSTRUCT_SNAPSHOT = """
     construct {
         ?baseSnapshot mms:graph ?baseGraph .
         ?baseRef
@@ -73,10 +73,8 @@ private val SPARQL_CONSTRUCT_SNAPSHOT = { where: String -> """
                 }
             }
         }
-        
-        $where
     }
-""" }
+"""
 
 
 fun Application.createLock() {
@@ -105,64 +103,7 @@ fun Application.createLock() {
                 val localConditions = DEFAULT_CONDITIONS
 
                 // locate base snapshot
-                val constructSnapshotString = buildSparqlQuery {
-                    construct {
-                        raw("""
-                            ?baseSnapshot mms:graph ?baseGraph .
-                            ?baseRef
-                                mms:commit ?baseCommit ;
-                                mms:snapshot ?baseSnapshot .
-                    
-                            ?ancestor mms:parent ?parent ;
-                                mms:patch ?patch ;
-                                mms:where ?where .
-                        """)
-                    }
-                    where {
-                        raw("""
-                            graph mor-graph:Metadata {
-                                # locate a commit that...
-                                morc: mms:parent* ?baseCommit .
-                    
-                                # ... is targeted by some ref
-                                ?baseRef mms:commit ?baseCommit ;
-                                    # access its snapshot
-                                    mms:snapshot ?baseSnapshot .
-                    
-                                # and that snapshot's graph
-                                ?baseSnapshot mms:graph ?baseGraph .
-                    
-                                # only match the most recent snapshot in the commit history
-                                filter not exists {
-                                    morc: mms:parent* ?newerCommit .
-                                    ?newerCommit mms:parent* ?baseCommit ;
-                                        ^mms:commit/mms:snapshot ?newerSnapshot .
-                    
-                                    filter(?newerCommit != ?baseCommit)
-                                }
-                    
-                    
-                                # fetch the ancestry between the base and target commits
-                                optional {
-                                    morc: mms:parent* ?ancestor .
-                                    ?ancestor mms:parent ?parent ;
-                                        mms:data ?data .
-                                    ?data mms:patch ?patch ;
-                                        mms:where ?where .
-                                    
-                                    # exclude commits older than the base commit
-                                    filter not exists {
-                                        ?baseCommit mms:parent* ?ancestor .
-                                    }
-                                }
-                            }
-                        """)
-                    }
-                }
-
-                // val conditionsBgp = localConditions.requiredPatterns().joinToString("\n")
-                // val constructSnapshotString = SPARQL_CONSTRUCT_SNAPSHOT(conditionsBgp)
-                val constructSnapshotResponseText = executeSparqlConstructOrDescribe(constructSnapshotString)
+                val constructSnapshotResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SNAPSHOT)
 
                 log.info(constructSnapshotResponseText)
 
@@ -250,6 +191,8 @@ fun Application.createLock() {
                     }
                     where {
                         group {
+                            txn()
+
                             raw("""
                                 graph mor-graph:Metadata {
                                     morcl: ?morcl_p ?morcl_o .
