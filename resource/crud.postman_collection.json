@@ -78,6 +78,12 @@
 								"key": "MMS5-User",
 								"value": "root",
 								"type": "text"
+							},
+							{
+								"key": "If-Match",
+								"value": "\"old-etag-value\"",
+								"type": "default",
+								"disabled": true
 							}
 						],
 						"url": {
@@ -93,6 +99,106 @@
 								{
 									"key": "ORG_ID",
 									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read Org Precondition Fail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							},
+							{
+								"key": "If-Match",
+								"value": "\"f\", \"6c69f93d-5f62-4c2b-b735-39341cb598ea\"",
+								"type": "default"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Org ETag",
+					"request": {
+						"method": "HEAD",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Non-Existant Org",
+					"request": {
+						"method": "HEAD",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							},
+							{
+								"key": "If-Match",
+								"value": "\"6c69f93d-5f62-4c2b-b735-39341cb98ea\"",
+								"type": "default"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "non-existant"
 								}
 							]
 						}
@@ -117,7 +223,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "prefix foaf: <http://xmlns.com/foaf/0.1/>\nprefix custom: <https://custom.example/ontology/>\n\ninsert {\n    <> foaf:homepage <https://www.openmbee.org/> ;\n        foaf:mbox <mailto:openmbee@gmail.com> ;\n        .\n}\ndelete {\n    <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n}\n"
+							"raw": "prefix foaf: <http://xmlns.com/foaf/0.1/>\nprefix custom: <https://custom.example/ontology/>\nprefix mms: <https://mms.openmbee.org/rdf/ontology/>\n\ndelete {\n    <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n}\ninsert {\n    <> foaf:homepage <https://www.openmbee.org/> ;\n        foaf:mbox <mailto:openmbee@gmail.com> ;\n        .\n}\nwhere {\n    optional {\n        <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n    }\n}\n"
 						},
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID",
@@ -540,7 +646,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex :likes :PeanutButter .\n}\ninsert {\n    :Rex :likes :Bacon .\n}\nwhere {\n\n}\n"
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete data {\n    :Rex :likes :PeanutButter .\n};\ninsert data {\n    :Rex :likes :Bacon .\n}\n"
 						},
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
@@ -592,7 +698,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex :owner :Alice .\n}\ninsert {\n    :Rex :owner :Bob .\n}\nwhere {\n    :Rex :owner :Alice .\n}\n"
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete where {\n    :Rex :owner :Alice .\n};\ninsert data {\n    :Rex :owner :Bob .\n}\n"
 						},
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
@@ -644,7 +750,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete {\n    :Rex foaf:name \"Rex\" .\n}\ninsert {\n    :Rex foaf:name \"Max\" .\n}\nwhere {\n    :Rex :owner :Charlie .\n}\n"
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\ndelete where {\n    :Rex :owner :Charlie .\n}\n"
 						},
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/update",
@@ -672,6 +778,522 @@
 								{
 									"key": "BRANCH_ID",
 									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Load",
+			"item": [
+				{
+					"name": "Load Model",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "text/turtle",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\n\n:Alice a :Person ;\n    foaf:name \"Alice\" ;\n    .\n\n:Rex a :Dog ;\n    :owner :Alice ;\n    :likes :PeanutButter ;\n    foaf:name \"Rex\" ;\n    .\n\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/graph",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"graph"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Branch",
+			"item": [
+				{
+					"name": "Create Branch: develop",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<>\n    mms:ref <./main> ;\n    dct:title \"develop\"@en ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/develop",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								"develop"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Virtual Endpoints",
+			"item": [
+				{
+					"name": "Query Branch",
+					"item": [
+						{
+							"name": "Tests",
+							"item": [
+								{
+									"name": "Graph IRI",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "MMS5-User",
+												"value": "root",
+												"type": "default"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/sparql-query",
+												"type": "default"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "prefix mms: <https://mms.openmbee.org/rdf/ontology/>\nbase <{{root_context}}/>\nprefix m: <>\nprefix m-graph: <graphs/>\nbase <orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/>\nprefix mor-graph: <graphs/>\nprefix morb: <branches/main>\n\nselect * {\n    graph m-graph:AccessControl.Policies {\n        ?as ?ap ?ao .\n    }\n}\n"
+										},
+										"url": {
+											"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/query/inspect",
+											"host": [
+												"{{app_url}}"
+											],
+											"path": [
+												"orgs",
+												":ORG_ID",
+												"repos",
+												":REPO_ID",
+												"branches",
+												":BRANCH_ID",
+												"query",
+												"inspect"
+											],
+											"variable": [
+												{
+													"key": "ORG_ID",
+													"value": "{{demo_org_id}}"
+												},
+												{
+													"key": "REPO_ID",
+													"value": "{{demo_repo_id}}"
+												},
+												{
+													"key": "BRANCH_ID",
+													"value": "main"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Graph Var+Values",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "MMS5-User",
+												"value": "root",
+												"type": "default"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/sparql-query",
+												"type": "default"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "prefix mms: <https://mms.openmbee.org/rdf/ontology/>\nbase <{{root_context}}/>\nprefix m: <>\nprefix m-graph: <graphs/>\nbase <orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/>\nprefix mor-graph: <graphs/>\nprefix morb: <branches/main>\n\nselect * {\n    graph ?policyGraph {\n        ?as ?ap ?ao .\n    }\n\n    values ?policyGraph {\n        m-graph:AccessControl.Policies\n    }\n}\n"
+										},
+										"url": {
+											"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/query/inspect",
+											"host": [
+												"{{app_url}}"
+											],
+											"path": [
+												"orgs",
+												":ORG_ID",
+												"repos",
+												":REPO_ID",
+												"branches",
+												":BRANCH_ID",
+												"query",
+												"inspect"
+											],
+											"variable": [
+												{
+													"key": "ORG_ID",
+													"value": "{{demo_org_id}}"
+												},
+												{
+													"key": "REPO_ID",
+													"value": "{{demo_repo_id}}"
+												},
+												{
+													"key": "BRANCH_ID",
+													"value": "main"
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "0.1 Select All",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "MMS5-User",
+										"value": "root",
+										"type": "default"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/sparql-query",
+										"type": "default"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\nselect * {\n    ?s ?p ?o\n}\n"
+								},
+								"url": {
+									"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/query",
+									"host": [
+										"{{app_url}}"
+									],
+									"path": [
+										"orgs",
+										":ORG_ID",
+										"repos",
+										":REPO_ID",
+										"branches",
+										":BRANCH_ID",
+										"query"
+									],
+									"variable": [
+										{
+											"key": "ORG_ID",
+											"value": "{{demo_org_id}}"
+										},
+										{
+											"key": "REPO_ID",
+											"value": "{{demo_repo_id}}"
+										},
+										{
+											"key": "BRANCH_ID",
+											"value": "main"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "0.2 Construct All",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "MMS5-User",
+										"value": "root",
+										"type": "default"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/sparql-query",
+										"type": "default"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\nconstruct where {\n    ?s ?p ?o\n}\n"
+								},
+								"url": {
+									"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/query",
+									"host": [
+										"{{app_url}}"
+									],
+									"path": [
+										"orgs",
+										":ORG_ID",
+										"repos",
+										":REPO_ID",
+										"branches",
+										":BRANCH_ID",
+										"query"
+									],
+									"variable": [
+										{
+											"key": "ORG_ID",
+											"value": "{{demo_org_id}}"
+										},
+										{
+											"key": "REPO_ID",
+											"value": "{{demo_repo_id}}"
+										},
+										{
+											"key": "BRANCH_ID",
+											"value": "main"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Query Metadata",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-query",
+								"type": "default"
+							},
+							{
+								"key": "Accept",
+								"value": "text/turtle",
+								"type": "default"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix mms: <https://mms.openmbee.org/rdf/ontology/>\nprefix mor-graph: <{{root_context}}/orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/graphs/>\n\nconstruct {\n    ?s ?p ?o\n} where {\n    graph mor-graph:Metadata {\n        {\n            ?s ?p ?o ;\n                a mms:Commit .\n        } union {\n            \n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8081/bigdata/namespace/kb/sparql",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"bigdata",
+								"namespace",
+								"kb",
+								"sparql"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Locks",
+			"item": [
+				{
+					"name": "Create Lock",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "base <{{root_context}}>\n\nprefix mor-branch: </orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/branches/>\n\n<>\n    dct:title \"My lock\"@en ;\n    mms:ref mor-branch:main ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/commits/:COMMIT_ID/locks/my.lock",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"commits",
+								":COMMIT_ID",
+								"locks",
+								"my.lock"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "COMMIT_ID",
+									"value": "0f736025-8ab8-412d-9a53-e6ab38a6a2da"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Lock Copy",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "base <{{root_context}}>\n\nprefix mor-branch: </orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/branches/>\n\n<>\n    dct:title \"My lock\"@en ;\n    mms:ref mor-branch:main ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/commits/:COMMIT_ID/locks/my.lock",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"commits",
+								":COMMIT_ID",
+								"locks",
+								"my.lock"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "{{demo_repo_id}}"
+								},
+								{
+									"key": "COMMIT_ID",
+									"value": "036cf574-2569-48cc-a3f8-1063ac37a68c"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Diff",
+			"item": [
+				{
+					"name": "Create Diff",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "MMS5-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<>\n    dct:title \"{{demo_project_title}}\"@en ;\n    mms:ref mor-branch:main ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/locks/my.lock/diffs/my.diff",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"locks",
+								"my.lock",
+								"diffs",
+								"my.diff"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								},
+								{
+									"key": "REPO_ID",
+									"value": null
 								}
 							]
 						}
@@ -732,6 +1354,11 @@
 		{
 			"key": "app_url",
 			"value": "http://localhost:8080"
+		},
+		{
+			"key": "root_context",
+			"value": "https://mms.openmbee.org/demo",
+			"type": "string"
 		}
 	]
 }
