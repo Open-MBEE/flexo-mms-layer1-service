@@ -60,7 +60,7 @@ class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): 
         this.write(outputStream, lang)
         return outputStream.toString(StandardCharsets.UTF_8.name()).run {
             if(!emitPrefixes) {
-                return replaceFirst("^.*\\r?\\n\\r?\\n\\s*".toRegex(RegexOption.DOT_MATCHES_ALL), "\t\t")
+                return replaceFirst("^\\s*@?prefix\\s+.*\\r?\\n\\r?\\n\\s*".toRegex(setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "\t\t")
                     .trimIndent()
             }
 

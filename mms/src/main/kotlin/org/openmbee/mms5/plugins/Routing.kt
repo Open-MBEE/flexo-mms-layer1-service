@@ -9,10 +9,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.mms5.HttpException
 import org.openmbee.mms5.routes.*
-import org.openmbee.mms5.routes.endpoints.commitBranch
-import org.openmbee.mms5.routes.endpoints.queryBranch
-import org.openmbee.mms5.routes.endpoints.queryDiff
-import org.openmbee.mms5.routes.endpoints.queryLock
+import org.openmbee.mms5.routes.endpoints.*
 
 
 val client = HttpClient(CIO)
@@ -51,6 +48,7 @@ fun Application.configureRouting() {
         updateRepo()
         // deleteRepo()
 
+        loadBranch()
         createBranch()
         commitBranch()
         queryBranch()

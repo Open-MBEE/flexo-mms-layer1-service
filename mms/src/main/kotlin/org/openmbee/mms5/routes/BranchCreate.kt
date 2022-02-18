@@ -27,7 +27,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
 fun Application.createBranch() {
     routing {
-        put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}") {
+        put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
             call.mmsL1(Permission.CREATE_BRANCH) {
                 pathParams {
                     org()
