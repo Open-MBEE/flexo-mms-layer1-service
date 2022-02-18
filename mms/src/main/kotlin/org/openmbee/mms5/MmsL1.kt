@@ -121,15 +121,11 @@ val FORBIDDEN_PREDICATES_REGEX = listOf(
     MMS.uri,
 ).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
 
-interface ObjectValue {
-
-}
-
 class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     val explicitUris = hashMapOf<String, Resource>()
     val explicitLiterals = hashMapOf<String, String>()
 
-    fun setProperty(property: Property, value: Resource) {
+    fun setProperty(property: Property, value: Resource, unsettable: Boolean?=false) {
         val inputs = node.listProperties(property)
 
         // user document includes triple(s) about this property
@@ -137,7 +133,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             // ensure value is acceptable
             for(input in inputs) {
                 // not acceptable
-                if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property to anything other than <${node.uri}>")
+                if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
 
                 // remove from model
                 input.remove()
@@ -148,7 +144,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
         explicitUris[property.uri] = value
     }
 
-    fun setProperty(property: Property, value: String) {
+    fun setProperty(property: Property, value: String, unsettable: Boolean?=false) {
         val inputs = node.listProperties(property)
 
         // user document includes triple(s) about this property
@@ -156,7 +152,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             // ensure value is acceptable
             for(input in inputs) {
                 // not acceptable
-                if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property to anything other than \"${value}\"")
+                if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
 
                 // remove from model
                 input.remove()
@@ -197,15 +193,13 @@ fun Quad.isSanitary(): Boolean {
     return predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)
 }
 
-class RdfModeler(val mms: MmsL1Context, val baseIri: String) {
+class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String="${mms.prefixes}\n${mms.requestBody}") {
     val model = KModel(mms.prefixes)
 
     init {
-        val putContent = "${mms.prefixes}\n${mms.requestBody}"
-
         // parse input document
         RDFParser.create()
-            .source(IOUtils.toInputStream(putContent, StandardCharsets.UTF_8))
+            .source(IOUtils.toInputStream(content, StandardCharsets.UTF_8))
             .lang(RDFLanguages.TURTLE)
             .errorHandler(ErrorHandlerFactory.errorHandlerWarn)
             .base(baseIri)
@@ -384,6 +378,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }.stringify(emitPrefixes=false)
     }
 
+    fun parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {
+        return RdfModeler(this, prefixes["m"]!!, responseText).apply(setup).model
+    }
 
     fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
         return append {

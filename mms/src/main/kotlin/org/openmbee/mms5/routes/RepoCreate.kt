@@ -91,6 +91,7 @@ fun Application.createRepo() {
                         sanitizeCrudObject {
                             setProperty(RDF.type, MMS.Repo)
                             setProperty(MMS.id, repoId!!)
+                            setProperty(MMS.etag, transactionId)
                             setProperty(MMS.org, orgNode())
                         }
                     }
@@ -118,20 +119,20 @@ fun Application.createRepo() {
                                     .
                         
                                 morc-data: a mms:Load ;
+                                    mms:patch ""^^mms-datatype:sparql ;
                                     .
     
                                 morb: a mms:Branch ;
                                     mms:id ?_branchId ;
                                     mms:commit morc: ;
+                                    mms:snapshot ?_model, ?_staging ;
                                     .
                                 
                                 ?_model a mms:Model ;
-                                    mms:ref morb: ;
                                     mms:graph ?_modelGraph ;
                                     .
-                                    
+                                
                                 ?_staging a mms:Staging ;
-                                    mms:ref morb: ;
                                     mms:graph ?_stagingGraph ;
                                     .
                             """)
@@ -166,7 +167,7 @@ fun Application.createRepo() {
                             
                             ?thing ?thing_p ?thing_o .
                             
-                           ?m_s ?m_p ?m_o .
+                            ?m_s ?m_p ?m_o .
                         """)
                     }
                     where {

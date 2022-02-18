@@ -25,7 +25,7 @@ const val MMS_VARIABLE_PREFIX = "__mms_"
 val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
 
 val REF_GRAPH_PATH: Path = PathFactory.pathSeq(
-    PathFactory.pathInverse(PathFactory.pathLink(MMS.ref.asNode())),
+    PathFactory.pathLink(MMS.snapshot.asNode()),
     PathFactory.pathLink(MMS.graph.asNode())
 )
 

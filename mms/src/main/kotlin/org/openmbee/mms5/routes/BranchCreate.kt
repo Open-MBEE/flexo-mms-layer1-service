@@ -74,15 +74,9 @@ fun Application.createBranch() {
 
                         raw("""
                             optional {
-                                graph m-graph:Schema {
-                                    ?snapshotClass rdfs:subClassOf* mms:Snapshot .
-                                }
-                                
                                 graph mor-graph:Metadata {
-                                    ?snapshot a ?snapshotClass ;
-                                        mms:ref/mms:commit ?commitSource ;
-                                        mms:graph ?sourceGraph ;
-                                        .
+                                    ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                                    ?snapshot mms:graph ?sourceGraph .
                                 }
                             }
                         """)
@@ -138,8 +132,8 @@ fun Application.createBranch() {
                             copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
                             
                             insert {
+                                morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
                                 mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                    mms:ref morb: ;
                                     mms:graph mor-graph:Staging.${transactionId} ;
                                     .
                             }
@@ -150,8 +144,8 @@ fun Application.createBranch() {
                             copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
                             
                             insert {
+                                morb: mms:snapshot mor-snapshot:Model.${transactionId} .
                                 mor-snapshot:Model.${transactionId} a mms:Model ;
-                                    mms:ref morb: ;
                                     mms:graph mor-graph:Model.${transactionId} ;
                                     .
                             }

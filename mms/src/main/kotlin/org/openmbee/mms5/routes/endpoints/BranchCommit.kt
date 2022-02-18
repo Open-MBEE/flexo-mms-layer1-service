@@ -18,15 +18,15 @@ private const val SPARQL_BGP_STAGING_EXISTS = """
             .
     
         # and its staging snapshot
+        morb: mms:snapshot ?staging .
         ?staging a mms:Staging ;
-            mms:ref morb: ;
             mms:graph ?stagingGraph ;
             .
     
         optional {
             # optionally, it's model snapshot
+            morb: mms:snapshot ?model .
             ?model a mms:Model ;
-                mms:ref morb: ;
                 mms:graph ?modelGraph ;
                 .
         }
@@ -80,6 +80,7 @@ fun Application.commitBranch() {
                     throw UpdateSyntaxException(parse)
                 }
 
+                var patchString = ""
                 var deleteBgpString = ""
                 var insertBgpString = ""
                 var whereString = ""
@@ -116,6 +117,18 @@ fun Application.commitBranch() {
                     }
                 }
 
+                patchString = """
+                    delete {
+                        graph ?__mms_model {
+                            $deleteBgpString
+                        }
+                    }
+                    insert {
+                        graph ?__mms_model {
+                            $insertBgpString
+                        }
+                    }
+                """
                 log.info("INSERT: $insertBgpString")
                 log.info("DELETE: $deleteBgpString")
                 log.info("WHERE: $whereString")
@@ -145,7 +158,7 @@ fun Application.commitBranch() {
                     }
                 }
 
-                val interimIri = "${prefixes["mor-lock"]}Iterim.${transactionId}";
+                val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}";
 
                 // generate sparql update
                 val updateString = buildSparqlUpdate {
@@ -158,8 +171,8 @@ fun Application.commitBranch() {
 
                         graph("mor-graph:Metadata") {
                             raw("""
-                                # model snapshot no longer points to branch
-                                ?model mms:ref morb: .
+                                # branch no longer points to model snapshot
+                                morb: mms:snapshot ?model .
                         
                                 # branch no longer points to previous commit
                                 morb: mms:commit ?baseCommit .
@@ -193,18 +206,20 @@ fun Application.commitBranch() {
                                 # commit data
                                 morc-data: a mms:Update ;
                                     mms:body ?_updateBody ;
+                                    mms:patch ?_patchString ;
+                                    mms:where ?_whereString ;
                                     .
                         
                                 # update branch pointer
                                 morb: mms:commit morc: .
                         
                                 # convert previous snapshot to isolated lock
-                                ?_interim a mms:Lock ;
+                                ?_interim a mms:InterimLock ;
+                                    mms:created ?_now ;
                                     mms:commit ?baseCommit ;
+                                    # interim lock now points to model snapshot 
+                                    mms:snapshot ?model ;
                                     .
-                        
-                                # model snapshot now points to interim lock
-                                ?model mms:ref ?_interim .
                             """)
                         }
                     }
@@ -228,6 +243,8 @@ fun Application.commitBranch() {
 
                     datatyped(
                         "_updateBody" to (requestBody to MMS_DATATYPE.sparql),
+                        "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                        "_whereString" to (whereString to MMS_DATATYPE.sparql),
                     )
 
                     literal(
@@ -247,6 +264,8 @@ fun Application.commitBranch() {
                     }
                     where {
                         group {
+                            txn()
+
                             raw("""
                                 graph mor-graph:Metadata {
                                     morc: ?commit_p ?commit_o .
@@ -302,8 +321,8 @@ fun Application.commitBranch() {
                     
                     insert data {
                         graph mor-graph:Metadata {
+                            morb: mms:snapshot ?_model .
                             ?_model a mms:Model ;
-                                mms:ref morb: ;
                                 mms:graph ?_modelGraph ;
                                 .
                         }

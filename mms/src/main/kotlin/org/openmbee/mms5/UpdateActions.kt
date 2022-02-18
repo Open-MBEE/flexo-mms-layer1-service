@@ -27,7 +27,9 @@ class ObjectUpdateAction(private val builder: ComposeUpdateBuilder, val name: St
 
 private fun ComposeUpdateBuilder.dropRepoObject(name: String, setup: ObjectUpdateAction.() -> Unit): String {
     deleteString += """
-        ?${name} ?${name}_p ?${name}_o .
+        graph mor-graph:Metadata {
+            ?${name} ?${name}_p ?${name}_o .
+        }
     """
 
     insertString += """
@@ -58,6 +60,7 @@ fun ComposeUpdateBuilder.dropDiff(): String {
 
 fun ComposeUpdateBuilder.dropLock(): String {
     return dropRepoObject("lock") {
+        // TODO update to use ^mms:snapshot instead
         dependent("mms:ref", dropDiff())
     }
     //

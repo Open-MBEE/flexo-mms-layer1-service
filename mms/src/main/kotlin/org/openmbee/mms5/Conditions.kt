@@ -156,7 +156,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
             }
         }
 
-        throw Exception("Unable to verify transaction from CONSTRUCT response")
+        throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")
     }
 }
 

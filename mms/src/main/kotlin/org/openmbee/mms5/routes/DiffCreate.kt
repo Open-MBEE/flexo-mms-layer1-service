@@ -122,15 +122,9 @@ fun Application.createDiff() {
                             }
                             
                             optional {
-                                graph m-graph:Schema {
-                                    ?snapshotClass rdfs:subClassOf* mms:Snapshot .
-                                }
-                            
                                 graph mor-graph:Metadata {
-                                    ?snapshot a ?snapshotClass ;
-                                        mms:ref/mms:commit ?commitSource ;
-                                        mms:graph ?sourceGraph ;
-                                        .
+                                    ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                                    ?snapshot mms:graph ?sourceGraph  .
                                 }
                             }
                             
@@ -210,8 +204,8 @@ fun Application.createDiff() {
                             copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
                             
                             insert {
+                                morb: mms:snapshot ?snapshot .
                                 mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                    mms:ref morb: ;
                                     mms:graph mor-graph:Staging.${transactionId} ;
                                     .
                             }
@@ -222,8 +216,8 @@ fun Application.createDiff() {
                             copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
                             
                             insert {
+                                morb: mms:snapshot mor-snapshot:Model.${transactionId} .
                                 mor-snapshot:Model.${transactionId} a mms:Model ;
-                                    mms:ref morb: ;
                                     mms:graph mor-graph:Model.${transactionId} ;
                                     .
                             }

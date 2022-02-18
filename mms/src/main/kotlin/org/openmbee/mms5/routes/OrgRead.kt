@@ -83,7 +83,7 @@ fun Application.readOrg() {
 
                     checkPreconditions(results)
 
-                    call.respondText("", status = HttpStatusCode.OK)
+                    call.respondText("")
                 }
             }
 

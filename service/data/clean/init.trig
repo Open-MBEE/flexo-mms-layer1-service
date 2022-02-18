@@ -31,6 +31,11 @@ m-graph:Schema {
 		rdfs:subClassOf mms:Ref ;
 		.
 
+	mms:InterimLock a rdfs:Class ;
+		rdfs:label "InterimLock" ;
+		rdfs:subClassOf mms:Lock ;
+		.
+
 	mms:Commit a rdfs:Class ;
 		rdfs:label "Commit" ;
 		.
@@ -204,6 +209,8 @@ m-graph:AccessControl.Definitions {
 		mms:implies mms-object:Permission.UpdateRepo ;
 		mms:implies mms-object:Permission.CreateBranch ;
 		mms:implies mms-object:Permission.DeleteBranch ;
+		mms:implies mms-object:Permission.CreateLock ;
+		mms:implies mms-object:Permission.DeleteLock ;
 		.
 
 
@@ -219,6 +226,18 @@ m-graph:AccessControl.Definitions {
 
 	mms-object:Permission.DeleteBranch a mms:Permission ;
 		mms:implies mms-object:Permission.UpdateBranch ;
+		.
+
+
+
+	mms-object:Permission.CreateLock a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadLock a mms:Permission ;
+		.
+
+	mms-object:Permission.DeleteLock a mms:Permission ;
+		mms:implies mms-object:Permission.ReadLock ;
 		.
 
 

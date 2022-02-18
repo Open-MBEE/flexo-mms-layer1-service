@@ -3,6 +3,8 @@ package org.openmbee.mms5.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import org.apache.jena.rdf.model.Property
+import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
@@ -24,10 +26,62 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
     }
 }
 
+private val SPARQL_CONSTRUCT_SNAPSHOT = { where: String -> """
+    construct {
+        ?baseSnapshot mms:graph ?baseGraph .
+        ?baseRef
+            mms:commit ?baseCommit ;
+            mms:snapshot ?baseSnapshot .
+
+        ?ancestor mms:parent ?parent ;
+            mms:patch ?patch ;
+            mms:where ?where .
+    } where {
+        graph mor-graph:Metadata {
+            # locate a commit that...
+            morc: mms:parent* ?baseCommit .
+
+            # ... is targeted by some ref
+            ?baseRef mms:commit ?baseCommit ;
+                # access its snapshot
+                mms:snapshot ?baseSnapshot .
+
+            # and that snapshot's graph
+            ?baseSnapshot mms:graph ?baseGraph .
+
+            # only match the most recent snapshot in the commit history
+            filter not exists {
+                morc: mms:parent* ?newerCommit .
+                ?newerCommit mms:parent* ?baseCommit ;
+                    ^mms:commit/mms:snapshot ?newerSnapshot .
+
+                filter(?newerCommit != ?baseCommit)
+            }
+
+
+            # fetch the ancestry between the base and target commits
+            optional {
+                morc: mms:parent* ?ancestor .
+                ?ancestor mms:parent ?parent ;
+                    mms:data ?data .
+                ?data mms:patch ?patch ;
+                    mms:where ?where .
+                
+                # exclude commits older than the base commit
+                filter not exists {
+                    ?baseCommit mms:parent* ?ancestor .
+                }
+            }
+        }
+        
+        $where
+    }
+""" }
+
 
 fun Application.createLock() {
     routing {
-        put("/orgs/{orgId}/repos/{repoId}/commit/{commitId}/locks/{lockId}") {
+        put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
             call.mmsL1(Permission.CREATE_LOCK) {
                 pathParams {
                     org()
@@ -41,58 +95,127 @@ fun Application.createLock() {
                         sanitizeCrudObject {
                             setProperty(RDF.type, MMS.Lock)
                             setProperty(MMS.id, lockId!!)
+                            setProperty(MMS.etag, transactionId, true)
                             setProperty(MMS.commit, commitNode())
-                            setProperty(MMS.createdBy, userNode())
+                            setProperty(MMS.createdBy, userNode(), true)
                         }
                     }
                 }
 
+                val localConditions = DEFAULT_CONDITIONS
+
                 // locate base snapshot
-                val constructModel = executeSparqlConstructOrDescribe("""
+                val constructSnapshotString = buildSparqlQuery {
                     construct {
-                        ?commit mms:parent ?parent .
+                        raw("""
+                            ?baseSnapshot mms:graph ?baseGraph .
+                            ?baseRef
+                                mms:commit ?baseCommit ;
+                                mms:snapshot ?baseSnapshot .
                     
-                        ?snapshot mms:ref ?ref ;
-                            mms:graph ?graph .
-                    
-                        ?ref mms:commit ?commit .
-                    } where {
-                        {
-                            graph m-graph:Schema {
-                                ?snapshotClass rdfs:subClassOf* mms:Snapshot .
-                            }
-                    
-                            graph mor-graph:Metadata {
-                                morc: mms:parent* ?commit .
-                    
-                                ?commit mms:parent ?parent .
-                    
-                                ?snapshot a ?snapshotClass ;
-                                    mms:ref ?ref ;
-                                    mms:graph ?graph .
-                    
-                                ?ref mms:commit ?commit .
-                            }
-                    
-                            filter not exists {
-                                graph m-graph:Schema {
-                                    ?newerSnapshotClass rdfs:subClassOf* mms:Snapshot .
-                                }
-                    
-                                graph mor-graph:Metadata {
-                                    morc: mms:parent* ?newerCommit .
-                    
-                                    ?newerCommit mms:parent* ?commit .
-                    
-                                    ?newerSnapshot a ?newerSnapshotClass ;
-                                        mms:ref/mms:commit ?newerCommit .
-                                }
-                            }
-                        }
+                            ?ancestor mms:parent ?parent ;
+                                mms:patch ?patch ;
+                                mms:where ?where .
+                        """)
                     }
-                """)
+                    where {
+                        raw("""
+                            graph mor-graph:Metadata {
+                                # locate a commit that...
+                                morc: mms:parent* ?baseCommit .
+                    
+                                # ... is targeted by some ref
+                                ?baseRef mms:commit ?baseCommit ;
+                                    # access its snapshot
+                                    mms:snapshot ?baseSnapshot .
+                    
+                                # and that snapshot's graph
+                                ?baseSnapshot mms:graph ?baseGraph .
+                    
+                                # only match the most recent snapshot in the commit history
+                                filter not exists {
+                                    morc: mms:parent* ?newerCommit .
+                                    ?newerCommit mms:parent* ?baseCommit ;
+                                        ^mms:commit/mms:snapshot ?newerSnapshot .
+                    
+                                    filter(?newerCommit != ?baseCommit)
+                                }
+                    
+                    
+                                # fetch the ancestry between the base and target commits
+                                optional {
+                                    morc: mms:parent* ?ancestor .
+                                    ?ancestor mms:parent ?parent ;
+                                        mms:data ?data .
+                                    ?data mms:patch ?patch ;
+                                        mms:where ?where .
+                                    
+                                    # exclude commits older than the base commit
+                                    filter not exists {
+                                        ?baseCommit mms:parent* ?ancestor .
+                                    }
+                                }
+                            }
+                        """)
+                    }
+                }
+
+                // val conditionsBgp = localConditions.requiredPatterns().joinToString("\n")
+                // val constructSnapshotString = SPARQL_CONSTRUCT_SNAPSHOT(conditionsBgp)
+                val constructSnapshotResponseText = executeSparqlConstructOrDescribe(constructSnapshotString)
+
+                log.info(constructSnapshotResponseText)
+
+                // base snapshot graph
+                var baseSnapshotGraphUri: String? = null
+
+                // sequence of commits from base to target
+                val commitSequenceUris = mutableListOf<String>()
+                val patchWhereBodies = hashMapOf<String, Pair<String, String>>()
+
+                // parse the response graph
+                parseConstructResponse(constructSnapshotResponseText) {
+                    // initialize to target commit in case target snapshot already exists
+                    var baseCommit = commitNode()
+
+                    val literalStringValueAt = { res: Resource, prop: Property -> model.listObjectsOfProperty(res, prop).next().asLiteral().string }
+
+                    // traverse up the ancestry chain
+                    var parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
+                    while(parents.hasNext()) {
+                        // save patch/where literal value pair
+                        patchWhereBodies[baseCommit.uri] = literalStringValueAt(baseCommit, MMS.patch) to literalStringValueAt(baseCommit, MMS.where)
+
+                        // key by commit uri
+                        commitSequenceUris.add(0, baseCommit.uri)
+
+                        baseCommit = parents.next().asResource()
+                        parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
+                    }
+
+                    // traverse ref to graph
+                    val superRef = model.listResourcesWithProperty(MMS.commit, baseCommit).next()
+
+                    // baseRefUris.addAll((super))
+                    model.listObjectsOfProperty(superRef, MMS.snapshot).next().asResource().listProperties(MMS.graph).next().let {
+                        baseSnapshotGraphUri = it.`object`.asResource().uri
+                    }
+                }
+
+                // log.info("base snapshot graph: <$baseSnapshotGraphUri>")
+                // log.info(commitSequenceUris.joinToString(", ") { "<$it> :: ${patchWhereBodies[it]!!.first}" })
 
                 val updateString = buildSparqlUpdate {
+                    raw("""
+                        copy <$baseSnapshotGraphUri> to ?__mms_model ; 
+                    """)
+
+                    // rebuilding snapshot does not require checking update conditions...
+                    raw(commitSequenceUris.map {
+                        // ... so just use the patch string
+                        "${patchWhereBodies[it]!!.first} ; "
+                    }.joinToString(""))
+
                     insert {
                         txn {
                             autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
@@ -103,17 +226,18 @@ fun Application.createLock() {
                         }
                     }
                     where {
-                        raw(*DEFAULT_CONDITIONS.requiredPatterns())
+                        raw(*localConditions.requiredPatterns())
                     }
-
-                    raw("""
-                        ; copy 
-                    """)
                 }
 
-                executeSparqlUpdate(updateString)
+                log.info(updateString)
 
-                val localConditions = DEFAULT_CONDITIONS
+                executeSparqlUpdate(updateString) {
+                    iri(
+                        "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
+                    )
+                }
+
 
                 // create construct query to confirm transaction and fetch project details
                 val constructString = buildSparqlQuery {

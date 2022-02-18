@@ -1,6 +1,7 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
+import io.ktor.response.*
 import io.ktor.routing.*
 import org.openmbee.mms5.*
 
@@ -21,76 +22,18 @@ fun Application.deleteLock() {
 
                 val localConditions = DEFAULT_CONDITIONS
 
-                buildSparqlUpdate {
+                val updateString = buildSparqlUpdate {
                     compose {
                         txn()
                         conditions(localConditions)
 
                         raw(dropLock())
-
-                        // delete {
-                        //     raw("""
-                        //         morcl: ?lock_p ?lock_o .
-                        //     """)
-                        // }
-                        // where {
-                        //     raw("""
-                        //         graph mor-graph:Metadata {
-                        //             morcl: ?lock_p ?lock_o .
-                        //
-                        //             optional {
-                        //                 ?thing mms:ref morcl: ;
-                        //                     ?thing_p ?thing_o .
-                        //             }
-                        //
-                        //             filter not exists {
-                        //                 ?dangle ?dangle_p morcl: .
-                        //
-                        //                 minus {
-                        //                     ?thing ?thing_p ?thing_o .
-                        //                 }
-                        //             }
-                        //         }
-                        //     """)
-                        // }
                     }
-                    //
-                    // // txn()
-                    // // conditions(localConditions)
-                    // // dropLock()
-                    //
-                    // delete {
-                    //     raw("""
-                    //         morcl: ?lock_p ?lock_o .
-                    //     """)
-                    // }
-                    // insert {
-                    //     txn()
-                    //
-                    // }
-                    // where {
-                    //     raw(*localConditions.requiredPatterns())
-                    //
-                    //     raw("""
-                    //         graph mor-graph:Metadata {
-                    //             morcl: ?lock_p ?lock_o .
-                    //
-                    //             optional {
-                    //                 ?thing mms:ref morcl: ;
-                    //                     ?thing_p ?thing_o .
-                    //             }
-                    //
-                    //             filter not exists {
-                    //                 ?dangle ?dangle_p morcl: .
-                    //
-                    //                 minus {
-                    //                     ?thing ?thing_p ?thing_o .
-                    //                 }
-                    //             }
-                    //         }
-                    //     """)
-                    // }
                 }
+
+                log.info(updateString)
+
+                call.respondText("")
             }
         }
     }
