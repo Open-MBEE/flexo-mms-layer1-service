@@ -16,7 +16,7 @@ enum class Scope(val type: String, val id: String) {
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morcl"),
-    DIFF("Diff", "morcd"),
+    DIFF("Diff", "mord"),
 }
 
 fun Scope.values() = sequence<String> {

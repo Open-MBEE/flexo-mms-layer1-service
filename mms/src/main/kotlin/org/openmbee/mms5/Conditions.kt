@@ -31,6 +31,36 @@ val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     }
 }
 
+val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
+
+    require("stagingExists") {
+        handler = { prefixes -> "The destination branch <${prefixes["morb"]}> is corrupt. No staging snapshot found." }
+
+        """
+            graph mor-graph:Metadata {
+                # select the latest commit from the current named ref
+                morb: mms:commit ?baseCommit ;
+                    .
+            
+                # and its staging snapshot
+                morb: mms:snapshot ?staging .
+                ?staging a mms:Staging ;
+                    mms:graph ?stagingGraph ;
+                    .
+            
+                optional {
+                    # optionally, it's model snapshot
+                    morb: mms:snapshot ?model .
+                    ?model a mms:Model ;
+                        mms:graph ?modelGraph ;
+                        .
+                }
+            }
+        """
+    }
+}
+
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("commitExists") {
         handler = { prefixes -> "Commit <${prefixes["morc"]}> does not exist." }

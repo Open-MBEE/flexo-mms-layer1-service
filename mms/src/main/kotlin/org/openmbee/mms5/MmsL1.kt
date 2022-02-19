@@ -407,12 +407,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }
     }
 
-    fun buildSparqlUpdate(setup: UpdateBuilder.() -> UpdateBuilder): String {
-        return UpdateBuilder(this,).setup().toString()
+    fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
+        return UpdateBuilder(this,).apply { setup() }.toString()
     }
 
-    fun buildSparqlQuery(setup: QueryBuilder.() -> QueryBuilder): String {
-        return QueryBuilder(this).setup().toString()
+    fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
+        return QueryBuilder(this).apply { setup() }.toString()
     }
 
     @OptIn(InternalAPI::class)
@@ -598,6 +598,29 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             else if(ifNoneMatch.etags.contains(etag)) {
                 throw PreconditionFailedException("If-None-Match")
             }
+        }
+    }
+
+    suspend fun downloadModel(graphUri: String): KModel {
+        val constructResponseText = executeSparqlConstructOrDescribe("""
+            construct {
+                ?s ?p ?o
+            } where {
+                graph ?_graph {
+                    ?s ?p ?o
+                }
+            }
+        """) {
+            iri(
+                "_graph" to graphUri,
+            )
+        }
+
+        return KModel(prefixes) {
+            parseTurtle(
+                body = constructResponseText,
+                model = this,
+            )
         }
     }
 }
@@ -798,6 +821,169 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         log.info(dropResponseText)
     }
 }
+
+fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
+    // generate sparql update
+    return buildSparqlUpdate {
+        delete {
+            if(delete.isNotEmpty()) raw(delete)
+
+            graph("mor-graph:Metadata") {
+                raw("""
+                    # branch no longer points to model snapshot
+                    morb: mms:snapshot ?model .
+            
+                    # branch no longer points to previous commit
+                    morb: mms:commit ?baseCommit .
+                """)
+            }
+        }
+        insert {
+            txn(
+                "mms-txn:stagingGraph" to "?stagingGraph",
+                "mms-txn:baseModel" to "?model",
+                "mms-txn:baseModelGraph" to "?modelGraph",
+            )
+
+            if(insert.isNotEmpty()) raw(insert)
+
+            graph("mor-graph:Metadata") {
+                raw("""
+                    # new commit
+                    morc: a mms:Commit ;
+                        mms:etag ?_txnId ;
+                        mms:parent ?baseCommit ;
+                        mms:message ?_commitMessage ;
+                        mms:submitted ?_now ;
+                        mms:data morc-data: ;
+                        .
+            
+                    # commit data
+                    morc-data: a mms:Update ;
+                        mms:body ?_updateBody ;
+                        mms:patch ?_patchString ;
+                        mms:where ?_whereString ;
+                        .
+            
+                    # update branch pointer
+                    morb: mms:commit morc: .
+            
+                    # convert previous snapshot to isolated lock
+                    ?_interim a mms:InterimLock ;
+                        mms:created ?_now ;
+                        mms:commit ?baseCommit ;
+                        # interim lock now points to model snapshot 
+                        mms:snapshot ?model ;
+                        .
+                """)
+            }
+        }
+        if(where.isNotEmpty()) {
+            where {
+                raw(where)
+            }
+        }
+    }
+}
+
+fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null): String {
+    // generate sparql update
+    return buildSparqlUpdate {
+        insert {
+            txn(
+                "mms-txn:diff" to "?diff",
+                "mms-txn:commitSource" to "?commitSource",
+                "mms-txn:diffInsGraph" to "?diffInsGraph",
+                "mms-txn:diffDelGraph" to "?diffDelGraph",
+            ) {
+                autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
+            }
+
+            raw("""
+                graph ?diffInsGraph {
+                    ?ins_s ?ins_p ?ins_o .    
+                }
+                
+                graph ?diffDelGraph {
+                    ?del_s ?del_p ?del_o .
+                }
+                
+                graph mor-graph:Metadata {
+                    $diffTriples
+                    
+                    ?diff mms:id ?diffId ;
+                        mms:diffSrc ?commitSource ;
+                        mms:diffDst morc: ;
+                        mms:insGraph ?diffInsGraph ;
+                        mms:delGraph ?diffDelGraph ;
+                        .
+                }
+            """)
+        }
+        where {
+            if(conditions != null) raw(*conditions.requiredPatterns())
+
+            raw("""
+                graph ?srcGraph {
+                    ?src_s ?src_p ?src_o .    
+                }
+                
+                graph ?dstGraph {
+                    ?dst_s ?dst_p ?dst_o .
+                }
+                
+                graph ?srcGraph {
+                    ?ins_s ?ins_p ?ins_o .
+                    
+                    minus {
+                        ?dst_s ?dst_p ?dst_o .
+                    }
+                }
+                
+                graph ?dstGraph {
+                    ?del_s ?del_p ?del_o .
+                    
+                    minus {
+                        ?src_s ?src_p ?src_o .
+                    }
+                }
+                
+                optional {
+                    graph mor-graph:Metadata {
+                        ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                        ?snapshot mms:graph ?sourceGraph  .
+                    }
+                }
+                
+                bind(
+                    sha256(
+                        concat(str(morc:), "\n", str(?commitSource))
+                    ) as ?diffId
+                )
+                
+                bind(
+                    iri(
+                        concat(str(morc:), "/diffs/", ?diffId)
+                    ) as ?diff
+                )
+                
+                bind(
+                    iri(
+                        concat(str(mor-graph:), "Diff.Ins.", ?diffId)
+                    ) as ?diffInsGraph
+                )
+                
+                bind(
+                    iri(
+                        concat(str(mor-graph:), "Diff.Del.", ?diffId)
+                    ) as ?diffDelGraph
+                )
+            """)
+        }
+    }
+
+}
+
 
 suspend fun ApplicationCall.mmsL1(permission: Permission, setup: suspend MmsL1Context.()->Unit): MmsL1Context {
     val requestBody = receiveText()

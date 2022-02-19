@@ -137,6 +137,14 @@ fun prefixesFor(
                             }
                         }
 
+                        if(null !== diffId) {
+                            with("$this/diffs/$diffId") {
+                                add(
+                                    "mord" to this,
+                                )
+                            }
+                        }
+
                         if(null != commitId) {
                             with("$this/commits/$commitId") {
                                 add(
@@ -242,6 +250,11 @@ object MMS {
         val baseModel = ResourceFactory.createProperty(BASE_TXN, "baseModel")
         val baseModelGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
         val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
+
+        val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
+        val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")
+        val diffInsGraph = ResourceFactory.createProperty(BASE_TXN, "diffInsGraph")
+        val diffDelGraph = ResourceFactory.createProperty(BASE_TXN, "diffDelGraph")
     }
 }
 

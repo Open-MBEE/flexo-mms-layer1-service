@@ -11,38 +11,7 @@ import org.apache.jena.update.Update
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.mms5.*
 
-private const val SPARQL_BGP_STAGING_EXISTS = """
-    graph mor-graph:Metadata {
-        # select the latest commit from the current named ref
-        morb: mms:commit ?baseCommit ;
-            .
-    
-        # and its staging snapshot
-        morb: mms:snapshot ?staging .
-        ?staging a mms:Staging ;
-            mms:graph ?stagingGraph ;
-            .
-    
-        optional {
-            # optionally, it's model snapshot
-            morb: mms:snapshot ?model .
-            ?model a mms:Model ;
-                mms:graph ?modelGraph ;
-                .
-        }
-    }
-"""
-
-private val DEFAULT_UPDATE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
-
-    require("stagingExists") {
-        handler = { prefixes -> "The destination branch <${prefixes["morb"]}> is corrupt. No staging snapshot found." }
-
-        SPARQL_BGP_STAGING_EXISTS
-    }
-}
-
+private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
 fun Resource.iriAt(property: Property): String? {
@@ -158,87 +127,36 @@ fun Application.commitBranch() {
                     }
                 }
 
-                val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}";
 
-                // generate sparql update
-                val updateString = buildSparqlUpdate {
-                    delete {
-                        if(deleteBgpString.isNotEmpty()) {
-                            graph("?stagingGraph") {
-                                raw(deleteBgpString)
+
+                val commitUpdateString = genCommitUpdate(
+                    delete=if(deleteBgpString.isNotEmpty()) {
+                        """
+                            graph ?stagingGraph {
+                                $deleteBgpString
                             }
-                        }
-
-                        graph("mor-graph:Metadata") {
-                            raw("""
-                                # branch no longer points to model snapshot
-                                morb: mms:snapshot ?model .
-                        
-                                # branch no longer points to previous commit
-                                morb: mms:commit ?baseCommit .
-                            """)
-                        }
-                    }
-                    insert {
-                        txn(
-                            "mms-txn:stagingGraph" to "?stagingGraph",
-                            "mms-txn:baseModel" to "?model",
-                            "mms-txn:baseModelGraph" to "?modelGraph",
-                        )
-
-                        if(insertBgpString.isNotEmpty()) {
-                            graph("?stagingGraph") {
-                                raw(insertBgpString)
+                        """
+                    } else "",
+                    insert=if(insertBgpString.isNotEmpty()) {
+                        """
+                            graph ?stagingGraph {
+                                $insertBgpString
                             }
-                        }
-
-                        graph("mor-graph:Metadata") {
-                            raw("""
-                                # new commit
-                                morc: a mms:Commit ;
-                                    mms:etag ?_txnId ;
-                                    mms:parent ?baseCommit ;
-                                    mms:message ?_commitMessage ;
-                                    mms:submitted ?_now ;
-                                    mms:data morc-data: ;
-                                    .
-                        
-                                # commit data
-                                morc-data: a mms:Update ;
-                                    mms:body ?_updateBody ;
-                                    mms:patch ?_patchString ;
-                                    mms:where ?_whereString ;
-                                    .
-                        
-                                # update branch pointer
-                                morb: mms:commit morc: .
-                        
-                                # convert previous snapshot to isolated lock
-                                ?_interim a mms:InterimLock ;
-                                    mms:created ?_now ;
-                                    mms:commit ?baseCommit ;
-                                    # interim lock now points to model snapshot 
-                                    mms:snapshot ?model ;
-                                    .
-                            """)
-                        }
-                    }
-                    where {
-                        if(whereString.isNotEmpty()) {
-                            graph("?stagingGraph") {
-                                raw(whereString)
+                        """
+                    } else "",
+                    where="${if(whereString.isNotEmpty()) {
+                        """
+                            graph ?stagingGraph {
+                                whereString
                             }
-                        }
-
-                        raw(*localConditions.requiredPatterns())
-
-                    }
-                }
+                        """
+                    } else ""} ${localConditions.requiredPatterns().joinToString("\n")}"
+                )
 
 
-                executeSparqlUpdate(updateString) {
+                executeSparqlUpdate(commitUpdateString) {
                     iri(
-                        "_interim" to interimIri,
+                        "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
                     )
 
                     datatyped(
