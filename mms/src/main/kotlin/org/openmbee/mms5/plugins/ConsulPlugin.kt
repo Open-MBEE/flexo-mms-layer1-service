@@ -82,10 +82,6 @@ class ConsulPlugin {
                 .withTokenAuth(consulToken)
                 .build()
         }
-
-        fun getAuthService() {
-
-        }
     }
 }
 
