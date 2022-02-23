@@ -1,13 +1,12 @@
 package org.openmbee.mms5.plugins
 
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.features.*
 import io.ktor.locations.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.openmbee.mms5.HttpException
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
 
@@ -33,34 +32,36 @@ fun Application.configureRouting() {
             // }
         // }
 
-        createOrg()
-        readOrg()
-        updateOrg()
-        // deleteOrg()
+        authenticate {
+            createOrg()
+            readOrg()
+            updateOrg()
+            // deleteOrg()
 
-        createCollection()
-        // readCollection()
-        // updateCollection()
-        // deleteCollection()
+            createCollection()
+            // readCollection()
+            // updateCollection()
+            // deleteCollection()
 
-        createRepo()
-        readRepo()
-        updateRepo()
-        // deleteRepo()
+            createRepo()
+            readRepo()
+            updateRepo()
+            // deleteRepo()
 
-        loadBranch()
-        createBranch()
-        commitBranch()
-        queryBranch()
-        // deleteBranch()
+            loadBranch()
+            createBranch()
+            commitBranch()
+            queryBranch()
+            // deleteBranch()
 
-        createLock()
-        queryLock()
-        deleteLock()
-        
-        createDiff()
-        queryDiff()
-        // deleteDiff()
+            createLock()
+            queryLock()
+            deleteLock()
+
+            createDiff()
+            queryDiff()
+            // deleteDiff()
+        }
     }
 }
 // class AuthenticationException : RuntimeException()
