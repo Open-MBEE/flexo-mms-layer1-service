@@ -886,7 +886,7 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
     }
 }
 
-fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null): String {
+fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     // generate sparql update
     return buildSparqlUpdate {
         insert {
@@ -924,30 +924,6 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
             if(conditions != null) raw(*conditions.requiredPatterns())
 
             raw("""
-                graph ?srcGraph {
-                    ?src_s ?src_p ?src_o .    
-                }
-                
-                graph ?dstGraph {
-                    ?dst_s ?dst_p ?dst_o .
-                }
-                
-                graph ?srcGraph {
-                    ?ins_s ?ins_p ?ins_o .
-                    
-                    minus {
-                        ?dst_s ?dst_p ?dst_o .
-                    }
-                }
-                
-                graph ?dstGraph {
-                    ?del_s ?del_p ?del_o .
-                    
-                    minus {
-                        ?src_s ?src_p ?src_o .
-                    }
-                }
-                
                 optional {
                     graph mor-graph:Metadata {
                         ?commitSource ^mms:commit/mms:snapshot ?snapshot .
@@ -978,6 +954,32 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                         concat(str(mor-graph:), "Diff.Del.", ?diffId)
                     ) as ?diffDelGraph
                 )
+                
+                graph ?srcGraph {
+                    ?src_s ?src_p ?src_o .    
+                }
+                
+                graph ?dstGraph {
+                    ?dst_s ?dst_p ?dst_o .
+                }
+                
+                graph ?srcGraph {
+                    ?ins_s ?ins_p ?ins_o .
+                    
+                    minus {
+                        ?dst_s ?dst_p ?dst_o .
+                    }
+                }
+                
+                graph ?dstGraph {
+                    ?del_s ?del_p ?del_o .
+                    
+                    minus {
+                        ?src_s ?src_p ?src_o .
+                    }
+                }
+                
+                ${rawWhere?: ""}
             """)
         }
     }

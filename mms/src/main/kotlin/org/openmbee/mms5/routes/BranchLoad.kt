@@ -54,12 +54,18 @@ fun Application.loadBranch() {
                 diffId = "Load.$transactionId"
 
                 // gen diff query
-                val diffUpdateString = genDiffUpdate("", localConditions)
+                val diffUpdateString = genDiffUpdate("", localConditions, """
+                   bind(?stagingGraph as ?srcGraph)
+                   bind(?baseCommit as ?commitSource)
+                """)
 
                 executeSparqlUpdate(diffUpdateString) {
                     iri(
                         // use current branch as ref source
                         "refSource" to prefixes["morb"]!!,
+
+                        // set dst graph
+                        "dstGraph" to loadGraphUri,
                     )
                 }
 
