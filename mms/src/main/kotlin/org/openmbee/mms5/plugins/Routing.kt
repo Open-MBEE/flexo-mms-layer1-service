@@ -61,6 +61,8 @@ fun Application.configureRouting() {
         createDiff()
         queryDiff()
         // deleteDiff()
+
+        createLdapGroup()
     }
 }
 // class AuthenticationException : RuntimeException()

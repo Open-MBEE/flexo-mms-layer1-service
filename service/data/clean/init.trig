@@ -88,7 +88,7 @@ m-graph:AccessControl.Agents {
 		.
 
 	m-group:ldap\/cn\=all.users\,ou\=personnel\,dc\=dir\,dc\=demo\,dc\=openmbee\,dc\=org a mms:LdapGroup ;
-		mms:id "ldap/cn=all.users,ou=personnel,dc=dir,dc=demo,dc=openmbee,dc=org" ;
+		mms:id "cn=all.users,ou=personnel,dc=dir,dc=demo,dc=openmbee,dc=org" ;
 		.
 
 	# m-user:anonymous a mms:User ;
