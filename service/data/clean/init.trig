@@ -87,9 +87,8 @@ m-graph:AccessControl.Agents {
 		mms:id "super_admins" ;
 		.
 
-	m-group:ldap.dir.jpl.nasa.gov.all.users a mms:Group ;
-		mms:id "all.users" ;
-		mms:domain "dir.jpl.nasa.gov" ;
+	m-group:ldap\/cn\=all.users\,ou\=personnel\,dc\=dir\,dc\=demo\,dc\=openmbee\,dc\=org a mms:LdapGroup ;
+		mms:id "ldap/cn=all.users,ou=personnel,dc=dir,dc=demo,dc=openmbee,dc=org" ;
 		.
 
 	# m-user:anonymous a mms:User ;
