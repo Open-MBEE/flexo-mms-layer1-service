@@ -26,4 +26,4 @@ fun Application.configureAuthentication() {
     }
 }
 
-data class UserDetailsPrincipal(val name: String, val groups: List<String?>) : Principal
+data class UserDetailsPrincipal(val name: String, val groups: List<String>) : Principal

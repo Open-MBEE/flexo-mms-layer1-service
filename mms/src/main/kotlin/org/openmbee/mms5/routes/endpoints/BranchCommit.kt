@@ -191,6 +191,7 @@ fun Application.commitBranch() {
                             """)
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
+                        groupDns()
                     }
                 }
 

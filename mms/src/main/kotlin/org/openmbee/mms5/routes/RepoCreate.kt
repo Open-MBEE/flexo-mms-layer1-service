@@ -45,7 +45,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_REPO, Scope.REPO)
 
     require("repoNotExists") {
-        handler = { prefixes -> "The provided repo <${prefixes["mor"]}> already exists." }
+        handler = { mms -> "The provided repo <${mms.prefixes["mor"]}> already exists." }
 
         """
             # repo must not yet exist
@@ -58,7 +58,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     }
 
     require("repoMetadataGraphEmpty") {
-        handler = { prefixes -> "The Metadata graph <${prefixes["mor-graph"]}Metadata> is not empty." }
+        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> is not empty." }
 
         """
             # repo metadata graph must be empty
@@ -146,6 +146,7 @@ fun Application.createRepo() {
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
+                        groupDns()
                     }
                 }
 
@@ -191,6 +192,7 @@ fun Application.createRepo() {
                             """)
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
+                        groupDns()
                     }
                 }
 

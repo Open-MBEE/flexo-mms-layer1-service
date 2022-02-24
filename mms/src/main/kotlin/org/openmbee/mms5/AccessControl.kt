@@ -78,18 +78,20 @@ enum class Role(val id: String) {
     ADMIN_GROUP("AdminGroup"),
 }
 
-val ApplicationCall.mmsUserId: String
-    get() = this.request.headers["mms5-user"]?: ""
-
 fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
     return """
         # user exists and may belong to some group
         graph m-graph:AccessControl.Agents {
-            mu: a mms:User .
-            
-            optional {
-                mu: mms:group* ?group .
-                ?group a mms:Group .
+            {
+                mu: a mms:User .
+                
+                optional {
+                    mu: mms:group* ?group .
+                    ?group a mms:Group .
+                }
+            } union {
+                ?group a mms:LdapGroup ;
+                    mms:id ?_ldapGroupDn .
             }
         }
         

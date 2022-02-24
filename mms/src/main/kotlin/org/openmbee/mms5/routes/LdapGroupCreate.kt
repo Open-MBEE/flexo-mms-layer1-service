@@ -6,13 +6,14 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+import org.openmbee.mms5.plugins.UserDetailsPrincipal
 
 
 private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_GROUP, Scope.ACCESS_CONTROL)
 
     require("groupNotExists") {
-        handler = { prefixes -> "The provided group <${prefixes["mag"]}> already exists." }
+        handler = { mms -> "The provided group <${mms.prefixes["mag"]}> already exists." }
 
         """
             # group must not yet exist
@@ -67,6 +68,7 @@ fun Application.createLdapGroup() {
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
+                        groupDns()
                     }
                 }
 
@@ -93,6 +95,7 @@ fun Application.createLdapGroup() {
                             }
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
+                        groupDns()
                     }
                 }
 

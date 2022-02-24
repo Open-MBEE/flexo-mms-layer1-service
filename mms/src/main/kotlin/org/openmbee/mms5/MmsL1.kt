@@ -1,6 +1,7 @@
 package org.openmbee.mms5
 
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.client.request.*
 import io.ktor.features.*
 import io.ktor.http.*
@@ -29,6 +30,7 @@ import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.OWL
 import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
+import org.openmbee.mms5.plugins.UserDetailsPrincipal
 import org.openmbee.mms5.plugins.client
 import java.nio.charset.StandardCharsets
 import java.util.*
@@ -41,13 +43,6 @@ private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
-    fun user() {
-        // missing userId
-        if(mms.userId.isEmpty()) {
-            throw AuthorizationRequiredException("Missing header: `MMS5-User`")
-        }
-    }
-
     fun ldap(legal: Boolean=false) {
         mms.groupId = "ldap/"+(call.parameters["ldapId"]?: throw Http400Exception("Requisite {ldapId} parameter was null"))
         if(legal) assertLegalId(mms.groupId!!, """[?=._\pL-]{3,256}""".toRegex())
@@ -337,10 +332,17 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     val log = call.application.log
     val transactionId = UUID.randomUUID().toString()
 
+    val session = call.principal<UserDetailsPrincipal>()
+
     val ifMatch = parseEtagHeader(HttpHeaders.IfMatch)
     val ifNoneMatch = parseEtagHeader(HttpHeaders.IfNoneMatch)
 
-    val userId = call.mmsUserId
+    val userId: String
+    val groups: List<String>
+
+    /**
+     * Identifies the group being CRUD'd -- has nothing to do with which groups the user belongs to
+     */
     var groupId: String? = null
     var orgId: String? = null
     var collectionId: String? = null
@@ -374,6 +376,17 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             diffId = diffId,
             transactionId = transactionId,
         )
+
+    init {
+        // missing userId
+        if((session == null) || session.name.isBlank()) {
+            throw AuthorizationRequiredException("User not authenticated")
+        }
+
+        // save
+        userId = session.name
+        groups = session.groups
+    }
 
     fun pathParams(setup: ParamNormalizer.()->Unit): ParamNormalizer {
         return ParamNormalizer(this).apply{
@@ -484,7 +497,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         // transaction failed
         if(!transactionNode.listProperties().hasNext()) {
             // use response to diagnose cause
-            conditions.handle(model);
+            conditions.handle(model, this);
 
             // the above always throws, so this is unreachable
         }
@@ -767,6 +780,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         }
         where {
             raw(*conditions.requiredPatterns())
+            groupDns()
 
             raw("""
                 # match old etag
@@ -799,6 +813,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
                 """)
             }
             raw("""union ${conditions.unionInspectPatterns()}""")
+            groupDns()
         }
     }
 

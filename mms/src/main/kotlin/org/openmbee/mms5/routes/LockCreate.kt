@@ -13,7 +13,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_LOCK, Scope.REPO)
 
     require("lockNotExists") {
-        handler = { prefixes -> "The provided lock <${prefixes["morcl"]}> already exists." }
+        handler = { mms -> "The provided lock <${mms.prefixes["morcl"]}> already exists." }
 
         """
             # lock must not yet exist
@@ -168,6 +168,7 @@ fun Application.createLock() {
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
+                        groupDns()
                     }
                 }
 
@@ -200,6 +201,7 @@ fun Application.createLock() {
                             """)
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
+                        groupDns()
                     }
                 }
 

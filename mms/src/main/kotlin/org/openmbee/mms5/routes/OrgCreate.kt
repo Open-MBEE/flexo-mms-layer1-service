@@ -11,7 +11,7 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_ORG, Scope.CLUSTER)
 
     require("orgNotExists") {
-        handler = { prefixes -> "The provided org <${prefixes["mo"]}> already exists." }
+        handler = { mms -> "The provided org <${mms.prefixes["mo"]}> already exists." }
 
         """
             # org must not yet exist
@@ -66,6 +66,7 @@ fun Application.createOrg() {
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
+                        groupDns()
                     }
                 }
 
@@ -92,6 +93,7 @@ fun Application.createOrg() {
                             }
                         }
                         raw("""union ${localConditions.unionInspectPatterns()}""")
+                        groupDns()
                     }
                 }
 

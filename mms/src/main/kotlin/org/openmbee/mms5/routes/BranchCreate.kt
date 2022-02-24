@@ -11,7 +11,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_BRANCH, Scope.REPO)
 
     require("branchNotExists") {
-        handler = { prefixes -> "The provided branch <${prefixes["morb"]}> already exists." }
+        handler = { mms -> "The provided branch <${mms.prefixes["morb"]}> already exists." }
 
         """
             # branch must not yet exist
@@ -80,6 +80,7 @@ fun Application.createBranch() {
                                 }
                             }
                         """)
+                        groupDns()
                     }
                 }
 
@@ -109,6 +110,7 @@ fun Application.createBranch() {
                         raw("""
                             union ${localConditions.unionInspectPatterns()}    
                         """)
+                        groupDns()
                     }
                 }
 

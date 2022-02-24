@@ -137,6 +137,15 @@ open class WhereBuilder(
     fun values(setup: ValuesBuilder.() -> Unit): ValuesBuilder {
         return ValuesBuilder(mms, indentLevel).apply { setup }
     }
+
+
+    fun groupDns(): WhereBuilder {
+        return raw("""
+            values ?_ldapGroupDns {
+                ${mms.groups.joinToString(" ") { escapeLiteral(it) }}
+            }
+        """)
+    }
 }
 
 class DeleteBuilder(

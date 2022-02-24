@@ -46,6 +46,7 @@ fun Application.loadBranch() {
                         }
                         where {
                             raw(*localConditions.requiredPatterns())
+                            groupDns()
                         }
                     }
 
@@ -74,6 +75,7 @@ fun Application.loadBranch() {
                                 union ${localConditions.unionInspectPatterns()}    
                             """
                             )
+                            groupDns()
                         }
                     }
 
@@ -205,6 +207,7 @@ fun Application.loadBranch() {
                         raw("""
                             union ${localConditions.unionInspectPatterns()}    
                         """)
+                        groupDns()
                     }
                 }
 

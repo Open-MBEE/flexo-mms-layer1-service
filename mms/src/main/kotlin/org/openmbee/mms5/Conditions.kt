@@ -1,14 +1,19 @@
 package org.openmbee.mms5
 
 import org.apache.jena.rdf.model.impl.PropertyImpl
+import org.openmbee.mms5.plugins.UserDetailsPrincipal
 
 val GLOBAL_CRUD_CONDITIONS = conditions {
-    inspect("userExists") {
-        handler = { prefixes -> "User <${prefixes["mu"]}> does not exist." }
+    inspect("agentExists") {
+        handler = { mms -> "User <${mms.prefixes["mu"]}> does not exist or does not belong to any authorized groups." }
 
         """
             graph m-graph:AccessControl.Agents {
-                mu: a mms:User .
+                {
+                    mu: a mms:User .
+                } union {
+                    ?__mms_ldapGroup a mms:LdapGroup .
+                }
             }
         """
     }
@@ -20,7 +25,7 @@ val ORG_CRUD_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
 val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     require("repoExists") {
-        handler = { prefixes -> "Repo <${prefixes["mor"]}> does not exist." }
+        handler = { mms -> "Repo <${mms.prefixes["mor"]}> does not exist." }
 
         """
             # repo must exist
@@ -35,7 +40,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
     require("stagingExists") {
-        handler = { prefixes -> "The destination branch <${prefixes["morb"]}> is corrupt. No staging snapshot found." }
+        handler = { mms -> "The destination branch <${mms.prefixes["morb"]}> is corrupt. No staging snapshot found." }
 
         """
             graph mor-graph:Metadata {
@@ -63,7 +68,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("commitExists") {
-        handler = { prefixes -> "Commit <${prefixes["morc"]}> does not exist." }
+        handler = { mms -> "Commit <${mms.prefixes["morc"]}> does not exist." }
 
         """
             # commit must exist
@@ -76,7 +81,7 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
 val LOCK_CRUD_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
     require("lockExists") {
-        handler = { prefixes -> "Lock <${prefixes["morcl"]}> does not exist." }
+        handler = { mms -> "Lock <${mms.prefixes["morcl"]}> does not exist." }
 
         """
             # lock must exist
@@ -94,7 +99,7 @@ enum class ConditionType {
 
 class Condition(val type: ConditionType, val key: String) {
     var pattern: String = ""
-    var handler: (prefixes: PrefixMapBuilder) -> String = {
+    var handler: (mms: MmsL1Context) -> String = {
         "`$key` condition failed"
     }
 }
@@ -103,7 +108,7 @@ class Condition(val type: ConditionType, val key: String) {
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
-            handler = { prefixes -> "User <${prefixes["mu"]}> is not permitted to ${permission.id}." }
+            handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" }
 
             permittedActionSparqlBgp(permission, scope)
         }
@@ -111,7 +116,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
 
     fun orgExists() {
         require("orgExists") {
-            handler = { prefixes -> "Org <${prefixes["mo"]}> does not exist." }
+            handler = { mms -> "Org <${mms.prefixes["mo"]}> does not exist." }
 
             """
                 # org must exist
@@ -172,7 +177,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return ConditionsGroup(ConditionsBuilder(conditions.toMutableList()).apply{setup()}.conditions)
     }
 
-    fun handle(model: KModel): Nothing {
+    fun handle(model: KModel, mms: MmsL1Context): Nothing {
         // inspect node
         val inspectNode = model.createResource("mms://inspect")
         val passes = inspectNode.listProperties(PropertyImpl("mms://pass")).toList()
@@ -182,7 +187,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         for(condition in conditions) {
             // inspection key is missing from set of passes
             if(!passes.contains(condition.key)) {
-                throw RequirementNotMetException(condition.handler(model.prefixes))
+                throw RequirementNotMetException(condition.handler(mms))
             }
         }
 
