@@ -12,7 +12,10 @@ fun Application.module(testing: Boolean=false) {
     configureAuthentication()
     configureHTTP()
     configureRouting()
-    registerService()
+
+    if(environment.config.propertyOrNull("consul.enabled")?.getString() == "true") {
+        registerService()
+    }
 }
 
 
