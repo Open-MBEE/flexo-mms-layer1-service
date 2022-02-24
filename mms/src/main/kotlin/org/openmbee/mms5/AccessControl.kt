@@ -17,6 +17,9 @@ enum class Scope(val type: String, val id: String) {
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morcl"),
     DIFF("Diff", "mord"),
+
+    ACCESS_CONTROL("AccessControl", "ma"),
+    GROUP("Group", "mag")
 }
 
 fun Scope.values() = sequence<String> {
@@ -59,6 +62,8 @@ enum class Permission(
     READ_DIFF(Crud.READ, Scope.DIFF),
     UPDATE_DIFF(Crud.UPDATE, Scope.DIFF),
     DELETE_DIFF(Crud.DELETE, Scope.DIFF),
+
+    CREATE_GROUP(Crud.CREATE, Scope.GROUP)
 }
 
 
@@ -70,6 +75,7 @@ enum class Role(val id: String) {
     ADMIN_LOCK("AdminLock"),
     ADMIN_BRANCH("AdminBranch"),
     ADMIN_DIFF("AdminDiff"),
+    ADMIN_GROUP("AdminGroup"),
 }
 
 val ApplicationCall.mmsUserId: String

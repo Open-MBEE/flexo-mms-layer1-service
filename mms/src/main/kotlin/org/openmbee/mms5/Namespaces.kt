@@ -83,6 +83,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
 
 fun prefixesFor(
     userId: String?=null,
+    groupId: String?=null,
     orgId: String?=null,
     collectionId: String?=null,
     repoId: String?=null,
@@ -92,13 +93,23 @@ fun prefixesFor(
     lockId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
-    source: PrefixMapBuilder?= SPARQL_PREFIXES
+    source: PrefixMapBuilder?= SPARQL_PREFIXES,
+
+    ldapId: String?=null,
 ): PrefixMapBuilder {
     return PrefixMapBuilder(source) {
         if(null != userId) {
             with("$ROOT_CONTEXT/users/$userId") {
                 add(
                     "mu" to this,
+                )
+            }
+        }
+
+        if(null != groupId) {
+            with("$ROOT_CONTEXT/group/$groupId") {
+                add(
+                    "mag" to this,
                 )
             }
         }

@@ -48,6 +48,11 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         }
     }
 
+    fun ldap(legal: Boolean=false) {
+        mms.groupId = "ldap/"+(call.parameters["ldapId"]?: throw Http400Exception("Requisite {ldapId} parameter was null"))
+        if(legal) assertLegalId(mms.groupId!!, """[?=._\pL-]{3,256}""".toRegex())
+    }
+
     fun org(legal: Boolean=false) {
         mms.orgId = call.parameters["orgId"]
         if(legal) assertLegalId(mms.orgId!!)
@@ -64,8 +69,8 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
     }
 
     fun commit(legal: Boolean=false) {
-        mms.commitId = call.parameters["commitId"]?: throw Exception("Requisite {commitId} parameter was null")
-        if(legal) assertLegalId(mms.commitId!!)
+        mms.commitId = call.parameters["commitId"]?: throw Http400Exception("Requisite {commitId} parameter was null")
+        if(legal) assertLegalId(mms.commitId)
     }
 
     fun lock(legal: Boolean=false) {
@@ -216,6 +221,10 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
         return resourceFromParamPrefix("mu")
     }
 
+    fun groupNode(): Resource {
+        return resourceFromParamPrefix("mg")
+    }
+
     fun orgNode(): Resource {
         return resourceFromParamPrefix("mo")
     }
@@ -332,6 +341,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     val ifNoneMatch = parseEtagHeader(HttpHeaders.IfNoneMatch)
 
     val userId = call.mmsUserId
+    var groupId: String? = null
     var orgId: String? = null
     var collectionId: String? = null
     var repoId: String? = null
@@ -354,6 +364,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     val prefixes: PrefixMapBuilder
         get() = prefixesFor(
             userId = userId,
+            groupId = groupId,
             orgId = orgId,
             collectionId = collectionId,
             repoId = repoId,
