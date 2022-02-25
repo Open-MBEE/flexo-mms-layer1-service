@@ -34,7 +34,7 @@ fun Application.configureRouting() {
             // }
         // }
 
-        authenticate {
+        authenticate("jwtAuth") {
             createOrg()
             readOrg()
             updateOrg()
@@ -59,7 +59,7 @@ fun Application.configureRouting() {
             createLock()
             queryLock()
             deleteLock()
-        
+
             createDiff()
             queryDiff()
             // deleteDiff()

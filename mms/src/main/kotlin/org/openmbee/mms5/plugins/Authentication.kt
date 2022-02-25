@@ -8,7 +8,7 @@ import io.ktor.auth.jwt.*
 
 fun Application.configureAuthentication() {
     authentication {
-        jwt {
+        jwt("jwtAuth") {
             val jwtAudience = environment.config.property("jwt.audience").getString()
             val issuer = environment.config.property("jwt.domain").getString()
             val secret = environment.config.property("jwt.secret").getString()
@@ -20,7 +20,12 @@ fun Application.configureAuthentication() {
                     .build()
             )
             validate { credential ->
-                if (credential.payload.audience.contains(jwtAudience)) JWTPrincipal(credential.payload) else null
+                if (credential.payload.audience.contains(jwtAudience)) {
+                    UserDetailsPrincipal(
+                        credential.payload.claims["username"]?.asString() ?: "",
+                        credential.payload.claims["groups"]?.asList("".javaClass) ?: emptyList()
+                    )
+                } else null
             }
         }
     }
