@@ -77,157 +77,167 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
 """
 
 
-fun Application.createLock() {
-    routing {
-        put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
-            call.mmsL1(Permission.CREATE_LOCK) {
-                pathParams {
-                    org()
-                    repo()
-                    commit()
-                    lock(legal = true)
-                }
+fun Route.createLock() {
+    put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
+        call.mmsL1(Permission.CREATE_LOCK) {
+            pathParams {
+                org()
+                repo()
+                commit()
+                lock(legal = true)
+            }
 
-                val lockTriples = filterIncomingStatements("morcl") {
-                    lockNode().apply {
-                        sanitizeCrudObject {
-                            setProperty(RDF.type, MMS.Lock)
-                            setProperty(MMS.id, lockId!!)
-                            setProperty(MMS.etag, transactionId, true)
-                            setProperty(MMS.commit, commitNode())
-                            setProperty(MMS.createdBy, userNode(), true)
-                        }
+            val lockTriples = filterIncomingStatements("morcl") {
+                lockNode().apply {
+                    sanitizeCrudObject {
+                        setProperty(RDF.type, MMS.Lock)
+                        setProperty(MMS.id, lockId!!)
+                        setProperty(MMS.etag, transactionId, true)
+                        setProperty(MMS.commit, commitNode())
+                        setProperty(MMS.createdBy, userNode(), true)
                     }
                 }
+            }
 
-                val localConditions = DEFAULT_CONDITIONS
+            val localConditions = DEFAULT_CONDITIONS
 
-                // locate base snapshot
-                val constructSnapshotResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SNAPSHOT)
+            // locate base snapshot
+            val constructSnapshotResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SNAPSHOT)
 
-                log.info(constructSnapshotResponseText)
+            log.info(constructSnapshotResponseText)
 
-                // base snapshot graph
-                var baseSnapshotGraphUri: String? = null
+            // base snapshot graph
+            var baseSnapshotGraphUri: String? = null
 
-                // sequence of commits from base to target
-                val commitSequenceUris = mutableListOf<String>()
-                val patchWhereBodies = hashMapOf<String, Pair<String, String>>()
+            // sequence of commits from base to target
+            val commitSequenceUris = mutableListOf<String>()
+            val patchWhereBodies = hashMapOf<String, Pair<String, String>>()
 
-                // parse the response graph
-                parseConstructResponse(constructSnapshotResponseText) {
-                    // initialize to target commit in case target snapshot already exists
-                    var baseCommit = commitNode()
+            // parse the response graph
+            parseConstructResponse(constructSnapshotResponseText) {
+                // initialize to target commit in case target snapshot already exists
+                var baseCommit = commitNode()
 
-                    val literalStringValueAt = { res: Resource, prop: Property -> model.listObjectsOfProperty(res, prop).next().asLiteral().string }
+                val literalStringValueAt = { res: Resource, prop: Property ->
+                    model.listObjectsOfProperty(res, prop).next().asLiteral().string
+                }
 
-                    // traverse up the ancestry chain
-                    var parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
-                    while(parents.hasNext()) {
-                        // save patch/where literal value pair
-                        patchWhereBodies[baseCommit.uri] = literalStringValueAt(baseCommit, MMS.patch) to literalStringValueAt(baseCommit, MMS.where)
+                // traverse up the ancestry chain
+                var parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
+                while (parents.hasNext()) {
+                    // save patch/where literal value pair
+                    patchWhereBodies[baseCommit.uri] =
+                        literalStringValueAt(baseCommit, MMS.patch) to literalStringValueAt(baseCommit, MMS.where)
 
-                        // key by commit uri
-                        commitSequenceUris.add(0, baseCommit.uri)
+                    // key by commit uri
+                    commitSequenceUris.add(0, baseCommit.uri)
 
-                        baseCommit = parents.next().asResource()
-                        parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
-                    }
+                    baseCommit = parents.next().asResource()
+                    parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
+                }
 
-                    // traverse ref to graph
-                    val superRef = model.listResourcesWithProperty(MMS.commit, baseCommit).next()
+                // traverse ref to graph
+                val superRef = model.listResourcesWithProperty(MMS.commit, baseCommit).next()
 
-                    // baseRefUris.addAll((super))
-                    model.listObjectsOfProperty(superRef, MMS.snapshot).next().asResource().listProperties(MMS.graph).next().let {
+                // baseRefUris.addAll((super))
+                model.listObjectsOfProperty(superRef, MMS.snapshot).next().asResource().listProperties(MMS.graph).next()
+                    .let {
                         baseSnapshotGraphUri = it.`object`.asResource().uri
                     }
-                }
+            }
 
-                // log.info("base snapshot graph: <$baseSnapshotGraphUri>")
-                // log.info(commitSequenceUris.joinToString(", ") { "<$it> :: ${patchWhereBodies[it]!!.first}" })
+            // log.info("base snapshot graph: <$baseSnapshotGraphUri>")
+            // log.info(commitSequenceUris.joinToString(", ") { "<$it> :: ${patchWhereBodies[it]!!.first}" })
 
-                val updateString = buildSparqlUpdate {
-                    raw("""
+            val updateString = buildSparqlUpdate {
+                raw(
+                    """
                         copy <$baseSnapshotGraphUri> to ?__mms_model ; 
-                    """)
+                    """
+                )
 
-                    // rebuilding snapshot does not require checking update conditions...
-                    raw(commitSequenceUris.map {
-                        // ... so just use the patch string
-                        "${patchWhereBodies[it]!!.first} ; "
-                    }.joinToString(""))
+                // rebuilding snapshot does not require checking update conditions...
+                raw(commitSequenceUris.map {
+                    // ... so just use the patch string
+                    "${patchWhereBodies[it]!!.first} ; "
+                }.joinToString(""))
 
-                    insert {
-                        txn {
-                            autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
-                        }
-
-                        graph("mor-graph:Metadata") {
-                            raw(lockTriples)
-                        }
+                insert {
+                    txn {
+                        autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
                     }
-                    where {
-                        raw(*localConditions.requiredPatterns())
-                        groupDns()
+
+                    graph("mor-graph:Metadata") {
+                        raw(lockTriples)
                     }
                 }
+                where {
+                    raw(*localConditions.requiredPatterns())
+                    groupDns()
+                }
+            }
 
-                log.info(updateString)
+            log.info(updateString)
 
-                executeSparqlUpdate(updateString) {
-                    iri(
-                        "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
+            executeSparqlUpdate(updateString) {
+                iri(
+                    "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
+                )
+            }
+
+
+            // create construct query to confirm transaction and fetch project details
+            val constructString = buildSparqlQuery {
+                construct {
+                    txn()
+
+                    raw(
+                        """
+                            morcl: ?morcl_p ?morcl_o .
+                        """
                     )
                 }
-
-
-                // create construct query to confirm transaction and fetch project details
-                val constructString = buildSparqlQuery {
-                    construct  {
+                where {
+                    group {
                         txn()
 
-                        raw("""
-                            morcl: ?morcl_p ?morcl_o .
-                        """)
-                    }
-                    where {
-                        group {
-                            txn()
-
-                            raw("""
+                        raw(
+                            """
                                 graph mor-graph:Metadata {
                                     morcl: ?morcl_p ?morcl_o .
                                 }
-                            """)
-                        }
-                        raw("""union ${localConditions.unionInspectPatterns()}""")
-                        groupDns()
+                            """
+                        )
                     }
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
+                    groupDns()
                 }
+            }
 
-                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-                validateTransaction(constructResponseText, localConditions)
+            validateTransaction(constructResponseText, localConditions)
 
-                call.respondText(constructResponseText, RdfContentTypes.Turtle)
+            call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
-                // log
-                log.info("Triplestore responded with:\n$constructResponseText")
+            // log
+            log.info("Triplestore responded with:\n$constructResponseText")
 
-                // delete transaction
-                run {
-                    // submit update
-                    val dropResponseText = executeSparqlUpdate("""
+            // delete transaction
+            run {
+                // submit update
+                val dropResponseText = executeSparqlUpdate(
+                    """
                         delete where {
                             graph m-graph:Transactions {
                                 mt: ?p ?o .
                             }
                         }
-                    """)
+                    """
+                )
 
-                    // log response
-                    log.info(dropResponseText)
-                }
+                // log response
+                log.info(dropResponseText)
             }
         }
     }

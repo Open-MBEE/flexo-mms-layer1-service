@@ -7,7 +7,8 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
-private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String = { """
+private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup) -> String = {
+    """
     construct  {
         ?thing ?thing_p ?thing_o .
         
@@ -37,7 +38,8 @@ private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String 
             }
         } union ${it.unionInspectPatterns()}
     }
-"""}
+"""
+}
 
 
 private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
@@ -72,74 +74,78 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
 }
 
-fun Application.createCollection() {
-    routing {
-        put("/orgs/{orgId}/collections/{collectionId}") {
-            call.mmsL1(Permission.CREATE_REPO) {
-                branchId = "main"
+fun Route.createCollection() {
+    put("/orgs/{orgId}/collections/{collectionId}") {
+        call.mmsL1(Permission.CREATE_REPO) {
+            branchId = "main"
 
-                pathParams {
-                    org()
-                    collection(legal = true)
-                }
+            pathParams {
+                org()
+                collection(legal = true)
+            }
 
-                val collectionTriples = filterIncomingStatements("moc") {
-                    collectionNode().apply {
-                        sanitizeCrudObject {
-                            setProperty(RDF.type, MMS.Collection)
-                            setProperty(MMS.id, collectionId!!)
-                            setProperty(MMS.org, orgNode())
-                        }
+            val collectionTriples = filterIncomingStatements("moc") {
+                collectionNode().apply {
+                    sanitizeCrudObject {
+                        setProperty(RDF.type, MMS.Collection)
+                        setProperty(MMS.id, collectionId!!)
+                        setProperty(MMS.org, orgNode())
                     }
                 }
+            }
 
-                val localConditions = DEFAULT_CONDITIONS
+            val localConditions = DEFAULT_CONDITIONS
 
-                val updateString = buildSparqlUpdate {
-                    insert {
-                        txn {
-                            autoPolicy(Scope.COLLECTION, Role.ADMIN_REPO)
-                        }
+            val updateString = buildSparqlUpdate {
+                insert {
+                    txn {
+                        autoPolicy(Scope.COLLECTION, Role.ADMIN_REPO)
+                    }
 
-                        graph("m-graph:Cluster") {
-                            raw(collectionTriples)
-                        }
+                    graph("m-graph:Cluster") {
+                        raw(collectionTriples)
+                    }
 
-                        graph("moc-graph:Metadata") {
-                            raw("""
+                    graph("moc-graph:Metadata") {
+                        raw(
+                            """
                                 mocc: a mms:Commit ;
                                     mms:parent rdf:nil ;
                                     mms:submitted ?_now ;
                                     mms:message ?_commitMessage ;
                                     .
-                            """)
-                        }
-                    }
-                    where {
-                        raw(*localConditions.requiredPatterns())
-                        groupDns()
+                            """
+                        )
                     }
                 }
+                where {
+                    raw(*localConditions.requiredPatterns())
+                    groupDns()
+                }
+            }
 
-                executeSparqlUpdate(updateString)
+            executeSparqlUpdate(updateString)
 
-                val constructString = buildSparqlQuery {
-                    construct {
-                        txn()
+            val constructString = buildSparqlQuery {
+                construct {
+                    txn()
 
-                        raw("""
+                    raw(
+                        """
                             moc: ?moc_p ?moc_o .
                             
                             ?thing ?thing_p ?thing_o .
                             
                             ?m_s ?m_p ?m_o .
-                        """)
-                    }
-                    where {
-                        group {
-                            txn()
+                        """
+                    )
+                }
+                where {
+                    group {
+                        txn()
 
-                            raw("""
+                        raw(
+                            """
                                 graph m-graph:Cluster {
                                     moc: a mms:Collection ;
                                         ?moc_p ?moc_o .
@@ -153,34 +159,36 @@ fun Application.createCollection() {
                                 graph moc-graph:Metadata {
                                     ?m_s ?m_p ?m_o .
                                 }
-                            """)
-                        }
-                        raw("""union ${localConditions.unionInspectPatterns()}""")
-                        groupDns()
+                            """
+                        )
                     }
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
+                    groupDns()
                 }
+            }
 
-                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-                validateTransaction(constructResponseText, localConditions)
+            validateTransaction(constructResponseText, localConditions)
 
-                // respond
-                call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+            // respond
+            call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
 
-                // delete transaction graph
-                run {
-                    // prepare SPARQL DROP
-                    val dropResponseText = executeSparqlUpdate("""
+            // delete transaction graph
+            run {
+                // prepare SPARQL DROP
+                val dropResponseText = executeSparqlUpdate(
+                    """
                         delete where {
                             graph m-graph:Transactions {
                                 mt: ?p ?o .
                             }
                         }
-                    """)
+                    """
+                )
 
-                    // log response
-                    log.info(dropResponseText)
-                }
+                // log response
+                log.info(dropResponseText)
             }
         }
     }

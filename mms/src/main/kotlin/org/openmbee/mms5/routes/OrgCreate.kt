@@ -24,105 +24,109 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     }
 }
 
-fun Application.createOrg() {
-    routing {
-        put("/orgs/{orgId}") {
-            call.mmsL1(Permission.CREATE_ORG) {
-                pathParams {
-                    org(legal=true)
-                }
+fun Route.createOrg() {
+    put("/orgs/{orgId}") {
+        call.mmsL1(Permission.CREATE_ORG) {
+            pathParams {
+                org(legal = true)
+            }
 
-                val orgTriples = filterIncomingStatements("mo") {
-                    orgNode().apply {
-                        sanitizeCrudObject {
-                            setProperty(RDF.type, MMS.Org)
-                            setProperty(MMS.id, orgId!!)
-                            setProperty(MMS.etag, transactionId)
-                        }
+            val orgTriples = filterIncomingStatements("mo") {
+                orgNode().apply {
+                    sanitizeCrudObject {
+                        setProperty(RDF.type, MMS.Org)
+                        setProperty(MMS.id, orgId!!)
+                        setProperty(MMS.etag, transactionId)
                     }
                 }
+            }
 
-                val localConditions = DEFAULT_CONDITIONS.append {
-                    assertPreconditions(this) {
-                        """
+            val localConditions = DEFAULT_CONDITIONS.append {
+                assertPreconditions(this) {
+                    """
                             graph m-graph:Cluster {
                                 mo: mms:etag ?etag .
                                 
                                 $it
                             }
                         """
+                }
+            }
+
+            val updateString = buildSparqlUpdate {
+                insert {
+                    txn {
+                        autoPolicy(Scope.ORG, Role.ADMIN_ORG)
+                    }
+
+                    graph("m-graph:Cluster") {
+                        raw(orgTriples)
                     }
                 }
-
-                val updateString = buildSparqlUpdate {
-                    insert {
-                        txn {
-                            autoPolicy(Scope.ORG, Role.ADMIN_ORG)
-                        }
-
-                        graph("m-graph:Cluster") {
-                            raw(orgTriples)
-                        }
-                    }
-                    where {
-                        raw(*localConditions.requiredPatterns())
-                        groupDns()
-                    }
+                where {
+                    raw(*localConditions.requiredPatterns())
+                    groupDns()
                 }
+            }
 
-                executeSparqlUpdate(updateString)
+            executeSparqlUpdate(updateString)
 
 
-                // create construct query to confirm transaction and fetch project details
-                val constructString = buildSparqlQuery {
-                    construct {
+            // create construct query to confirm transaction and fetch project details
+            val constructString = buildSparqlQuery {
+                construct {
+                    txn()
+
+                    raw(
+                        """
+                            mo: ?mo_p ?mo_o .
+                        """
+                    )
+                }
+                where {
+                    group {
                         txn()
 
-                        raw("""
-                            mo: ?mo_p ?mo_o .
-                        """)
-                    }
-                    where {
-                        group {
-                            txn()
-
-                            graph("m-graph:Cluster") {
-                                raw("""
+                        graph("m-graph:Cluster") {
+                            raw(
+                                """
                                     mo: ?mo_p ?mo_o .
-                                """)
-                            }
+                                """
+                            )
                         }
-                        raw("""union ${localConditions.unionInspectPatterns()}""")
-                        groupDns()
                     }
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
+                    groupDns()
                 }
+            }
 
-                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-                // log
-                log.info("Triplestore responded with:\n$constructResponseText")
+            // log
+            log.info("Triplestore responded with:\n$constructResponseText")
 
-                val model = validateTransaction(constructResponseText, localConditions)
+            val model = validateTransaction(constructResponseText, localConditions)
 
-                checkPreconditions(model, prefixes["mo"]!!)
+            checkPreconditions(model, prefixes["mo"]!!)
 
-                // respond
-                call.respondText(constructResponseText, RdfContentTypes.Turtle)
+            // respond
+            call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
-                // delete transaction
-                run {
-                    // submit update
-                    val dropResponseText = executeSparqlUpdate("""
+            // delete transaction
+            run {
+                // submit update
+                val dropResponseText = executeSparqlUpdate(
+                    """
                         delete where {
                             graph m-graph:Transactions {
                                 mt: ?p ?o .
                             }
                         }
-                    """)
+                    """
+                )
 
-                    // log response
-                    log.info(dropResponseText)
-                }
+                // log response
+                log.info(dropResponseText)
             }
         }
     }

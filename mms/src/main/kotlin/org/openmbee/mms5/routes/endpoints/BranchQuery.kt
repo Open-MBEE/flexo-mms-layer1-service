@@ -7,20 +7,18 @@ import org.openmbee.mms5.mmsL1
 import org.openmbee.mms5.queryModel
 
 
-fun Application.queryBranch() {
-    routing {
-        post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect?}") {
-            call.mmsL1(Permission.READ_BRANCH) {
-                pathParams {
-                    org()
-                    repo()
-                    branch()
-                    inspect()
-                }
-
-                queryModel(requestBody, prefixes["morb"]!!)
+fun Route.queryBranch() {
+    post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect?}") {
+        call.mmsL1(Permission.READ_BRANCH) {
+            pathParams {
+                org()
+                repo()
+                branch()
+                inspect()
             }
 
+            queryModel(requestBody, prefixes["morb"]!!)
         }
+
     }
 }
