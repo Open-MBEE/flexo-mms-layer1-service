@@ -88,8 +88,6 @@ fun Route.readOrg() {
         }
 
         get {
-            val user = call.principal<UserDetailsPrincipal>()
-            println(user)
             call.mmsL1(Permission.READ_ORG) {
                 pathParams {
                     org()
