@@ -26,105 +26,103 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     }
 }
 
-fun Application.createLdapGroup() {
-    routing {
-        put("/groups/ldap/{ldapId}") {
-            call.mmsL1(Permission.CREATE_GROUP) {
-                pathParams {
-                    ldap(legal=true)
-                }
+fun Route.createLdapGroup() {
+    put("/groups/ldap/{ldapId}") {
+        call.mmsL1(Permission.CREATE_GROUP) {
+            pathParams {
+                ldap(legal=true)
+            }
 
-                val grouopTriples = filterIncomingStatements("mag") {
-                    groupNode().apply {
-                        sanitizeCrudObject {
-                            setProperty(RDF.type, MMS.Group)
-                            setProperty(MMS.id, groupId!!)
-                            setProperty(MMS.etag, transactionId)
+            val grouopTriples = filterIncomingStatements("mag") {
+                groupNode().apply {
+                    sanitizeCrudObject {
+                        setProperty(RDF.type, MMS.Group)
+                        setProperty(MMS.id, groupId!!)
+                        setProperty(MMS.etag, transactionId)
+                    }
+                }
+            }
+
+            val localConditions = DEFAULT_CONDITIONS.append {
+                assertPreconditions(this) {
+                    """
+                        graph m-graph:AccessControl.Agents {
+                            mag: mms:etag ?etag .
+                            
+                            $it
                         }
+                    """
+                }
+            }
+
+            val updateString = buildSparqlUpdate {
+                insert {
+                    txn {
+                        autoPolicy(Scope.GROUP, Role.ADMIN_GROUP)
+                    }
+
+                    graph("m-graph:AccessControl.Agents") {
+                        raw(grouopTriples)
                     }
                 }
-
-                val localConditions = DEFAULT_CONDITIONS.append {
-                    assertPreconditions(this) {
-                        """
-                            graph m-graph:AccessControl.Agents {
-                                mag: mms:etag ?etag .
-                                
-                                $it
-                            }
-                        """
-                    }
+                where {
+                    raw(*localConditions.requiredPatterns())
+                    groupDns()
                 }
+            }
 
-                val updateString = buildSparqlUpdate {
-                    insert {
-                        txn {
-                            autoPolicy(Scope.GROUP, Role.ADMIN_GROUP)
-                        }
+            executeSparqlUpdate(updateString)
 
-                        graph("m-graph:AccessControl.Agents") {
-                            raw(grouopTriples)
-                        }
-                    }
-                    where {
-                        raw(*localConditions.requiredPatterns())
-                        groupDns()
-                    }
+
+            // create construct query to confirm transaction and fetch project details
+            val constructString = buildSparqlQuery {
+                construct {
+                    txn()
+
+                    raw("""
+                        mag: ?mag_p ?mag_o .
+                    """)
                 }
-
-                executeSparqlUpdate(updateString)
-
-
-                // create construct query to confirm transaction and fetch project details
-                val constructString = buildSparqlQuery {
-                    construct {
+                where {
+                    group {
                         txn()
 
-                        raw("""
-                            mag: ?mag_p ?mag_o .
-                        """)
-                    }
-                    where {
-                        group {
-                            txn()
-
-                            graph("m-graph:AccessControl.Agents") {
-                                raw("""
-                                    mag: ?mag_p ?mag_o .
-                                """)
-                            }
+                        graph("m-graph:AccessControl.Agents") {
+                            raw("""
+                                mag: ?mag_p ?mag_o .
+                            """)
                         }
-                        raw("""union ${localConditions.unionInspectPatterns()}""")
-                        groupDns()
                     }
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
+                    groupDns()
                 }
+            }
 
-                val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-                // log
-                log.info("Triplestore responded with:\n$constructResponseText")
+            // log
+            log.info("Triplestore responded with:\n$constructResponseText")
 
-                val model = validateTransaction(constructResponseText, localConditions)
+            val model = validateTransaction(constructResponseText, localConditions)
 
-                checkPreconditions(model, prefixes["mag"]!!)
+            checkPreconditions(model, prefixes["mag"]!!)
 
-                // respond
-                call.respondText(constructResponseText, RdfContentTypes.Turtle)
+            // respond
+            call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
-                // delete transaction
-                run {
-                    // submit update
-                    val dropResponseText = executeSparqlUpdate("""
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+            // delete transaction
+            run {
+                // submit update
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """)
+                    }
+                """)
 
-                    // log response
-                    log.info(dropResponseText)
-                }
+                // log response
+                log.info(dropResponseText)
             }
         }
     }

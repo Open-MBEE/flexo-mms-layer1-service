@@ -10,20 +10,18 @@ private val DEFAULT_UPDATE_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 }
 
 
-fun Application.updateOrg() {
-    routing {
-        patch("/orgs/{orgId}") {
-            call.mmsL1(Permission.UPDATE_ORG) {
-                pathParams {
-                    org()
-                }
-
-                guardedPatch(
-                    objectKey = "mo",
-                    graph = "m-graph:Cluster",
-                    conditions = DEFAULT_UPDATE_CONDITIONS,
-                )
+fun Route.updateOrg() {
+    patch("/orgs/{orgId}") {
+        call.mmsL1(Permission.UPDATE_ORG) {
+            pathParams {
+                org()
             }
+
+            guardedPatch(
+                objectKey = "mo",
+                graph = "m-graph:Cluster",
+                conditions = DEFAULT_UPDATE_CONDITIONS,
+            )
         }
     }
 }

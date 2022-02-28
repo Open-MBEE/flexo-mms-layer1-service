@@ -53,68 +53,66 @@ private const val SPARQL_CONSTRUCT_REPO = """
 """
 
 
-fun Application.readRepo() {
-    routing {
-        route("/orgs/{orgId}/repos/{repoId?}") {
-            head {
-                call.mmsL1(Permission.READ_REPO) {
-                    pathParams {
-                        org()
-                        repo()
-                    }
-
-                    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO) {
-                        iri(
-                            "_org" to prefixes["mo"]!!,
-                        )
-
-                        // get by repoId
-                        if(false == repoId?.isBlank()) {
-                            iri(
-                                "_repo" to prefixes["mor"]!!,
-                            )
-                        }
-                    }
-
-                    val results = Json.parseToJsonElement(selectResponseText).jsonObject
-
-                    checkPreconditions(results)
-
-                    call.respondText("", status = HttpStatusCode.OK)
+fun Route.readRepo() {
+    route("/orgs/{orgId}/repos/{repoId?}") {
+        head {
+            call.mmsL1(Permission.READ_REPO) {
+                pathParams {
+                    org()
+                    repo()
                 }
+
+                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO) {
+                    iri(
+                        "_org" to prefixes["mo"]!!,
+                    )
+
+                    // get by repoId
+                    if(false == repoId?.isBlank()) {
+                        iri(
+                            "_repo" to prefixes["mor"]!!,
+                        )
+                    }
+                }
+
+                val results = Json.parseToJsonElement(selectResponseText).jsonObject
+
+                checkPreconditions(results)
+
+                call.respondText("", status = HttpStatusCode.OK)
             }
+        }
 
-            get {
-                call.mmsL1(Permission.READ_REPO) {
-                    pathParams {
-                        org()
-                        repo()
-                    }
-
-                    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
-                        iri(
-                            "_org" to prefixes["mo"]!!,
-                        )
-
-                        // get by repoId
-                        if(false == repoId?.isBlank()) {
-                            iri(
-                                "_repo" to prefixes["mor"]!!,
-                            )
-                        }
-                    }
-
-                    val model = KModel(prefixes) {
-                        parseTurtle(
-                            body = constructResponseText,
-                            model = this,
-                        )
-                    }
-
-                    checkPreconditions(model, prefixes["mor"]!!)
-
-                    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+        get {
+            call.mmsL1(Permission.READ_REPO) {
+                pathParams {
+                    org()
+                    repo()
                 }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
+                    iri(
+                        "_org" to prefixes["mo"]!!,
+                    )
+
+                    // get by repoId
+                    if(false == repoId?.isBlank()) {
+                        iri(
+                            "_repo" to prefixes["mor"]!!,
+                        )
+                    }
+                }
+
+                val model = KModel(prefixes) {
+                    parseTurtle(
+                        body = constructResponseText,
+                        model = this,
+                    )
+                }
+
+                checkPreconditions(model, prefixes["mor"]!!)
+
+                call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
         }
     }

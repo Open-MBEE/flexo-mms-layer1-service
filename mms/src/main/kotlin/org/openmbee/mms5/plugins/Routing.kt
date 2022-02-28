@@ -4,11 +4,9 @@ import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.features.*
 import io.ktor.locations.*
 import io.ktor.routing.*
 import io.ktor.util.*
-import org.openmbee.mms5.HttpException
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
 
@@ -34,7 +32,8 @@ fun Application.configureRouting() {
             // }
         // }
 
-        authenticate("jwtAuth") {
+
+        authenticate {
             createOrg()
             readOrg()
             updateOrg()

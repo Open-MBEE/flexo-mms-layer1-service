@@ -11,192 +11,57 @@ import org.openmbee.mms5.*
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
-fun Application.loadBranch() {
-    routing {
-        put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
-            call.mmsL1(Permission.UPDATE_BRANCH) {
-                pathParams {
-                    org()
-                    repo()
-                    branch()
-                }
+fun Route.loadBranch() {
+    put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
+        call.mmsL1(Permission.UPDATE_BRANCH) {
+            pathParams {
+                org()
+                repo()
+                branch()
+            }
 
-                diffId = "Load.$transactionId"
+            diffId = "Load.$transactionId"
 
-                val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
+            val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
-                val localConditions = DEFAULT_UPDATE_CONDITIONS
+            val localConditions = DEFAULT_UPDATE_CONDITIONS
 
-                val model = KModel(prefixes).apply {
-                    parseTurtle(requestBody,this)
-                    clearNsPrefixMap()
-                }
+            val model = KModel(prefixes).apply {
+                parseTurtle(requestBody,this)
+                clearNsPrefixMap()
+            }
 
 
-                // load triples from request body into new graph
-                run {
-                    val loadUpdateString = buildSparqlUpdate {
-                        insert {
-                            txn()
+            // load triples from request body into new graph
+            run {
+                val loadUpdateString = buildSparqlUpdate {
+                    insert {
+                        txn()
 
-                            // embed the model in a triples block within the update
-                            graph("?_loadGraph") {
-                                raw(model.stringify())
-                            }
-                        }
-                        where {
-                            raw(*localConditions.requiredPatterns())
-                            groupDns()
+                        // embed the model in a triples block within the update
+                        graph("?_loadGraph") {
+                            raw(model.stringify())
                         }
                     }
-
-                    log.info(loadUpdateString)
-
-                    executeSparqlUpdate(loadUpdateString) {
-                        iri(
-                            "_loadGraph" to loadGraphUri,
-                        )
+                    where {
+                        raw(*localConditions.requiredPatterns())
+                        groupDns()
                     }
                 }
 
+                log.info(loadUpdateString)
 
-                // check if load was successful
-                run {
-                    val loadConstructString = buildSparqlQuery {
-                        construct {
-                            txn()
-                        }
-                        where {
-                            group {
-                                txn()
-                            }
-                            raw(
-                                """
-                                union ${localConditions.unionInspectPatterns()}    
-                            """
-                            )
-                            groupDns()
-                        }
-                    }
-
-                    val loadConstructResponseText = executeSparqlConstructOrDescribe(loadConstructString)
-
-                    validateTransaction(loadConstructResponseText, localConditions)
+                executeSparqlUpdate(loadUpdateString) {
+                    iri(
+                        "_loadGraph" to loadGraphUri,
+                    )
                 }
+            }
 
 
-                // compute the delta
-                run {
-                    val diffUpdateString = buildSparqlUpdate {
-                        insert {
-                            txn(
-                                "mms-txn:stagingGraph" to "?stagingGraph",
-                                "mms-txn:srcGraph" to "?srcGraph",
-                                "mms-txn:dstGraph" to "?dstGraph",
-                                "mms-txn:diffInsGraph" to "?diffInsGraph",
-                                "mms-txn:diffDelGraph" to "?diffDelGraph",
-                            ) {
-                                autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
-                            }
-
-                            raw(
-                                """
-                                graph ?diffInsGraph {
-                                    ?ins_s ?ins_p ?ins_o .    
-                                }
-                                
-                                graph ?diffDelGraph {
-                                    ?del_s ?del_p ?del_o .
-                                }
-                                
-                                graph mor-graph:Metadata {
-                                    ?diff mms:id ?diffId ;
-                                        mms:diffSrc ?commitSource ;
-                                        mms:diffDst morc: ;
-                                        mms:insGraph ?diffInsGraph ;
-                                        mms:delGraph ?diffDelGraph ;
-                                        .
-                                }
-                            """
-                            )
-                        }
-                        where {
-                            raw(
-                                """
-                                graph mor-graph:Metadata {
-                                    # select the latest commit from the current named ref
-                                    morb: mms:commit ?commitSource .
-                                        
-                                    ?commitSource ^mms:commit/mms:snapshot ?snapshot .
-                                    
-                                    ?snapshot a mms:Model ; 
-                                        mms:graph ?srcGraph  .
-                                }
-                                
-                                bind(
-                                    sha256(
-                                        concat(str(morc:), "\n", str(?commitSource))
-                                    ) as ?diffId
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(morc:), "/diffs/", ?diffId)
-                                    ) as ?diff
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                                    ) as ?diffInsGraph
-                                )
-                                
-                                bind(
-                                    iri(
-                                        concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                                    ) as ?diffDelGraph
-                                )
-    
-    
-                                {
-                                    graph ?srcGraph {
-                                        ?ins_s ?ins_p ?ins_o .
-                                    }
-                                    
-                                    filter not exists {
-                                        graph ?dstGraph {
-                                            ?ins_s ?ins_p ?ins_o .
-                                        }
-                                    }
-                                } union {                            
-                                    graph ?dstGraph {
-                                        ?del_s ?del_p ?del_o .
-                                    }
-                                    
-                                    filter not exists {
-                                        graph ?srcGraph {
-                                            ?del_s ?del_p ?del_o .
-                                        }
-                                    }
-                                }
-                            """
-                            )
-                        }
-                    }
-
-                    executeSparqlUpdate(diffUpdateString) {
-                        iri(
-                            // use current branch as ref source
-                            "refSource" to prefixes["morb"]!!,
-
-                            // set dst graph
-                            "dstGraph" to loadGraphUri,
-                        )
-                    }
-                }
-
-                // validate diff creation
-                val diffConstructString = buildSparqlQuery {
+            // check if load was successful
+            run {
+                val loadConstructString = buildSparqlQuery {
                     construct {
                         txn()
                     }
@@ -204,99 +69,232 @@ fun Application.loadBranch() {
                         group {
                             txn()
                         }
-                        raw("""
+                        raw(
+                            """
                             union ${localConditions.unionInspectPatterns()}    
-                        """)
+                        """
+                        )
                         groupDns()
                     }
                 }
 
-                val diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
+                val loadConstructResponseText = executeSparqlConstructOrDescribe(loadConstructString)
 
-                log.info("RESPONSE TXT: $diffConstructResponseText")
+                validateTransaction(loadConstructResponseText, localConditions)
+            }
 
-                val diffConstructModel = validateTransaction(diffConstructResponseText, localConditions)
+
+            // compute the delta
+            run {
+                val diffUpdateString = buildSparqlUpdate {
+                    insert {
+                        txn(
+                            "mms-txn:stagingGraph" to "?stagingGraph",
+                            "mms-txn:srcGraph" to "?srcGraph",
+                            "mms-txn:dstGraph" to "?dstGraph",
+                            "mms-txn:diffInsGraph" to "?diffInsGraph",
+                            "mms-txn:diffDelGraph" to "?diffDelGraph",
+                        ) {
+                            autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
+                        }
+
+                        raw(
+                            """
+                            graph ?diffInsGraph {
+                                ?ins_s ?ins_p ?ins_o .    
+                            }
+                            
+                            graph ?diffDelGraph {
+                                ?del_s ?del_p ?del_o .
+                            }
+                            
+                            graph mor-graph:Metadata {
+                                ?diff mms:id ?diffId ;
+                                    mms:diffSrc ?commitSource ;
+                                    mms:diffDst morc: ;
+                                    mms:insGraph ?diffInsGraph ;
+                                    mms:delGraph ?diffDelGraph ;
+                                    .
+                            }
+                        """
+                        )
+                    }
+                    where {
+                        raw(
+                            """
+                            graph mor-graph:Metadata {
+                                # select the latest commit from the current named ref
+                                morb: mms:commit ?commitSource .
+                                    
+                                ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                                
+                                ?snapshot a mms:Model ; 
+                                    mms:graph ?srcGraph  .
+                            }
+                            
+                            bind(
+                                sha256(
+                                    concat(str(morc:), "\n", str(?commitSource))
+                                ) as ?diffId
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(morc:), "/diffs/", ?diffId)
+                                ) as ?diff
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(mor-graph:), "Diff.Ins.", ?diffId)
+                                ) as ?diffInsGraph
+                            )
+                            
+                            bind(
+                                iri(
+                                    concat(str(mor-graph:), "Diff.Del.", ?diffId)
+                                ) as ?diffDelGraph
+                            )
 
 
-                val propertyUriAt = { res: Resource, prop: Property ->
-                    diffConstructModel.listObjectsOfProperty(res, prop).let {
-                        if(it.hasNext()) it.next().asResource().uri else null
+                            {
+                                graph ?srcGraph {
+                                    ?ins_s ?ins_p ?ins_o .
+                                }
+                                
+                                filter not exists {
+                                    graph ?dstGraph {
+                                        ?ins_s ?ins_p ?ins_o .
+                                    }
+                                }
+                            } union {                            
+                                graph ?dstGraph {
+                                    ?del_s ?del_p ?del_o .
+                                }
+                                
+                                filter not exists {
+                                    graph ?srcGraph {
+                                        ?del_s ?del_p ?del_o .
+                                    }
+                                }
+                            }
+                        """
+                        )
                     }
                 }
 
-                val transactionNode = diffConstructModel.createResource(prefixes["mt"])
+                executeSparqlUpdate(diffUpdateString) {
+                    iri(
+                        // use current branch as ref source
+                        "refSource" to prefixes["morb"]!!,
 
-                val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.diffInsGraph)
-                val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.diffDelGraph)
+                        // set dst graph
+                        "dstGraph" to loadGraphUri,
+                    )
+                }
+            }
+
+            // validate diff creation
+            val diffConstructString = buildSparqlQuery {
+                construct {
+                    txn()
+                }
+                where {
+                    group {
+                        txn()
+                    }
+                    raw("""
+                        union ${localConditions.unionInspectPatterns()}    
+                    """)
+                    groupDns()
+                }
+            }
+
+            val diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
+
+            log.info("RESPONSE TXT: $diffConstructResponseText")
+
+            val diffConstructModel = validateTransaction(diffConstructResponseText, localConditions)
 
 
-                val delTriples = if(diffDelGraph != null) {
-                    val delModel = downloadModel(diffDelGraph)
-                    delModel.clearNsPrefixMap()
-                    delModel.stringify()
-                } else ""
+            val propertyUriAt = { res: Resource, prop: Property ->
+                diffConstructModel.listObjectsOfProperty(res, prop).let {
+                    if(it.hasNext()) it.next().asResource().uri else null
+                }
+            }
 
-                val insTriples = if(diffInsGraph != null) {
-                    val insModel = downloadModel(diffInsGraph)
-                    insModel.clearNsPrefixMap()
-                    insModel.stringify()
-                } else ""
+            val transactionNode = diffConstructModel.createResource(prefixes["mt"])
+
+            val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.diffInsGraph)
+            val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.diffDelGraph)
 
 
-                // TODO add condition to update that the selected staging has not changed since diff creation using etag value
+            val delTriples = if(diffDelGraph != null) {
+                val delModel = downloadModel(diffDelGraph)
+                delModel.clearNsPrefixMap()
+                delModel.stringify()
+            } else ""
 
-                // perform update commit
-                run {
-                    val commitUpdateString = genCommitUpdate(
-                        delete = """
-                            graph ?stagingGraph {
-                                $delTriples
-                            }
-                        """,
-                        insert = """
-                            graph ?stagingGraph {
-                                $insTriples
-                            }
-                        """,
-                        // include conditions in order to match ?stagingGraph
-                        where = localConditions.requiredPatterns().joinToString("\n"),
+            val insTriples = if(diffInsGraph != null) {
+                val insModel = downloadModel(diffInsGraph)
+                insModel.clearNsPrefixMap()
+                insModel.stringify()
+            } else ""
+
+
+            // TODO add condition to update that the selected staging has not changed since diff creation using etag value
+
+            // perform update commit
+            run {
+                val commitUpdateString = genCommitUpdate(
+                    delete = """
+                        graph ?stagingGraph {
+                            $delTriples
+                        }
+                    """,
+                    insert = """
+                        graph ?stagingGraph {
+                            $insTriples
+                        }
+                    """,
+                    // include conditions in order to match ?stagingGraph
+                    where = localConditions.requiredPatterns().joinToString("\n"),
+                )
+
+                log.info(commitUpdateString)
+
+
+                executeSparqlUpdate(commitUpdateString) {
+                    iri(
+                        "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
                     )
 
-                    log.info(commitUpdateString)
-
-
-                    executeSparqlUpdate(commitUpdateString) {
-                        iri(
-                            "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
-                        )
-
-                        datatyped(
-                            "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                            "_patchString" to ("""
-                                delete {
-                                    graph ?__mms_graph {
-                                        $delTriples
-                                    }
+                    datatyped(
+                        "_updateBody" to ("" to MMS_DATATYPE.sparql),
+                        "_patchString" to ("""
+                            delete {
+                                graph ?__mms_graph {
+                                    $delTriples
                                 }
-                                insert {
-                                    graph ?__mms_graph {
-                                        $insTriples
-                                    }
+                            }
+                            insert {
+                                graph ?__mms_graph {
+                                    $insTriples
                                 }
-                            """ to MMS_DATATYPE.sparql),
-                            "_whereString" to ("" to MMS_DATATYPE.sparql),
-                        )
+                            }
+                        """ to MMS_DATATYPE.sparql),
+                        "_whereString" to ("" to MMS_DATATYPE.sparql),
+                    )
 
-                        literal(
-                            "_txnId" to transactionId,
-                        )
-                    }
+                    literal(
+                        "_txnId" to transactionId,
+                    )
                 }
-
-
-                // done
-                call.respondText(diffConstructResponseText)
             }
+
+
+            // done
+            call.respondText(diffConstructResponseText)
         }
     }
 }

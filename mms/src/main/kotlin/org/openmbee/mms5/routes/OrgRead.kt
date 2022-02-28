@@ -61,60 +61,58 @@ private val SPARQL_CONSTRUCT_ORG = """
     }
 """
 
-fun Application.readOrg() {
-    routing {
-        route("/orgs/{orgId?}") {
-            head {
-                call.mmsL1(Permission.READ_ORG) {
-                    pathParams {
-                        org()
-                    }
-
-                    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
-                        // get by orgId
-                        if(false == orgId?.isBlank()) {
-                            iri(
-                                "_org" to prefixes["mo"]!!,
-                            )
-                        }
-                    }
-
-                    val results = Json.parseToJsonElement(selectResponseText).jsonObject
-
-                    checkPreconditions(results)
-
-                    call.respondText("")
+fun Route.readOrg() {
+    route("/orgs/{orgId?}") {
+        head {
+            call.mmsL1(Permission.READ_ORG) {
+                pathParams {
+                    org()
                 }
-            }
 
-            get {
-                call.mmsL1(Permission.READ_ORG) {
-                    pathParams {
-                        org()
-                    }
-
-                    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
-                        // get by orgId
-                        if(false == orgId?.isBlank()) {
-                            iri(
-                                "_org" to prefixes["mo"]!!,
-                            )
-                        }
-                    }
-
-                    val model = KModel(prefixes) {
-                        parseTurtle(
-                            body = constructResponseText,
-                            model = this,
+                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                    // get by orgId
+                    if(false == orgId?.isBlank()) {
+                        iri(
+                            "_org" to prefixes["mo"]!!,
                         )
                     }
-
-                    checkPreconditions(model, prefixes["mo"]!!)
-
-                    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
                 }
 
+                val results = Json.parseToJsonElement(selectResponseText).jsonObject
+
+                checkPreconditions(results)
+
+                call.respondText("")
             }
+        }
+
+        get {
+            call.mmsL1(Permission.READ_ORG) {
+                pathParams {
+                    org()
+                }
+
+                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                    // get by orgId
+                    if(false == orgId?.isBlank()) {
+                        iri(
+                            "_org" to prefixes["mo"]!!,
+                        )
+                    }
+                }
+
+                val model = KModel(prefixes) {
+                    parseTurtle(
+                        body = constructResponseText,
+                        model = this,
+                    )
+                }
+
+                checkPreconditions(model, prefixes["mo"]!!)
+
+                call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+            }
+
         }
     }
 }
