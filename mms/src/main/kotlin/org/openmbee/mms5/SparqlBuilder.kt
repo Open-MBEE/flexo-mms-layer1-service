@@ -140,11 +140,12 @@ open class WhereBuilder(
 
 
     fun groupDns(): WhereBuilder {
-        return raw("""
-            values ?_ldapGroupDns {
-                ${mms.groups.joinToString(" ") { escapeLiteral(it) }}
-            }
-        """)
+        return raw("")
+        // return raw("""
+        //     values ?_ldapGroupDns {
+        //         ${mms.groups.joinToString(" ") { escapeLiteral(it) }}
+        //     }
+        // """)
     }
 }
 

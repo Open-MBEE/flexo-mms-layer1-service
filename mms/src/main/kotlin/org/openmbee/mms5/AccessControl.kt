@@ -91,7 +91,11 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                 }
             } union {
                 ?group a mms:LdapGroup ;
-                    mms:id ?_ldapGroupDn .
+                    mms:id ?__mms_ldapGroupDn .
+                    
+                values ?__mms_ldapGroupDn {
+                    # @sparql://mms5.openmbee.org/replace/?__mms_ldapGroupDn
+                }
             }
         }
         

@@ -433,10 +433,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
         return UpdateBuilder(this,).apply { setup() }.toString()
+            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_ldapGroupDn\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
         return QueryBuilder(this).apply { setup() }.toString()
+            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_ldapGroupDn\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
     }
 
     @OptIn(InternalAPI::class)
