@@ -9,6 +9,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
+import org.openmbee.mms5.routes.gsp.readModel
 
 
 val client = HttpClient(CIO)
@@ -49,7 +50,9 @@ fun Application.configureRouting() {
             updateRepo()
             // deleteRepo()
 
-            loadBranch()
+            loadModel()
+            readModel()
+
             createBranch()
             commitBranch()
             queryBranch()
@@ -62,6 +65,7 @@ fun Application.configureRouting() {
             createDiff()
             queryDiff()
             // deleteDiff()
+
             createLock()
             queryLock()
             deleteLock()
@@ -69,7 +73,14 @@ fun Application.configureRouting() {
             createDiff()
             queryDiff()
             // deleteDiff()
+
             createLdapGroup()
+            // updateLdapGroup()
+            // deleteLdapGroup()
+
+            // createPolicy()
+            // updatePolicy()
+            // deletePolicy()
         }
     }
 }

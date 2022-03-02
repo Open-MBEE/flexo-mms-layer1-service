@@ -11,7 +11,7 @@ import org.openmbee.mms5.*
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
-fun Route.loadBranch() {
+fun Route.loadModel() {
     put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         call.mmsL1(Permission.UPDATE_BRANCH) {
             pathParams {
