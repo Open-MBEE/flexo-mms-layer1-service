@@ -2,6 +2,8 @@ package org.openmbee.mms5
 
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.ParameterizedSparqlString
+import org.apache.jena.rdf.model.Resource
+import org.apache.jena.vocabulary.XSD
 import java.time.Instant
 import java.util.*
 
@@ -38,6 +40,43 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
 
 fun escapeLiteral(value: String): String {
     return ParameterizedSparqlString().apply{ appendLiteral(value) }.toString()
+}
+
+fun escapeIri(value: String): String {
+    return ParameterizedSparqlString().apply{ appendIri(value) }.toString()
+}
+
+fun serializePairs(node: Resource): String {
+    return ParameterizedSparqlString().apply {
+        var prevPredicateUri = ""
+        node.listProperties().forEach {
+            val predicateUri = it.predicate.asResource().uri
+            if(predicateUri != prevPredicateUri) {
+                prevPredicateUri = predicateUri
+                if(prevPredicateUri.isNotEmpty()) {
+                    this.append(" ; ")
+                }
+                this.appendIri(predicateUri)
+            }
+
+            if(it.`object`.isLiteral) {
+                val literal = it.`object`.asLiteral()
+
+                if(literal.language != "") {
+                    this.appendLiteral(literal.string, literal.language)
+                }
+                else if(literal.datatypeURI == XSD.xstring.uri) {
+                    this.appendLiteral(literal.string)
+                }
+                else {
+                    this.appendLiteral(literal.lexicalForm, literal.datatype)
+                }
+            }
+            else if(it.`object`.isURIResource) {
+                this.appendIri(it.`object`.asResource().uri)
+            }
+        }
+    }.toString()
 }
 
 abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val indentLevel: Int=1) {

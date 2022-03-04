@@ -39,9 +39,12 @@ fun Route.loadModel() {
                         txn()
 
                         // embed the model in a triples block within the update
-                        graph("?_loadGraph") {
-                            raw(model.stringify())
-                        }
+                        raw("""
+                            # user model
+                            graph ?_loadGraph {
+                                ${model.stringify()}
+                            }
+                        """)
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
@@ -86,112 +89,135 @@ fun Route.loadModel() {
 
             // compute the delta
             run {
-                val diffUpdateString = buildSparqlUpdate {
-                    insert {
-                        txn(
-                            "mms-txn:stagingGraph" to "?stagingGraph",
-                            "mms-txn:srcGraph" to "?srcGraph",
-                            "mms-txn:dstGraph" to "?dstGraph",
-                            "mms-txn:diffInsGraph" to "?diffInsGraph",
-                            "mms-txn:diffDelGraph" to "?diffDelGraph",
-                        ) {
-                            autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
-                        }
-
-                        raw(
-                            """
-                            graph ?diffInsGraph {
-                                ?ins_s ?ins_p ?ins_o .    
-                            }
-                            
-                            graph ?diffDelGraph {
-                                ?del_s ?del_p ?del_o .
-                            }
-                            
-                            graph mor-graph:Metadata {
-                                ?diff mms:id ?diffId ;
-                                    mms:diffSrc ?commitSource ;
-                                    mms:diffDst morc: ;
-                                    mms:insGraph ?diffInsGraph ;
-                                    mms:delGraph ?diffDelGraph ;
-                                    .
-                            }
-                        """
-                        )
+                val updateString = genDiffUpdate("", localConditions, """
+                    graph mor-graph:Metadata {
+                        # select the latest commit from the current named ref
+                        ?srcRef mms:commit ?srcCommit .
+                        
+                        ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                        
+                        ?srcSnapshot a mms:Model ; 
+                            mms:graph ?srcGraph  .
                     }
-                    where {
-                        raw(
-                            """
-                            graph mor-graph:Metadata {
-                                # select the latest commit from the current named ref
-                                morb: mms:commit ?commitSource .
-                                    
-                                ?commitSource ^mms:commit/mms:snapshot ?snapshot .
-                                
-                                ?snapshot a mms:Model ; 
-                                    mms:graph ?srcGraph  .
-                            }
-                            
-                            bind(
-                                sha256(
-                                    concat(str(morc:), "\n", str(?commitSource))
-                                ) as ?diffId
-                            )
-                            
-                            bind(
-                                iri(
-                                    concat(str(morc:), "/diffs/", ?diffId)
-                                ) as ?diff
-                            )
-                            
-                            bind(
-                                iri(
-                                    concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                                ) as ?diffInsGraph
-                            )
-                            
-                            bind(
-                                iri(
-                                    concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                                ) as ?diffDelGraph
-                            )
+                """)
 
-
-                            {
-                                graph ?srcGraph {
-                                    ?ins_s ?ins_p ?ins_o .
-                                }
-                                
-                                filter not exists {
-                                    graph ?dstGraph {
-                                        ?ins_s ?ins_p ?ins_o .
-                                    }
-                                }
-                            } union {                            
-                                graph ?dstGraph {
-                                    ?del_s ?del_p ?del_o .
-                                }
-                                
-                                filter not exists {
-                                    graph ?srcGraph {
-                                        ?del_s ?del_p ?del_o .
-                                    }
-                                }
-                            }
-                        """
-                        )
-                    }
-                }
-
-                executeSparqlUpdate(diffUpdateString) {
+                executeSparqlUpdate(updateString) {
                     iri(
                         // use current branch as ref source
-                        "refSource" to prefixes["morb"]!!,
+                        "srcRef" to prefixes["morb"]!!,
 
                         // set dst graph
                         "dstGraph" to loadGraphUri,
                     )
                 }
+                //
+                //
+                // val diffUpdateString = buildSparqlUpdate {
+                //     insert {
+                //         txn(
+                //             "mms-txn:stagingGraph" to "?stagingGraph",
+                //             "mms-txn:srcGraph" to "?srcGraph",
+                //             "mms-txn:dstGraph" to "?dstGraph",
+                //             "mms-txn:diffInsGraph" to "?diffInsGraph",
+                //             "mms-txn:diffDelGraph" to "?diffDelGraph",
+                //         ) {
+                //             autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
+                //         }
+                //
+                //         raw(
+                //             """
+                //             graph ?diffInsGraph {
+                //                 ?ins_s ?ins_p ?ins_o .
+                //             }
+                //
+                //             graph ?diffDelGraph {
+                //                 ?del_s ?del_p ?del_o .
+                //             }
+                //
+                //             graph mor-graph:Metadata {
+                //                 ?diff mms:id ?diffId ;
+                //                     mms:diffSrc ?commitSource ;
+                //                     mms:diffDst morc: ;
+                //                     mms:insGraph ?diffInsGraph ;
+                //                     mms:delGraph ?diffDelGraph ;
+                //                     .
+                //             }
+                //         """
+                //         )
+                //     }
+                //     where {
+                //         raw(
+                //             """
+                //             graph mor-graph:Metadata {
+                //                 # select the latest commit from the current named ref
+                //                 morb: mms:commit ?commitSource .
+                //
+                //                 ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                //
+                //                 ?snapshot a mms:Model ;
+                //                     mms:graph ?srcGraph  .
+                //             }
+                //
+                //             bind(
+                //                 sha256(
+                //                     concat(str(morc:), "\n", str(?commitSource))
+                //                 ) as ?diffId
+                //             )
+                //
+                //             bind(
+                //                 iri(
+                //                     concat(str(morc:), "/diffs/", ?diffId)
+                //                 ) as ?diff
+                //             )
+                //
+                //             bind(
+                //                 iri(
+                //                     concat(str(mor-graph:), "Diff.Ins.", ?diffId)
+                //                 ) as ?diffInsGraph
+                //             )
+                //
+                //             bind(
+                //                 iri(
+                //                     concat(str(mor-graph:), "Diff.Del.", ?diffId)
+                //                 ) as ?diffDelGraph
+                //             )
+                //
+                //
+                //             {
+                //                 graph ?srcGraph {
+                //                     ?ins_s ?ins_p ?ins_o .
+                //                 }
+                //
+                //                 filter not exists {
+                //                     graph ?dstGraph {
+                //                         ?ins_s ?ins_p ?ins_o .
+                //                     }
+                //                 }
+                //             } union {
+                //                 graph ?dstGraph {
+                //                     ?del_s ?del_p ?del_o .
+                //                 }
+                //
+                //                 filter not exists {
+                //                     graph ?srcGraph {
+                //                         ?del_s ?del_p ?del_o .
+                //                     }
+                //                 }
+                //             }
+                //         """
+                //         )
+                //     }
+                // }
+
+                // executeSparqlUpdate(diffUpdateString) {
+                //     iri(
+                //         // use current branch as ref source
+                //         "refSource" to prefixes["morb"]!!,
+                //
+                //         // set dst graph
+                //         "dstGraph" to loadGraphUri,
+                //     )
+                // }
             }
 
             // validate diff creation

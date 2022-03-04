@@ -285,18 +285,33 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
     }
 
     fun Resource.extract1OrMoreUris(predicate: Property): List<Resource> {
-        val statements = listProperties(MMS.collects).toList()
+        val statements = listProperties(predicate).toList()
         if(statements.isEmpty()) {
             throw ConstraintViolationException("missing triples having required property `${mms.prefixes.terse(predicate)}`")
         }
 
         return statements.map {
             if(!it.`object`.isURIResource) {
-                throw ConstraintViolationException("object of `mms:collects` predicate must be an IRI")
+                throw ConstraintViolationException("object of `${mms.prefixes.terse(predicate)}` predicate must be an IRI")
             }
 
             it.`object`.asResource()
         }
+    }
+
+    fun Resource.extractExactly1Uri(predicate: Property): Resource {
+        val statements = listProperties(predicate).toList()
+        if(statements.isEmpty()) {
+            throw ConstraintViolationException("missing triples having required property `${mms.prefixes.terse(predicate)}`")
+        }
+        else if(statements.size > 1) {
+            throw ConstraintViolationException("must specify exactly one `${mms.prefixes.terse(predicate)}` but ${statements.size} were specified")
+        }
+        else if(!statements[0].`object`.isURIResource) {
+            throw ConstraintViolationException("object of `${mms.prefixes.terse(predicate)}` predicate must be an IRI")
+        }
+
+        return statements[0].`object`.asResource()
     }
 
     fun Resource.sanitizeCrudObject(setup: (Sanitizer.()->Unit)?=null) {
@@ -425,6 +440,46 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                     """ else ""} 
                     graph mor-graph:Metadata {
                        ?commitSource a mms:Commit .
+                    }
+                """
+            }
+        }
+    }
+
+    fun ConditionsGroup.appendSrcRef(): ConditionsGroup {
+        return append {
+            require("validSourceRef") {
+                handler = { prefixes -> "Invalid source ref" }
+
+                """
+                    graph m-graph:Schema {
+                        ?srcRefClass rdfs:subClassOf* mms:Ref .
+                    }
+           
+                    graph mor-graph:Metadata {         
+                        ?srcRef a ?srcRefClass ;
+                            mms:commit ?srcCommit ;
+                            .
+                    }
+                """
+            }
+        }
+    }
+
+    fun ConditionsGroup.appendDstRef(): ConditionsGroup {
+        return append {
+            require("validSourceRef") {
+                handler = { prefixes -> "Invalid destination ref" }
+
+                """
+                    graph m-graph:Schema {
+                        ?dstRefClass rdfs:subClassOf* mms:Ref .
+                    }
+           
+                    graph mor-graph:Metadata {         
+                        ?dstRef a ?dstRefClass ;
+                            mms:commit ?dstCommit ;
+                            .
                     }
                 """
             }
@@ -915,20 +970,20 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
 }
 
 fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
-    // generate sparql update
     return buildSparqlUpdate {
         insert {
             txn(
-                "mms-txn:diff" to "?diff",
-                "mms-txn:commitSource" to "?commitSource",
-                "mms-txn:diffInsGraph" to "?diffInsGraph",
-                "mms-txn:diffDelGraph" to "?diffDelGraph",
+                "mms-txn:stagingGraph" to "?stagingGraph",
+                "mms-txn:srcGraph" to "?srcGraph",
+                "mms-txn:dstGraph" to "?dstGraph",
+                "mms-txn:insGraph" to "?insGraph",
+                "mms-txn:delGraph" to "?delGraph",
             ) {
                 autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
             }
 
             raw("""
-                graph ?diffInsGraph {
+                graph ?insGraph {
                     ?ins_s ?ins_p ?ins_o .    
                 }
                 
@@ -937,81 +992,70 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                 }
                 
                 graph mor-graph:Metadata {
-                    $diffTriples
-                    
-                    ?diff mms:id ?diffId ;
-                        mms:diffSrc ?commitSource ;
-                        mms:diffDst morc: ;
-                        mms:insGraph ?diffInsGraph ;
-                        mms:delGraph ?diffDelGraph ;
+                    ?diff a mms:Diff ;
+                        mms:id ?diffId ;
+                        mms:createdBy mu: ;
+                        mms:srcCommit ?srcCommit ;
+                        mms:dstCommit ?dstCommit: ;
+                        mms:insGraph ?insGraph ;
+                        mms:delGraph ?delGraph ;
                         .
                 }
             """)
         }
         where {
-            if(conditions != null) raw(*conditions.requiredPatterns())
-
             raw("""
-                optional {
-                    graph mor-graph:Metadata {
-                        ?commitSource ^mms:commit/mms:snapshot ?snapshot .
-                        ?snapshot mms:graph ?sourceGraph  .
-                    }
-                }
+                ${rawWhere?: ""}
                 
                 bind(
                     sha256(
-                        concat(str(morc:), "\n", str(?commitSource))
+                        concat(str(?dstCommit), "\n", str(?srcCommit))
                     ) as ?diffId
                 )
                 
                 bind(
                     iri(
-                        concat(str(morc:), "/diffs/", ?diffId)
+                        concat(str(?dstCommit), "/diffs/", ?diffId)
                     ) as ?diff
                 )
                 
                 bind(
                     iri(
                         concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                    ) as ?diffInsGraph
+                    ) as ?insGraph
                 )
                 
                 bind(
                     iri(
                         concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                    ) as ?diffDelGraph
+                    ) as ?delGraph
                 )
-                
-                graph ?srcGraph {
-                    ?src_s ?src_p ?src_o .    
-                }
-                
-                graph ?dstGraph {
-                    ?dst_s ?dst_p ?dst_o .
-                }
-                
-                graph ?srcGraph {
-                    ?ins_s ?ins_p ?ins_o .
+
+
+                {
+                    graph ?srcGraph {
+                        ?ins_s ?ins_p ?ins_o .
+                    }
                     
-                    minus {
-                        ?dst_s ?dst_p ?dst_o .
+                    filter not exists {
+                        graph ?dstGraph {
+                            ?ins_s ?ins_p ?ins_o .
+                        }
+                    }
+                } union {                            
+                    graph ?dstGraph {
+                        ?del_s ?del_p ?del_o .
+                    }
+                    
+                    filter not exists {
+                        graph ?srcGraph {
+                            ?del_s ?del_p ?del_o .
+                        }
                     }
                 }
-                
-                graph ?dstGraph {
-                    ?del_s ?del_p ?del_o .
-                    
-                    minus {
-                        ?src_s ?src_p ?src_o .
-                    }
-                }
-                
-                ${rawWhere?: ""}
             """)
         }
     }
-
 }
 
 

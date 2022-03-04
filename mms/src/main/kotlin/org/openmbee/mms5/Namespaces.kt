@@ -238,6 +238,10 @@ object MMS {
     // access control properties
     val implies = ResourceFactory.createProperty(BASE, "implies")
 
+
+    val srcRef = ResourceFactory.createProperty(BASE, "srcRef")
+    val dstRef = ResourceFactory.createProperty(BASE, "dstRef")
+
     val etag = ResourceFactory.createProperty(BASE, "etag")
     val ref = ResourceFactory.createProperty(BASE, "ref")
     val collects = ResourceFactory.createProperty(BASE, "collects")
