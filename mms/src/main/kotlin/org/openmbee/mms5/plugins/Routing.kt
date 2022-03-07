@@ -45,18 +45,23 @@ fun Application.configureRouting() {
             // updateCollection()
             // deleteCollection()
 
+            queryCollection()
+
             createRepo()
             readRepo()
             updateRepo()
             // deleteRepo()
 
+            createBranch()
+            readBranch()
+            updateBranch()
+            // deleteBranch()
+
             loadModel()
             readModel()
 
-            createBranch()
-            commitBranch()
-            queryBranch()
-            // deleteBranch()
+            queryModel()
+            commitModel()
 
             createLock()
             queryLock()

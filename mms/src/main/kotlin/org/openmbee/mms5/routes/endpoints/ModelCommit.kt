@@ -32,7 +32,7 @@ fun assertOperationsAllowed(operations: List<Update>) {
 }
 
 
-fun Route.commitBranch() {
+fun Route.commitModel() {
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
         call.mmsL1(Permission.UPDATE_BRANCH) {
             pathParams {
