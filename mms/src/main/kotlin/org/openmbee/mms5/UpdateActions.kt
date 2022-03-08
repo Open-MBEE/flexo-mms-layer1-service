@@ -23,9 +23,18 @@ class ObjectUpdateAction(private val builder: ComposeUpdateBuilder, val name: St
             }
         """)
     }
+
+    fun dependency(path: String, dep: String, condition: String) {
+        where("""
+            
+            ?$name $path $dep .
+            
+            $dep ${dep}_p ${dep}_o .
+        """)
+    }
 }
 
-private fun ComposeUpdateBuilder.dropRepoObject(name: String, setup: ObjectUpdateAction.() -> Unit): String {
+private fun ComposeUpdateBuilder.dropRepoObject(name: String, setup: (ObjectUpdateAction.() -> Unit)?=null): String {
     deleteString += """
         graph mor-graph:Metadata {
             ?${name} ?${name}_p ?${name}_o .
@@ -39,7 +48,7 @@ private fun ComposeUpdateBuilder.dropRepoObject(name: String, setup: ObjectUpdat
     """
 
     whereString += ObjectUpdateAction(this, name).run {
-        setup()
+        setup?.let { it() }
         """
             graph mor-graph:Metadata {
                 ?${name} ?${name}_p ?${name}_o .
@@ -58,39 +67,37 @@ fun ComposeUpdateBuilder.dropDiff(): String {
     }
 }
 
+fun ComposeUpdateBuilder.dropSnapshot(): String {
+    return dropRepoObject("snapshot") {
+        dependent("mms:ref", dropSnapshot())
+    }
+}
+
 fun ComposeUpdateBuilder.dropLock(): String {
     return dropRepoObject("lock") {
-        // TODO update to use ^mms:snapshot instead
-        dependent("mms:ref", dropDiff())
+        dropRepoObject("snapshot")
+
+        // delete snapshot dependencies
+        where("""
+            # delete dangling snapshots
+            optional {
+                ?lock mms:snapshot ?snapshot .
+                
+                ?snapshot ?snapshot_p ?snapshot_o .
+                
+                # only if no other locks exist for that snapshot
+                filter not exists {
+                    ?otherLock mms:snapshot ?snapshot .
+                    
+                    filter(?otherLock != ?lock)
+                }
+                
+                # drop snapshot graph
+                ?snapshot mms:graph ?dropGraph .
+                graph ?dropGraph {
+                    ?drop_s ?drop_p ?drop_o .
+                }
+            }
+        """)
     }
-    //
-    // pendingDeleteString += """
-    //     ?lock ?lock_p ?lock_o .
-    // """
-    //
-    // pendingInsertString += """
-    //     graph m-graph:Transactions {
-    //         mt: mms-txn:droppedObject ?lock .
-    //     }
-    // """
-    //
-    // pendingWhereString += """
-    //     graph mor-graph:Metadata {
-    //         ?lock ?lock_p ?lock_o .
-    //
-    //         optional {
-    //             ?diff mms:ref ?lock ;
-    //                 ?diff_p ?diff_o .
-    //         }
-    //
-    //         filter not exists {
-    //             ?lock_dangle ?lock_dangle_p ?lock .
-    //
-    //             filter not exists {
-    //                 ?diff mms:ref ?lock ;
-    //                     ?lock_dangle_diff_p ?lock_dangle_diff_o .
-    //             }
-    //         }
-    //     }
-    // """
 }

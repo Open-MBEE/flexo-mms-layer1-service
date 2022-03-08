@@ -32,7 +32,19 @@ fun Route.deleteLock() {
 
             log.info(updateString)
 
-            call.respondText("")
+            // fetch transaction
+            val constructString = buildSparqlQuery {
+                construct {
+                    txn()
+                }
+                where {
+                    txn()
+                }
+            }
+
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+            call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
         }
     }
 }

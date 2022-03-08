@@ -25,6 +25,8 @@ fun Route.queryCollection() {
 
             val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
 
+            // outputQuery.graphURIs.
+
             // TODO construct query that joins
             outputQuery.apply {
                 // set default graph
