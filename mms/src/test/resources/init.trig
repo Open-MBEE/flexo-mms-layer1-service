@@ -1,0 +1,450 @@
+prefix dct: <http://purl.org/dc/terms/>
+prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix owl: <http://www.w3.org/2002/07/owl#>
+
+prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+prefix mms-object: <https://mms.openmbee.org/rdf/objects/>
+
+base <https://mms.openmbee.org/demo/>
+prefix m: <>
+prefix m-graph: <graphs/>
+prefix m-user: <users/>
+prefix m-group: <groups/>
+prefix m-policy: <policies/>
+
+
+# MMS basic classes hierarchy and properties schema
+m-graph:Schema {
+	mms:Ref a rdfs:Class ;
+		rdfs:label "Ref" ;
+		.
+
+	mms:Branch a rdfs:Class ;
+		rdfs:label "Branch" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Lock a rdfs:Class ;
+		rdfs:label "Lock" ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:InterimLock a rdfs:Class ;
+		rdfs:label "InterimLock" ;
+		rdfs:subClassOf mms:Lock ;
+		.
+
+	mms:Commit a rdfs:Class ;
+		rdfs:label "Commit" ;
+		.
+
+	mms:Snapshot a rdfs:Class ;
+		rdfs:label "Snapshot" ;
+		.
+
+	mms:Model a rdfs:Class ;
+		rdfs:label "Model" ;
+		rdfs:subClassOf mms:Snapshot ;
+		.
+
+	mms:Staging a rdfs:Class ;
+		rdfs:label "Staging" ;
+		rdfs:subClassOf mms:Snapshot ;
+		.
+
+
+	mms:ref a rdf:Property ;
+		rdfs:label "ref" ;
+		rdfs:range mms:Ref ;
+		.
+
+	mms:commit a rdf:Property ;
+		rdfs:label "commit" ;
+		rdfs:range mms:Commit ;
+		.
+}
+
+
+
+# reserved cluster graph declares this location as an MMS cluster
+m-graph:Cluster {
+	m: a mms:Cluster ;
+		.
+}
+
+
+
+#
+m-graph:AccessControl.Agents {
+	m-user:root a mms:User ;
+		mms:group m-group:SuperAdmins ;
+		mms:id "root" ;
+		.
+
+	m-group:SuperAdmins a mms:Group ;
+		mms:id "super_admins" ;
+		.
+
+	m-group:ldap\/cn\=all.users\,ou\=personnel\,dc\=dir\,dc\=demo\,dc\=openmbee\,dc\=org a mms:LdapGroup ;
+		mms:id "cn=all.users,ou=personnel,dc=dir,dc=demo,dc=openmbee,dc=org" ;
+		.
+
+	# m-user:anonymous a mms:User ;
+	# 	mms:group m-group:Public ;
+
+	# m-user:public
+}
+
+
+
+#
+m-graph:AccessControl.Policies {
+	m-policy:DefaultSuperAdmin a mms:Policy ;
+		mms:subject m-group:SuperAdmins ;
+		mms:scope m: ;
+		mms:role
+			mms-object:Role.AdminAccessControl,
+			mms-object:Role.AdminCluster,
+			mms-object:Role.AdminMetadata,
+			mms-object:Role.AdminModel ;
+		.
+
+	m-policy:PublicRead a mms:Policy ;
+		mms:subject m-group:Public ;
+		mms:scope m: ;
+		mms:role
+			mms-object:Role.ReadAll ;
+		.
+
+
+	m-policy:AutoRepoOwner.xyz a mms:Policy ;
+		mms:subject m-user:bregalia ;
+		mms:scope m:orgs\/openmbee\/repos\/example ;
+		mms:roles
+			mms-object:Role.AdminRepo
+		.
+}
+
+
+
+#
+m-graph:AccessControl.Definitions {
+
+	# ====================================
+	# ==             Scopes             ==
+	# ====================================
+
+	mms:Cluster a owl:Class ;
+		rdfs:label "Cluster level scope" ;
+		rdfs:subClassOf mms:Scope ;
+		mms:implies mms:Org ;
+		.
+
+	mms:Org a owl:Class ;
+		rdfs:label "Org level scope" ;
+		rdfs:subClassOf mms:Scope ;
+		mms:implies mms:Project ;
+		.
+
+	mms:Project a owl:Class ;
+		rdfs:label "Project level scope" ;
+		rdfs:subClassOf mms:Scope ;
+		mms:implies mms:Ref ;
+		.
+
+	mms:Repo a owl:Class ;
+		rdfs:subClassOf mms:Project ;
+		.
+
+	mms:Collection a owl:Class ;
+		rdfs:subClassOf mms:Project ;
+		.
+
+	mms:Ref a owl:Class ;
+		rdfs:label "Ref level scope" ;
+		rdfs:subClassOf mms:Scope ;
+		.
+
+	mms:Branch a owl:Class ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+	mms:Lock a owl:Class ;
+		rdfs:subClassOf mms:Ref ;
+		.
+
+
+
+	# ====================================
+	# ==   Object-Centric Permissions   ==
+	# ====================================
+
+	mms-object:Permission.CreateOrg a mms:Permission ;
+		.
+
+
+
+	mms-object:Permission.ReadOrg a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateOrg a mms:Permission ;
+		mms:implies mms-object:Permission.ReadOrg ;
+		.
+
+	mms-object:Permission.DeleteOrg a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateOrg ;
+		mms:implies mms-object:Permission.CreateRepo ;
+		.
+
+
+	mms-object:Permission.CreateRepo a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadRepo a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateRepo a mms:Permission ;
+		mms:implies mms-object:Permission.ReadRepo ;
+		.
+
+	mms-object:Permission.DeleteRepo a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateRepo ;
+		mms:implies mms-object:Permission.CreateBranch ;
+		mms:implies mms-object:Permission.DeleteBranch ;
+		mms:implies mms-object:Permission.CreateLock ;
+		mms:implies mms-object:Permission.DeleteLock ;
+		.
+
+
+	mms-object:Permission.CreateBranch a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadBranch a mms:Permission ;
+		.
+
+	mms-object:Permission.UpdateBranch a mms:Permission ;
+		mms:implies mms-object:Permission.ReadBranch ;
+		.
+
+	mms-object:Permission.DeleteBranch a mms:Permission ;
+		mms:implies mms-object:Permission.UpdateBranch ;
+		.
+
+
+
+	mms-object:Permission.CreateLock a mms:Permission ;
+		.
+
+	mms-object:Permission.ReadLock a mms:Permission ;
+		.
+
+	mms-object:Permission.DeleteLock a mms:Permission ;
+		mms:implies mms-object:Permission.ReadLock ;
+		.
+
+
+
+	mms-object:Permission.CreateProject a mms:Permission ;
+		mms:implies
+			mms-object:Permission.CreateRepo ,
+			mms-object:Permission.CreateCollection ;
+		.
+
+	mms-object:Permission.ReadProject a mms:Permission ;
+		mms:implies
+			mms-object:Permission.ReadRepo ,
+			mms-object:Permission.ReadCollection ;
+		.
+
+	mms-object:Permission.UpdateProject a mms:Permission ;
+		mms:implies
+			mms-object:Permission.UpdateRepo ,
+			mms-object:Permission.UpdateCollection ,
+			mms-object:Permission.ReadProject ;
+		.
+
+	mms-object:Permission.DeleteProject a mms:Permission ;
+		mms:implies
+			mms-object:Permission.DeleteRepo ,
+			mms-object:Permission.DeleteCollection ,
+			mms-object:Permission.UpdateProject ;
+		.
+
+
+
+	# ====================================
+	# ==    Graph-Centric Permissions   ==
+	# ====================================
+
+
+	# AccessControl.* graphs
+
+	mms-object:Permission.ReadAccessControl a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteAccessControl a mms:Permission ;
+		mms:implies
+			mms-object:Permission.ReadAccessControl ,
+			mms-object:Permission.CreatePolicy ,
+			mms-object:Permission.CreateRole ,
+			mms-object:Permission.CreateGroup ,
+			mms-object:Permission.CreateUser ;
+		.
+
+	mms-object:Permission.AdminAccessControl a mms:Permission ;
+		mms:implies
+			mms-object:Permission.WriteAccessControl ,
+			mms-object:Permission.DeletePolicy ,
+			mms-object:Permission.DeleteRole ,
+			mms-object:Permission.DeleteGroup ,
+			mms-object:Permission.DeleteUser ;
+		.
+
+
+	# The Cluster graph
+
+	mms-object:Permission.ReadCluster a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteCluster a mms:Permission ;
+		mms:implies
+			mms-object:Permission.ReadCluster ,
+			mms-object:Permission.CreateOrg ,
+			mms-object:Permission.CreateProject ;
+		.
+
+	mms-object:Permission.AdminCluster a mms:Permission ;
+		mms:implies
+			mms-object:Permission.WriteCluster ,
+			mms-object:Permission.DeleteOrg ,
+			mms-object:Permission.DeleteProject ;
+		.
+
+
+	# Project Metadata graphs
+
+	mms-object:Permission.ReadMetadata a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteMetadata a mms:Permission ;
+		mms:implies mms-object:Permission.ReadMetadata ;
+		.
+
+	mms-object:Permission.AdminMetadata a mms:Permission ;
+		mms:implies mms-object:Permission.WriteMetadata ;
+		.
+
+
+	# Project Model graphs
+
+	mms-object:Permission.ReadModel a mms:Permission ;
+		.
+
+	mms-object:Permission.WriteModel a mms:Permission ;
+		mms:implies mms-object:Permission.ReadModel ;
+		.
+
+	mms-object:Permission.AdminModel a mms:Permission ;
+		mms:implies mms-object:Permission.WriteModel ;
+		.
+
+
+
+	# ===================================
+	# ==             Roles             ==
+	# ===================================
+
+	mms-object:Role.ReadAll a mms:Role ;
+		mms:implies
+			mms-object:Role.ReadOrg ,
+			mms-object:Role.ReadRepo ,
+			mms-object:Role.ReadModel ;
+		.
+
+
+	# Org admins are able to delete the org and create new projects
+	mms-object:Role.AdminOrg a mms:Role ;
+		mms:permits mms-object:Permission.DeleteOrg ;
+		.
+
+	mms-object:Role.WriteOrg a mms:Role ;
+		mms:permits mms-object:Permission.UpdateOrg ;
+		.
+
+	mms-object:Role.ReadOrg a mms:Role ;
+		mms:permits mms-object:Permission.ReadOrg ;
+		.
+
+
+	#
+
+	mms-object:Role.AdminRepo a mms:Role ;
+		mms:permits mms-object:Permission.DeleteRepo ;
+		.
+
+	mms-object:Role.WriteRepo a mms:Role ;
+		mms:permits mms-object:Permission.UpdateRepo ;
+		.
+
+	mms-object:Role.ReadRepo a mms:Role ;
+		mms:permits mms-object:Permission.ReadRepo ;
+		.
+
+
+
+	mms-object:Role.ReadModel a mms:Role ;
+		mms:permits mms-object:Permission.ReadModel ;
+		.
+
+	mms-object:Role.WriteModel a mms:Role ;
+		mms:permits mms-object:Permission.WriteModel ;
+		.
+
+	mms-object:Role.AdminModel a mms:Role ;
+		mms:permits mms-object:Permission.AdminModel ;
+		.
+
+
+
+	mms-object:Role.ReadMetadata a mms:Role ;
+		mms:permits mms-object:Permission.ReadMetadata ;
+		.
+
+	mms-object:Role.WriteMetadata a mms:Role ;
+		mms:permits mms-object:Permission.WriteMetadata ;
+		.
+
+	mms-object:Role.AdminMetadata a mms:Role ;
+		mms:permits mms-object:Permission.AdminMetadata ;
+		.
+
+
+
+	mms-object:Role.ReadCluster a mms:Role ;
+		mms:permits mms-object:Permission.ReadCluster ;
+		.
+
+	mms-object:Role.WriteCluster a mms:Role ;
+		mms:permits mms-object:Permission.WriteCluster ;
+		.
+
+	mms-object:Role.AdminCluster a mms:Role ;
+		mms:permits mms-object:Permission.AdminCluster ;
+		.
+
+
+
+	mms-object:Role.ReadAccessControl a mms:Role ;
+		mms:permits mms-object:Permission.ReadAccessControl ;
+		.
+
+	mms-object:Role.WriteAccessControl a mms:Role ;
+		mms:permits mms-object:Permission.WriteAccessControl ;
+		.
+
+	mms-object:Role.AdminAccessControl a mms:Role ;
+		mms:permits mms-object:Permission.AdminAccessControl ;
+		.
+}
