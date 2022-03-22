@@ -20,20 +20,3 @@ jwt {
     secret = "test1234"
     secret = ${?JWT_SECRET}
 }
-
-consul {
-    enabled = false
-    enabled = ${?CONSUL_ENABLED}
-    service {
-        url = "http://localhost:8500"
-        url = ${?CONSUL_SERVICE_URL}
-        token = ""
-        token = ${?CONSUL_SERVICE_TOKEN}
-        name = "auth-service"
-        name = ${?CONSUL_SERVICE_NAME}
-        port = 8080
-        port = ${?CONSUL_SERVICE_PORT}
-        tags = ["L0", "authentication"]
-        tags = ${?CONSUL_SERVICE_TAGS}
-    }
-}
