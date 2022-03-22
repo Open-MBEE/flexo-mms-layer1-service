@@ -14,6 +14,7 @@ fun Application.configureHTTP() {
     install(DefaultHeaders) {
         header("X-Engine", "Ktor") // will send this header with each response
     }
+
     install(StatusPages) {
         exception<HttpException> { cause ->
             cause.handle(call)
@@ -22,16 +23,17 @@ fun Application.configureHTTP() {
             call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
         }
     }
+
     install(CORS) {
         method(HttpMethod.Options)
         method(HttpMethod.Put)
         method(HttpMethod.Delete)
         method(HttpMethod.Patch)
         header(HttpHeaders.Authorization)
-        header("MyCustomHeader")
-//        allowCredentials = true
-        anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
+        header(HttpHeaders.ContentType)
+        allowCredentials = true
+        anyHost() // @TODO: make configuration
     }
-    install(ConditionalHeaders)
 
+    install(ConditionalHeaders)
 }

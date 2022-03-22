@@ -8,18 +8,16 @@ import org.openmbee.mms5.queryModel
 
 
 fun Route.queryDiff() {
-    post("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}/diff/{diffId}/query/{inspect?}") {
+    post("/orgs/{orgId}/repos/{repoId}/diff/{diffId}/query/{inspect?}") {
         call.mmsL1(Permission.READ_DIFF) {
             pathParams {
                 org()
                 repo()
-                commit()
-                lock()
                 diff()
                 inspect()
             }
 
-            queryModel(requestBody, prefixes["morcld"]!!)
+            queryModel(requestBody, prefixes["mord"]!!)
         }
     }
 }

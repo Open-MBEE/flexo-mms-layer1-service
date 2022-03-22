@@ -10,12 +10,11 @@ private val DEFAULT_CONDITIONS =  LOCK_CRUD_CONDITIONS.append {
 }
 
 fun Route.deleteLock() {
-    delete("/orgs/{orgId}/repos/{repoId}/commit/{commitId}/locks/{lockId}") {
+    delete("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
         call.mmsL1(Permission.DELETE_LOCK) {
             pathParams {
                 org()
                 repo()
-                commit()
                 lock()
             }
 

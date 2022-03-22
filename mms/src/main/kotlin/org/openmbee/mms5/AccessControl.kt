@@ -15,7 +15,7 @@ enum class Scope(val type: String, val id: String) {
     COLLECTION("Collection", "moc"),
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
-    LOCK("Lock", "morcl"),
+    LOCK("Lock", "morl"),
     DIFF("Diff", "mord"),
 
     ACCESS_CONTROL("AccessControl", "ma"),

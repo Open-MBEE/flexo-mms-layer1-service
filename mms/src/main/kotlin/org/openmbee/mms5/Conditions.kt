@@ -79,14 +79,14 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val LOCK_CRUD_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("lockExists") {
-        handler = { mms -> "Lock <${mms.prefixes["morcl"]}> does not exist." }
+        handler = { mms -> "Lock <${mms.prefixes["morl"]}> does not exist." }
 
         """
             # lock must exist
             graph mor-graph:Metadata {
-                morcl: a mms:Lock .
+                morl: a mms:Lock .
             }
         """
     }

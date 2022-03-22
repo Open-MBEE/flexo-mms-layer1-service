@@ -9,17 +9,17 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
-private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_LOCK, Scope.REPO)
 
     require("lockNotExists") {
-        handler = { mms -> "The provided lock <${mms.prefixes["morcl"]}> already exists." }
+        handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." }
 
         """
             # lock must not yet exist
             graph m-graph:Cluster {
                 filter not exists {
-                    morcl: a mms:Lock .
+                    morl: a mms:Lock .
                 }
             }
         """
@@ -78,17 +78,18 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
 
 
 fun Route.createLock() {
-    put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
+    put("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
         call.mmsL1(Permission.CREATE_LOCK) {
             pathParams {
                 org()
                 repo()
-                commit()
                 lock(legal = true)
             }
 
-            val lockTriples = filterIncomingStatements("morcl") {
+            val lockTriples = filterIncomingStatements("morl") {
                 lockNode().apply {
+                    normalizeRefOrCommit(this)
+
                     sanitizeCrudObject {
                         setProperty(RDF.type, MMS.Lock)
                         setProperty(MMS.id, lockId!!)
@@ -99,7 +100,7 @@ fun Route.createLock() {
                 }
             }
 
-            val localConditions = DEFAULT_CONDITIONS
+            val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
             // locate base snapshot
             val constructSnapshotResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SNAPSHOT)
@@ -186,7 +187,7 @@ fun Route.createLock() {
                     txn()
 
                     raw("""
-                        morcl: ?morcl_p ?morcl_o .
+                        morl: ?morl_p ?morl_o .
                     """)
                 }
                 where {
@@ -195,7 +196,7 @@ fun Route.createLock() {
 
                         raw("""
                             graph mor-graph:Metadata {
-                                morcl: ?morcl_p ?morcl_o .
+                                morl: ?morl_p ?morl_o .
                             }
                         """)
                     }

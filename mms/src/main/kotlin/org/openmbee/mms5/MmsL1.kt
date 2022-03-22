@@ -241,11 +241,11 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
     }
 
     fun lockNode(): Resource {
-        return resourceFromParamPrefix("morcl")
+        return resourceFromParamPrefix("morl")
     }
 
     fun diffNode(): Resource {
-        return resourceFromParamPrefix("morcld")
+        return resourceFromParamPrefix("mord")
     }
 
     fun transactionNode(): Resource {
