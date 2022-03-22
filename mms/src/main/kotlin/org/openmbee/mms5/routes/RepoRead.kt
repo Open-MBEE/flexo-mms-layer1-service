@@ -2,10 +2,11 @@ package org.openmbee.mms5.routes
 
 import io.ktor.application.*
 import io.ktor.http.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
+import io.ktor.server.engine.*
+import kotlinx.serialization.json.*
 import org.openmbee.mms5.*
 
 private const val SPARQL_BGP_REPO = """
@@ -67,7 +68,7 @@ fun Route.readRepo() {
                     )
 
                     // get by repoId
-                    if (false == repoId?.isBlank()) {
+                    if(false == repoId?.isBlank()) {
                         iri(
                             "_repo" to prefixes["mor"]!!,
                         )
@@ -95,7 +96,7 @@ fun Route.readRepo() {
                     )
 
                     // get by repoId
-                    if (false == repoId?.isBlank()) {
+                    if(false == repoId?.isBlank()) {
                         iri(
                             "_repo" to prefixes["mor"]!!,
                         )

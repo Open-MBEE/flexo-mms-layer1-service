@@ -1,59 +1,58 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
-import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.openmbee.mms5.*
 
-private val SPARQL_BGP_ORG = """
-    graph m-graph:Cluster {
-        ?_org a mms:Org ;
+private val SPARQL_BGP_BRANCH = """
+    graph mor-graph:Metadata {
+        ?_branch a mms:Branch ;
             mms:etag ?etag ;
-            ?org_p ?org_o .
+            ?branch_p ?branch_o .
         
         optional {
-            ?thing mms:org ?_org ;
+            ?thing mms:branch ?_branch ;
                 ?thing_p ?thing_o .
         }
     }
     
-    ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
+    ${permittedActionSparqlBgp(Permission.READ_BRANCH, Scope.BRANCH)}
 """
 
-private val SPARQL_SELECT_ORG = """
+private val SPARQL_SELECT_BRANCH = """
     select ?etag {
-        $SPARQL_BGP_ORG
+        $SPARQL_BGP_BRANCH
     } order by asc(?etag)
 """
 
-private val SPARQL_CONSTRUCT_ORG = """
+private val SPARQL_CONSTRUCT_BRANCH = """
     construct {
-        ?_org ?org_p ?org_o ;
+        ?_branch ?branch_p ?branch_o ;
             mms:etag ?etag .
         
         ?thing ?thing_p ?thing_o .
         
         ?context a mms:Context ;
-            mms:permit mms-object:Permission.ReadOrg ;
+            mms:permit mms-object:Permission.ReadBranch ;
             mms:policy ?policy ;
             .
         
         ?policy ?policy_p ?policy_o .
         
-        ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
+        ?branchPolicy ?branchPolicy_p ?branchPolicy_o .
     } where {
-        $SPARQL_BGP_ORG
+        $SPARQL_BGP_BRANCH
         
         graph m-graph:AccessControl.Policies {
             ?policy ?policy_p ?policy_o .
 
             optional {
-                ?orgPolicy a mms:Policy ;
-                    mms:scope ?_org ;
-                    ?orgPolicy_p ?orgPolicy_o .
+                ?branchPolicy a mms:Policy ;
+                    mms:scope ?_branch ;
+                    ?branchPolicy_p ?branchPolicy_o .
             }
         }
         
@@ -61,19 +60,21 @@ private val SPARQL_CONSTRUCT_ORG = """
     }
 """
 
-fun Route.readOrg() {
-    route("/orgs/{orgId?}") {
+fun Route.readBranch() {
+    route("/orgs/{orgId}/repos/{repoId}/branches/{branchId?}") {
         head {
-            call.mmsL1(Permission.READ_ORG) {
+            call.mmsL1(Permission.READ_BRANCH) {
                 pathParams {
                     org()
+                    repo()
+                    branch()
                 }
 
-                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_BRANCH) {
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_branch" to prefixes["morb"]!!,
                         )
                     }
                 }
@@ -87,16 +88,18 @@ fun Route.readOrg() {
         }
 
         get {
-            call.mmsL1(Permission.READ_ORG) {
+            call.mmsL1(Permission.READ_BRANCH) {
                 pathParams {
                     org()
+                    repo()
+                    branch()
                 }
 
-                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_BRANCH) {
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_branch" to prefixes["morb"]!!,
                         )
                     }
                 }
@@ -108,7 +111,7 @@ fun Route.readOrg() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["mo"]!!)
+                checkPreconditions(model, prefixes["morb"]!!)
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

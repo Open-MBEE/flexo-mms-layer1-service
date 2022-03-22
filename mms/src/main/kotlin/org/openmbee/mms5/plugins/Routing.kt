@@ -9,6 +9,7 @@ import io.ktor.routing.*
 import io.ktor.util.*
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
+import org.openmbee.mms5.routes.gsp.readModel
 
 
 val client = HttpClient(CIO)
@@ -24,13 +25,14 @@ fun Application.configureRouting() {
         //     exception<HttpException> { cause ->
         //         cause.handle(call)
         //     }
-        // exception<AuthenticationException> { cause ->
-        //     call.respond(HttpStatusCode.Unauthorized)
+            // exception<AuthenticationException> { cause ->
+            //     call.respond(HttpStatusCode.Unauthorized)
+            // }
+            // exception<AuthorizationException> { cause ->
+            //     call.respond(HttpStatusCode.Forbidden)
+            // }
         // }
-        // exception<AuthorizationException> { cause ->
-        //     call.respond(HttpStatusCode.Forbidden)
-        // }
-        // }
+
 
         authenticate {
             createOrg()
@@ -43,17 +45,24 @@ fun Application.configureRouting() {
             // updateCollection()
             // deleteCollection()
 
+            queryCollection()
+
             createRepo()
             readRepo()
             updateRepo()
             // deleteRepo()
 
-            loadBranch()
             createBranch()
-            commitBranch()
-            queryBranch()
+            readBranch()
+            updateBranch()
             // deleteBranch()
 
+            loadModel()
+            readModel()
+
+            queryModel()
+            commitModel()
+
             createLock()
             queryLock()
             deleteLock()
@@ -61,6 +70,7 @@ fun Application.configureRouting() {
             createDiff()
             queryDiff()
             // deleteDiff()
+
             createLock()
             queryLock()
             deleteLock()
@@ -68,7 +78,14 @@ fun Application.configureRouting() {
             createDiff()
             queryDiff()
             // deleteDiff()
+
             createLdapGroup()
+            // updateLdapGroup()
+            // deleteLdapGroup()
+
+            // createPolicy()
+            // updatePolicy()
+            // deletePolicy()
         }
     }
 }

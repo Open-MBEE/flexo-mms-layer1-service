@@ -3,7 +3,6 @@ package org.openmbee.mms5.routes
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 import java.security.MessageDigest
 
@@ -34,7 +33,7 @@ private fun hashString(input: String, algorithm: String): String {
 
 
 fun Route.createDiff() {
-    post("/orgs/{orgId}/repos/{repoId}/locks/{lockId}/diff") {
+    post("/orgs/{orgId}/repos/{repoId}/diff") {
         call.mmsL1(Permission.CREATE_DIFF) {
             pathParams {
                 org()
@@ -43,59 +42,72 @@ fun Route.createDiff() {
                 lock()
             }
 
-            diffId = transactionId
+            // diffId = transactionId
 
-            val diffTriples = filterIncomingStatements("morb") {
+            lateinit var srcRef: String
+            lateinit var dstRef: String
+
+            var createDiffUserDataTriples = ""
+            filterIncomingStatements("mor") {
                 diffNode().apply {
-                    normalizeRefOrCommit(this)
+                    srcRef = extractExactly1Uri(MMS.srcRef).uri
+                    dstRef = extractExactly1Uri(MMS.dstRef).uri
 
                     sanitizeCrudObject {
-                        setProperty(RDF.type, MMS.Diff)
-                        setProperty(MMS.diffSrc, lockNode())
-                        setProperty(MMS.createdBy, userNode())
+                        removeAll(MMS.srcRef)
+                        removeAll(MMS.dstRef)
                     }
                 }
+
+                val diffPairs = serializePairs(diffNode())
+                if(diffPairs.isNotEmpty()) {
+                    createDiffUserDataTriples = "?diff $diffPairs ."
+                }
+
+                diffNode()
             }
 
-            val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
+            val localConditions = DEFAULT_CONDITIONS.appendSrcRef().appendDstRef()
 
             // generate sparql update
-            val updateString = genDiffUpdate(diffTriples, localConditions)
+            val updateString = genDiffUpdate(createDiffUserDataTriples, localConditions, """
+                graph mor-graph:Metadata {
+                    # select the latest commit from the current named ref
+                    ?srcRef mms:commit ?srcCommit .
+                    
+                    ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                    
+                    ?srcSnapshot a mms:Model ; 
+                        mms:graph ?srcGraph  .
+                    
+                    
+                    ?dstRef mms:commit ?dstCommit .
+                    
+                    ?dstCommit ^mms:commit/mms:snapshot ?dstSnapshot .
+                    
+                    ?dstSnapshot a mms:Model ; 
+                        mms:graph ?dstGraph .
+                }
+            """)
 
             executeSparqlUpdate(updateString) {
                 iri(
-                    if (refSource != null) "refSource" to refSource!!
-                    else "commitSource" to commitSource!!,
+                    "srcRef" to srcRef,
+                    "dstRef" to dstRef,
                 )
             }
 
             val constructString = buildSparqlQuery {
                 construct {
                     txn()
-
-                    raw(
-                        """
-                            morb: ?morb_p ?morb_o .     
-                        """
-                    )
                 }
                 where {
                     group {
                         txn()
-
-                        raw(
-                            """
-                                graph mor-graph:Metadata {
-                                    morb: ?morb_p ?morb_o .   
-                                }
-                            """
-                        )
                     }
-                    raw(
-                        """
-                            union ${localConditions.unionInspectPatterns()}    
-                        """
-                    )
+                    raw("""
+                        union ${localConditions.unionInspectPatterns()}    
+                    """)
                     groupDns()
                 }
             }
@@ -104,7 +116,6 @@ fun Route.createDiff() {
 
             val constructModel = validateTransaction(constructResponseText, localConditions)
 
-            call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
             // clone graph
             run {
@@ -112,34 +123,30 @@ fun Route.createDiff() {
 
                 // snapshot is available for source commit
                 val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-                if (sourceGraphs.size >= 1) {
+                if(sourceGraphs.size >= 1) {
                     // copy graph
-                    executeSparqlUpdate(
-                        """
-                            copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
-                            
-                            insert {
-                                morb: mms:snapshot ?snapshot .
-                                mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                    mms:graph mor-graph:Staging.${transactionId} ;
-                                    .
-                            }
-                        """
-                    )
+                    executeSparqlUpdate("""
+                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
+                        
+                        insert {
+                            morb: mms:snapshot ?snapshot .
+                            mor-snapshot:Staging.${transactionId} a mms:Staging ;
+                                mms:graph mor-graph:Staging.${transactionId} ;
+                                .
+                        }
+                    """)
 
                     // copy staging => model
-                    executeSparqlUpdate(
-                        """
-                            copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
-                            
-                            insert {
-                                morb: mms:snapshot mor-snapshot:Model.${transactionId} .
-                                mor-snapshot:Model.${transactionId} a mms:Model ;
-                                    mms:graph mor-graph:Model.${transactionId} ;
-                                    .
-                            }
-                        """
-                    )
+                    executeSparqlUpdate("""
+                        copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
+                        
+                        insert {
+                            morb: mms:snapshot mor-snapshot:Model.${transactionId} .
+                            mor-snapshot:Model.${transactionId} a mms:Model ;
+                                mms:graph mor-graph:Model.${transactionId} ;
+                                .
+                        }
+                    """)
                 }
                 // no snapshots available, must build for commit
                 else {
@@ -147,18 +154,18 @@ fun Route.createDiff() {
                 }
             }
 
+            call.respondText(constructResponseText, RdfContentTypes.Turtle)
+
             // delete transaction
             run {
                 // submit update
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                ) {
+                    }
+                """) {
                     prefixes(prefixes)
                 }
 

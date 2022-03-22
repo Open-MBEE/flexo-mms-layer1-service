@@ -25,7 +25,7 @@ suspend fun handleSparqlResponse(response: HttpResponse): String {
 
 class IllegalIdException: Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.") {}
 
-private val LEGAL_ID_REGEX = """[._\pL-]{3,256}""".toRegex()
+private val LEGAL_ID_REGEX = """[._\pL0-9-]{3,256}""".toRegex()
 
 fun assertLegalId(id: String, regex: Regex=LEGAL_ID_REGEX) {
     if(!id.matches(regex) || id.startsWith("__")) {

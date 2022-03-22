@@ -2,10 +2,18 @@ package org.openmbee.mms5.routes.endpoints
 
 import io.ktor.application.*
 import io.ktor.routing.*
-import org.openmbee.mms5.Permission
-import org.openmbee.mms5.mmsL1
-import org.openmbee.mms5.sanitizeUserQuery
+import org.openmbee.mms5.*
 
+
+private val SPARQL_SUBSELECT_QUERY = """
+    {
+        select ?__mms_graph {
+            graph m-graph:Cluster {
+                moc: mms:ref ?__mms_graph .
+            }
+        }
+    }
+"""
 
 fun Route.queryCollection() {
     post("/orgs/{orgId}/collections/{collectionId}/query/{inspect?}") {
@@ -17,11 +25,14 @@ fun Route.queryCollection() {
 
             val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
 
+            // outputQuery.graphURIs.
+
+            // TODO construct query that joins
             outputQuery.apply {
                 // set default graph
                 graphURIs.clear()
                 // graphURIs.addAll()
-            }
+            }.queryPattern.toString()
         }
 
     }

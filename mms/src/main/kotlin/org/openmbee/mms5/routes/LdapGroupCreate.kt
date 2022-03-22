@@ -1,10 +1,12 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
+import io.ktor.auth.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+import org.openmbee.mms5.plugins.UserDetailsPrincipal
 
 
 private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
@@ -28,7 +30,7 @@ fun Route.createLdapGroup() {
     put("/groups/ldap/{ldapId}") {
         call.mmsL1(Permission.CREATE_GROUP) {
             pathParams {
-                ldap(legal = true)
+                ldap(legal=true)
             }
 
             val grouopTriples = filterIncomingStatements("mag") {
@@ -44,12 +46,12 @@ fun Route.createLdapGroup() {
             val localConditions = DEFAULT_CONDITIONS.append {
                 assertPreconditions(this) {
                     """
-                            graph m-graph:AccessControl.Agents {
-                                mag: mms:etag ?etag .
-                                
-                                $it
-                            }
-                        """
+                        graph m-graph:AccessControl.Agents {
+                            mag: mms:etag ?etag .
+                            
+                            $it
+                        }
+                    """
                 }
             }
 
@@ -77,22 +79,18 @@ fun Route.createLdapGroup() {
                 construct {
                     txn()
 
-                    raw(
-                        """
-                            mag: ?mag_p ?mag_o .
-                        """
-                    )
+                    raw("""
+                        mag: ?mag_p ?mag_o .
+                    """)
                 }
                 where {
                     group {
                         txn()
 
                         graph("m-graph:AccessControl.Agents") {
-                            raw(
-                                """
-                                    mag: ?mag_p ?mag_o .
-                                """
-                            )
+                            raw("""
+                                mag: ?mag_p ?mag_o .
+                            """)
                         }
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
@@ -115,15 +113,13 @@ fun Route.createLdapGroup() {
             // delete transaction
             run {
                 // submit update
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

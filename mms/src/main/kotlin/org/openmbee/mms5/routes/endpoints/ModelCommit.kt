@@ -19,10 +19,10 @@ fun Resource.iriAt(property: Property): String? {
 }
 
 fun assertOperationsAllowed(operations: List<Update>) {
-    if (operations.size > 1) {
-        if (operations.size == 2) {
+    if(operations.size > 1) {
+        if(operations.size == 2) {
             // special case operations can be combined
-            if ((operations[0] is UpdateDeleteWhere || operations[0] is UpdateDataDelete) && operations[1] is UpdateDataInsert) {
+            if((operations[0] is UpdateDeleteWhere || operations[0] is UpdateDataDelete) && operations[1] is UpdateDataInsert) {
                 return
             }
         }
@@ -32,7 +32,7 @@ fun assertOperationsAllowed(operations: List<Update>) {
 }
 
 
-fun Route.commitBranch() {
+fun Route.commitModel() {
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
         call.mmsL1(Permission.UPDATE_BRANCH) {
             pathParams {
@@ -44,7 +44,7 @@ fun Route.commitBranch() {
             // parse query
             val sparqlUpdateAst = try {
                 UpdateFactory.create(requestBody)
-            } catch (parse: Exception) {
+            } catch(parse: Exception) {
                 throw UpdateSyntaxException(parse)
             }
 
@@ -57,8 +57,8 @@ fun Route.commitBranch() {
 
             assertOperationsAllowed(operations)
 
-            for (update in operations) {
-                when (update) {
+            for(update in operations) {
+                when(update) {
                     is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
                     is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
                     is UpdateDeleteWhere -> {
@@ -66,11 +66,11 @@ fun Route.commitBranch() {
                         whereString = deleteBgpString
                     }
                     is UpdateModify -> {
-                        if (update.hasDeleteClause()) {
+                        if(update.hasDeleteClause()) {
                             deleteBgpString = asSparqlGroup(update.deleteQuads)
                         }
 
-                        if (update.hasInsertClause()) {
+                        if(update.hasInsertClause()) {
                             insertBgpString = asSparqlGroup(update.insertQuads)
                         }
 
@@ -86,71 +86,70 @@ fun Route.commitBranch() {
             }
 
             patchString = """
-                    delete {
-                        graph ?__mms_model {
-                            $deleteBgpString
-                        }
+                delete {
+                    graph ?__mms_model {
+                        $deleteBgpString
                     }
-                    insert {
-                        graph ?__mms_model {
-                            $insertBgpString
-                        }
+                }
+                insert {
+                    graph ?__mms_model {
+                        $insertBgpString
                     }
-                """
+                }
+            """
             log.info("INSERT: $insertBgpString")
             log.info("DELETE: $deleteBgpString")
             log.info("WHERE: $whereString")
 
 
             val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
-                if (whereString.isNotEmpty()) {
+                if(whereString.isNotEmpty()) {
                     inspect("userWhere") {
                         handler = { "User update condition is not satisfiable" }
 
                         """
-                                graph ?stagingGraph {
-                                    $whereString
-                                }
-                            """
+                            graph ?stagingGraph {
+                                $whereString
+                            }
+                        """
                     }
                 }
 
                 assertPreconditions(this) {
                     """
-                            graph mor-graph:Metadata {
-                                morb: mms:etag ?etag .
-                                
-                                $it
-                            }
-                        """
+                        graph mor-graph:Metadata {
+                            morb: mms:etag ?etag .
+                            
+                            $it
+                        }
+                    """
                 }
             }
 
 
+
             val commitUpdateString = genCommitUpdate(
-                delete = if (deleteBgpString.isNotEmpty()) {
+                delete=if(deleteBgpString.isNotEmpty()) {
                     """
-                            graph ?stagingGraph {
-                                $deleteBgpString
-                            }
-                        """
-                } else "",
-                insert = if (insertBgpString.isNotEmpty()) {
+                        graph ?stagingGraph {
+                            $deleteBgpString
+                        }
                     """
-                            graph ?stagingGraph {
-                                $insertBgpString
-                            }
-                        """
                 } else "",
-                where = "${
-                    if (whereString.isNotEmpty()) {
-                        """
-                            graph ?stagingGraph {
-                                whereString
-                            }
-                        """
-                    } else ""
-                } ${localConditions.requiredPatterns().joinToString("\n")}"
+                insert=if(insertBgpString.isNotEmpty()) {
+                    """
+                        graph ?stagingGraph {
+                            $insertBgpString
+                        }
+                    """
+                } else "",
+                where="${if(whereString.isNotEmpty()) {
+                    """
+                        graph ?stagingGraph {
+                            whereString
+                        }
+                    """
+                } else ""} ${localConditions.requiredPatterns().joinToString("\n")}"
             )
 
 
@@ -176,23 +175,19 @@ fun Route.commitBranch() {
                 construct {
                     txn()
 
-                    raw(
-                        """
-                            morc: ?commit_p ?commit_o .
-                        """
-                    )
+                    raw("""
+                        morc: ?commit_p ?commit_o .
+                    """)
                 }
                 where {
                     group {
                         txn()
 
-                        raw(
-                            """
-                                graph mor-graph:Metadata {
-                                    morc: ?commit_p ?commit_o .
-                                }    
-                            """
-                        )
+                        raw("""
+                            graph mor-graph:Metadata {
+                                morc: ?commit_p ?commit_o .
+                            }    
+                        """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
                     groupDns()
@@ -218,8 +213,8 @@ fun Route.commitBranch() {
             // val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
 
             // something is wrong
-            if (stagingGraph == null) {
-                // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
+            if(stagingGraph == null) {
+            // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
                 throw Exception("failed to fetch graph/model")
             }
 
@@ -239,20 +234,18 @@ fun Route.commitBranch() {
 
 
             // begin copying staging to model
-            executeSparqlUpdate(
-                """
-                    copy ?_stagingGraph to ?_modelGraph;
-                    
-                    insert data {
-                        graph mor-graph:Metadata {
-                            morb: mms:snapshot ?_model .
-                            ?_model a mms:Model ;
-                                mms:graph ?_modelGraph ;
-                                .
-                        }
+            executeSparqlUpdate("""
+                copy ?_stagingGraph to ?_modelGraph;
+                
+                insert data {
+                    graph mor-graph:Metadata {
+                        morb: mms:snapshot ?_model .
+                        ?_model a mms:Model ;
+                            mms:graph ?_modelGraph ;
+                            .
                     }
-                """
-            ) {
+                }
+            """) {
                 iri(
                     "_stagingGraph" to stagingGraph,
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
@@ -263,15 +256,13 @@ fun Route.commitBranch() {
 
             // delete transaction
             run {
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

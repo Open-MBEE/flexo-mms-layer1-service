@@ -28,7 +28,7 @@ fun Route.createOrg() {
     put("/orgs/{orgId}") {
         call.mmsL1(Permission.CREATE_ORG) {
             pathParams {
-                org(legal = true)
+                org(legal=true)
             }
 
             val orgTriples = filterIncomingStatements("mo") {
@@ -44,12 +44,12 @@ fun Route.createOrg() {
             val localConditions = DEFAULT_CONDITIONS.append {
                 assertPreconditions(this) {
                     """
-                            graph m-graph:Cluster {
-                                mo: mms:etag ?etag .
-                                
-                                $it
-                            }
-                        """
+                        graph m-graph:Cluster {
+                            mo: mms:etag ?etag .
+                            
+                            $it
+                        }
+                    """
                 }
             }
 
@@ -77,22 +77,18 @@ fun Route.createOrg() {
                 construct {
                     txn()
 
-                    raw(
-                        """
-                            mo: ?mo_p ?mo_o .
-                        """
-                    )
+                    raw("""
+                        mo: ?mo_p ?mo_o .
+                    """)
                 }
                 where {
                     group {
                         txn()
 
                         graph("m-graph:Cluster") {
-                            raw(
-                                """
-                                    mo: ?mo_p ?mo_o .
-                                """
-                            )
+                            raw("""
+                                mo: ?mo_p ?mo_o .
+                            """)
                         }
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
@@ -115,15 +111,13 @@ fun Route.createOrg() {
             // delete transaction
             run {
                 // submit update
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

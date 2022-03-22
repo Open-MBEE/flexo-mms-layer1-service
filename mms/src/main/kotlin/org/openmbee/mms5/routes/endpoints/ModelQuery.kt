@@ -7,7 +7,7 @@ import org.openmbee.mms5.mmsL1
 import org.openmbee.mms5.queryModel
 
 
-fun Route.queryBranch() {
+fun Route.queryModel() {
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect?}") {
         call.mmsL1(Permission.READ_BRANCH) {
             pathParams {

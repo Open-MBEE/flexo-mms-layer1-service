@@ -31,7 +31,7 @@ fun Route.createBranch() {
             pathParams {
                 org()
                 repo()
-                branch(legal = true)
+                branch(legal=true)
             }
 
             val branchTriples = filterIncomingStatements("morb") {
@@ -61,35 +61,31 @@ fun Route.createBranch() {
                     }
 
                     graph("mor-graph:Metadata") {
-                        raw(
-                            """
-                                $branchTriples
-                                
-                                morb: mms:commit ?commitSource .
-                            """
-                        )
+                        raw("""
+                            $branchTriples
+                            
+                            morb: mms:commit ?commitSource .
+                        """)
                     }
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
 
-                    raw(
-                        """
-                            optional {
-                                graph mor-graph:Metadata {
-                                    ?commitSource ^mms:commit/mms:snapshot ?snapshot .
-                                    ?snapshot mms:graph ?sourceGraph .
-                                }
+                    raw("""
+                        optional {
+                            graph mor-graph:Metadata {
+                                ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                                ?snapshot mms:graph ?sourceGraph .
                             }
-                        """
-                    )
+                        }
+                    """)
                     groupDns()
                 }
             }
 
             executeSparqlUpdate(updateString) {
                 iri(
-                    if (refSource != null) "_refSource" to refSource!!
+                    if(refSource != null) "_refSource" to refSource!!
                     else "commitSource" to commitSource!!,
                 )
             }
@@ -98,27 +94,21 @@ fun Route.createBranch() {
                 construct {
                     txn()
 
-                    raw(
-                        """
-                            morb: ?morb_p ?morb_o .
-                        """
-                    )
+                    raw("""
+                        morb: ?morb_p ?morb_o .
+                    """)
                 }
                 where {
                     group {
-                        raw(
-                            """
-                                graph mor-graph:Metadata {
-                                    morb: ?morb_p ?morb_o .
-                                }
-                            """
-                        )
+                        raw("""
+                            graph mor-graph:Metadata {
+                                morb: ?morb_p ?morb_o .
+                            }
+                        """)
                     }
-                    raw(
-                        """
-                            union ${localConditions.unionInspectPatterns()}    
-                        """
-                    )
+                    raw("""
+                        union ${localConditions.unionInspectPatterns()}    
+                    """)
                     groupDns()
                 }
             }
@@ -137,34 +127,30 @@ fun Route.createBranch() {
             run {
                 // snapshot is available for source commit
                 val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-                if (sourceGraphs.size >= 1) {
+                if(sourceGraphs.size >= 1) {
                     // copy graph
-                    executeSparqlUpdate(
-                        """
-                            copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
-                            
-                            insert {
-                                morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
-                                mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                    mms:graph mor-graph:Staging.${transactionId} ;
-                                    .
-                            }
-                        """
-                    )
+                    executeSparqlUpdate("""
+                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
+                        
+                        insert {
+                            morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
+                            mor-snapshot:Staging.${transactionId} a mms:Staging ;
+                                mms:graph mor-graph:Staging.${transactionId} ;
+                                .
+                        }
+                    """)
 
                     // copy staging => model
-                    executeSparqlUpdate(
-                        """
-                            copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
-                            
-                            insert {
-                                morb: mms:snapshot mor-snapshot:Model.${transactionId} .
-                                mor-snapshot:Model.${transactionId} a mms:Model ;
-                                    mms:graph mor-graph:Model.${transactionId} ;
-                                    .
-                            }
-                        """
-                    )
+                    executeSparqlUpdate("""
+                        copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
+                        
+                        insert {
+                            morb: mms:snapshot mor-snapshot:Model.${transactionId} .
+                            mor-snapshot:Model.${transactionId} a mms:Model ;
+                                mms:graph mor-graph:Model.${transactionId} ;
+                                .
+                        }
+                    """)
                 }
                 // no snapshots available, must build for commit
                 else {
@@ -175,15 +161,13 @@ fun Route.createBranch() {
             // delete transaction
             run {
                 // submit update
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

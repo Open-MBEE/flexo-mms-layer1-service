@@ -7,41 +7,6 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
-private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup) -> String = {
-    """
-    construct  {
-        ?thing ?thing_p ?thing_o .
-        
-        ?m_s ?m_p ?m_o .
-        
-    } where {
-        {
-  
-            graph m-graph:Cluster {
-                mor: a mms:Repo ;
-                    ?mor_p ?mor_o ;
-                    .
-    
-                optional {
-                    ?thing mms:repo mor: ; 
-                        ?thing_p ?thing_o .
-                }
-            }
-    
-            graph m-graph:AccessControl.Policies {
-                ?policy mms:scope mor: ;
-                    ?policy_p ?policy_o .
-            }
-        
-            graph mor-graph:Metadata {
-                ?m_s ?m_p ?m_o .
-            }
-        } union ${it.unionInspectPatterns()}
-    }
-"""
-}
-
-
 private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_REPO, Scope.REPO)
 
@@ -107,15 +72,13 @@ fun Route.createCollection() {
                     }
 
                     graph("moc-graph:Metadata") {
-                        raw(
-                            """
-                                mocc: a mms:Commit ;
-                                    mms:parent rdf:nil ;
-                                    mms:submitted ?_now ;
-                                    mms:message ?_commitMessage ;
-                                    .
-                            """
-                        )
+                        raw("""
+                            mocc: a mms:Commit ;
+                                mms:parent rdf:nil ;
+                                mms:submitted ?_now ;
+                                mms:message ?_commitMessage ;
+                                .
+                        """)
                     }
                 }
                 where {
@@ -130,37 +93,33 @@ fun Route.createCollection() {
                 construct {
                     txn()
 
-                    raw(
-                        """
-                            moc: ?moc_p ?moc_o .
-                            
-                            ?thing ?thing_p ?thing_o .
-                            
-                            ?m_s ?m_p ?m_o .
-                        """
-                    )
+                    raw("""
+                        moc: ?moc_p ?moc_o .
+                        
+                        ?thing ?thing_p ?thing_o .
+                        
+                        ?m_s ?m_p ?m_o .
+                    """)
                 }
                 where {
                     group {
                         txn()
 
-                        raw(
-                            """
-                                graph m-graph:Cluster {
-                                    moc: a mms:Collection ;
-                                        ?moc_p ?moc_o .
-                                           
-                                    optional {
-                                        ?thing mms:collection moc: ; 
-                                            ?thing_p ?thing_o .
-                                    }
+                        raw("""
+                            graph m-graph:Cluster {
+                                moc: a mms:Collection ;
+                                    ?moc_p ?moc_o .
+                                       
+                                optional {
+                                    ?thing mms:collection moc: ; 
+                                        ?thing_p ?thing_o .
                                 }
-                                
-                                graph moc-graph:Metadata {
-                                    ?m_s ?m_p ?m_o .
-                                }
-                            """
-                        )
+                            }
+                            
+                            graph moc-graph:Metadata {
+                                ?m_s ?m_p ?m_o .
+                            }
+                        """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
                     groupDns()
@@ -177,15 +136,13 @@ fun Route.createCollection() {
             // delete transaction graph
             run {
                 // prepare SPARQL DROP
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

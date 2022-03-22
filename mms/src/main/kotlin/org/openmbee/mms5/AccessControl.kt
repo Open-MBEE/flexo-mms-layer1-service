@@ -15,7 +15,7 @@ enum class Scope(val type: String, val id: String) {
     COLLECTION("Collection", "moc"),
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
-    LOCK("Lock", "morcl"),
+    LOCK("Lock", "morl"),
     DIFF("Diff", "mord"),
 
     ACCESS_CONTROL("AccessControl", "ma"),
@@ -91,7 +91,11 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                 }
             } union {
                 ?group a mms:LdapGroup ;
-                    mms:id ?_ldapGroupDn .
+                    mms:id ?__mms_ldapGroupDn .
+                    
+                values ?__mms_ldapGroupDn {
+                    # @sparql://mms5.openmbee.org/replace/?__mms_ldapGroupDn
+                }
             }
         }
         

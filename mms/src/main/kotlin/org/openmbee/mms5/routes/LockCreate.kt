@@ -9,17 +9,17 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
-private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_LOCK, Scope.REPO)
 
     require("lockNotExists") {
-        handler = { mms -> "The provided lock <${mms.prefixes["morcl"]}> already exists." }
+        handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." }
 
         """
             # lock must not yet exist
             graph m-graph:Cluster {
                 filter not exists {
-                    morcl: a mms:Lock .
+                    morl: a mms:Lock .
                 }
             }
         """
@@ -78,17 +78,18 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
 
 
 fun Route.createLock() {
-    put("/orgs/{orgId}/repos/{repoId}/commits/{commitId}/locks/{lockId}") {
+    put("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
         call.mmsL1(Permission.CREATE_LOCK) {
             pathParams {
                 org()
                 repo()
-                commit()
                 lock(legal = true)
             }
 
-            val lockTriples = filterIncomingStatements("morcl") {
+            val lockTriples = filterIncomingStatements("morl") {
                 lockNode().apply {
+                    normalizeRefOrCommit(this)
+
                     sanitizeCrudObject {
                         setProperty(RDF.type, MMS.Lock)
                         setProperty(MMS.id, lockId!!)
@@ -99,7 +100,7 @@ fun Route.createLock() {
                 }
             }
 
-            val localConditions = DEFAULT_CONDITIONS
+            val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
             // locate base snapshot
             val constructSnapshotResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SNAPSHOT)
@@ -118,16 +119,13 @@ fun Route.createLock() {
                 // initialize to target commit in case target snapshot already exists
                 var baseCommit = commitNode()
 
-                val literalStringValueAt = { res: Resource, prop: Property ->
-                    model.listObjectsOfProperty(res, prop).next().asLiteral().string
-                }
+                val literalStringValueAt = { res: Resource, prop: Property -> model.listObjectsOfProperty(res, prop).next().asLiteral().string }
 
                 // traverse up the ancestry chain
                 var parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
-                while (parents.hasNext()) {
+                while(parents.hasNext()) {
                     // save patch/where literal value pair
-                    patchWhereBodies[baseCommit.uri] =
-                        literalStringValueAt(baseCommit, MMS.patch) to literalStringValueAt(baseCommit, MMS.where)
+                    patchWhereBodies[baseCommit.uri] = literalStringValueAt(baseCommit, MMS.patch) to literalStringValueAt(baseCommit, MMS.where)
 
                     // key by commit uri
                     commitSequenceUris.add(0, baseCommit.uri)
@@ -140,21 +138,18 @@ fun Route.createLock() {
                 val superRef = model.listResourcesWithProperty(MMS.commit, baseCommit).next()
 
                 // baseRefUris.addAll((super))
-                model.listObjectsOfProperty(superRef, MMS.snapshot).next().asResource().listProperties(MMS.graph).next()
-                    .let {
-                        baseSnapshotGraphUri = it.`object`.asResource().uri
-                    }
+                model.listObjectsOfProperty(superRef, MMS.snapshot).next().asResource().listProperties(MMS.graph).next().let {
+                    baseSnapshotGraphUri = it.`object`.asResource().uri
+                }
             }
 
             // log.info("base snapshot graph: <$baseSnapshotGraphUri>")
             // log.info(commitSequenceUris.joinToString(", ") { "<$it> :: ${patchWhereBodies[it]!!.first}" })
 
             val updateString = buildSparqlUpdate {
-                raw(
-                    """
-                        copy <$baseSnapshotGraphUri> to ?__mms_model ; 
-                    """
-                )
+                raw("""
+                    copy <$baseSnapshotGraphUri> to ?__mms_model ; 
+                """)
 
                 // rebuilding snapshot does not require checking update conditions...
                 raw(commitSequenceUris.map {
@@ -188,26 +183,22 @@ fun Route.createLock() {
 
             // create construct query to confirm transaction and fetch project details
             val constructString = buildSparqlQuery {
-                construct {
+                construct  {
                     txn()
 
-                    raw(
-                        """
-                            morcl: ?morcl_p ?morcl_o .
-                        """
-                    )
+                    raw("""
+                        morl: ?morl_p ?morl_o .
+                    """)
                 }
                 where {
                     group {
                         txn()
 
-                        raw(
-                            """
-                                graph mor-graph:Metadata {
-                                    morcl: ?morcl_p ?morcl_o .
-                                }
-                            """
-                        )
+                        raw("""
+                            graph mor-graph:Metadata {
+                                morl: ?morl_p ?morl_o .
+                            }
+                        """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
                     groupDns()
@@ -226,15 +217,13 @@ fun Route.createLock() {
             // delete transaction
             run {
                 // submit update
-                val dropResponseText = executeSparqlUpdate(
-                    """
-                        delete where {
-                            graph m-graph:Transactions {
-                                mt: ?p ?o .
-                            }
+                val dropResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt: ?p ?o .
                         }
-                    """
-                )
+                    }
+                """)
 
                 // log response
                 log.info(dropResponseText)

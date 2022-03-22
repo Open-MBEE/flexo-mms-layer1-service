@@ -156,29 +156,19 @@ fun prefixesFor(
                             }
                         }
 
+                        if(null != lockId) {
+                            with("$this/locks/$lockId") {
+                                add(
+                                    "morl" to this,
+                                )
+                            }
+                        }
+
                         if(null != commitId) {
                             with("$this/commits/$commitId") {
                                 add(
                                     "morc" to this,
-                                    "morc-lock" to "$this/locks",
-                                    "morc-data" to "$this/data",
                                 )
-
-                                if(null != lockId) {
-                                    with("$this/locks/$lockId") {
-                                        add(
-                                            "morcl" to this,
-                                        )
-                                    }
-
-                                    if(null !== diffId) {
-                                        with("$this/diffs/${diffId}") {
-                                            add(
-                                                "morcld" to this,
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
@@ -237,6 +227,10 @@ object MMS {
 
     // access control properties
     val implies = ResourceFactory.createProperty(BASE, "implies")
+
+
+    val srcRef = ResourceFactory.createProperty(BASE, "srcRef")
+    val dstRef = ResourceFactory.createProperty(BASE, "dstRef")
 
     val etag = ResourceFactory.createProperty(BASE, "etag")
     val ref = ResourceFactory.createProperty(BASE, "ref")
