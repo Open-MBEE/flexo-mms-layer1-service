@@ -83,9 +83,9 @@ fun Application.configureRouting() {
             queryDiff()
             // deleteDiff()
 
-            createLdapGroup()
-            // updateLdapGroup()
-            // deleteLdapGroup()
+            createExternalGroup()
+            // updateExternalGroup()
+            // deleteExternalGroup()
 
             // createPolicy()
             // updatePolicy()
