@@ -19,18 +19,18 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
             # group must not yet exist
             graph m-graph:AccessControl.Agents {
                 filter not exists {
-                    mag: a mms:LdapGroup .
+                    mag: a mms:ExternalGroup .
                 }
             }
         """
     }
 }
 
-fun Route.createLdapGroup() {
-    put("/groups/ldap/{ldapId}") {
+fun Route.createExternalGroup() {
+    put("/groups/ext/{externalId}") {
         call.mmsL1(Permission.CREATE_GROUP) {
             pathParams {
-                ldap(legal=true)
+                externalGroup(legal=true)
             }
 
             val grouopTriples = filterIncomingStatements("mag") {
