@@ -12,7 +12,7 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
                 {
                     mu: a mms:User .
                 } union {
-                    ?__mms_ldapGroup a mms:LdapGroup .
+                    ?__mms_externalGroup a mms:ExternalGroup .
                 }
             }
         """

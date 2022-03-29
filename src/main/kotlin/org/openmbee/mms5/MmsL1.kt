@@ -43,9 +43,10 @@ private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
-    fun ldap(legal: Boolean=false) {
-        mms.groupId = "ldap/"+(call.parameters["ldapId"]?: throw Http400Exception("Requisite {ldapId} parameter was null"))
-        if(legal) assertLegalId(mms.groupId!!, """[?=._\pL-]{3,256}""".toRegex())
+    fun externalGroup(legal: Boolean=false) {
+        val externalGroupId = call.parameters["externalGroupId"]?: throw Http400Exception("Requisite {externalGroupId} parameter was null")
+        if(legal) assertLegalId(externalGroupId, """[?=._\pL-]{3,256}""".toRegex())
+        mms.groupId = "ext/$externalGroupId"
     }
 
     fun org(legal: Boolean=false) {
@@ -488,12 +489,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
         return UpdateBuilder(this,).apply { setup() }.toString()
-            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_ldapGroupDn\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
+            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_externalGroupId\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
         return QueryBuilder(this).apply { setup() }.toString()
-            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_ldapGroupDn\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
+            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_externalGroupId\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
     }
 
     @OptIn(InternalAPI::class)
