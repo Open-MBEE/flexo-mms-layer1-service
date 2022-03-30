@@ -65,7 +65,6 @@ fun Route.createOrg() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
@@ -92,7 +91,6 @@ fun Route.createOrg() {
                         }
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

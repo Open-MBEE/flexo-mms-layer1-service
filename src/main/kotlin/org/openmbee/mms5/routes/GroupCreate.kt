@@ -19,18 +19,18 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
             # group must not yet exist
             graph m-graph:AccessControl.Agents {
                 filter not exists {
-                    mag: a mms:ExternalGroup .
+                    mag: a mms:Group .
                 }
             }
         """
     }
 }
 
-fun Route.createExternalGroup() {
-    put("/groups/ext/{externalId}") {
+fun Route.createGroup() {
+    put("/groups/{groupId}") {
         call.mmsL1(Permission.CREATE_GROUP) {
             pathParams {
-                externalGroup(legal=true)
+                group(legal=true)
             }
 
             val grouopTriples = filterIncomingStatements("mag") {
@@ -67,7 +67,6 @@ fun Route.createExternalGroup() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
@@ -94,7 +93,6 @@ fun Route.createExternalGroup() {
                         }
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

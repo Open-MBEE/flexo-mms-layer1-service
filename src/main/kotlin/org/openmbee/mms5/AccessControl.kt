@@ -84,17 +84,12 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
         graph m-graph:AccessControl.Agents {
             {
                 mu: a mms:User .
-                
-                optional {
-                    mu: mms:group* ?group .
-                    ?group a mms:Group .
-                }
             } union {
-                ?group a mms:ExternalGroup ;
-                    mms:id ?__mms_externalGroupId .
+                ?group a mms:Group ;
+                    mms:id ?__mms_groupId .
                     
-                values ?__mms_externalGroupId {
-                    # @sparql://mms5.openmbee.org/replace/?__mms_externalGroupId
+                values ?_mms_groupId {
+                    @values groupId                
                 }
             }
         }

@@ -108,7 +108,6 @@ fun Route.createDiff() {
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    
                     """)
-                    groupDns()
                 }
             }
 

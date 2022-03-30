@@ -83,7 +83,7 @@ fun Application.configureRouting() {
             queryDiff()
             // deleteDiff()
 
-            createExternalGroup()
+            createGroup()
             // updateExternalGroup()
             // deleteExternalGroup()
 

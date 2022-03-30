@@ -168,7 +168,6 @@ fun Route.createLock() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
@@ -201,7 +200,6 @@ fun Route.createLock() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

@@ -12,7 +12,12 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
                 {
                     mu: a mms:User .
                 } union {
-                    ?__mms_externalGroup a mms:ExternalGroup .
+                    ?group a mms:Group ;
+                        mms:id ?__mms_groupId .
+                        
+                    values ?group {
+                        # @replace ?__mms_groupId
+                    }
                 }
             }
         """

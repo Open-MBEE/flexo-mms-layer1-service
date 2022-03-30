@@ -43,10 +43,9 @@ private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
-    fun externalGroup(legal: Boolean=false) {
-        val externalGroupId = call.parameters["externalGroupId"]?: throw Http400Exception("Requisite {externalGroupId} parameter was null")
-        if(legal) assertLegalId(externalGroupId, """[?=._\pL-]{3,256}""".toRegex())
-        mms.groupId = "ext/$externalGroupId"
+    fun group(legal: Boolean=false) {
+        mms.groupId = call.parameters["groupId"]?: throw Http400Exception("Requisite {groupId} parameter was null")
+        if(legal) assertLegalId(mms.groupId!!, """[?=._\pL-]{3,256}""".toRegex())
     }
 
     fun org(legal: Boolean=false) {
@@ -218,7 +217,7 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
     }
 
     fun groupNode(): Resource {
-        return resourceFromParamPrefix("mg")
+        return resourceFromParamPrefix("mag")
     }
 
     fun orgNode(): Resource {
@@ -335,14 +334,13 @@ data class EtagQualifier(
 private val STAR_ETAG_QUALIFIER = EtagQualifier(hashSetOf(), true)
 
 
-// @Serializable
-// data class SparqlResultsJson(
-//     val head: JsonObject,
-//     val boolean: Boolean?=null,
-//     val results: ResultsObject
-// ) {
-//
-// }
+private fun replaceValuesDirectives(sparql: String, vararg pairs: Pair<String, List<String>>): String {
+    var replaced = sparql
+    for(pair in pairs) {
+        replaced = replaced.replace("""\n#+\s*@values\s+${pair.first}\s*\n""".toRegex(), pair.second.joinToString(" ") { escapeLiteral(it) })
+    }
+    return replaced
+}
 
 class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permission: Permission) {
     val log = call.application.log
@@ -488,13 +486,15 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
-        return UpdateBuilder(this,).apply { setup() }.toString()
-            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_externalGroupId\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
+        return replaceValuesDirectives(UpdateBuilder(this,).apply { setup() }.toString(),
+            "groupId" to groups,
+        )
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
-        return QueryBuilder(this).apply { setup() }.toString()
-            .replace("""#+\s*@sparql://mms5\.openmbee\.org/replace/\?__mms_externalGroupId\b""".toRegex(), groups.joinToString(" ") { escapeLiteral(it) })
+        return replaceValuesDirectives(QueryBuilder(this).apply { setup() }.toString(),
+            "groupId" to groups,
+        )
     }
 
     @OptIn(InternalAPI::class)
@@ -838,7 +838,6 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         }
         where {
             raw(*conditions.requiredPatterns())
-            groupDns()
 
             raw("""
                 # match old etag
@@ -871,7 +870,6 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
                 """)
             }
             raw("""union ${conditions.unionInspectPatterns()}""")
-            groupDns()
         }
     }
 

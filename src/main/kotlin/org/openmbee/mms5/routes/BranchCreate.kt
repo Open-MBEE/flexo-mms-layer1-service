@@ -79,7 +79,6 @@ fun Route.createBranch() {
                             }
                         }
                     """)
-                    groupDns()
                 }
             }
 
@@ -109,7 +108,6 @@ fun Route.createBranch() {
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    
                     """)
-                    groupDns()
                 }
             }
 

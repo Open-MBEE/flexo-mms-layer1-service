@@ -190,7 +190,6 @@ fun Route.commitModel() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

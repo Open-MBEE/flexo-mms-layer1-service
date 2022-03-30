@@ -48,7 +48,6 @@ fun Route.loadModel() {
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
-                        groupDns()
                     }
                 }
 
@@ -77,7 +76,6 @@ fun Route.loadModel() {
                             union ${localConditions.unionInspectPatterns()}    
                         """
                         )
-                        groupDns()
                     }
                 }
 
@@ -232,7 +230,6 @@ fun Route.loadModel() {
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    
                     """)
-                    groupDns()
                 }
             }
 
