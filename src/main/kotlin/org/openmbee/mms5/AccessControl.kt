@@ -89,7 +89,7 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
                     mms:id ?__mms_groupId .
                     
                 values ?_mms_groupId {
-                    @values groupId                
+                    # @values groupId                
                 }
             }
         }
