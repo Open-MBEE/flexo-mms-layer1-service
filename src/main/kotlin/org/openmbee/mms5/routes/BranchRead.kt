@@ -111,7 +111,7 @@ fun Route.readBranch() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["morb"]!!)
+                checkPreconditions(model, prefixes["morb"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

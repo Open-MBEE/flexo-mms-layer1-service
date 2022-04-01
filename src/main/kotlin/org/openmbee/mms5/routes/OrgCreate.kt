@@ -101,7 +101,7 @@ fun Route.createOrg() {
 
             val model = validateTransaction(constructResponseText, localConditions)
 
-            checkPreconditions(model, prefixes["mo"]!!)
+            checkPreconditions(model, prefixes["mo"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)

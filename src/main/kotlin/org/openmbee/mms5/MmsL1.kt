@@ -635,54 +635,57 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         call.response.header(HttpHeaders.ETag, etag)
     }
 
-    fun checkPreconditions(model: KModel, resourceUri: String) {
-        // create resource node in model
-        val resourceNode = model.createResource(resourceUri)
+    fun checkPreconditions(model: KModel, resourceUri: String?) {
+        // single resource
+        if(resourceUri != null) {
+            // create resource node in model
+            val resourceNode = model.createResource(resourceUri)
 
-        // resource not exists; 404
-        if(!resourceNode.listProperties().hasNext()) {
-            throw NotFoundException()
-        }
-
-        // etags
-        val etags = resourceNode.listProperties(MMS.etag).toList()
-        val etag = if(etags.size == 1) {
-            etags[0].`object`.asLiteral().string
-        } else {
-            etags.map { it.`object`.asLiteral().string }.sorted()
-                .joinToString(":").sha256()
-        }
-
-        // no etags were parsed
-        if(etags.size == 0) {
-            throw ServerBugException("Constructed model did not contain any etag values.")
-        }
-
-        // set etag value in response header
-        call.response.header(HttpHeaders.ETag, etag)
-
-        // `create` operation; exit
-        if(permission.crud == Crud.CREATE) return
-
-
-        // check If-Match preconditions
-        if(ifMatch != null && !ifMatch.isStar) {
-            // precondition failed
-            if(!ifMatch.etags.contains(etag)) {
-                throw PreconditionFailedException("If-Match")
+            // resource not exists; 404
+            if(!resourceNode.listProperties().hasNext()) {
+                throw NotFoundException()
             }
-        }
 
-        // check If-None-Match preconditions
-        if(ifNoneMatch != null) {
-            // precondition is that resource does not exist
-            if(ifNoneMatch.isStar) {
-                // but the resource does exist; 304
-                throw NotModifiedException()
+            // etags
+            val etags = resourceNode.listProperties(MMS.etag).toList()
+            val etag = if(etags.size == 1) {
+                etags[0].`object`.asLiteral().string
+            } else {
+                etags.map { it.`object`.asLiteral().string }.sorted()
+                    .joinToString(":").sha256()
             }
-            // precondition failed
-            else if(ifNoneMatch.etags.contains(etag)) {
-                throw PreconditionFailedException("If-None-Match")
+
+            // no etags were parsed
+            if(etags.size == 0) {
+                throw ServerBugException("Constructed model did not contain any etag values.")
+            }
+
+            // set etag value in response header
+            call.response.header(HttpHeaders.ETag, etag)
+
+            // `create` operation; exit
+            if(permission.crud == Crud.CREATE) return
+
+
+            // check If-Match preconditions
+            if(ifMatch != null && !ifMatch.isStar) {
+                // precondition failed
+                if(!ifMatch.etags.contains(etag)) {
+                    throw PreconditionFailedException("If-Match")
+                }
+            }
+
+            // check If-None-Match preconditions
+            if(ifNoneMatch != null) {
+                // precondition is that resource does not exist
+                if(ifNoneMatch.isStar) {
+                    // but the resource does exist; 304
+                    throw NotModifiedException()
+                }
+                // precondition failed
+                else if(ifNoneMatch.etags.contains(etag)) {
+                    throw PreconditionFailedException("If-None-Match")
+                }
             }
         }
     }

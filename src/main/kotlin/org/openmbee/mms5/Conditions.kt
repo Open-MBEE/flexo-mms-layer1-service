@@ -14,9 +14,9 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
                 } union {
                     ?group a mms:Group ;
                         mms:id ?__mms_groupId .
-                        
-                    values ?group {
-                        # @replace ?__mms_groupId
+
+                    values ?__mms_groupId {
+                        # @values groupId
                     }
                 }
             }

@@ -103,7 +103,7 @@ fun Route.createGroup() {
 
             val model = validateTransaction(constructResponseText, localConditions)
 
-            checkPreconditions(model, prefixes["mag"]!!)
+            checkPreconditions(model, prefixes["mag"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)

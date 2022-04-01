@@ -110,7 +110,7 @@ fun Route.readRepo() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["mor"]!!)
+                checkPreconditions(model, prefixes["mor"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
