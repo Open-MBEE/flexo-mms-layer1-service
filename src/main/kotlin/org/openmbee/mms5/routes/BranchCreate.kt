@@ -99,6 +99,8 @@ fun Route.createBranch() {
                 }
                 where {
                     group {
+                        txn()
+
                         raw("""
                             graph mor-graph:Metadata {
                                 morb: ?morb_p ?morb_o .

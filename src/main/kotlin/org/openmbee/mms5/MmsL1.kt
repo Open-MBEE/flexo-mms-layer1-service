@@ -867,9 +867,9 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
             """)
         }
         where {
-            txn()
-
             group {
+                txn()
+
                 raw("""
                     graph $graph {
                         $objectKey: ?w_p ?w_o .
