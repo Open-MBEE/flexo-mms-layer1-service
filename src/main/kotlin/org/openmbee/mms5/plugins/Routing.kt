@@ -84,8 +84,8 @@ fun Application.configureRouting() {
             // deleteDiff()
 
             createGroup()
-            // updateExternalGroup()
-            // deleteExternalGroup()
+            // updateGroup()
+            // deleteGroup()
 
             // createPolicy()
             // updatePolicy()

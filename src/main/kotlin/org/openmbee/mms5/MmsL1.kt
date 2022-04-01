@@ -45,7 +45,7 @@ private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
         mms.groupId = call.parameters["groupId"]?: throw Http400Exception("Requisite {groupId} parameter was null")
-        if(legal) assertLegalId(mms.groupId!!, """[?=._\pL-]{3,256}""".toRegex())
+        if(legal) assertLegalId(mms.groupId!!, """[/?&=._\pL-]{3,256}""".toRegex())
     }
 
     fun org(legal: Boolean=false) {
@@ -337,7 +337,7 @@ private val STAR_ETAG_QUALIFIER = EtagQualifier(hashSetOf(), true)
 private fun replaceValuesDirectives(sparql: String, vararg pairs: Pair<String, List<String>>): String {
     var replaced = sparql
     for(pair in pairs) {
-        replaced = replaced.replace("""\n#+\s*@values\s+${pair.first}\s*\n""".toRegex(), pair.second.joinToString(" ") { escapeLiteral(it) })
+        replaced = replaced.replace("""\n\s*#+\s*@values\s+${pair.first}\s*\n""".toRegex(), pair.second.joinToString(" ") { escapeLiteral(it) })
     }
     return replaced
 }
