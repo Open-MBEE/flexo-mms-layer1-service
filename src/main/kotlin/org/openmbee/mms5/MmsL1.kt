@@ -486,15 +486,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
-        return replaceValuesDirectives(UpdateBuilder(this,).apply { setup() }.toString(),
-            "groupId" to groups,
-        )
+        return UpdateBuilder(this,).apply { setup() }.toString()
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
-        return replaceValuesDirectives(QueryBuilder(this).apply { setup() }.toString(),
-            "groupId" to groups,
-        )
+        return QueryBuilder(this).apply { setup() }.toString()
     }
 
     @OptIn(InternalAPI::class)
@@ -503,6 +499,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             if(setup != null) setup()
             prefixes(prefixes)
         }.toString()
+
+        sparql = replaceValuesDirectives(sparql,
+            "groupId" to groups,
+        )
 
         call.application.log.info("SPARQL Update:\n$sparql")
 
@@ -521,6 +521,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             if(setup != null) setup()
             prefixes(prefixes)
         }.toString()
+
+        sparql = replaceValuesDirectives(sparql,
+            "groupId" to groups,
+        )
 
         call.application.log.info("SPARQL Query:\n$sparql")
 

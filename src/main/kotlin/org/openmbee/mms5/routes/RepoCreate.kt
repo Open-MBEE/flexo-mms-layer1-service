@@ -118,7 +118,7 @@ fun Route.createRepo() {
                                 .
                     
                             morc-data: a mms:Load ;
-                                mms:patch ""^^mms-datatype:sparql ;
+                                mms:body ""^^mms-datatype:sparql ;
                                 .
 
                             morb: a mms:Branch ;

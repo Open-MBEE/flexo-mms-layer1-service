@@ -168,6 +168,7 @@ fun prefixesFor(
                             with("$this/commits/$commitId") {
                                 add(
                                     "morc" to this,
+                                    "morc-data" to "$this/data/",
                                 )
                             }
                         }
