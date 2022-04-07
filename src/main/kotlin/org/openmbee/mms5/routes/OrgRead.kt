@@ -70,6 +70,8 @@ fun Route.readOrg() {
                 }
 
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                    prefixes(prefixes)
+
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(
@@ -93,6 +95,8 @@ fun Route.readOrg() {
                 }
 
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                    prefixes(prefixes)
+
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(

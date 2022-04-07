@@ -94,8 +94,6 @@ fun prefixesFor(
     diffId: String?=null,
     transactionId: String?=null,
     source: PrefixMapBuilder?= SPARQL_PREFIXES,
-
-    ldapId: String?=null,
 ): PrefixMapBuilder {
     return PrefixMapBuilder(source) {
         if(null != userId) {

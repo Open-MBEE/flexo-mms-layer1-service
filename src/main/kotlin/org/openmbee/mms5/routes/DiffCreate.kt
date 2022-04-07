@@ -91,6 +91,8 @@ fun Route.createDiff() {
             """)
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "srcRef" to srcRef,
                     "dstRef" to dstRef,
@@ -164,9 +166,7 @@ fun Route.createDiff() {
                             mt: ?p ?o .
                         }
                     }
-                """) {
-                    prefixes(prefixes)
-                }
+                """)
 
                 // log response
                 log.info(dropResponseText)

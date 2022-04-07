@@ -154,6 +154,8 @@ fun Route.commitModel() {
 
 
             executeSparqlUpdate(commitUpdateString) {
+                prefixes(prefixes)
+
                 iri(
                     "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
                 )
@@ -245,6 +247,8 @@ fun Route.commitModel() {
                     }
                 }
             """) {
+                prefixes(prefixes)
+
                 iri(
                     "_stagingGraph" to stagingGraph,
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",

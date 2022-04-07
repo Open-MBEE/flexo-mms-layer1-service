@@ -174,6 +174,8 @@ fun Route.createLock() {
             log.info(updateString)
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
                 )

@@ -149,6 +149,8 @@ fun Route.createRepo() {
             }
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",

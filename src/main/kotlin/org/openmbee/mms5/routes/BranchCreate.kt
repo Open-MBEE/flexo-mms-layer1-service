@@ -83,6 +83,8 @@ fun Route.createBranch() {
             }
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     if(refSource != null) "_refSource" to refSource!!
                     else "commitSource" to commitSource!!,

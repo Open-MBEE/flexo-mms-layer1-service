@@ -519,7 +519,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (Parameterizer.() -> Unit)?=null): String {
         var sparql = Parameterizer(pattern).apply {
             if(setup != null) setup()
-            prefixes(prefixes)
+            else prefixes(prefixes)
         }.toString()
 
         sparql = replaceValuesDirectives(sparql,
@@ -700,6 +700,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 }
             }
         """) {
+            prefixes(prefixes)
+
             iri(
                 "_graph" to graphUri,
             )

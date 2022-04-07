@@ -12,8 +12,10 @@ private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
 fun Route.loadModel() {
-    put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
+    post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         call.mmsL1(Permission.UPDATE_BRANCH) {
+            val loadUrl = call.request.queryParameters["url"]?: throw Http400Exception("Requisite {url} query parameter is missing")
+
             pathParams {
                 org()
                 repo()
@@ -26,35 +28,28 @@ fun Route.loadModel() {
 
             val localConditions = DEFAULT_UPDATE_CONDITIONS
 
-            val model = KModel(prefixes).apply {
-                parseTurtle(requestBody,this)
-                clearNsPrefixMap()
-            }
-
-
-            // load triples from request body into new graph
+            // prepare txn for loading triples via SPARQL LOAD into new graph
             run {
                 val loadUpdateString = buildSparqlUpdate {
                     insert {
                         txn()
-
-                        // embed the model in a triples block within the update
-                        raw("""
-                            # user model
-                            graph ?_loadGraph {
-                                ${model.stringify()}
-                            }
-                        """)
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
                     }
+
+                    raw("""
+                        ; load ?_loadUrl into graph ?_loadGraph
+                    """)
                 }
 
                 log.info(loadUpdateString)
 
                 executeSparqlUpdate(loadUpdateString) {
+                    prefixes(prefixes)
+
                     iri(
+                        "_loadUrl" to loadUrl,
                         "_loadGraph" to loadGraphUri,
                     )
                 }
@@ -100,6 +95,8 @@ fun Route.loadModel() {
                 """)
 
                 executeSparqlUpdate(updateString) {
+                    prefixes(prefixes)
+
                     iri(
                         // use current branch as ref source
                         "srcRef" to prefixes["morb"]!!,
@@ -288,6 +285,8 @@ fun Route.loadModel() {
 
 
                 executeSparqlUpdate(commitUpdateString) {
+                    prefixes(prefixes)
+
                     iri(
                         "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
                     )

@@ -63,6 +63,8 @@ fun Route.readRepo() {
                 }
 
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO) {
+                    prefixes(prefixes)
+
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
@@ -91,6 +93,8 @@ fun Route.readRepo() {
                 }
 
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
+                    prefixes(prefixes)
+
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
