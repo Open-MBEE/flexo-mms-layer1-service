@@ -173,6 +173,14 @@ open class WhereBuilder(
         """)
     }
 
+    fun etag(subject: String): WhereBuilder {
+        return raw("""
+            graph mor-graph:Metadata {
+                $subject mms:etag ?etag .
+            }
+        """)
+    }
+
     fun values(setup: ValuesBuilder.() -> Unit): ValuesBuilder {
         return ValuesBuilder(mms, indentLevel).apply { setup }
     }
@@ -242,6 +250,12 @@ class ConstructBuilder(
             ?policy ?policy_p ?policy_o .
             
             <mms://inspect> <mms://pass> ?inspect .
+        """)
+    }
+
+    fun etag(subject: String): ConstructBuilder {
+        return raw("""
+            $subject mms:etag ?etag .
         """)
     }
 }
