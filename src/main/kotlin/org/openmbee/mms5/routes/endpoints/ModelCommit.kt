@@ -143,13 +143,13 @@ fun Route.commitModel() {
                         }
                     """
                 } else "",
-                where="${if(whereString.isNotEmpty()) {
+                where=(if(whereString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             whereString
                         }
                     """
-                } else ""} ${localConditions.requiredPatterns().joinToString("\n")}"
+                } else "") + localConditions.requiredPatterns().joinToString("\n")
             )
 
 
