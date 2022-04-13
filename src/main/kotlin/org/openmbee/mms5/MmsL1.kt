@@ -506,7 +506,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         call.application.log.info("SPARQL Update:\n$sparql")
 
-        return handleSparqlResponse(client.post(STORE_UPDATE_URI) {
+        return handleSparqlResponse(client.post(call.application.quadStoreUpdateUrl) {
             headers {
                 append(HttpHeaders.Accept, ContentType.Application.Json)
             }
@@ -528,7 +528,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         call.application.log.info("SPARQL Query:\n$sparql")
 
-        return handleSparqlResponse(client.post(STORE_QUERY_URI) {
+        return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }
@@ -1067,8 +1067,8 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
 }
 
 
-suspend fun ApplicationCall.mmsL1(permission: Permission, setup: suspend MmsL1Context.()->Unit): MmsL1Context {
-    val requestBody = receiveText()
+suspend fun ApplicationCall.mmsL1(permission: Permission, postponeBody: Boolean?=false, setup: suspend MmsL1Context.()->Unit): MmsL1Context {
+    val requestBody = if(postponeBody == true) "" else receiveText()
 
     return MmsL1Context(this, requestBody, permission).apply{ setup() }
 }

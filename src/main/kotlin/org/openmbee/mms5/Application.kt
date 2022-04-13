@@ -14,4 +14,17 @@ fun Application.module(testing: Boolean=false) {
 }
 
 
+val Application.quadStoreQueryUrl: String
+    get() = environment.config.property("quad-store.query-url").getString()
+
+val Application.quadStoreUpdateUrl: String
+    get() = environment.config.property("quad-store.update-url").getString()
+
+val Application.quadStoreGraphStoreProtocolUrl: String?
+    get() = environment.config.propertyOrNull("quad-store.graph-store-protocol-url")?.getString()?.ifEmpty { null }
+
+val Application.loadServiceUrl: String?
+    get() = environment.config.propertyOrNull("mms.load-service.url")?.getString()?.ifEmpty { null }
+
+
 class AuthorizationRequiredException(message: String): Exception(message) {}

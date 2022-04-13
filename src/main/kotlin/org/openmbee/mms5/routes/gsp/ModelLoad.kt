@@ -1,22 +1,28 @@
 package org.openmbee.mms5.routes.endpoints
 
 import io.ktor.application.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import io.ktor.utils.io.*
+import org.apache.http.client.methods.HttpHead
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
+import org.openmbee.mms5.plugins.client
 
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
 fun Route.loadModel() {
+
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
-        call.mmsL1(Permission.UPDATE_BRANCH) {
-            // check query parameter(s)
-            val loadUrl = call.request.queryParameters["url"]?: throw Http400Exception("Requisite {url} query parameter is missing")
+        call.mmsL1(Permission.UPDATE_BRANCH, true) {
 
             // check path parameters
             pathParams {
@@ -34,37 +40,20 @@ fun Route.loadModel() {
             // prep conditions
             val localConditions = DEFAULT_UPDATE_CONDITIONS
 
-            // prepare txn for loading triples via SPARQL LOAD into new graph
+            // before loading the model, create new transaction and verify conditions
             run {
-                val loadUpdateString = buildSparqlUpdate {
+                val txnUpdateString = buildSparqlUpdate {
                     insert {
                         txn()
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
                     }
-
-                    raw("""
-                        ; load ?_loadUrl into graph ?_loadGraph
-                    """)
                 }
 
-                log.info(loadUpdateString)
+                executeSparqlUpdate(txnUpdateString)
 
-                executeSparqlUpdate(loadUpdateString) {
-                    prefixes(prefixes)
-
-                    iri(
-                        "_loadUrl" to loadUrl,
-                        "_loadGraph" to loadGraphUri,
-                    )
-                }
-            }
-
-
-            // check if load was successful
-            run {
-                val loadConstructString = buildSparqlQuery {
+                val txnConstructString = buildSparqlQuery {
                     construct {
                         txn()
                     }
@@ -72,17 +61,139 @@ fun Route.loadModel() {
                         group {
                             txn()
                         }
-                        raw(
-                            """
+                        raw("""
                             union ${localConditions.unionInspectPatterns()}    
-                        """
-                        )
+                        """)
                     }
                 }
 
-                val loadConstructResponseText = executeSparqlConstructOrDescribe(loadConstructString)
+                val txnConstructResponseText = executeSparqlConstructOrDescribe(txnConstructString)
 
-                validateTransaction(loadConstructResponseText, localConditions)
+                validateTransaction(txnConstructResponseText, localConditions)
+            }
+
+            // now load triples into designated load graph
+            run {
+                // allow client to manually pass in URL to remote file
+                var loadUrl: String? = call.request.queryParameters["url"]
+
+                // client did not explicitly provide a URL and the load service is configured
+                if(loadUrl == null && application.loadServiceUrl != null) {
+                    // submit a POST request to the load service endpoint
+                    val response: HttpResponse = client.post(application.loadServiceUrl!!) {
+                        // TODO: verify load service request is correct and complete
+
+                        // stream request body from client to load service
+                        body = object: OutgoingContent.WriteChannelContent() {
+                            override suspend fun writeTo(channel: ByteWriteChannel) {
+                                call.request.receiveChannel().copyTo(channel)
+                            }
+                        }
+                    }
+
+                    // read response body
+                    val responseText = response.readText()
+
+                    // non-200
+                    if(!response.status.isSuccess()) {
+                        throw Non200Response(responseText, response.status)
+                    }
+
+                    // set load URL
+                    loadUrl = responseText
+                }
+
+                // a load URL has been set
+                if(loadUrl != null) {
+                    // use SPARQL LOAD
+                    val loadUpdateString = buildSparqlUpdate {
+                        raw("""
+                            load ?_loadUrl into graph ?_loadGraph
+                        """)
+                    }
+
+                    log.info(loadUpdateString)
+
+                    executeSparqlUpdate(loadUpdateString) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_loadUrl" to loadUrl,
+                            "_loadGraph" to loadGraphUri,
+                        )
+                    }
+
+                    // exit load block
+                    return@run
+                }
+
+                // GSP is configured; use it
+                if(application.quadStoreGraphStoreProtocolUrl != null) {
+                    // deduce content type
+                    val modelContentType = requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
+
+                    // not allowed
+                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType)
+
+                    // submit a PUT request to the quad-store's GSP endpoint
+                    val response: HttpResponse = client.put(application.quadStoreGraphStoreProtocolUrl!!) {
+                        // add the graph query parameter per the GSP specification
+                        parameter("graph", loadGraphUri)
+
+                        // forward the header for the content type, or default to turtle
+                        contentType(ContentType.parse(modelContentType))
+
+                        // stream request body from client to GSP endpoint
+                        body = object : OutgoingContent.WriteChannelContent() {
+                            override suspend fun writeTo(channel: ByteWriteChannel) {
+                                call.request.receiveChannel().copyTo(channel)
+                            }
+                        }
+                    }
+
+                    // read response body
+                    val responseText = response.readText()
+
+                    // non-200
+                    if(!response.status.isSuccess())  {
+                        throw Non200Response(responseText, response.status)
+                    }
+                }
+                // fallback to SPARQL UPDATE string
+                else {
+                    // fully load request body
+                    val body = call.receiveText()
+
+                    // parse it into a model
+                    val model = KModel(prefixes).apply {
+                        parseTurtle(body,this)
+                        clearNsPrefixMap()
+                    }
+
+                    // serialize model into turtle
+                    val loadUpdateString = buildSparqlUpdate {
+                        insert {
+                            // embed the model in a triples block within the update
+                            raw("""
+                                # user model
+                                graph ?_loadGraph {
+                                    ${model.stringify()}
+                                }
+                            """)
+                        }
+                    }
+
+                    // log.info(loadUpdateString)
+
+                    // execute
+                    executeSparqlUpdate(loadUpdateString) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_loadGraph" to loadGraphUri,
+                        )
+                    }
+                }
             }
 
 
