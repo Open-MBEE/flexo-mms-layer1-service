@@ -1,0 +1,30 @@
+{
+  "include": ["src/**/*"],
+  "exclude": ["node_modules/*", "__sapper__/*", "public/*"],
+
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "paths": {
+      "#/*": ["./*"],
+    },
+
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    // "module": "es2020",
+    "moduleResolution": "node",
+
+    // "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strictNullChecks": true,
+
+    "types": ["node"]
+  }
+}
