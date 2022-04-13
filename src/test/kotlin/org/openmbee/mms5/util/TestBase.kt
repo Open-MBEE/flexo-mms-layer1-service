@@ -9,7 +9,6 @@ import com.github.stefanbirkner.systemlambda.SystemLambda.*;
 import com.typesafe.config.ConfigFactory
 import io.ktor.config.*
 import io.ktor.server.engine.*
-import org.apache.jena.query.QueryExecution
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.rdf.model.ModelFactory
@@ -18,18 +17,21 @@ import org.apache.jena.riot.RDFDataMgr
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
 import java.io.ByteArrayInputStream
+import java.io.InputStreamReader
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse.BodyHandlers
 import java.nio.charset.StandardCharsets
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import kotlin.test.assertEquals
 
 /**
  * Base class for JUnit tests with helpers for setting up a test environment.
  *
- * - Sets up application using src/test/resources/test-application.conf configuration
+ * - Sets up application using src/main/resources/application.conf.example configuration
  * - Runs an embedded Fuseki server using an in-memory data store (once for the whole class)
  *    - If MMS5_STORE_QUERY and MMS5_STORE_UPDATE environment variables are set, the tests will use those endpoints and
  *      not run the embedded Fuseki server. Before each test all Example data will still be reset, but after
@@ -48,6 +50,11 @@ abstract class TestBase {
      * Determines whether to run the Fuseki backend by lack of MMS5_STORE_QUERY and MMS5_STORE_UPDATE environment variables.
      */
     private val runSparqlBackend = System.getenv("MMS5_STORE_QUERY") == null && System.getenv("MMS5_STORE_UPDATE") == null
+
+    /**
+     * Contents of init.trig used to reset database
+     */
+    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("service", "data", "clean", "init.trig"));
 
     /**
      * Standard SPARQL prefixes
@@ -84,7 +91,9 @@ abstract class TestBase {
 
     private fun testEnv(): ApplicationEngineEnvironment {
         return createTestEnvironment {
-            config = HoconApplicationConfig(ConfigFactory.load("test-application.conf"))
+            InputStreamReader(javaClass.classLoader.getResourceAsStream("application.conf.example")).use {
+                config = HoconApplicationConfig(ConfigFactory.parseReader(it).resolve())
+            }
         }
     }
 
@@ -221,7 +230,7 @@ abstract class TestBase {
         val loadRequest = HttpRequest.newBuilder()
             .uri(URI(uploadUrl))
             .header("Content-Type", "application/trig")
-            .POST(HttpRequest.BodyPublishers.ofInputStream { javaClass.classLoader.getResourceAsStream("init.trig") })
+            .POST(HttpRequest.BodyPublishers.ofByteArray(initTrig))
             .build()
         val loadResponse = HttpClient.newHttpClient().send(loadRequest, BodyHandlers.ofString())
         assertEquals(200, loadResponse.statusCode(), "Load init.trig successful")
