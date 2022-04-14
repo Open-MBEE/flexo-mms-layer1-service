@@ -9,7 +9,6 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.utils.io.*
-import org.apache.http.client.methods.HttpHead
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
@@ -82,7 +81,12 @@ fun Route.loadModel() {
                     // submit a POST request to the load service endpoint
                     val response: HttpResponse = client.post(application.loadServiceUrl!!) {
                         // TODO: verify load service request is correct and complete
-
+                        // Pass received authorization to internal service
+                        headers {
+                            call.request.headers[HttpHeaders.Authorization]?.let { auth ->
+                                append(HttpHeaders.Authorization, auth)
+                            }
+                        }
                         // stream request body from client to load service
                         body = object: OutgoingContent.WriteChannelContent() {
                             override suspend fun writeTo(channel: ByteWriteChannel) {
