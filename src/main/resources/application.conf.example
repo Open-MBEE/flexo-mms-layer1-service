@@ -16,6 +16,8 @@ mms {
         url = ${?MMS5_QUAD_STORE_URL}
         query-url = "https://quad-store-domain-ro/sparql"
         query-url = ${?MMS5_QUERY_URL}
+        update-url = "https://quad-store-domain/sparql"
+        update-url = ${?MMS5_UPDATE_URL}
         graph-store-protocol-url = "https://quad-store-domain/sparql/gsp"
         graph-store-protocol-url = ${?MMS5_GRAPH_STORE_PROTOCOL_URL}
     }
