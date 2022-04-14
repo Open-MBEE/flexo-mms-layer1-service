@@ -56,6 +56,8 @@ fun Application.configureRouting() {
             updateRepo()
             // deleteRepo()
 
+            queryRepo()
+
             createBranch()
             readBranch()
             updateBranch()

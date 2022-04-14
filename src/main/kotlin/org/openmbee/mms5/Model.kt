@@ -120,10 +120,15 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
     }
 }
 
-fun MmsL1Context.sanitizeUserQuery(inputQueryString: String): Pair<GraphNodeRewriter, Query> {
+fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=null): Pair<GraphNodeRewriter, Query> {
     // parse query
     val inputQuery = try {
-        QueryFactory.create(inputQueryString)
+        if(baseIri != null) {
+            QueryFactory.create(inputQueryString, baseIri)
+        }
+        else {
+            QueryFactory.create(inputQueryString)
+        }
     } catch(parse: Exception) {
         throw QuerySyntaxException(parse)
     }
@@ -205,7 +210,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         // create new group
         val group = ElementGroup()
 
-        // create metadata graph URI node
+        // create model graph URI node
         val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
 
         // add all prepend root elements
@@ -250,7 +255,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
 
     val outputQueryString = outputQuery.serialize()
 
-    if(inspectOnly == true) {
+    if(inspectOnly) {
         call.respondText(outputQueryString)
         return
     }

@@ -37,7 +37,18 @@ fun Route.loadModel() {
             val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
             // prep conditions
-            val localConditions = DEFAULT_UPDATE_CONDITIONS
+            val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
+                // assert HTTP preconditions
+                assertPreconditions(this) {
+                    """
+                        graph mor-graph:Metadata {
+                            morb: mms:etag ?etag .
+                            
+                            $it
+                        }
+                    """
+                }
+            }
 
             // before loading the model, create new transaction and verify conditions
             run {
