@@ -90,7 +90,7 @@ fun Route.loadModel() {
                 // client did not explicitly provide a URL and the load service is configured
                 if(loadUrl == null && application.loadServiceUrl != null) {
                     // submit a POST request to the load service endpoint
-                    val response: HttpResponse = client.post(application.loadServiceUrl!!) {
+                    val response: HttpResponse = client.post(application.loadServiceUrl!! + "/" + diffId) {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
