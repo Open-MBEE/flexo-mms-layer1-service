@@ -1,10 +1,3 @@
-quad-store {
-    query-url = "http://localhost:8081/bigdata/namespace/kb/sparql"
-    query-url = "${?MMS5_STORE_QUERY}"
-    update-url = "http://localhost:8081/bigdata/namespace/kb/sparql"
-    update-url = "${?MMS5_STORE_UPDATE}"
-}
-
 mms {
     load-service {
         url = "https://mms-domain/loader"
