@@ -311,11 +311,11 @@ fun Route.loadModel() {
                 // locate branch node
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
 
-                // get etag value
-                val etagValue = branchNode.getProperty(MMS.etag).`object`.asLiteral().string
+                // get its etag value
+                val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`.asLiteral().string
 
                 // set etag header
-                call.response.header(HttpHeaders.ETag, etagValue)
+                call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
 
                 // respond
                 call.respondText("")

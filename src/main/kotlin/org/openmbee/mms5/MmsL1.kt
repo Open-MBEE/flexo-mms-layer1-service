@@ -914,20 +914,22 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
 }
 
 fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
+    var deleteWhere = """
+        mor-graph:Metadata {
+            # branch no longer points to model snapshot
+            morb: mms:snapshot ?model ;
+                # branch no longer points to previous commit
+                mms:commit ?baseCommit ;
+                # remove branch's former etag value
+                mms:etag ?branchFormerEtagValue ;
+                . 
+        }
+    """
+
     // generate sparql update
     return buildSparqlUpdate {
         delete {
-            if(delete.isNotEmpty()) raw(delete)
-
-            graph("mor-graph:Metadata") {
-                raw("""
-                    # branch no longer points to model snapshot
-                    morb: mms:snapshot ?model .
-            
-                    # branch no longer points to previous commit
-                    morb: mms:commit ?baseCommit .
-                """)
-            }
+            raw("$deleteWhere $delete")
         }
         insert {
             txn(
@@ -956,8 +958,9 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
                         mms:where ?_whereString ;
                         .
             
-                    # update branch pointer
-                    morb: mms:commit morc: .
+                    # update branch pointer and etag
+                    morb: mms:commit morc: ;
+                        mms:etag ?_txnId .
             
                     # convert previous snapshot to isolated lock
                     ?_interim a mms:InterimLock ;
@@ -969,10 +972,8 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
                 """)
             }
         }
-        if(where.isNotEmpty()) {
-            where {
-                raw(where)
-            }
+        where {
+            raw("$deleteWhere $where")
         }
     }
 }
