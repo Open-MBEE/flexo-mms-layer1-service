@@ -123,6 +123,7 @@ fun Route.createRepo() {
 
                             morb: a mms:Branch ;
                                 mms:id ?_branchId ;
+                                mms:etag ?_branchEtag ;
                                 mms:commit morc: ;
                                 mms:snapshot ?_model, ?_staging ;
                                 .
@@ -156,6 +157,7 @@ fun Route.createRepo() {
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                     "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                     "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                    "_branchEtag" to "${transactionId}0",
                 )
             }
 
