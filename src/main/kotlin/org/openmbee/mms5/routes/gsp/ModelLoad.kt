@@ -13,10 +13,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.apache.jena.rdf.model.LiteralRequiredException
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
 import org.openmbee.mms5.plugins.client
+import javax.lang.model.type.TypeVariable
 
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
@@ -287,6 +289,7 @@ fun Route.loadModel() {
             val changeCount = if(diffInsGraph == null && diffDelGraph == null) {
                 0uL
             } else {
+                log.info("Changes detected.")
                 // count the number of changes in the diff
                 val selectDiffResponseText = executeSparqlSelectOrAsk("""
                     select (count(*) as ?changeCount) {
@@ -307,6 +310,8 @@ fun Route.loadModel() {
                     )
                 }
 
+                log.info("selectDiffResponseText: $selectDiffResponseText")
+
                 // parse the JSON response
                 val bindings = Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
 
@@ -325,7 +330,11 @@ fun Route.loadModel() {
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
 
                 // get its etag value
-                val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`.asLiteral().string
+                val branchFormerEtagValue = try {
+                    branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+                } catch (err: LiteralRequiredException) {
+                    "None"
+                }
 
                 // set etag header
                 call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
