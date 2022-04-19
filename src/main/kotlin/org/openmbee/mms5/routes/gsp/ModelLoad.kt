@@ -377,31 +377,32 @@ fun Route.loadModel() {
 
                 // response
                 call.respondText(diffConstructResponseText)
+
+                // start copying staging to new model
+                executeSparqlUpdate("""
+                    copy ?_stagingGraph to ?_modelGraph;
+                    
+                    insert data {
+                        graph mor-graph:Metadata {
+                            morb: mms:snapshot ?_model .
+                            ?_model a mms:Model ;
+                                mms:graph ?_modelGraph ;
+                                .
+                        }
+                    }
+                """) {
+                    prefixes(prefixes)
+
+                    iri(
+                        "_stagingGraph" to loadGraphUri,
+                        "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                        "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                    )
+                }
+
             }
 
             // now that response has been sent to client, perform "clean up" work on quad-store
-
-            // start copying staging to new model
-            executeSparqlUpdate("""
-                copy ?_stagingGraph to ?_modelGraph;
-                
-                insert data {
-                    graph mor-graph:Metadata {
-                        morb: mms:snapshot ?_model .
-                        ?_model a mms:Model ;
-                            mms:graph ?_modelGraph ;
-                            .
-                    }
-                }
-            """) {
-                prefixes(prefixes)
-
-                iri(
-                    "_stagingGraph" to loadGraphUri,
-                    "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
-                    "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
-                )
-            }
 
             // delete transaction
             executeSparqlUpdate("""
