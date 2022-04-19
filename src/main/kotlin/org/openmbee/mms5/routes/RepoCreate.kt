@@ -157,6 +157,9 @@ fun Route.createRepo() {
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                     "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                     "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                )
+
+                literal(
                     "_branchEtag" to "${transactionId}0",
                 )
             }
