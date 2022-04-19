@@ -922,9 +922,10 @@ fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="",
                     morb:
                         # replace branch pointer and etag
                         mms:commit ?baseCommit ;
-                        morb: mms:etag ?branchEtag .
+                        mms:etag ?branchEtag ;
                         # branch will require a new model snapshot; interim lock will now point to previous one
                         mms:snapshot ?model ;
+                        .
                 }
 
                 $delete

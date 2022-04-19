@@ -288,8 +288,7 @@ fun Route.loadModel() {
                 0uL
             } else {
                 // count the number of changes in the diff
-                val selectDiffResponseText = executeSparqlSelectOrAsk(
-                    """
+                val selectDiffResponseText = executeSparqlSelectOrAsk("""
                     select (count(*) as ?changeCount) {
                         graph ?_insGraph {
                             ?ins_s ?ins_p ?ins_o .
@@ -299,8 +298,7 @@ fun Route.loadModel() {
                             ?del_s ?del_p ?del_o .
                         }
                     }
-                """
-                ) {
+                """) {
                     prefixes(prefixes)
 
                     iri(
