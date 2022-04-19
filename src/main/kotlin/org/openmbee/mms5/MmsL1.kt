@@ -913,23 +913,22 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
     }
 }
 
-fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
-    var deleteWhere = """
-        mor-graph:Metadata {
-            # branch no longer points to model snapshot
-            morb: mms:snapshot ?model ;
-                # branch no longer points to previous commit
-                mms:commit ?baseCommit ;
-                # remove branch's former etag value
-                mms:etag ?branchFormerEtagValue ;
-                . 
-        }
-    """
-
+fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
-            raw("$deleteWhere $delete")
+            raw("""
+                mor-graph:Metadata {
+                    morb:
+                        # replace branch pointer and etag
+                        mms:commit ?baseCommit ;
+                        morb: mms:etag ?branchEtag .
+                        # branch will require a new model snapshot; interim lock will now point to previous one
+                        mms:snapshot ?model ;
+                }
+
+                $delete
+            """)
         }
         insert {
             txn(
@@ -973,7 +972,12 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
             }
         }
         where {
-            raw("$deleteWhere $where")
+            // `conditions` must contain the patterns that bind ?baseCommit, ?branchEtag, ?model, ?stagingGraph, and so on
+            raw("""
+                ${conditions.requiredPatterns().joinToString("\n")}
+
+                $where
+            """)
         }
     }
 }
@@ -996,7 +1000,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                     ?ins_s ?ins_p ?ins_o .    
                 }
                 
-                graph ?diffDelGraph {
+                graph ?delGraph {
                     ?del_s ?del_p ?del_o .
                 }
                 

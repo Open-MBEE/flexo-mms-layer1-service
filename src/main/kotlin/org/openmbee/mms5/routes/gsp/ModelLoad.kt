@@ -9,6 +9,10 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.utils.io.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
@@ -252,11 +256,9 @@ fun Route.loadModel() {
                             txn()
                             etag("morb:")
                         }
-                        raw(
-                            """
+                        raw("""
                             union ${localConditions.unionInspectPatterns()}    
-                        """
-                        )
+                        """)
                     }
                 }
 
@@ -278,36 +280,49 @@ fun Route.loadModel() {
             val transactionNode = diffConstructModel.createResource(prefixes["mt"])
 
             // get ins/del graphs
-            val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.diffInsGraph)
-            val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.diffDelGraph)
+            val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
+            val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
 
-            // download & stringify graph of deleted triples
-            val delTriples = if(diffDelGraph != null) {
-                val delModel = downloadModel(diffDelGraph)
-                delModel.clearNsPrefixMap()
-                delModel.stringify()
-            } else ""
-
-            // download & stringify graph of inserted triples
-            val insTriples = if(diffInsGraph != null) {
-                val insModel = downloadModel(diffInsGraph)
-                insModel.clearNsPrefixMap()
-                insModel.stringify()
-            } else ""
-
-
-            // delete transaction from triplestore
-            executeSparqlUpdate("""
-                delete where {
-                    graph m-graph:Transactions {
-                        mt: ?p ?o .
+            // parse the result value
+            val changeCount = if(diffInsGraph == null && diffDelGraph == null) {
+                0uL
+            } else {
+                // count the number of changes in the diff
+                val selectDiffResponseText = executeSparqlSelectOrAsk(
+                    """
+                    select (count(*) as ?changeCount) {
+                        graph ?_insGraph {
+                            ?ins_s ?ins_p ?ins_o .
+                        }
+                        
+                        graph ?_delGraph {
+                            ?del_s ?del_p ?del_o .
+                        }
                     }
-                }
-            """)
+                """
+                ) {
+                    prefixes(prefixes)
 
+                    iri(
+                        "_insGraph" to (diffInsGraph?: "mms:voidInsGraph"),
+                        "_delGraph" to (diffDelGraph?: "mms:voidDelGraph"),
+                    )
+                }
+
+                // parse the JSON response
+                val bindings = Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
+
+                // query error
+                if(0 == bindings.size) {
+                    throw ServerBugException("Query to count the number of triples in the diff graphs failed to return any results")
+                }
+
+                // bind result to outer assignment
+                bindings[0].jsonObject["changeCount"]!!.jsonPrimitive.content.toULong()
+            }
 
             // empty delta (no changes)
-            if(delTriples.isBlank() && insTriples.isBlank()) {
+            if(changeCount == 0uL) {
                 // locate branch node
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
 
@@ -319,55 +334,39 @@ fun Route.loadModel() {
 
                 // respond
                 call.respondText("")
-
-                // done
-                return@mmsL1
             }
+            else {
+                // TODO add condition to update that the selected staging has not changed since diff creation using etag value
 
-
-            // TODO add condition to update that the selected staging has not changed since diff creation using etag value
-
-            // perform update commit
-            run {
-                val commitUpdateString = genCommitUpdate(
+                // replace current staging graph with the already loaded model in load graph
+                val commitUpdateString = genCommitUpdate(localConditions,
                     delete = """
-                        graph ?stagingGraph {
-                            $delTriples
+                        graph mor-graph:Metadata {
+                            ?staging mms:graph ?stagingGraph .
                         }
                     """,
                     insert = """
-                        graph ?stagingGraph {
-                            $insTriples
+                        graph mor-graph:Metadata {
+                            ?staging mms:graph ?_loadGraph . 
                         }
-                    """,
-                    // include conditions in order to match ?stagingGraph
-                    where = localConditions.requiredPatterns().joinToString("\n"),
+                    """
                 )
 
                 log.info(commitUpdateString)
-
 
                 executeSparqlUpdate(commitUpdateString) {
                     prefixes(prefixes)
 
                     iri(
                         "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
+                        "_insGraph" to (diffInsGraph?: "mms:voidInsGraph"),
+                        "_delGraph" to (diffDelGraph?: "mms:voidDelGraph"),
+                        "_loadGraph" to loadGraphUri,
                     )
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to ("""
-                            delete {
-                                graph ?__mms_graph {
-                                    $delTriples
-                                }
-                            }
-                            insert {
-                                graph ?__mms_graph {
-                                    $insTriples
-                                }
-                            }
-                        """ to MMS_DATATYPE.sparql),
+                        "_patchString" to ("" to MMS_DATATYPE.sparql),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
@@ -375,11 +374,43 @@ fun Route.loadModel() {
                         "_txnId" to transactionId,
                     )
                 }
+
+                // response
+                call.respondText(diffConstructResponseText)
             }
 
+            // now that response has been sent to client, perform "clean up" work on quad-store
 
-            // done
-            call.respondText(diffConstructResponseText)
+            // start copying staging to new model
+            executeSparqlUpdate("""
+                copy ?_stagingGraph to ?_modelGraph;
+                
+                insert data {
+                    graph mor-graph:Metadata {
+                        morb: mms:snapshot ?_model .
+                        ?_model a mms:Model ;
+                            mms:graph ?_modelGraph ;
+                            .
+                    }
+                }
+            """) {
+                prefixes(prefixes)
+
+                iri(
+                    "_stagingGraph" to loadGraphUri,
+                    "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                    "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                )
+            }
+
+            // delete transaction
+            executeSparqlUpdate("""
+                delete where {
+                    graph m-graph:Transactions {
+                        mt: ?p ?o .
+                    }
+                }
+            """)
         }
     }
 }

@@ -257,8 +257,8 @@ object MMS {
 
         val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
         val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")
-        val diffInsGraph = ResourceFactory.createProperty(BASE_TXN, "diffInsGraph")
-        val diffDelGraph = ResourceFactory.createProperty(BASE_TXN, "diffDelGraph")
+        val insGraph = ResourceFactory.createProperty(BASE_TXN, "insGraph")
+        val delGraph = ResourceFactory.createProperty(BASE_TXN, "delGraph")
     }
 }
 
