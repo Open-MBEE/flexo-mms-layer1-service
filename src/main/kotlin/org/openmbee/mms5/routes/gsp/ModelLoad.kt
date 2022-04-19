@@ -336,7 +336,7 @@ fun Route.loadModel() {
                 call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
 
                 // respond
-                call.respondText("")
+                call.respondText("$prefixes", RdfContentTypes.Turtle)
             }
             else {
                 // TODO add condition to update that the selected staging has not changed since diff creation using etag value
@@ -379,7 +379,7 @@ fun Route.loadModel() {
                 }
 
                 // response
-                call.respondText(diffConstructResponseText)
+                call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
                 // start copying staging to new model
                 executeSparqlUpdate("""
