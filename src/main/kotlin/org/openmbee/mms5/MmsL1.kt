@@ -12,14 +12,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.apache.commons.io.IOUtils
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.RDFNode
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
-import org.apache.jena.riot.RDFLanguages
-import org.apache.jena.riot.RDFParser
-import org.apache.jena.riot.system.ErrorHandlerFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
 import org.apache.jena.sparql.modify.request.UpdateDataInsert
@@ -32,7 +28,6 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
 import org.openmbee.mms5.plugins.client
-import java.nio.charset.StandardCharsets
 import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
@@ -194,22 +189,14 @@ fun Quad.isSanitary(): Boolean {
 }
 
 class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String="${mms.prefixes}\n${mms.requestBody}") {
-    val model = KModel(mms.prefixes)
-
-    init {
-        // parse input document
-        RDFParser.create()
-            .source(IOUtils.toInputStream(content, StandardCharsets.UTF_8))
-            .lang(RDFLanguages.TURTLE)
-            .errorHandler(ErrorHandlerFactory.errorHandlerWarn)
-            .base(baseIri)
-            .parse(model)
+    val model = KModel(mms.prefixes) {
+        parseTurtle(content, this, baseIri)
     }
 
-    private fun resourceFromParamPrefix(prefixId: String): Resource {
+    private fun resourceFromParamPrefix(prefixId: String, suffix: String?=null): Resource {
         val uri = mms.prefixes[prefixId]?: throw ParamNotParsedException(prefixId)
 
-        return model.createResource(uri)
+        return model.createResource(uri+(suffix?: ""))
     }
 
     fun userNode(): Resource {
@@ -248,8 +235,8 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
         return resourceFromParamPrefix("mord")
     }
 
-    fun transactionNode(): Resource {
-        return resourceFromParamPrefix("mt")
+    fun transactionNode(subTxnId: String?=null): Resource {
+        return resourceFromParamPrefix("mt", subTxnId)
     }
 
     fun normalizeRefOrCommit(node: Resource) {
@@ -546,25 +533,16 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
     }
 
-    fun validateTransaction(results: String, conditions: ConditionsGroup): KModel {
-        val model = KModel(prefixes) {
-            parseTurtle(
-                body = results,
-                model = this,
-            )
+    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null): KModel {
+        return parseConstructResponse(results) {
+            // transaction failed
+            if(!transactionNode(subTxnId).listProperties().hasNext()) {
+                // use response to diagnose cause
+                conditions.handle(model, mms);
+
+                // the above always throws, so this is unreachable
+            }
         }
-
-        val transactionNode = model.createResource(prefixes["mt"])
-
-        // transaction failed
-        if(!transactionNode.listProperties().hasNext()) {
-            // use response to diagnose cause
-            conditions.handle(model, this);
-
-            // the above always throws, so this is unreachable
-        }
-
-        return model
     }
 
     fun injectPreconditions(): String {
@@ -986,13 +964,13 @@ fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="",
 fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {
-            txn(
+            subtxn("diff", mapOf(
                 "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:srcGraph" to "?srcGraph",
                 "mms-txn:dstGraph" to "?dstGraph",
                 "mms-txn:insGraph" to "?insGraph",
                 "mms-txn:delGraph" to "?delGraph",
-            ) {
+            )) {
                 autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
             }
 

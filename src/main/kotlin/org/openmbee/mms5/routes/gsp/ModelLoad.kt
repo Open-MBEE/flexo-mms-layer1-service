@@ -60,7 +60,7 @@ fun Route.loadModel() {
             run {
                 val txnUpdateString = buildSparqlUpdate {
                     insert {
-                        txn()
+                        subtxn("load")
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
@@ -71,11 +71,11 @@ fun Route.loadModel() {
 
                 val txnConstructString = buildSparqlQuery {
                     construct {
-                        txn()
+                        txn("load")
                     }
                     where {
                         group {
-                            txn()
+                            txn("load")
                         }
                         raw("""
                             union ${localConditions.unionInspectPatterns()}    
@@ -85,7 +85,7 @@ fun Route.loadModel() {
 
                 val txnConstructResponseText = executeSparqlConstructOrDescribe(txnConstructString)
 
-                validateTransaction(txnConstructResponseText, localConditions)
+                validateTransaction(txnConstructResponseText, localConditions, "load")
             }
 
             // now load triples into designated load graph
@@ -204,8 +204,6 @@ fun Route.loadModel() {
                         }
                     }
 
-                    // log.info(loadUpdateString)
-
                     // execute
                     executeSparqlUpdate(loadUpdateString) {
                         prefixes(prefixes)
@@ -250,12 +248,12 @@ fun Route.loadModel() {
             val diffConstructModel = run {
                 val diffConstructString = buildSparqlQuery {
                     construct {
-                        txn()
+                        txn("diff")
                         etag("morb:")
                     }
                     where {
                         group {
-                            txn()
+                            txn("diff")
                             etag("morb:")
                         }
                         raw("""
@@ -268,8 +266,9 @@ fun Route.loadModel() {
 
                 log.info("RESPONSE TXT: $diffConstructResponseText")
 
-                validateTransaction(diffConstructResponseText, localConditions)
+                validateTransaction(diffConstructResponseText, localConditions, "diff")
             }
+
 
             // shortcut lambda for fetching properties in returned model
             val propertyUriAt = { res: Resource, prop: Property ->
@@ -279,7 +278,8 @@ fun Route.loadModel() {
             }
 
             // locate transaction node
-            val transactionNode = diffConstructModel.createResource(prefixes["mt"])
+            val transactionNode = diffConstructModel.createResource(prefixes["mt"]+"diff")
+
 
             // get ins/del graphs
             val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
@@ -407,11 +407,12 @@ fun Route.loadModel() {
 
             // now that response has been sent to client, perform "clean up" work on quad-store
 
-            // delete transaction
+            // delete both transactions
             executeSparqlUpdate("""
                 delete where {
                     graph m-graph:Transactions {
-                        mt: ?p ?o .
+                        mt:load ?load_p ?load_o .
+                        mt:diff ?diff_p ?diff_o .
                     }
                 }
             """)

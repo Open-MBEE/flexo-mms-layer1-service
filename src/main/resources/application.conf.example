@@ -5,8 +5,6 @@ mms {
     }
 
     quad-store {
-        url = "https://quad-store-domain/sparql"
-        url = ${?MMS5_QUAD_STORE_URL}
         query-url = "https://quad-store-domain-ro/sparql"
         query-url = ${?MMS5_QUERY_URL}
         update-url = "https://quad-store-domain/sparql"
