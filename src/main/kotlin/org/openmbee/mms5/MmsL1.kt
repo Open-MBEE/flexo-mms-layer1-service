@@ -1010,7 +1010,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                         mms:id ?diffId ;
                         mms:createdBy mu: ;
                         mms:srcCommit ?srcCommit ;
-                        mms:dstCommit ?dstCommit: ;
+                        mms:dstCommit ?dstCommit ;
                         mms:insGraph ?insGraph ;
                         mms:delGraph ?delGraph ;
                         .
