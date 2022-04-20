@@ -239,6 +239,9 @@ fun Route.loadModel() {
 
                         // set dst graph
                         "dstGraph" to loadGraphUri,
+
+                        // set dst commit (this commit)
+                        "dstCommit" to prefixes["morc"]!!,
                     )
                 }
             }
