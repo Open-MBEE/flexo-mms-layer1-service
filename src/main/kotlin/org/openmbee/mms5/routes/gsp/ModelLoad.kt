@@ -13,12 +13,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.apache.jena.rdf.model.LiteralRequiredException
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
 import org.openmbee.mms5.plugins.client
-import javax.lang.model.type.TypeVariable
 
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
@@ -105,7 +103,10 @@ fun Route.loadModel() {
                             }
                         }
                         // stream request body from client to load service
+                        // TODO: Handle exceptions
                         body = object: OutgoingContent.WriteChannelContent() {
+                            override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)
+                            override val contentLength = call.request.header(HttpHeaders.ContentLength)!!.toLong()
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
