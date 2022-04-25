@@ -341,6 +341,9 @@ fun Route.loadModel() {
                 // set etag header
                 call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
 
+                // sanity check
+                log.info("Sending data-less construct response text to client: \n$prefixes")
+
                 // respond
                 call.respondText("$prefixes", RdfContentTypes.Turtle)
             }
@@ -383,6 +386,9 @@ fun Route.loadModel() {
                         "_txnId" to transactionId,
                     )
                 }
+
+                // sanity check
+                log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
