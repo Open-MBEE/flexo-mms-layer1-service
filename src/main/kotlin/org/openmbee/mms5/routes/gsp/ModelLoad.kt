@@ -296,12 +296,14 @@ fun Route.loadModel() {
                 // count the number of changes in the diff
                 val selectDiffResponseText = executeSparqlSelectOrAsk("""
                     select (count(*) as ?changeCount) {
-                        graph ?_insGraph {
-                            ?ins_s ?ins_p ?ins_o .
-                        }
-                        
-                        graph ?_delGraph {
-                            ?del_s ?del_p ?del_o .
+                        {
+                            graph ?_insGraph {
+                                ?ins_s ?ins_p ?ins_o .
+                            }
+                        } union {
+                            graph ?_delGraph {
+                                ?del_s ?del_p ?del_o .
+                            }
                         }
                     }
                 """) {
@@ -324,7 +326,7 @@ fun Route.loadModel() {
                 }
 
                 // bind result to outer assignment
-                bindings[0].jsonObject["changeCount"]!!.jsonPrimitive.content.toULong()
+                bindings[0].jsonObject["changeCount"]!!.jsonObject["value"]!!.jsonPrimitive.content.toULong()
             }
 
             // empty delta (no changes)

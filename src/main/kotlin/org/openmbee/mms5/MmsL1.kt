@@ -1025,23 +1025,27 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
 
 
                 {
+                    # delete every triple from the source graph...
                     graph ?srcGraph {
-                        ?ins_s ?ins_p ?ins_o .
-                    }
-                    
-                    filter not exists {
-                        graph ?dstGraph {
-                            ?ins_s ?ins_p ?ins_o .
-                        }
-                    }
-                } union {                            
-                    graph ?dstGraph {
                         ?del_s ?del_p ?del_o .
                     }
                     
+                    # ... that isn't in the destination graph 
+                    filter not exists {
+                        graph ?dstGraph {
+                            ?del_s ?del_p ?del_o .
+                        }
+                    }
+                } union {
+                    # insert every triple from the destination graph...
+                    graph ?dstGraph {
+                        ?ins_s ?ins_p ?ins_o .
+                    }
+                    
+                    # ... that isn't in the source graph
                     filter not exists {
                         graph ?srcGraph {
-                            ?del_s ?del_p ?del_o .
+                            ?ins_s ?ins_p ?ins_o .
                         }
                     }
                 }
