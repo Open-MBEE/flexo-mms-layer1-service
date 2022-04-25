@@ -896,7 +896,7 @@ fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="",
     return buildSparqlUpdate {
         delete {
             raw("""
-                mor-graph:Metadata {
+                graph mor-graph:Metadata {
                     morb:
                         # replace branch pointer and etag
                         mms:commit ?baseCommit ;
