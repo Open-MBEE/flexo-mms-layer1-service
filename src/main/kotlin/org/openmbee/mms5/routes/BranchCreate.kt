@@ -132,24 +132,24 @@ fun Route.createBranch() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
-                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to graph mor-graph:Staging.${transactionId} ;
+                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to graph mor-graph:Latest.${branchId} ;
                         
                         insert {
                             morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
                             mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                mms:graph mor-graph:Staging.${transactionId} ;
+                                mms:graph mor-graph:Latest.${branchId} ;
                                 .
                         }
                     """)
 
                     // copy staging => model
                     executeSparqlUpdate("""
-                        copy graph mor-graph:Staging.${transactionId} to graph mor-graph:Model.${transactionId} ;
+                        copy graph mor-graph:Latest.${branchId} to graph mor-graph:Model.${transactionId} ;
                         
                         insert {
                             morb: mms:snapshot mor-snapshot:Model.${transactionId} .
                             mor-snapshot:Model.${transactionId} a mms:Model ;
-                                mms:graph mor-graph:Model.${transactionId} ;
+                                mms:graph mor-graph:Model.${branchId} ;
                                 .
                         }
                     """)

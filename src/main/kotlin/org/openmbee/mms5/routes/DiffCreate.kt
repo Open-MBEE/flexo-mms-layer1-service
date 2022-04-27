@@ -127,19 +127,19 @@ fun Route.createDiff() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
-                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
+                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Latest.${branchId} ;
                         
                         insert {
                             morb: mms:snapshot ?snapshot .
                             mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                mms:graph mor-graph:Staging.${transactionId} ;
+                                mms:graph mor-graph:Latest.${branchId} ;
                                 .
                         }
                     """)
 
                     // copy staging => model
                     executeSparqlUpdate("""
-                        copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
+                        copy mor-snapshot:Latest.${branchId} mor-snapshot:Model.${transactionId} ;
                         
                         insert {
                             morb: mms:snapshot mor-snapshot:Model.${transactionId} .

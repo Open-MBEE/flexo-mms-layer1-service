@@ -210,43 +210,20 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         // create new group
         val group = ElementGroup()
 
-        // create model graph URI node
-        val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
+        // use persistent latest graph IRI
+        val latestGraphUri = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
 
         // add all prepend root elements
         rewriter.prepend.forEach { group.addElement(it) }
 
-        // add model graph selector
-        run {
-            val pathBlock = ElementPathBlock(PathBlock().apply {
-                add(
-                    TriplePath(NodeFactory.createURI(refIri), REF_GRAPH_PATH, modelGraphVar)
-                )
-            })
-
-            val subQuery = ElementSubQuery(Query().apply {
-                setQuerySelectType()
-                addResultVar(modelGraphVar)
-                queryPattern = ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), pathBlock)
-                limit = 1
-            })
-
-            group.addElement(subQuery)
-        }
-
         // wrap original element in metadata graph
-        group.addElement(ElementNamedGraph(modelGraphVar, queryPattern))
+        group.addElement(ElementNamedGraph(latestGraphUri, queryPattern))
 
         // add all append root elements
         rewriter.append.forEach { group.addElement(it) }
 
         // set new pattern
         queryPattern = group
-
-        // unset query result star
-        if(isQueryResultStar) {
-            isQueryResultStar = false
-        }
 
         // resetResultVars()
         log.info("vars: "+resultVars)
