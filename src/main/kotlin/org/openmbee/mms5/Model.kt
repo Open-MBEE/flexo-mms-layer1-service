@@ -210,14 +210,49 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         // create new group
         val group = ElementGroup()
 
-        // use persistent latest graph IRI
-        val latestGraphUri = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
-
         // add all prepend root elements
         rewriter.prepend.forEach { group.addElement(it) }
 
+        // prep to set the model graph node
+        lateinit var modelGraphNode: Node
+
+        // special optimization for latest graph
+        if(refIri == prefixes["morb"]) {
+            // use persistent latest graph IRI
+            modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
+        }
+        // rewrite query to select graph inline
+        else {
+            // create model graph URI node
+            modelGraphNode = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
+
+            // add model graph selector
+            run {
+                val pathBlock = ElementPathBlock(PathBlock().apply {
+                    add(
+                        TriplePath(NodeFactory.createURI(refIri), REF_GRAPH_PATH, modelGraphNode)
+                    )
+                })
+
+                val subQuery = ElementSubQuery(Query().apply {
+                    setQuerySelectType()
+                    addResultVar(modelGraphNode)
+                    queryPattern =
+                        ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), pathBlock)
+                    limit = 1
+                })
+
+                group.addElement(subQuery)
+            }
+
+            // unset query result star
+            if(isQueryResultStar) {
+                isQueryResultStar = false
+            }
+        }
+
         // wrap original element in metadata graph
-        group.addElement(ElementNamedGraph(latestGraphUri, queryPattern))
+        group.addElement(ElementNamedGraph(modelGraphNode, queryPattern))
 
         // add all append root elements
         rewriter.append.forEach { group.addElement(it) }
@@ -226,7 +261,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         queryPattern = group
 
         // resetResultVars()
-        log.info("vars: "+resultVars)
+        log.info("vars: " + resultVars)
     }
 
 
@@ -254,3 +289,4 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
         throw Exception("Query operation not supported")
     }
 }
+
