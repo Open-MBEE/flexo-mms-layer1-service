@@ -130,6 +130,7 @@ fun Route.loadModel() {
                     // use SPARQL LOAD
                     val loadUpdateString = buildSparqlUpdate {
                         raw("""
+                            clear graph ?_loadGraph ;
                             load ?_loadUrl into graph ?_loadGraph
                         """)
                     }
@@ -194,6 +195,15 @@ fun Route.loadModel() {
 
                     // serialize model into turtle
                     val loadUpdateString = buildSparqlUpdate {
+                        // clear the load graph
+                        raw("""
+                            clear graph ?_loadGraph
+                        """)
+
+                        // indicate to update builder that there are multiple operations in this transaction
+                        operationCount++
+
+                        // insert triples from client
                         insert {
                             // embed the model in a triples block within the update
                             raw("""

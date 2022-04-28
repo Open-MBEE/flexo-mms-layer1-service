@@ -24,19 +24,23 @@ fun Route.readModel() {
                     """)
                 }
                 where {
-                    raw("""                        
-                        graph mor-graph:Metadata {
-                            morb: mms:snapshot/mms:graph ?modelGraph .
-                        }
-
-                        graph ?modelGraph {
+                    raw("""
+                        graph ?_stagingGraph {
                             ?s ?p ?o .
                         }
                     """)
                 }
             }
 
-            call.respondText(executeSparqlConstructOrDescribe(constructString), contentType=RdfContentTypes.Turtle)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+                prefixes(prefixes)
+
+                iri(
+                    "_stagingGraph" to "mor-graph:Latest.${branchId}",
+                )
+            }
+
+            call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
         }
 
     }

@@ -6,41 +6,6 @@ import io.ktor.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
-
-private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String = { """
-    construct  {
-        
-        ?thing ?thing_p ?thing_o .
-        
-        ?m_s ?m_p ?m_o .
-        
-    } where {
-        {
-  
-            graph m-graph:Cluster {
-                mor: a mms:Repo ;
-                    ?mor_p ?mor_o ;
-                    .
-    
-                optional {
-                    ?thing mms:repo mor: ; 
-                        ?thing_p ?thing_o .
-                }
-            }
-    
-            graph m-graph:AccessControl.Policies {
-                ?policy mms:scope mor: ;
-                    ?policy_p ?policy_o .
-            }
-        
-            graph mor-graph:Metadata {
-                ?m_s ?m_p ?m_o .
-            }
-        } union ${it.unionInspectPatterns()}
-    }
-"""}
-
-
 private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.CREATE_REPO, Scope.REPO)
 

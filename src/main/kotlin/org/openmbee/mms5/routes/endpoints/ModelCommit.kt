@@ -204,19 +204,13 @@ fun Route.commitModel() {
 
             val transactionNode = constructModel.createResource(prefixes["mt"])
 
-            // fetch staging graph
-            val stagingGraph = transactionNode.iriAt(MMS.TXN.stagingGraph)
-
-            // // fetch base model
-            // val baseModel = transactionNode.iriAt(MMS.baseModel)
-            //
-            // // fetch base model graph
-            // val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
+            // ensure staging graph matches expected pattern
+            val stagingGraphCheck = transactionNode.iriAt(MMS.TXN.stagingGraph)
+            val latestGraphUri = "${prefixes["mor-graph"]}Latest.${branchId}"
 
             // something is wrong
-            if(stagingGraph == null) {
-            // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
-                throw Exception("failed to fetch graph/model")
+            if(stagingGraphCheck == null || stagingGraphCheck != latestGraphUri) {
+                throw ServerBugException("Metadata possibly corrupt, or repo requires migration. Staging graph <${stagingGraphCheck}> != Latest graph <${latestGraphUri}>")
             }
 
 
@@ -250,7 +244,7 @@ fun Route.commitModel() {
                 prefixes(prefixes)
 
                 iri(
-                    "_stagingGraph" to stagingGraph,
+                    "_stagingGraph" to latestGraphUri,
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                 )
