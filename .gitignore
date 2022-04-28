@@ -78,3 +78,4 @@ application.conf
 .idea
 
 application.conf
+logback.xml
