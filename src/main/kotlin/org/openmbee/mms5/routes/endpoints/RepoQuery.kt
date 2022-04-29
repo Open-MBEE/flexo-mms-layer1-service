@@ -4,12 +4,12 @@ import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import org.apache.jena.graph.NodeFactory
+import org.apache.jena.graph.Triple
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementNamedGraph
-import org.openmbee.mms5.Permission
-import org.openmbee.mms5.RdfContentTypes
-import org.openmbee.mms5.mmsL1
-import org.openmbee.mms5.sanitizeUserQuery
+import org.apache.jena.sparql.syntax.ElementTriplesBlock
+import org.openmbee.mms5.*
+import java.util.*
 
 
 fun Route.queryRepo() {
@@ -27,9 +27,19 @@ fun Route.queryRepo() {
             // sanitize user query
             val (rewriter, workingQuery) = sanitizeUserQuery(inputQueryString, prefixes["mor"])
 
+            // generate a unique substitute variable
+            val substituteVar = NodeFactory.createVariable("__mms_${UUID.randomUUID().toString().replace('-', '_')}")
+
             workingQuery.apply {
                 // create new group
                 val group = ElementGroup()
+
+                // start by injecting a substitution pattern
+                run {
+                    val bgp = ElementTriplesBlock()
+                    bgp.addTriple(Triple.create(substituteVar, substituteVar, substituteVar))
+                    group.addElement(bgp)
+                }
 
                 // create metadata graph URI node
                 val metadataGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Metadata")
@@ -55,8 +65,11 @@ fun Route.queryRepo() {
                 log.info("vars: $resultVars")
             }
 
+            // serialize the query and replace the substitution pattern with conditions
+            val outputQueryString = workingQuery.serialize().replace(
+                """[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s*\.?""".toRegex(),
+                REPO_QUERY_CONDITIONS.requiredPatterns().joinToString("\n"))
 
-            val outputQueryString = workingQuery.serialize()
 
             if(inspectOnly) {
                 call.respondText(outputQueryString)

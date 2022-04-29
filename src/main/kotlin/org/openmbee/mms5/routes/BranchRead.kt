@@ -10,7 +10,7 @@ import org.openmbee.mms5.*
 private val SPARQL_BGP_BRANCH = """
     graph mor-graph:Metadata {
         ?_branch a mms:Branch ;
-            mms:etag ?etag ;
+            mms:etag ?__mms_etag ;
             ?branch_p ?branch_o .
         
         optional {
@@ -23,15 +23,15 @@ private val SPARQL_BGP_BRANCH = """
 """
 
 private val SPARQL_SELECT_BRANCH = """
-    select ?etag {
+    select ?__mms_etag {
         $SPARQL_BGP_BRANCH
-    } order by asc(?etag)
+    } order by asc(?__mms_etag)
 """
 
 private val SPARQL_CONSTRUCT_BRANCH = """
     construct {
         ?_branch ?branch_p ?branch_o ;
-            mms:etag ?etag .
+            mms:etag ?__mms_etag .
         
         ?thing ?thing_p ?thing_o .
         
@@ -40,14 +40,14 @@ private val SPARQL_CONSTRUCT_BRANCH = """
             mms:policy ?policy ;
             .
         
-        ?policy ?policy_p ?policy_o .
+        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
         ?branchPolicy ?branchPolicy_p ?branchPolicy_o .
     } where {
         $SPARQL_BGP_BRANCH
         
         graph m-graph:AccessControl.Policies {
-            ?policy ?policy_p ?policy_o .
+            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
                 ?branchPolicy a mms:Policy ;

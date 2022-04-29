@@ -3,9 +3,7 @@ package org.openmbee.mms5.routes.gsp
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import org.openmbee.mms5.Permission
-import org.openmbee.mms5.RdfContentTypes
-import org.openmbee.mms5.mmsL1
+import org.openmbee.mms5.*
 
 
 fun Route.readModel() {
@@ -24,6 +22,8 @@ fun Route.readModel() {
                     """)
                 }
                 where {
+                    auth(permission.scope.id, BRANCH_QUERY_CONDITIONS)
+
                     raw("""                        
                         graph mor-graph:Metadata {
                             morb: mms:snapshot/mms:graph ?modelGraph .

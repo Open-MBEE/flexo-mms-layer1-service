@@ -52,8 +52,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 # select the latest commit from the current named ref
                 morb: mms:commit ?baseCommit ;
                     # and its etag value
-                    mms:etag ?branchEtag ;
-                    .
+                    mms:etag ?__mms_etag .
             
                 # and its staging snapshot
                 morb: mms:snapshot ?staging .
@@ -71,6 +70,40 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
             }
         """
     }
+}
+
+val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    permit(Permission.READ_REPO, Scope.REPO)
+
+    require("queryableSnapshotExists") {
+        handler = { mms -> "The target model is corrupt. No queryable snapshots found." }
+
+        """
+            graph mor-graph:Metadata {
+                ?__mms_ref
+                    # select the latest commit from the current named ref
+                    mms:commit ?__mms_baseCommit ;
+
+                    # and its etag value
+                    mms:etag ?__mms_etag ;
+
+                    # and a queryable snapshot
+                    mms:snapshot/mms:graph ?__mms_queryGraph .
+            }
+        """
+    }
+}
+
+val BRANCH_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_BRANCH, Scope.BRANCH)
+}
+
+val LOCK_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_LOCK, Scope.LOCK)
+}
+
+val DIFF_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_DIFF, Scope.DIFF)
 }
 
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
@@ -164,7 +197,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return conditions.filter { ConditionType.INSPECT == it.type }
     }
 
-    fun inspectPatterns(varName: String="inspect"): List<String> {
+    fun inspectPatterns(varName: String="__mms_inspect_pass"): List<String> {
         return conditions.map {
             """
                 {
@@ -186,8 +219,8 @@ class ConditionsGroup(var conditions: List<Condition>) {
 
     fun handle(model: KModel, mms: MmsL1Context): Nothing {
         // inspect node
-        val inspectNode = model.createResource("mms://inspect")
-        val passes = inspectNode.listProperties(PropertyImpl("mms://pass")).toList()
+        val inspectNode = model.createResource("urn:mms:inspect")
+        val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
             .map { it.`object`.asLiteral().string }.toHashSet()
 
         // each conditions

@@ -3,12 +3,15 @@ package org.openmbee.mms5
 import io.ktor.response.*
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
+import org.apache.jena.graph.Triple
+import org.apache.jena.query.ParameterizedSparqlString
 import org.apache.jena.query.Query
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.PathBlock
 import org.apache.jena.sparql.core.TriplePath
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
+import org.apache.jena.sparql.function.library.uuid
 import org.apache.jena.sparql.path.Path
 import org.apache.jena.sparql.path.PathFactory
 import org.apache.jena.sparql.syntax.*
@@ -17,6 +20,7 @@ import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformer
 import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.*
 
 private val UTF8Name = StandardCharsets.UTF_8.name()
 
@@ -203,12 +207,22 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
     }
 }
 
-suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
+suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup) {
     val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString)
+
+    // generate a unique substitute variable
+    val substituteVar = NodeFactory.createVariable("__mms_${UUID.randomUUID().toString().replace('-', '_')}")
 
     outputQuery.apply {
         // create new group
         val group = ElementGroup()
+
+        // start by injecting a substitution pattern
+        run {
+            val bgp = ElementTriplesBlock()
+            bgp.addTriple(Triple.create(substituteVar, substituteVar, substituteVar))
+            group.addElement(bgp)
+        }
 
         // create model graph URI node
         val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
@@ -253,7 +267,10 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
     }
 
 
-    val outputQueryString = outputQuery.serialize()
+    // serialize the query and replace the substitution pattern with conditions
+    val outputQueryString = outputQuery.serialize().replace(
+        """[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s*\.?""".toRegex(),
+        conditions.requiredPatterns().joinToString("\n"))
 
     if(inspectOnly) {
         call.respondText(outputQueryString)

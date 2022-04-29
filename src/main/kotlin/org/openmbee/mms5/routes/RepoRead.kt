@@ -29,13 +29,13 @@ private const val SPARQL_BGP_REPO = """
             mms:etag ?etagRepo .
     }
     
-    bind(concat(?etagCluster, ?etagRepo) as ?etag)
+    bind(concat(?etagCluster, ?etagRepo) as ?__mms_etag)
 """
 
 private const val SPARQL_SELECT_REPO = """
-    select ?etag {
+    select ?__mms_etag {
         $SPARQL_BGP_REPO
-    } order by asc(?etag)
+    } order by asc(?__mms_etag)
 """
 
 private const val SPARQL_CONSTRUCT_REPO = """
@@ -46,7 +46,7 @@ private const val SPARQL_CONSTRUCT_REPO = """
         
         ?m_s ?m_p ?m_o .
         
-        <mms://inspect> <mms://etag> ?etag .
+        <urn:mms:inspect> <urn:mms:etag> ?__mms_etag .
     } where {
         $SPARQL_BGP_REPO
     }
