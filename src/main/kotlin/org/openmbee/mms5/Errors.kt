@@ -33,6 +33,8 @@ class ConstraintViolationException(detail: String): Http400Exception("The input 
 
 class InvalidDocumentSemanticsException(detail: String): Http400Exception("The input document contains invalid semantics: $detail")
 
+class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The input document content-type is not recognized as an acceptable triples format: $detail")
+
 
 open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)
 

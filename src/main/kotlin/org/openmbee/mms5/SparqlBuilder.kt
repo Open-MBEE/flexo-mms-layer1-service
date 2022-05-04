@@ -22,10 +22,10 @@ private fun pp(insert: String, indentLevel: Int=2): String {
 }
 
 
-private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null): String {
+private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null, subTxnId: String?=null): String {
     return """
         graph m-graph:Transactions {
-            mt: a mms:Transaction ;
+            mt:${subTxnId?: ""} a mms:Transaction ;
                 mms:created ?_now ;
                 mms:serviceId ?_serviceId ;
                 mms:requestPath ?_requestPath ;
@@ -158,10 +158,10 @@ open class WhereBuilder(
     private val mms: MmsL1Context,
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(mms, indentLevel) {
-    fun txn(): WhereBuilder {
+    fun txn(subTxnId: String?=null): WhereBuilder {
         return raw("""
             graph m-graph:Transactions {
-                mt: ?mt_p ?mt_o .
+                mt:${subTxnId?: ""} ?mt_p ?mt_o .
             }
             
             graph m-graph:AccessControl.Policies {
@@ -216,7 +216,11 @@ class InsertBuilder(
     val indentLevel: Int,
 ): PatternBuilder<InsertBuilder>(mms, indentLevel) {
     fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
-        val properties = extras.toMap().toMutableMap()
+        return subtxn("", extras.toMap(), setup)
+    }
+
+    fun subtxn(subTxnId: String, extras: Map<String, String>?=null, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
+        val properties = extras?.toMutableMap()?: mutableMapOf()
         if(null != mms.userId) properties["mms:user"] = "mu:"
         if(null != mms.orgId) properties["mms:org"] = "mo:"
         if(null != mms.repoId) properties["mms:repo"] = "mor:"
@@ -224,7 +228,7 @@ class InsertBuilder(
 
         val propertiesSparql = properties.entries.fold("") { out, (pred, obj) -> "$out$pred $obj ;\n" }
 
-        raw(SPARQL_INSERT_TRANSACTION(propertiesSparql))
+        raw(SPARQL_INSERT_TRANSACTION(propertiesSparql, subTxnId))
 
         if(setup != null) {
             TxnBuilder(this).setup()
@@ -243,9 +247,9 @@ class ConstructBuilder(
     private val mms: MmsL1Context,
     indentLevel: Int,
 ): PatternBuilder<ConstructBuilder>(mms, indentLevel) {
-    fun txn(): ConstructBuilder {
+    fun txn(subTxnId: String?=null): ConstructBuilder {
         return raw("""
-            mt: ?mt_p ?mt_o .
+            mt:${subTxnId?: ""} ?mt_p ?mt_o .
             
             ?policy ?policy_p ?policy_o .
             

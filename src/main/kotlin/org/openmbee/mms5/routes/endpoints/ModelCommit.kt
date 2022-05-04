@@ -128,7 +128,7 @@ fun Route.commitModel() {
 
 
 
-            val commitUpdateString = genCommitUpdate(
+            val commitUpdateString = genCommitUpdate(localConditions,
                 delete=if(deleteBgpString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
@@ -146,10 +146,10 @@ fun Route.commitModel() {
                 where=(if(whereString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
-                            whereString
+                            $whereString
                         }
                     """
-                } else "") + localConditions.requiredPatterns().joinToString("\n")
+                } else "")
             )
 
 
