@@ -4,7 +4,7 @@ import trig_write from '@graphy/content.trig.write';
 const P_PREFIX = process.argv[2];
 
 if(!P_PREFIX) {
-	throw new Error(`Must provide a prefix IRI as positional argument`);
+	throw new Error(`Must provide context prefix IRI as positional argument`);
 }
 
 import {
