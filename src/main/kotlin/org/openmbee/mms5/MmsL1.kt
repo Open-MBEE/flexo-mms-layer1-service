@@ -12,14 +12,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.apache.commons.io.IOUtils
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.RDFNode
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
-import org.apache.jena.riot.RDFLanguages
-import org.apache.jena.riot.RDFParser
-import org.apache.jena.riot.system.ErrorHandlerFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
 import org.apache.jena.sparql.modify.request.UpdateDataInsert
@@ -32,7 +28,6 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
 import org.openmbee.mms5.plugins.client
-import java.nio.charset.StandardCharsets
 import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
@@ -194,22 +189,14 @@ fun Quad.isSanitary(): Boolean {
 }
 
 class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String="${mms.prefixes}\n${mms.requestBody}") {
-    val model = KModel(mms.prefixes)
-
-    init {
-        // parse input document
-        RDFParser.create()
-            .source(IOUtils.toInputStream(content, StandardCharsets.UTF_8))
-            .lang(RDFLanguages.TURTLE)
-            .errorHandler(ErrorHandlerFactory.errorHandlerWarn)
-            .base(baseIri)
-            .parse(model)
+    val model = KModel(mms.prefixes) {
+        parseTurtle(content, this, baseIri)
     }
 
-    private fun resourceFromParamPrefix(prefixId: String): Resource {
+    private fun resourceFromParamPrefix(prefixId: String, suffix: String?=null): Resource {
         val uri = mms.prefixes[prefixId]?: throw ParamNotParsedException(prefixId)
 
-        return model.createResource(uri)
+        return model.createResource(uri+(suffix?: ""))
     }
 
     fun userNode(): Resource {
@@ -248,8 +235,8 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
         return resourceFromParamPrefix("mord")
     }
 
-    fun transactionNode(): Resource {
-        return resourceFromParamPrefix("mt")
+    fun transactionNode(subTxnId: String?=null): Resource {
+        return resourceFromParamPrefix("mt", subTxnId)
     }
 
     fun normalizeRefOrCommit(node: Resource) {
@@ -506,7 +493,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         call.application.log.info("SPARQL Update:\n$sparql")
 
-        return handleSparqlResponse(client.post(STORE_UPDATE_URI) {
+        return handleSparqlResponse(client.post(call.application.quadStoreUpdateUrl) {
             headers {
                 append(HttpHeaders.Accept, ContentType.Application.Json)
             }
@@ -528,7 +515,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         call.application.log.info("SPARQL Query:\n$sparql")
 
-        return handleSparqlResponse(client.post(STORE_QUERY_URI) {
+        return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }
@@ -546,25 +533,16 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
     }
 
-    fun validateTransaction(results: String, conditions: ConditionsGroup): KModel {
-        val model = KModel(prefixes) {
-            parseTurtle(
-                body = results,
-                model = this,
-            )
+    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null): KModel {
+        return parseConstructResponse(results) {
+            // transaction failed
+            if(!transactionNode(subTxnId).listProperties().hasNext()) {
+                // use response to diagnose cause
+                conditions.handle(model, mms);
+
+                // the above always throws, so this is unreachable
+            }
         }
-
-        val transactionNode = model.createResource(prefixes["mt"])
-
-        // transaction failed
-        if(!transactionNode.listProperties().hasNext()) {
-            // use response to diagnose cause
-            conditions.handle(model, this);
-
-            // the above always throws, so this is unreachable
-        }
-
-        return model
     }
 
     fun injectPreconditions(): String {
@@ -913,21 +891,23 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
     }
 }
 
-fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
+fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
-            if(delete.isNotEmpty()) raw(delete)
+            raw("""
+                graph mor-graph:Metadata {
+                    morb:
+                        # replace branch pointer and etag
+                        mms:commit ?baseCommit ;
+                        mms:etag ?branchEtag ;
+                        # branch will require a new model snapshot; interim lock will now point to previous one
+                        mms:snapshot ?model ;
+                        .
+                }
 
-            graph("mor-graph:Metadata") {
-                raw("""
-                    # branch no longer points to model snapshot
-                    morb: mms:snapshot ?model .
-            
-                    # branch no longer points to previous commit
-                    morb: mms:commit ?baseCommit .
-                """)
-            }
+                $delete
+            """)
         }
         insert {
             txn(
@@ -956,8 +936,9 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
                         mms:where ?_whereString ;
                         .
             
-                    # update branch pointer
-                    morb: mms:commit morc: .
+                    # update branch pointer and etag
+                    morb: mms:commit morc: ;
+                        mms:etag ?_txnId .
             
                     # convert previous snapshot to isolated lock
                     ?_interim a mms:InterimLock ;
@@ -969,10 +950,13 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
                 """)
             }
         }
-        if(where.isNotEmpty()) {
-            where {
-                raw(where)
-            }
+        where {
+            // `conditions` must contain the patterns that bind ?baseCommit, ?branchEtag, ?model, ?stagingGraph, and so on
+            raw("""
+                ${conditions.requiredPatterns().joinToString("\n")}
+
+                $where
+            """)
         }
     }
 }
@@ -980,13 +964,13 @@ fun MmsL1Context.genCommitUpdate(delete: String="", insert: String="", where: St
 fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {
-            txn(
+            subtxn("diff", mapOf(
                 "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:srcGraph" to "?srcGraph",
                 "mms-txn:dstGraph" to "?dstGraph",
                 "mms-txn:insGraph" to "?insGraph",
                 "mms-txn:delGraph" to "?delGraph",
-            ) {
+            )) {
                 autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
             }
 
@@ -995,7 +979,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                     ?ins_s ?ins_p ?ins_o .    
                 }
                 
-                graph ?diffDelGraph {
+                graph ?delGraph {
                     ?del_s ?del_p ?del_o .
                 }
                 
@@ -1004,7 +988,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                         mms:id ?diffId ;
                         mms:createdBy mu: ;
                         mms:srcCommit ?srcCommit ;
-                        mms:dstCommit ?dstCommit: ;
+                        mms:dstCommit ?dstCommit ;
                         mms:insGraph ?insGraph ;
                         mms:delGraph ?delGraph ;
                         .
@@ -1041,23 +1025,27 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
 
 
                 {
+                    # delete every triple from the source graph...
                     graph ?srcGraph {
-                        ?ins_s ?ins_p ?ins_o .
-                    }
-                    
-                    filter not exists {
-                        graph ?dstGraph {
-                            ?ins_s ?ins_p ?ins_o .
-                        }
-                    }
-                } union {                            
-                    graph ?dstGraph {
                         ?del_s ?del_p ?del_o .
                     }
                     
+                    # ... that isn't in the destination graph 
+                    filter not exists {
+                        graph ?dstGraph {
+                            ?del_s ?del_p ?del_o .
+                        }
+                    }
+                } union {
+                    # insert every triple from the destination graph...
+                    graph ?dstGraph {
+                        ?ins_s ?ins_p ?ins_o .
+                    }
+                    
+                    # ... that isn't in the source graph
                     filter not exists {
                         graph ?srcGraph {
-                            ?del_s ?del_p ?del_o .
+                            ?ins_s ?ins_p ?ins_o .
                         }
                     }
                 }
@@ -1067,8 +1055,8 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
 }
 
 
-suspend fun ApplicationCall.mmsL1(permission: Permission, setup: suspend MmsL1Context.()->Unit): MmsL1Context {
-    val requestBody = receiveText()
+suspend fun ApplicationCall.mmsL1(permission: Permission, postponeBody: Boolean?=false, setup: suspend MmsL1Context.()->Unit): MmsL1Context {
+    val requestBody = if(postponeBody == true) "" else receiveText()
 
     return MmsL1Context(this, requestBody, permission).apply{ setup() }
 }

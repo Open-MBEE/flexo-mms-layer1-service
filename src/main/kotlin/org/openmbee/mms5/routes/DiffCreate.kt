@@ -101,11 +101,11 @@ fun Route.createDiff() {
 
             val constructString = buildSparqlQuery {
                 construct {
-                    txn()
+                    txn("diff")
                 }
                 where {
                     group {
-                        txn()
+                        txn("diff")
                     }
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    

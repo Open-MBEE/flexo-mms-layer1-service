@@ -6,8 +6,6 @@ import java.security.MessageDigest
 
 
 val ROOT_CONTEXT = (System.getenv("MMS5_ROOT_CONTEXT")?: "https://mms.openmbee.org/demo").replace("/+$".toRegex(), "")
-val STORE_QUERY_URI = System.getenv("MMS5_STORE_QUERY")?: "http://localhost:8081/bigdata/namespace/kb/sparql"
-val STORE_UPDATE_URI = System.getenv("MMS5_STORE_UPDATE")?: "http://localhost:8081/bigdata/namespace/kb/sparql"
 val SERVICE_ID = System.getenv("MMS5_SERVICE_ID")?: "local-dev-0"
 
 suspend fun handleSparqlResponse(response: HttpResponse): String {

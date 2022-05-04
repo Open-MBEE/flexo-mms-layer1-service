@@ -17,9 +17,18 @@ import java.nio.charset.StandardCharsets
 
 object RdfContentTypes {
     val Turtle = ContentType("text", "turtle")
+    val RdfXml = ContentType("application", "rdf+xml")
+    val JsonLd = ContentType("application", "ld+json")
     val SparqlQuery = ContentType("application", "sparql-query")
     val SparqlUpdate = ContentType("application", "sparql-update")
     val SparqlResultsJson = ContentType("application", "sparql-results+json")
+
+    fun isTriples(contentType: String): Boolean {
+        return when(ContentType.parse(contentType).withoutParameters()) {
+            Turtle, RdfXml, JsonLd -> true
+            else -> false
+        }
+    }
 }
 
 class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): ModelCom(Factory.createGraphMem()) {
