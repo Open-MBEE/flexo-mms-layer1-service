@@ -149,7 +149,7 @@ fun Route.createBranch() {
                         insert {
                             morb: mms:snapshot mor-snapshot:Model.${transactionId} .
                             mor-snapshot:Model.${transactionId} a mms:Model ;
-                                mms:graph mor-graph:Model.${branchId} ;
+                                mms:graph mor-graph:Model.${transactionId} ;
                                 .
                         }
                     """)
