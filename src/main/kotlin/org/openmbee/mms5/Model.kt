@@ -4,20 +4,20 @@ import io.ktor.response.*
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
-import org.apache.jena.query.ParameterizedSparqlString
 import org.apache.jena.query.Query
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.PathBlock
 import org.apache.jena.sparql.core.TriplePath
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.function.library.uuid
+import org.apache.jena.sparql.expr.nodevalue.NodeValueString
 import org.apache.jena.sparql.path.Path
 import org.apache.jena.sparql.path.PathFactory
 import org.apache.jena.sparql.syntax.*
 import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformCopyBase
 import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformer
 import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps
+import org.apache.jena.vocabulary.RDF
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.*
@@ -28,9 +28,20 @@ const val MMS_VARIABLE_PREFIX = "__mms_"
 
 val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
 
+val MMS_SNAPSHOT_PROPERTY_NODE = MMS.snapshot.asNode()
+
 val REF_GRAPH_PATH: Path = PathFactory.pathSeq(
-    PathFactory.pathLink(MMS.snapshot.asNode()),
+    PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE),
     PathFactory.pathLink(MMS.graph.asNode())
+)
+
+// ^mms:snapshot/mms:snapshot/a
+val SNAPSHOT_SIBLINGS_PATH: Path = PathFactory.pathSeq(
+    PathFactory.pathSeq(
+        PathFactory.pathInverse(PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE)),
+        PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE),
+    ),
+    PathFactory.pathLink(RDF.type.asNode())
 )
 
 
@@ -207,63 +218,160 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
     }
 }
 
+/**
+ * Wraps a user's SPARQL query by adding patterns that constrain what graph(s) it will select from, and perform a check
+ * inline that all necessary conditions are met (i.e., branch state, access control, etc.).
+ *
+ * At an abstract level, the query looks something like this:
+ *
+ * select * {
+ *   {
+ *     # negated authorization query
+ *     filter not exists {
+ *       # join conditions patterns
+ *     }
+ *
+ *     # bind to error variable
+ *     bind("authorization" as ?__mms_error)
+ *   } union {
+ *     # prevent this bgp from producing bindings if auth fails
+ *     filter exists {
+ *       # authorization query
+ *     }
+ *
+ *     # model graph selection
+ *     graph mor-graph:Metadata {
+ *       <$REF_IRI> mms:snapshot ?__mms_snapshot .
+ *       ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
+ *       {
+ *         # prefer the model snapshot
+ *         ?__mms_snapshot a mms:Model .
+ *       } union {
+ *         # use staging snapshot if model is not ready
+ *         ?__mms_snapshot a mms:Staging .
+ *         filter not exists {
+ *           ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model .
+ *         }
+ *       }
+ *     }
+ *
+ *     # arbitrary user query
+ *     { select ?s ?p ?o { ?s ?p ?o } }
+ *   }
+ * }
+ *
+ * If verification fails for any reason, the results will contain exactly 1 row with the `__mms_error` variable set.
+ *
+ */
 suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup) {
     val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString)
 
     // generate a unique substitute variable
-    val substituteVar = NodeFactory.createVariable("__mms_${UUID.randomUUID().toString().replace('-', '_')}")
+    val substituteVar = Var.alloc("${MMS_VARIABLE_PREFIX}${UUID.randomUUID().toString().replace('-', '_')}")
 
+    // prepare a reusable triple pattern placeholder
+    val patternPlaceholder = ElementTriplesBlock().apply {
+        addTriple(Triple.create(substituteVar, substituteVar, substituteVar))
+    }
+
+    // prepare ref node
+    val refNode = NodeFactory.createURI(refIri)
+
+    // TODO: add support for ASK, DESCRIBE, and CONSTRUCT queries
+    if(!outputQuery.isSelectType) {
+        throw ServerBugException("Query type not yet supported")
+    }
+
+    // transform the user query
     outputQuery.apply {
-        // create new group
-        val group = ElementGroup()
-
-        // start by injecting a substitution pattern
-        run {
-            val bgp = ElementTriplesBlock()
-            bgp.addTriple(Triple.create(substituteVar, substituteVar, substituteVar))
-            group.addElement(bgp)
-        }
-
-        // create model graph URI node
-        val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
-
-        // add all prepend root elements
-        rewriter.prepend.forEach { group.addElement(it) }
-
-        // add model graph selector
-        run {
-            val pathBlock = ElementPathBlock(PathBlock().apply {
-                add(
-                    TriplePath(NodeFactory.createURI(refIri), REF_GRAPH_PATH, modelGraphVar)
-                )
-            })
-
-            val subQuery = ElementSubQuery(Query().apply {
-                setQuerySelectType()
-                addResultVar(modelGraphVar)
-                queryPattern = ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), pathBlock)
-                limit = 1
-            })
-
-            group.addElement(subQuery)
-        }
-
-        // wrap original element in metadata graph
-        group.addElement(ElementNamedGraph(modelGraphVar, queryPattern))
-
-        // add all append root elements
-        rewriter.append.forEach { group.addElement(it) }
-
-        // set new pattern
-        queryPattern = group
-
-        // unset query result star
+        // unset query result star; jena will convert all top-scoped variables in user's original query to explicit select variables
         if(isQueryResultStar) {
             isQueryResultStar = false
         }
 
-        // resetResultVars()
-        log.info("vars: "+resultVars)
+        // overwrite the query pattern with a group block
+        queryPattern = ElementGroup().apply {
+            // anything the rewriter wants to prepend
+            rewriter.prepend.forEach { addElement(it) }
+
+            // create union between auth failure and user query block
+            addElement(ElementUnion().apply {
+                // add auth failure group
+                ElementGroup().apply {
+                    // negate authorization query; it must fail in order to produce a binding
+                    ElementNotExists(patternPlaceholder)
+
+                    // allocate error variable
+                    val errorVar = Var.alloc("${MMS_VARIABLE_PREFIX}error")
+
+                    // error binding
+                    ElementBind(errorVar, NodeValueString("authorization"))
+
+                    // add to selection
+                    addResultVar(errorVar)
+                }
+
+                // add user query block
+                addElement(ElementGroup().apply {
+                    // authorization query; it must match in order to evaluate user query
+                    addElement(ElementExists(patternPlaceholder))
+
+                    // prep to set/bind the model graph node
+                    lateinit var modelGraphNode: Node
+
+                    // apply special optimization for persistent graph URI
+                    if(refIri == prefixes["morb"]) {
+                        modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
+                    }
+                    // need to match model graph dynamically
+                    else {
+                        // model graph selection
+                        addElement(ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), ElementGroup().apply {
+                            // use variable to bind model graph URI
+                            modelGraphNode = Var.alloc("${MMS_VARIABLE_PREFIX}modelGraph")
+
+                            // prep intermediate snapshot variable
+                            val snapshotVar = Var.alloc("${MMS_VARIABLE_PREFIX}snapshot")
+
+                            // <$REF_IRI> mms:snapshot ?__mms_snapshot .
+                            addTriplePattern(Triple.create(refNode, MMS.snapshot.asNode(), snapshotVar))
+
+                            // ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
+                            addTriplePattern(Triple.create(snapshotVar, MMS.graph.asNode(), modelGraphNode))
+
+                            // model graph selection
+                            addElement(ElementUnion().apply {
+                                // prefer the model snapshot
+                                addElement(ElementTriplesBlock().apply {
+                                    // ?__mms_snapshot a mms:Model .
+                                    addTriple(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Model.asNode()))
+                                })
+
+                                // use staging snapshot if model is not ready
+                                addElement(ElementGroup().apply {
+                                    // ?__mms_snapshot a mms:Staging .
+                                    addTriplePattern(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Staging.asNode()))
+
+                                    // filter not exists { ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model }
+                                    addElement(ElementNotExists(ElementPathBlock().apply {
+                                        addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
+                                    }))
+                                })
+                            })
+                        }))
+                    }
+
+                    // inline arbitrary user query
+                    addElement(ElementNamedGraph(modelGraphNode, queryPattern))
+                })
+            })
+
+            // anything the rewriter wants to append
+            rewriter.append.forEach { addElement(it) }
+        }
+
+        // debug select variables
+        log.debug("Variables being selected: "+resultVars)
     }
 
 
