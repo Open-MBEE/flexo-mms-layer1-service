@@ -94,8 +94,6 @@ fun prefixesFor(
     diffId: String?=null,
     transactionId: String?=null,
     source: PrefixMapBuilder?= SPARQL_PREFIXES,
-
-    ldapId: String?=null,
 ): PrefixMapBuilder {
     return PrefixMapBuilder(source) {
         if(null != userId) {
@@ -168,6 +166,7 @@ fun prefixesFor(
                             with("$this/commits/$commitId") {
                                 add(
                                     "morc" to this,
+                                    "morc-data" to "$this/data/",
                                 )
                             }
                         }
@@ -258,8 +257,8 @@ object MMS {
 
         val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
         val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")
-        val diffInsGraph = ResourceFactory.createProperty(BASE_TXN, "diffInsGraph")
-        val diffDelGraph = ResourceFactory.createProperty(BASE_TXN, "diffDelGraph")
+        val insGraph = ResourceFactory.createProperty(BASE_TXN, "insGraph")
+        val delGraph = ResourceFactory.createProperty(BASE_TXN, "delGraph")
     }
 }
 

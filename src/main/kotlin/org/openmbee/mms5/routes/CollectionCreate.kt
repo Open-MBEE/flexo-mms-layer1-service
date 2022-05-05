@@ -83,7 +83,6 @@ fun Route.createCollection() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
@@ -122,7 +121,6 @@ fun Route.createCollection() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

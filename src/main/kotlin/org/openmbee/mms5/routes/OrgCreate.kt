@@ -65,7 +65,6 @@ fun Route.createOrg() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
@@ -92,7 +91,6 @@ fun Route.createOrg() {
                         }
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 
@@ -103,7 +101,7 @@ fun Route.createOrg() {
 
             val model = validateTransaction(constructResponseText, localConditions)
 
-            checkPreconditions(model, prefixes["mo"]!!)
+            checkPreconditions(model, prefixes["mo"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)

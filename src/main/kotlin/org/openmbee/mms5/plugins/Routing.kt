@@ -56,6 +56,8 @@ fun Application.configureRouting() {
             updateRepo()
             // deleteRepo()
 
+            queryRepo()
+
             createBranch()
             readBranch()
             updateBranch()
@@ -83,9 +85,9 @@ fun Application.configureRouting() {
             queryDiff()
             // deleteDiff()
 
-            createExternalGroup()
-            // updateExternalGroup()
-            // deleteExternalGroup()
+            createGroup()
+            // updateGroup()
+            // deleteGroup()
 
             // createPolicy()
             // updatePolicy()

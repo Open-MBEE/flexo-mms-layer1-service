@@ -118,11 +118,12 @@ fun Route.createRepo() {
                                 .
                     
                             morc-data: a mms:Load ;
-                                mms:patch ""^^mms-datatype:sparql ;
+                                mms:body ""^^mms-datatype:sparql ;
                                 .
 
                             morb: a mms:Branch ;
                                 mms:id ?_branchId ;
+                                mms:etag ?_branchEtag ;
                                 mms:commit morc: ;
                                 mms:snapshot ?_model, ?_staging ;
                                 .
@@ -145,16 +146,21 @@ fun Route.createRepo() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                     "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                     "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                )
+
+                literal(
+                    "_branchEtag" to "${transactionId}0",
                 )
             }
 
@@ -191,7 +197,6 @@ fun Route.createRepo() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

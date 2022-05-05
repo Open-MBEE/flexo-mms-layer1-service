@@ -12,7 +12,12 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
                 {
                     mu: a mms:User .
                 } union {
-                    ?__mms_externalGroup a mms:ExternalGroup .
+                    ?group a mms:Group ;
+                        mms:id ?__mms_groupId .
+
+                    values ?__mms_groupId {
+                        # @values groupId
+                    }
                 }
             }
         """
@@ -46,6 +51,8 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
             graph mor-graph:Metadata {
                 # select the latest commit from the current named ref
                 morb: mms:commit ?baseCommit ;
+                    # and its etag value
+                    mms:etag ?branchEtag ;
                     .
             
                 # and its staging snapshot
@@ -55,7 +62,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                     .
             
                 optional {
-                    # optionally, it's model snapshot
+                    # optionally, its model snapshot
                     morb: mms:snapshot ?model .
                     ?model a mms:Model ;
                         mms:graph ?modelGraph ;

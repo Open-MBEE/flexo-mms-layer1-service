@@ -128,7 +128,7 @@ fun Route.commitModel() {
 
 
 
-            val commitUpdateString = genCommitUpdate(
+            val commitUpdateString = genCommitUpdate(localConditions,
                 delete=if(deleteBgpString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
@@ -143,17 +143,19 @@ fun Route.commitModel() {
                         }
                     """
                 } else "",
-                where="${if(whereString.isNotEmpty()) {
+                where=(if(whereString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
-                            whereString
+                            $whereString
                         }
                     """
-                } else ""} ${localConditions.requiredPatterns().joinToString("\n")}"
+                } else "")
             )
 
 
             executeSparqlUpdate(commitUpdateString) {
+                prefixes(prefixes)
+
                 iri(
                     "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
                 )
@@ -190,7 +192,6 @@ fun Route.commitModel() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 
@@ -246,6 +247,8 @@ fun Route.commitModel() {
                     }
                 }
             """) {
+                prefixes(prefixes)
+
                 iri(
                     "_stagingGraph" to stagingGraph,
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",

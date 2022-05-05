@@ -15,7 +15,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
         """
             # branch must not yet exist
-            graph m-graph:Cluster {
+            graph mor-graph:Metadata {
                 filter not exists {
                     morb: a mms:Branch .
                 }
@@ -79,11 +79,12 @@ fun Route.createBranch() {
                             }
                         }
                     """)
-                    groupDns()
                 }
             }
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     if(refSource != null) "_refSource" to refSource!!
                     else "commitSource" to commitSource!!,
@@ -100,6 +101,8 @@ fun Route.createBranch() {
                 }
                 where {
                     group {
+                        txn()
+
                         raw("""
                             graph mor-graph:Metadata {
                                 morb: ?morb_p ?morb_o .
@@ -109,7 +112,6 @@ fun Route.createBranch() {
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    
                     """)
-                    groupDns()
                 }
             }
 

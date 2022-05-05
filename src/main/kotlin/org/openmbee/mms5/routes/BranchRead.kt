@@ -71,6 +71,8 @@ fun Route.readBranch() {
                 }
 
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_BRANCH) {
+                    prefixes(prefixes)
+
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(
@@ -96,6 +98,8 @@ fun Route.readBranch() {
                 }
 
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_BRANCH) {
+                    prefixes(prefixes)
+
                     // get by orgId
                     if(false == orgId?.isBlank()) {
                         iri(
@@ -111,7 +115,7 @@ fun Route.readBranch() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["morb"]!!)
+                checkPreconditions(model, prefixes["morb"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

@@ -1,89 +1,219 @@
 package org.openmbee.mms5.routes.endpoints
 
 import io.ktor.application.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import io.ktor.utils.io.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
+import org.openmbee.mms5.plugins.client
 
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
 fun Route.loadModel() {
-    put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
-        call.mmsL1(Permission.UPDATE_BRANCH) {
+
+    post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
+        call.mmsL1(Permission.UPDATE_BRANCH, true) {
+
+            // check path parameters
             pathParams {
                 org()
                 repo()
                 branch()
             }
 
+            // set diff id
             diffId = "Load.$transactionId"
 
+            // prepare IRI for named graph to hold loaded model
             val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
-            val localConditions = DEFAULT_UPDATE_CONDITIONS
-
-            val model = KModel(prefixes).apply {
-                parseTurtle(requestBody,this)
-                clearNsPrefixMap()
+            // prep conditions
+            val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
+                // assert HTTP preconditions
+                assertPreconditions(this) {
+                    """
+                        graph mor-graph:Metadata {
+                            morb: mms:etag ?etag .
+                            
+                            $it
+                        }
+                    """
+                }
             }
 
-
-            // load triples from request body into new graph
+            // before loading the model, create new transaction and verify conditions
             run {
-                val loadUpdateString = buildSparqlUpdate {
+                val txnUpdateString = buildSparqlUpdate {
                     insert {
-                        txn()
-
-                        // embed the model in a triples block within the update
-                        raw("""
-                            # user model
-                            graph ?_loadGraph {
-                                ${model.stringify()}
-                            }
-                        """)
+                        subtxn("load")
                     }
                     where {
                         raw(*localConditions.requiredPatterns())
-                        groupDns()
                     }
                 }
 
-                log.info(loadUpdateString)
+                executeSparqlUpdate(txnUpdateString)
 
-                executeSparqlUpdate(loadUpdateString) {
-                    iri(
-                        "_loadGraph" to loadGraphUri,
-                    )
-                }
-            }
-
-
-            // check if load was successful
-            run {
-                val loadConstructString = buildSparqlQuery {
+                val txnConstructString = buildSparqlQuery {
                     construct {
-                        txn()
+                        txn("load")
                     }
                     where {
                         group {
-                            txn()
+                            txn("load")
                         }
-                        raw(
-                            """
+                        raw("""
                             union ${localConditions.unionInspectPatterns()}    
-                        """
-                        )
-                        groupDns()
+                        """)
                     }
                 }
 
-                val loadConstructResponseText = executeSparqlConstructOrDescribe(loadConstructString)
+                val txnConstructResponseText = executeSparqlConstructOrDescribe(txnConstructString)
 
-                validateTransaction(loadConstructResponseText, localConditions)
+                validateTransaction(txnConstructResponseText, localConditions, "load")
+            }
+
+            // now load triples into designated load graph
+            run {
+                // allow client to manually pass in URL to remote file
+                var loadUrl: String? = call.request.queryParameters["url"]
+
+                // client did not explicitly provide a URL and the load service is configured
+                if(loadUrl == null && application.loadServiceUrl != null) {
+                    // submit a POST request to the load service endpoint
+                    val response: HttpResponse = client.post(application.loadServiceUrl!! + "/" + diffId) {
+                        // TODO: verify load service request is correct and complete
+                        // Pass received authorization to internal service
+                        headers {
+                            call.request.headers[HttpHeaders.Authorization]?.let { auth ->
+                                append(HttpHeaders.Authorization, auth)
+                            }
+                        }
+                        // stream request body from client to load service
+                        // TODO: Handle exceptions
+                        body = object: OutgoingContent.WriteChannelContent() {
+                            override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)
+                            override val contentLength = call.request.header(HttpHeaders.ContentLength)!!.toLong()
+                            override suspend fun writeTo(channel: ByteWriteChannel) {
+                                call.request.receiveChannel().copyTo(channel)
+                            }
+                        }
+                    }
+
+                    // read response body
+                    val responseText = response.readText()
+
+                    // non-200
+                    if(!response.status.isSuccess()) {
+                        throw Non200Response(responseText, response.status)
+                    }
+
+                    // set load URL
+                    loadUrl = responseText
+                }
+
+                // a load URL has been set
+                if(loadUrl != null) {
+                    // use SPARQL LOAD
+                    val loadUpdateString = buildSparqlUpdate {
+                        raw("""
+                            load ?_loadUrl into graph ?_loadGraph
+                        """)
+                    }
+
+                    log.info(loadUpdateString)
+
+                    executeSparqlUpdate(loadUpdateString) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_loadUrl" to loadUrl,
+                            "_loadGraph" to loadGraphUri,
+                        )
+                    }
+
+                    // exit load block
+                    return@run
+                }
+
+                // GSP is configured; use it
+                if(application.quadStoreGraphStoreProtocolUrl != null) {
+                    // deduce content type
+                    val modelContentType = requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
+
+                    // not allowed
+                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType)
+
+                    // submit a PUT request to the quad-store's GSP endpoint
+                    val response: HttpResponse = client.put(application.quadStoreGraphStoreProtocolUrl!!) {
+                        // add the graph query parameter per the GSP specification
+                        parameter("graph", loadGraphUri)
+
+                        // forward the header for the content type, or default to turtle
+                        contentType(ContentType.parse(modelContentType))
+
+                        // stream request body from client to GSP endpoint
+                        body = object : OutgoingContent.WriteChannelContent() {
+                            override suspend fun writeTo(channel: ByteWriteChannel) {
+                                call.request.receiveChannel().copyTo(channel)
+                            }
+                        }
+                    }
+
+                    // read response body
+                    val responseText = response.readText()
+
+                    // non-200
+                    if(!response.status.isSuccess())  {
+                        throw Non200Response(responseText, response.status)
+                    }
+                }
+                // fallback to SPARQL UPDATE string
+                else {
+                    // fully load request body
+                    val body = call.receiveText()
+
+                    // parse it into a model
+                    val model = KModel(prefixes).apply {
+                        parseTurtle(body,this)
+                        clearNsPrefixMap()
+                    }
+
+                    // serialize model into turtle
+                    val loadUpdateString = buildSparqlUpdate {
+                        insert {
+                            // embed the model in a triples block within the update
+                            raw("""
+                                # user model
+                                graph ?_loadGraph {
+                                    ${model.stringify()}
+                                }
+                            """)
+                        }
+                    }
+
+                    // execute
+                    executeSparqlUpdate(loadUpdateString) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_loadGraph" to loadGraphUri,
+                        )
+                    }
+                }
             }
 
 
@@ -102,213 +232,153 @@ fun Route.loadModel() {
                 """)
 
                 executeSparqlUpdate(updateString) {
+                    prefixes(prefixes)
+
                     iri(
                         // use current branch as ref source
                         "srcRef" to prefixes["morb"]!!,
 
                         // set dst graph
                         "dstGraph" to loadGraphUri,
+
+                        // set dst commit (this commit)
+                        "dstCommit" to prefixes["morc"]!!,
                     )
                 }
-                //
-                //
-                // val diffUpdateString = buildSparqlUpdate {
-                //     insert {
-                //         txn(
-                //             "mms-txn:stagingGraph" to "?stagingGraph",
-                //             "mms-txn:srcGraph" to "?srcGraph",
-                //             "mms-txn:dstGraph" to "?dstGraph",
-                //             "mms-txn:diffInsGraph" to "?diffInsGraph",
-                //             "mms-txn:diffDelGraph" to "?diffDelGraph",
-                //         ) {
-                //             autoPolicy(Scope.DIFF, Role.ADMIN_DIFF)
-                //         }
-                //
-                //         raw(
-                //             """
-                //             graph ?diffInsGraph {
-                //                 ?ins_s ?ins_p ?ins_o .
-                //             }
-                //
-                //             graph ?diffDelGraph {
-                //                 ?del_s ?del_p ?del_o .
-                //             }
-                //
-                //             graph mor-graph:Metadata {
-                //                 ?diff mms:id ?diffId ;
-                //                     mms:diffSrc ?commitSource ;
-                //                     mms:diffDst morc: ;
-                //                     mms:insGraph ?diffInsGraph ;
-                //                     mms:delGraph ?diffDelGraph ;
-                //                     .
-                //             }
-                //         """
-                //         )
-                //     }
-                //     where {
-                //         raw(
-                //             """
-                //             graph mor-graph:Metadata {
-                //                 # select the latest commit from the current named ref
-                //                 morb: mms:commit ?commitSource .
-                //
-                //                 ?commitSource ^mms:commit/mms:snapshot ?snapshot .
-                //
-                //                 ?snapshot a mms:Model ;
-                //                     mms:graph ?srcGraph  .
-                //             }
-                //
-                //             bind(
-                //                 sha256(
-                //                     concat(str(morc:), "\n", str(?commitSource))
-                //                 ) as ?diffId
-                //             )
-                //
-                //             bind(
-                //                 iri(
-                //                     concat(str(morc:), "/diffs/", ?diffId)
-                //                 ) as ?diff
-                //             )
-                //
-                //             bind(
-                //                 iri(
-                //                     concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                //                 ) as ?diffInsGraph
-                //             )
-                //
-                //             bind(
-                //                 iri(
-                //                     concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                //                 ) as ?diffDelGraph
-                //             )
-                //
-                //
-                //             {
-                //                 graph ?srcGraph {
-                //                     ?ins_s ?ins_p ?ins_o .
-                //                 }
-                //
-                //                 filter not exists {
-                //                     graph ?dstGraph {
-                //                         ?ins_s ?ins_p ?ins_o .
-                //                     }
-                //                 }
-                //             } union {
-                //                 graph ?dstGraph {
-                //                     ?del_s ?del_p ?del_o .
-                //                 }
-                //
-                //                 filter not exists {
-                //                     graph ?srcGraph {
-                //                         ?del_s ?del_p ?del_o .
-                //                     }
-                //                 }
-                //             }
-                //         """
-                //         )
-                //     }
-                // }
-
-                // executeSparqlUpdate(diffUpdateString) {
-                //     iri(
-                //         // use current branch as ref source
-                //         "refSource" to prefixes["morb"]!!,
-                //
-                //         // set dst graph
-                //         "dstGraph" to loadGraphUri,
-                //     )
-                // }
             }
 
             // validate diff creation
-            val diffConstructString = buildSparqlQuery {
-                construct {
-                    txn()
-                }
-                where {
-                    group {
-                        txn()
+            lateinit var diffConstructResponseText: String
+            val diffConstructModel = run {
+                val diffConstructString = buildSparqlQuery {
+                    construct {
+                        txn("diff")
+                        etag("morb:")
                     }
-                    raw("""
-                        union ${localConditions.unionInspectPatterns()}    
-                    """)
-                    groupDns()
+                    where {
+                        group {
+                            txn("diff")
+                            etag("morb:")
+                        }
+                        raw("""
+                            union ${localConditions.unionInspectPatterns()}    
+                        """)
+                    }
                 }
+
+                diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
+
+                log.info("RESPONSE TXT: $diffConstructResponseText")
+
+                validateTransaction(diffConstructResponseText, localConditions, "diff")
             }
 
-            val diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
 
-            log.info("RESPONSE TXT: $diffConstructResponseText")
-
-            val diffConstructModel = validateTransaction(diffConstructResponseText, localConditions)
-
-
+            // shortcut lambda for fetching properties in returned model
             val propertyUriAt = { res: Resource, prop: Property ->
                 diffConstructModel.listObjectsOfProperty(res, prop).let {
                     if(it.hasNext()) it.next().asResource().uri else null
                 }
             }
 
-            val transactionNode = diffConstructModel.createResource(prefixes["mt"])
-
-            val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.diffInsGraph)
-            val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.diffDelGraph)
+            // locate transaction node
+            val transactionNode = diffConstructModel.createResource(prefixes["mt"]+"diff")
 
 
-            val delTriples = if(diffDelGraph != null) {
-                val delModel = downloadModel(diffDelGraph)
-                delModel.clearNsPrefixMap()
-                delModel.stringify()
-            } else ""
+            // get ins/del graphs
+            val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
+            val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
 
-            val insTriples = if(diffInsGraph != null) {
-                val insModel = downloadModel(diffInsGraph)
-                insModel.clearNsPrefixMap()
-                insModel.stringify()
-            } else ""
+            // parse the result value
+            val changeCount = if(diffInsGraph == null && diffDelGraph == null) {
+                0uL
+            } else {
+                log.info("Changes detected.")
+                // count the number of changes in the diff
+                val selectDiffResponseText = executeSparqlSelectOrAsk("""
+                    select (count(*) as ?changeCount) {
+                        {
+                            graph ?_insGraph {
+                                ?ins_s ?ins_p ?ins_o .
+                            }
+                        } union {
+                            graph ?_delGraph {
+                                ?del_s ?del_p ?del_o .
+                            }
+                        }
+                    }
+                """) {
+                    prefixes(prefixes)
 
+                    iri(
+                        "_insGraph" to (diffInsGraph?: "mms:voidInsGraph"),
+                        "_delGraph" to (diffDelGraph?: "mms:voidDelGraph"),
+                    )
+                }
 
-            // TODO add condition to update that the selected staging has not changed since diff creation using etag value
+                log.info("selectDiffResponseText: $selectDiffResponseText")
 
-            // perform update commit
-            run {
-                val commitUpdateString = genCommitUpdate(
+                // parse the JSON response
+                val bindings = Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
+
+                // query error
+                if(0 == bindings.size) {
+                    throw ServerBugException("Query to count the number of triples in the diff graphs failed to return any results")
+                }
+
+                // bind result to outer assignment
+                bindings[0].jsonObject["changeCount"]!!.jsonObject["value"]!!.jsonPrimitive.content.toULong()
+            }
+
+            // empty delta (no changes)
+            if(changeCount == 0uL) {
+                // locate branch node
+                val branchNode = diffConstructModel.createResource(prefixes["morb"])
+
+                // get its etag value
+                val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+
+                // set etag header
+                call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
+
+                // sanity check
+                log.info("Sending data-less construct response text to client: \n$prefixes")
+
+                // respond
+                call.respondText("$prefixes", RdfContentTypes.Turtle)
+            }
+            else {
+                // TODO add condition to update that the selected staging has not changed since diff creation using etag value
+
+                // replace current staging graph with the already loaded model in load graph
+                val commitUpdateString = genCommitUpdate(localConditions,
                     delete = """
-                        graph ?stagingGraph {
-                            $delTriples
+                        graph mor-graph:Metadata {
+                            ?staging mms:graph ?stagingGraph .
                         }
                     """,
                     insert = """
-                        graph ?stagingGraph {
-                            $insTriples
+                        graph mor-graph:Metadata {
+                            ?staging mms:graph ?_loadGraph . 
                         }
-                    """,
-                    // include conditions in order to match ?stagingGraph
-                    where = localConditions.requiredPatterns().joinToString("\n"),
+                    """
                 )
 
                 log.info(commitUpdateString)
 
-
                 executeSparqlUpdate(commitUpdateString) {
+                    prefixes(prefixes)
+
                     iri(
                         "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
+                        "_insGraph" to (diffInsGraph?: "mms:voidInsGraph"),
+                        "_delGraph" to (diffDelGraph?: "mms:voidDelGraph"),
+                        "_loadGraph" to loadGraphUri,
                     )
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to ("""
-                            delete {
-                                graph ?__mms_graph {
-                                    $delTriples
-                                }
-                            }
-                            insert {
-                                graph ?__mms_graph {
-                                    $insTriples
-                                }
-                            }
-                        """ to MMS_DATATYPE.sparql),
+                        "_patchString" to ("" to MMS_DATATYPE.sparql),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
@@ -316,11 +386,48 @@ fun Route.loadModel() {
                         "_txnId" to transactionId,
                     )
                 }
+
+                // sanity check
+                log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
+
+                // response
+                call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
+
+                // start copying staging to new model
+                executeSparqlUpdate("""
+                    copy ?_stagingGraph to ?_modelGraph;
+                    
+                    insert data {
+                        graph mor-graph:Metadata {
+                            morb: mms:snapshot ?_model .
+                            ?_model a mms:Model ;
+                                mms:graph ?_modelGraph ;
+                                .
+                        }
+                    }
+                """) {
+                    prefixes(prefixes)
+
+                    iri(
+                        "_stagingGraph" to loadGraphUri,
+                        "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                        "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                    )
+                }
+
             }
 
+            // now that response has been sent to client, perform "clean up" work on quad-store
 
-            // done
-            call.respondText(diffConstructResponseText)
+            // delete both transactions
+            executeSparqlUpdate("""
+                delete where {
+                    graph m-graph:Transactions {
+                        mt:load ?load_p ?load_o .
+                        mt:diff ?diff_p ?diff_o .
+                    }
+                }
+            """)
         }
     }
 }

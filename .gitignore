@@ -75,5 +75,7 @@ replay_pid*
 application.conf
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
+.idea
 
 application.conf
+*-logback.xml

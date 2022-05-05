@@ -95,11 +95,11 @@ const H_CRUD_DEFAULT: ActionsConfig = {
 
 function permissions(h_permissions: Hash<PermissionConfig>) {
 	return oderom(h_permissions, (si_permission, gc_permission) => oderom(gc_permission.crud as Hash<CrudConfig>, (si_crud, gc_crud) => ({
-			[`mms:Permission.${si_crud}${si_permission}`]: {
+			[`mms-object:Permission.${si_crud}${si_permission}`]: {
 				a: 'mms:Permission',
 				...gc_crud.implies && {
 					'mms:implies': ['function' === typeof gc_crud.implies? gc_crud.implies(si_permission): gc_crud.implies]
-						.flat().map(s => `mms-object:Permission${s}`),
+						.flat().map(s => `mms-object:Permission.${s}`),
 				},
 			},
 		}))
@@ -122,7 +122,7 @@ interface PermitsConfig {
 
 function roles(h_roles: Hash<RolesConfig>) {
 	return oderom(h_roles, (si_role, h_role) => oderom(h_role as Hash<PermitConfig>, (si_crud, gc_crud) => ({
-			[`mms:Role.${si_crud}${si_role}`]: {
+			[`mms-object:Role.${si_crud}${si_role}`]: {
 				a: 'mms:Role',
 				...gc_crud.permits && {
 					'mms:permits': ['function' === typeof gc_crud.permits? gc_crud.permits(si_role): gc_crud.permits]
@@ -158,6 +158,10 @@ const ds_writer = trig_write({
 		'm-user': `${P_PREFIX}users/`,
 		'm-group': `${P_PREFIX}groups/`,
 		'm-policy': `${P_PREFIX}policies/`,
+	},
+	style: {
+		directives: 'sparql',
+		graphKeyword: 'graph',
 	},
 })
 
@@ -251,14 +255,38 @@ ds_writer.write({
 			}),
 
 			...permissions({
+				Cluster: {
+					crud: {
+						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadCluster',
+								'CreateOrg',
+							],
+						},
+						Delete: {
+							implies: [
+								'UpdateCluster',
+								'DeleteOrg',
+							],
+						},
+					},
+				},
+
 				Org: {
 					crud: {
 						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadOrg',
+								'CreateProject',
+							],
+						},
 						Delete: {
 							implies: [
 								'UpdateOrg',
-								// ability to delete an org implies ability to create a project in that org
-								'CreateProject',
+								// ability to delete an org implies ability to delete projects in that org
+								'DeleteProject',
 							],
 						},
 					},
@@ -315,6 +343,24 @@ ds_writer.write({
 						},
 					},
 				},
+
+				// AccessControl: {
+				// 	crud: {
+				// 		Create: {
+				// 			implies: [
+				// 				'ReadAccessControl',
+				// 				'CreatePolicy',
+				// 				'CreateRole',
+				// 				'CreateGroup',
+				// 				'CreateUser',
+				// 			],
+				// 		},
+				// 		Read: {},
+				// 		Update: {
+
+				// 		},
+				// 	},
+				// },
 			}),
 
 			...roles({

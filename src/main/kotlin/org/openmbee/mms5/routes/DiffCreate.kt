@@ -15,7 +15,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 
         """
             # branch must not yet exist
-            graph m-graph:Cluster {
+            graph mor-graph:Metadata {
                 filter not exists {
                     morb: a mms:Branch .
                 }
@@ -91,6 +91,8 @@ fun Route.createDiff() {
             """)
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "srcRef" to srcRef,
                     "dstRef" to dstRef,
@@ -99,16 +101,15 @@ fun Route.createDiff() {
 
             val constructString = buildSparqlQuery {
                 construct {
-                    txn()
+                    txn("diff")
                 }
                 where {
                     group {
-                        txn()
+                        txn("diff")
                     }
                     raw("""
                         union ${localConditions.unionInspectPatterns()}    
                     """)
-                    groupDns()
                 }
             }
 
@@ -165,9 +166,7 @@ fun Route.createDiff() {
                             mt: ?p ?o .
                         }
                     }
-                """) {
-                    prefixes(prefixes)
-                }
+                """)
 
                 // log response
                 log.info(dropResponseText)

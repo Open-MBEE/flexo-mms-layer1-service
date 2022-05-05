@@ -168,13 +168,14 @@ fun Route.createLock() {
                 }
                 where {
                     raw(*localConditions.requiredPatterns())
-                    groupDns()
                 }
             }
 
             log.info(updateString)
 
             executeSparqlUpdate(updateString) {
+                prefixes(prefixes)
+
                 iri(
                     "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
                 )
@@ -201,7 +202,6 @@ fun Route.createLock() {
                         """)
                     }
                     raw("""union ${localConditions.unionInspectPatterns()}""")
-                    groupDns()
                 }
             }
 

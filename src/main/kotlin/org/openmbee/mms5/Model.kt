@@ -112,8 +112,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
         // graph IRI
         else if(node.isURI) {
             // rewrite
-            return NodeFactory.createURI("no:"+node.uri)
-            // rewrite(node.uri)
+            return NodeFactory.createURI(this.rewrite(node.uri))
         }
 
         // unhandled node type
@@ -121,10 +120,15 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
     }
 }
 
-fun MmsL1Context.sanitizeUserQuery(inputQueryString: String): Pair<GraphNodeRewriter, Query> {
+fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=null): Pair<GraphNodeRewriter, Query> {
     // parse query
     val inputQuery = try {
-        QueryFactory.create(inputQueryString)
+        if(baseIri != null) {
+            QueryFactory.create(inputQueryString, baseIri)
+        }
+        else {
+            QueryFactory.create(inputQueryString)
+        }
     } catch(parse: Exception) {
         throw QuerySyntaxException(parse)
     }
@@ -203,16 +207,10 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
     val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString)
 
     outputQuery.apply {
-        // // set default graph
-        // graphURIs.add(0, "${MMS_VARIABLE_PREFIX}modelGraph")
-
-        // // include repo graph in all named graphs
-        // namedGraphURIs.add(0, prefixes["mor-graph"])
-
         // create new group
         val group = ElementGroup()
 
-        // create metadata graph URI node
+        // create model graph URI node
         val modelGraphVar = NodeFactory.createVariable("${MMS_VARIABLE_PREFIX}modelGraph")
 
         // add all prepend root elements
@@ -257,7 +255,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
 
     val outputQueryString = outputQuery.serialize()
 
-    if(inspectOnly == true) {
+    if(inspectOnly) {
         call.respondText(outputQueryString)
         return
     }
@@ -266,12 +264,12 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String) {
     }
 
     if(outputQuery.isSelectType || outputQuery.isAskType) {
-        val queryResponseText = executeSparqlSelectOrAsk(outputQueryString)
+        val queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {}
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
-        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString)
+        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString) {}
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
