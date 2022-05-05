@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  auth-service:
+    image: openmbee/mms5-auth-service:latest
+    environment:
+      - POSTGRES_PASSWORD=test1234
+      - POSTGRES_USER=mmsuser
+      - POSTGRES_DB=mms
+    ports:
+      - 5432:5432
+
+  store-service:
+    image: openmbee/mms5-store-service:latest
+    environment:
+      - "discovery.type=single-node"
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      - "MINIO_ACCESS_KEY=admintest"
+      - "MINIO_SECRET_KEY=admintest"
+    command: server /tmp/data
+    ports:
+      - 9000:9000
+
+  mms:
+    build: .
+    container_name: mms
+    hostname: mms
+    environment:
+      - "SPRING_PROFILES_ACTIVE=test"
+    depends_on:
+      - postgres
+      - elasticsearch
+      - minio
+    ports:
+      - 8080:8080
