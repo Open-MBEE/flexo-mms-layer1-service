@@ -254,8 +254,8 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
  * }
  *
  */
-suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup) {
-    val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString)
+suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup, baseIri: String?=null) {
+    val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString, baseIri)
 
     // generate a unique substitute variable
     val substituteVar = Var.alloc("${MMS_VARIABLE_PREFIX}${UUID.randomUUID().toString().replace('-', '_')}")
@@ -282,9 +282,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
         // overwrite the query pattern with a group block
         queryPattern = ElementGroup().apply {
-            // anything the rewriter wants to prepend
-            rewriter.prepend.forEach { addElement(it) }
-
             // create union between auth failure and user query block
             addElement(ElementUnion().apply {
                 // prevent any bindings to outer scope
@@ -304,55 +301,64 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     // prep to set/bind the model graph node
                     lateinit var modelGraphNode: Node
 
-                    // apply special optimization for persistent graph URI
-                    if(refIri == prefixes["morb"]) {
-                        modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
-                    }
-                    // need to match model graph dynamically
-                    else {
-                        // model graph selection
-                        addElement(ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), ElementGroup().apply {
-                            // use variable to bind model graph URI
-                            modelGraphNode = Var.alloc("${MMS_VARIABLE_PREFIX}modelGraph")
-
-                            // prep intermediate snapshot variable
-                            val snapshotVar = Var.alloc("${MMS_VARIABLE_PREFIX}snapshot")
-
-                            // <$REF_IRI> mms:snapshot ?__mms_snapshot .
-                            addTriplePattern(Triple.create(refNode, MMS.snapshot.asNode(), snapshotVar))
-
-                            // ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
-                            addTriplePattern(Triple.create(snapshotVar, MMS.graph.asNode(), modelGraphNode))
-
+                    // repo query (use metadata graph)
+                    when(refIri) {
+                        prefixes["mor"] -> {
+                            modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Metadata")
+                        }
+                        // apply special optimization for persistent graph URI
+                        prefixes["morb"] -> {
+                            modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
+                        }
+                        // need to match model graph dynamically
+                        else -> {
                             // model graph selection
-                            addElement(ElementUnion().apply {
-                                // prefer the model snapshot
-                                addElement(ElementTriplesBlock().apply {
-                                    // ?__mms_snapshot a mms:Model .
-                                    addTriple(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Model.asNode()))
-                                })
+                            addElement(ElementNamedGraph(NodeFactory.createURI("${prefixes["mor-graph"]}Metadata"), ElementGroup().apply {
+                                // use variable to bind model graph URI
+                                modelGraphNode = Var.alloc("${MMS_VARIABLE_PREFIX}modelGraph")
 
-                                // use staging snapshot if model is not ready
-                                addElement(ElementGroup().apply {
-                                    // ?__mms_snapshot a mms:Staging .
-                                    addTriplePattern(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Staging.asNode()))
+                                // prep intermediate snapshot variable
+                                val snapshotVar = Var.alloc("${MMS_VARIABLE_PREFIX}snapshot")
 
-                                    // filter not exists { ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model }
-                                    addElement(ElementNotExists(ElementPathBlock().apply {
-                                        addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
-                                    }))
+                                // <$REF_IRI> mms:snapshot ?__mms_snapshot .
+                                addTriplePattern(Triple.create(refNode, MMS.snapshot.asNode(), snapshotVar))
+
+                                // ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
+                                addTriplePattern(Triple.create(snapshotVar, MMS.graph.asNode(), modelGraphNode))
+
+                                // model graph selection
+                                addElement(ElementUnion().apply {
+                                    // prefer the model snapshot
+                                    addElement(ElementTriplesBlock().apply {
+                                        // ?__mms_snapshot a mms:Model .
+                                        addTriple(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Model.asNode()))
+                                    })
+
+                                    // use staging snapshot if model is not ready
+                                    addElement(ElementGroup().apply {
+                                        // ?__mms_snapshot a mms:Staging .
+                                        addTriplePattern(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Staging.asNode()))
+
+                                        // filter not exists { ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model }
+                                        addElement(ElementNotExists(ElementPathBlock().apply {
+                                            addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
+                                        }))
+                                    })
                                 })
-                            })
-                        }))
+                            }))
+                        }
                     }
+
+                    // anything the rewriter wants to prepend
+                    rewriter.prepend.forEach { addElement(it) }
 
                     // inline arbitrary user query
                     addElement(ElementNamedGraph(modelGraphNode, queryPattern))
+
+                    // anything the rewriter wants to append
+                    rewriter.append.forEach { addElement(it) }
                 })
             })
-
-            // anything the rewriter wants to append
-            rewriter.append.forEach { addElement(it) }
         }
 
         // debug select variables
