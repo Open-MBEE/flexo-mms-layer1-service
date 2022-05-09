@@ -17,7 +17,7 @@ class UpdateOperationNotAllowedException(operation: String): Exception(operation
 
 class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
-class Non200Response(body: String, status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
+class Non200Response(val body: String, val status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
 
 
 object NoQuadsElementVisitor: ElementVisitor {

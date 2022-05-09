@@ -1,6 +1,7 @@
 package org.openmbee.mms5
 
 import io.ktor.response.*
+import kotlinx.coroutines.selects.select
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
@@ -226,41 +227,31 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
  *
  * select * {
  *   {
- *     # negated authorization query
- *     filter not exists {
- *       # join conditions patterns
- *     }
- *
- *     # bind to error variable
- *     bind("authorization" as ?__mms_error)
- *   } union {
- *     # prevent this bgp from producing bindings if auth fails
+ *     # use `EXISTS` block to prevent any variables from binding to the top-level scope
  *     filter exists {
- *       # authorization query
- *     }
- *
- *     # model graph selection
- *     graph mor-graph:Metadata {
- *       <$REF_IRI> mms:snapshot ?__mms_snapshot .
- *       ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
- *       {
- *         # prefer the model snapshot
- *         ?__mms_snapshot a mms:Model .
- *       } union {
- *         # use staging snapshot if model is not ready
- *         ?__mms_snapshot a mms:Staging .
- *         filter not exists {
- *           ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model .
+ *       # negate the access control check
+ *       filter not exists {
+ *         graph m-graph:AccessControl.Policies {
+ *           # policy check...
  *         }
  *       }
+ *
+ *       # engine will only evaluate this if the above block matched, meaning that the user *is not* authorized.
+ *       # evaluating the expression causes an error to be thrown for the invalid endpoint URI.
+ *       service <urn:throw> { }
+ *     }
+ *   }
+ *   # allow the engine to evaluate these two blocks independently
+ *   union {
+ *     # model graph selection
+ *     graph mor-graph:Metadata {
+ *       # graph selection...
  *     }
  *
  *     # arbitrary user query
  *     { select ?s ?p ?o { ?s ?p ?o } }
  *   }
  * }
- *
- * If verification fails for any reason, the results will contain exactly 1 row with the `__mms_error` variable set.
  *
  */
 suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup) {
@@ -296,20 +287,14 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
             // create union between auth failure and user query block
             addElement(ElementUnion().apply {
-                // add auth failure group
-                ElementGroup().apply {
+                // prevent any bindings to outer scope
+                addElement(ElementExists(ElementGroup().apply {
                     // negate authorization query; it must fail in order to produce a binding
-                    ElementNotExists(patternPlaceholder)
+                    addElement(ElementNotExists(patternPlaceholder))
 
-                    // allocate error variable
-                    val errorVar = Var.alloc("${MMS_VARIABLE_PREFIX}error")
-
-                    // error binding
-                    ElementBind(errorVar, NodeValueString("authorization"))
-
-                    // add to selection
-                    addResultVar(errorVar)
-                }
+                    // throw error
+                    addElement(ElementService("urn:throw", ElementTriplesBlock()))
+                }))
 
                 // add user query block
                 addElement(ElementGroup().apply {
@@ -389,7 +374,40 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     }
 
     if(outputQuery.isSelectType || outputQuery.isAskType) {
-        val queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {}
+        val queryResponseText: String
+        try {
+            queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {}
+        }
+        catch(executeError: Exception) {
+            if(executeError is Non200Response) {
+                val statusCode = executeError.status.value
+
+                log.debug("Caught non-200 response from quadstore: ${statusCode} \"\"\"${executeError.body}\"\"\"")
+
+                // 4xx error
+                if(statusCode >= 400 && statusCode < 500) {
+                    // do access control check
+                    val checkQuery = buildSparqlQuery {
+                        construct {
+                            auth()
+                        }
+                        where {
+                            raw(*conditions.requiredPatterns())
+                        }
+                    }
+
+                    log.debug("Submitting post-400 access-control check query:\n${checkQuery}")
+
+                    val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
+
+                    parseConstructResponse(checkResponseText) {
+                        conditions.handle(model, mms)
+                    }
+                }
+            }
+
+            throw executeError
+        }
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
