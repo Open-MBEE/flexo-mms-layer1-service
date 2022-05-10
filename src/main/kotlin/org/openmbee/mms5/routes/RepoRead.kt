@@ -92,6 +92,8 @@ fun Route.readRepo() {
                     repo()
                 }
 
+                log.debug("Reading repo with CONSTRUCT query:\n${SPARQL_CONSTRUCT_REPO}")
+
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
                     prefixes(prefixes)
 
@@ -107,14 +109,9 @@ fun Route.readRepo() {
                     }
                 }
 
-                val model = KModel(prefixes) {
-                    parseTurtle(
-                        body = constructResponseText,
-                        model = this,
-                    )
+                parseConstructResponse(constructResponseText) {
+                    checkPreconditions(model, prefixes["mor"])
                 }
-
-                checkPreconditions(model, prefixes["mor"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
