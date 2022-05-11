@@ -42,7 +42,7 @@ jobs:
           command: docker load -i mms5-layer1-service.tar
       - run:
           name: Tag docker image
-          command: docker tag openmbee/mms5-store-service:latest openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
+          command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
       - run:
           name: Deploy snapshot to Dockerhub
           command: docker push openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
