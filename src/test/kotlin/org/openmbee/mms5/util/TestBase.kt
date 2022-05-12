@@ -33,7 +33,7 @@ import kotlin.test.assertEquals
  *
  * - Sets up application using src/main/resources/application.conf.example configuration
  * - Runs an embedded Fuseki server using an in-memory data store (once for the whole class)
- *    - If MMS5_STORE_QUERY and MMS5_STORE_UPDATE environment variables are set, the tests will use those endpoints and
+ *    - If MMS5_QUERY_URL and MMS5_UPDATE_URL environment variables are set, the tests will use those endpoints and
  *      not run the embedded Fuseki server. Before each test all Example data will still be reset, but after
  *      the test is run the data will be left as is for inspection.
  * - Before each test is run clears out the Example MMS graphs and re-initialize with src/test/resources/init.trig
@@ -47,9 +47,9 @@ abstract class TestBase {
     private val backend = FusekiBackend()
 
     /**
-     * Determines whether to run the Fuseki backend by lack of MMS5_STORE_QUERY and MMS5_STORE_UPDATE environment variables.
+     * Determines whether to run the Fuseki backend by lack of MMS5_QUERY_URL and MMS5_UPDATE_URL environment variables.
      */
-    private val runSparqlBackend = System.getenv("MMS5_STORE_QUERY") == null && System.getenv("MMS5_STORE_UPDATE") == null
+    private val runSparqlBackend = System.getenv("MMS5_QUERY_URL") == null && System.getenv("MMS5_UPDATE_URL") == null
 
     /**
      * Contents of init.trig used to reset database
@@ -115,7 +115,7 @@ abstract class TestBase {
         var queryUrl = if (runSparqlBackend) {
             backend.getQueryUrl()
         } else {
-            System.getenv("MMS5_STORE_QUERY")
+            System.getenv("MMS5_QUERY_URL")
         }
         val results = ArrayList<QuerySolution>()
         QueryExecutionFactory.sparqlService(queryUrl, sparqlPrefixes + "\n" + sparql).execSelect().forEachRemaining {
@@ -183,7 +183,7 @@ abstract class TestBase {
 
     /**
      * Starts the SPARQL backend once before all the tests in the class are run,
-     * unless the MMS5_STORE_QUERY and MMS5_STORE_UPDATE environment variables are
+     * unless the MMS5_QUERY_URL and MMS5_UPDATE_URL environment variables are
      * set.
      */
     @BeforeAll
@@ -203,7 +203,7 @@ abstract class TestBase {
         val updateUrl = if (runSparqlBackend) {
             backend.getUpdateUrl()
         } else {
-            System.getenv("MMS5_STORE_UPDATE")
+            System.getenv("MMS5_UPDATE_URL")
         }
         val dropSparql = """
             PREFIX m-graph: <https://mms.openmbee.org/demo/graphs/>
@@ -225,7 +225,7 @@ abstract class TestBase {
         val uploadUrl = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
-            System.getenv("MMS5_STORE_UPDATE")
+            System.getenv("MMS5_UPDATE_URL")
         }
         val loadRequest = HttpRequest.newBuilder()
             .uri(URI(uploadUrl))
@@ -243,8 +243,8 @@ abstract class TestBase {
     fun <R> withTestEnvironment(test: TestApplicationEngine.() -> R): R {
         var result: R? = null
         return if (runSparqlBackend) {
-            withEnvironmentVariable("MMS5_STORE_QUERY", backend.getQueryUrl())
-                .and("MMS5_STORE_UPDATE", backend.getUpdateUrl())
+            withEnvironmentVariable("MMS5_QUERY_URL", backend.getQueryUrl())
+                .and("MMS5_UPDATE_URL", backend.getUpdateUrl())
                 .execute {
                     withApplication(testEnv()) {
                         result = test()

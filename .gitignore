@@ -5,7 +5,7 @@ build/
 scrap/
 
 *.env
-.env.*
+src/test/kotlin/org/openmbee/mms5/resources/.env.tests
 *.ignore
 .git-*
 

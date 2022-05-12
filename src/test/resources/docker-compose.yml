@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+
+  quad-store-server:
+    image: atomgraph/fuseki:latest
+    container_name: quad-store-service
+    hostname: quad-store-service
+    volumes:
+      - ${PWD}/src/test/resources/test.trig:/tmp/data.trig
+    command: --file=/tmp/data.trig /ds
+    ports:
+      - 3030:3030
+
+  minio-server:
+    image: minio/minio:latest
+    container_name: minio-service
+    hostname: minio-service
+    env_file:
+      - ${PWD}/src/test/resources/env.tests
+    environment:
+      - MINIO_ACCESS_KEY=admintest
+      - MINIO_SECRET_KEY=admintest
+    command: server /tmp/data
+    ports:
+      - 9000:9000
+
+  store-service:
+    image: openmbee/mms5-store-service:latest
+    container_name: store-service
+    hostname: store-service
+    env_file:
+      - ${PWD}/src/test/resources/env.tests
+    environment:
+      - S3_ENDPOINT=http://minio-server:9000
+      - S3_REGION=somewhere
+      - S3_ACCESS_KEY=admintest
+      - S3_SECRET_KEY=admintest
+    depends_on:
+      - minio-server
+    ports:
+      - 8081:8080
+
+  layer1-service:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile-RunTests
+    container_name: layer1-service
+    hostname: layer1-service
+    env_file:
+      - ${PWD}/src/test/resources/env.tests
+    environment:
+      - MMS5_ROOT_CONTEXT=http://layer1-service
+      - MMS5_LOAD_SERVICE_URL=http://store-service:8081/store
+      - MMS5_QUAD_STORE_URL=http://quad-store-service:3030/ds/sparql
+      - MMS5_QUERY_URL=http://quad-store-service:3030/ds/sparql
+      - MMS5_UPDATE_URL=http://quad-store-service:3030/ds/update
+      - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-service:3030/ds/data
+    depends_on:
+      - store-service
+      - quad-store-server
+    ports:
+      - 8080:8080

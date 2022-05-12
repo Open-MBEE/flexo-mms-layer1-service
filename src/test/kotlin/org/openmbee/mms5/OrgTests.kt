@@ -29,6 +29,7 @@ class OrgTests : TestBase() {
         val orgName = "OpenMBEE";
 
         val putOrg = doCreateOrg(orgId, orgName)
+        println(putOrg.response.toString())
         assertEquals(HttpStatusCode.OK, putOrg.response.status(), "PUT Org Successful")
         val etag = putOrg.response.headers["ETag"]
         assertNotNull(etag, "Etag Present")
@@ -178,6 +179,7 @@ class OrgTests : TestBase() {
             val get = handleRequest(HttpMethod.Get, "/orgs/$orgId") {
                 addAuthorizationHeader("root")
             }
+            assertTrue(get.response.status()?.isSuccess() ?: false, "")
         }
     }
 
