@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.types.typeUtil.closure
-
 val jena_version: String by project
 val klaxon_version: String by project
 val kotlinx_json_version: String by project
@@ -49,8 +47,8 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktor_version")
     implementation("com.orbitz.consul:consul-client:$consul_version")
     implementation("ch.qos.logback:logback-classic:$logback_version")
-    testImplementation("io.ktor:ktor-server-tests:$ktor_version")
 
+    testImplementation("io.ktor:ktor-server-tests:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     testImplementation("com.github.stefanbirkner:system-lambda:$system_lambda_version")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junit_version")
