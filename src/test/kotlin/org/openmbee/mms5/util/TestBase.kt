@@ -54,7 +54,7 @@ abstract class TestBase {
     /**
      * Contents of init.trig used to reset database
      */
-    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("service", "data", "clean", "init.trig"));
+    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("src", "test", "resources", "test.trig"));
 
     /**
      * Standard SPARQL prefixes
@@ -112,7 +112,7 @@ abstract class TestBase {
     }
 
     fun findAllInBackend(sparql: String): List<QuerySolution> {
-        var queryUrl = if (runSparqlBackend) {
+        val queryUrl = if (runSparqlBackend) {
             backend.getQueryUrl()
         } else {
             System.getenv("MMS5_QUERY_URL")
@@ -125,7 +125,7 @@ abstract class TestBase {
     }
 
     fun findOneInBackend(sparql: String): QuerySolution {
-        var all = findAllInBackend(sparql)
+        val all = findAllInBackend(sparql)
         assertEquals(1, all.size, "Expected single result for query $sparql")
         return all[0]
     }
@@ -135,7 +135,7 @@ abstract class TestBase {
      * there's only result, returning it. Queries will be prepended with all the sparqlPrefixes.
      */
     fun findOneInResponse(call: TestApplicationCall, sparql: String): QuerySolution {
-        var all = findAllInResponse(call, sparql)
+        val all = findAllInResponse(call, sparql)
         assertEquals(1, all.size, "Expected single result for query $sparql")
         return all[0]
     }
@@ -218,7 +218,7 @@ abstract class TestBase {
             .header("Content-Type", "application/x-www-form-urlencoded")
             .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(dropSparql, StandardCharsets.UTF_8)))
             .build()
-        var dropResponse = HttpClient.newHttpClient().send(dropRequest, BodyHandlers.ofString())
+        val dropResponse = HttpClient.newHttpClient().send(dropRequest, BodyHandlers.ofString())
         assertEquals(200, dropResponse.statusCode(), "Drop graphs successful")
 
         // Initalize with init.trig

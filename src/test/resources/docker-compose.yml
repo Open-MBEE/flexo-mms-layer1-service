@@ -4,8 +4,10 @@ services:
 
   quad-store-server:
     image: atomgraph/fuseki:latest
-    container_name: quad-store-service
-    hostname: quad-store-service
+    container_name: quad-store-server
+    domainname: quad-store-server.test
+    networks:
+      - backend
     volumes:
       - ${PWD}/src/test/resources/test.trig:/tmp/data.trig
     command: --file=/tmp/data.trig /ds
@@ -14,8 +16,10 @@ services:
 
   minio-server:
     image: minio/minio:latest
-    container_name: minio-service
-    hostname: minio-service
+    container_name: minio-server
+    domainname: minio-server.test
+    networks:
+      - backend
     env_file:
       - ${PWD}/src/test/resources/env.tests
     environment:
@@ -28,7 +32,9 @@ services:
   store-service:
     image: openmbee/mms5-store-service:latest
     container_name: store-service
-    hostname: store-service
+    domainname: store-service.test
+    networks:
+      - backend
     env_file:
       - ${PWD}/src/test/resources/env.tests
     environment:
@@ -44,20 +50,26 @@ services:
   layer1-service:
     build:
       context: ../../..
-      dockerfile: Dockerfile-RunTests
+      dockerfile: Dockerfile-Test
     container_name: layer1-service
-    hostname: layer1-service
+    domainname: layer1-service.test
+    networks:
+      - backend
     env_file:
       - ${PWD}/src/test/resources/env.tests
     environment:
-      - MMS5_ROOT_CONTEXT=http://layer1-service
-      - MMS5_LOAD_SERVICE_URL=http://store-service:8081/store
-      - MMS5_QUAD_STORE_URL=http://quad-store-service:3030/ds/sparql
-      - MMS5_QUERY_URL=http://quad-store-service:3030/ds/sparql
-      - MMS5_UPDATE_URL=http://quad-store-service:3030/ds/update
-      - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-service:3030/ds/data
+      - MMS5_ROOT_CONTEXT=http://layer1-service.test
+      - MMS5_LOAD_SERVICE_URL=http://store-service.test:8081/store
+      - MMS5_QUAD_STORE_URL=http://quad-store-server.test:3030/ds/sparql
+      - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
+      - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
+      - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
     depends_on:
       - store-service
       - quad-store-server
     ports:
       - 8080:8080
+
+networks:
+  backend:
+    driver: bridge
