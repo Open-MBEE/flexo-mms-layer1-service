@@ -54,7 +54,7 @@ abstract class TestBase {
     /**
      * Contents of init.trig used to reset database
      */
-    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("deploy", "build", "resources", "cluster.trig"));
+    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("deploy", "build", "cluster.trig"));
 
     /**
      * Standard SPARQL prefixes
