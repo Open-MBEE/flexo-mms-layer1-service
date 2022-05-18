@@ -47,7 +47,6 @@ jobs:
           name: Build stack and run tests
           command: |
             mv ../build/cluster.trig ./src/test/resources/
-            ls -al /home/circleci/mms5-layer1-service/deploy/build
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
