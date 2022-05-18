@@ -12,14 +12,15 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
+          name: Test layer-1 with test stack
+          command: |
+            cp src/main/resources/application.conf.example ./src/main/resources/application.conf
+            docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
+      - run:
           name: Build docker image
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker build -t openmbee/mms5-layer1-service:latest .
-      - run:
-          name: Export docker image
-          command: |
-            docker save -o mms5-layer1-service.tar openmbee/mms5-layer1-service:latest
       - persist_to_workspace:
           root: /home/circleci/
           paths:
