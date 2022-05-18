@@ -97,6 +97,9 @@ workflows:
   version: 2
   build-test-deploy:
     jobs:
+      - generate_schema:
+          context:
+            - DockerHub
       - build_and_test:
           requires:
             - generate_schema
