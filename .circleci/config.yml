@@ -1,13 +1,33 @@
 version: 2.1
 orbs:
   docker: circleci/docker@2.1.1
+  node: circleci/node@5.0.2
 
 jobs:
+  generate_schema:
+    executor:
+      name: node/default
+    working_directory: /home/circleci/mms5-layer1-service
+    steps:
+      - checkout
+      - node/install-packages
+      - run:
+          name: Generate schema
+          command: |
+            cd deploy
+            yarn build http://layer1-service.test
+            mv build /home/circleci/build
+      - persist_to_workspace:
+          root: /home/circleci/
+          paths:
+            - mms5-layer1-service/deploy/build/*
   build_and_test:
     executor:
       name: docker/docker
     working_directory: /home/circleci/mms5-layer1-service
     steps:
+      - attach_workspace:
+          at: /home/circleci/mms5-layer1-service/deploy/build
       - checkout
       - setup_remote_docker:
           docker_layer_caching: true
