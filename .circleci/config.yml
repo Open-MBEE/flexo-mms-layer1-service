@@ -10,7 +10,9 @@ jobs:
     working_directory: /home/circleci/mms5-layer1-service
     steps:
       - checkout
-      - node/install-packages
+      - node/install-packages:
+          pkg-manager: yarn
+          app-dir: deploy
       - run:
           name: Generate schema
           command: |
