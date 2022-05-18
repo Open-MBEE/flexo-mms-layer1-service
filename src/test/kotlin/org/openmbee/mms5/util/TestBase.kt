@@ -54,7 +54,7 @@ abstract class TestBase {
     /**
      * Contents of init.trig used to reset database
      */
-    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("deploy", "build", "cluster.trig"));
+    private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("src", "test", "resources", "cluster.trig"));
 
     /**
      * Standard SPARQL prefixes
@@ -233,7 +233,7 @@ abstract class TestBase {
             .POST(HttpRequest.BodyPublishers.ofByteArray(initTrig))
             .build()
         val loadResponse = HttpClient.newHttpClient().send(loadRequest, BodyHandlers.ofString())
-        assertEquals(200, loadResponse.statusCode(), "Load init.trig successful")
+        assertEquals(200, loadResponse.statusCode(), "Load cluster.trig successful")
     }
 
     /**
