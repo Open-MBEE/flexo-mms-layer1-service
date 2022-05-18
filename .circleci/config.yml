@@ -98,6 +98,8 @@ workflows:
   build-test-deploy:
     jobs:
       - build_and_test:
+          requires:
+            - generate_schema
           filters:
             tags:
               only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
