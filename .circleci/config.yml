@@ -20,20 +20,21 @@ jobs:
       - persist_to_workspace:
           root: /home/circleci/
           paths:
-            - mms5-layer1-service/deploy/build/*
+            - build/*
   build_and_test:
     executor:
       name: docker/docker
     working_directory: /home/circleci/mms5-layer1-service
     steps:
       - attach_workspace:
-          at: /home/circleci/mms5-layer1-service/deploy/build
+          at: /home/circleci/build
       - checkout
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
           name: Build stack and run tests
           command: |
+            mv ../build ./deploy/
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
