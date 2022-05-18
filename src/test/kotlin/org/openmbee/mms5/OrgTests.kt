@@ -13,7 +13,6 @@ import kotlin.test.assertTrue
 class OrgTests : TestBase() {
 
     fun doCreateOrg(orgId: String, orgName: String): TestApplicationCall {
-        println("Running tests")
         return withTestEnvironment {
             handleRequest(HttpMethod.Put, "/orgs/$orgId") {
                 addAuthorizationHeader("root")
