@@ -60,6 +60,9 @@ tasks {
     test {
         useJUnitPlatform()
         dependsOn("copy-test-fuseki-server")
+        this.testLogging {
+            this.showStandardStreams = true
+        }
     }
     register<Copy>("copy-test-fuseki-server") {
         // Copy fuseki-server jar to known location (build/test-fuseki-server)

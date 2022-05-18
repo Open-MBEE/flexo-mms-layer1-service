@@ -12,7 +12,7 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Test layer-1 with test stack
+          name: Build stack and run tests
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
