@@ -29,7 +29,7 @@ jobs:
     working_directory: /home/circleci/mms5-layer1-service
     steps:
       - attach_workspace:
-          at: /home/circleci/build
+          at: ~/
       - checkout
       - setup_remote_docker:
           docker_layer_caching: true
@@ -37,6 +37,7 @@ jobs:
           name: Build stack and run tests
           command: |
             mv ../build ./deploy/
+            ls -al ./deploy/build
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
