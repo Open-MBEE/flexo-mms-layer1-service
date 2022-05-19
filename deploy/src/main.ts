@@ -1,7 +1,7 @@
 // @ts-ignore
 import trig_write from '@graphy/content.trig.write';
 
-const P_PREFIX = process.argv[2];
+const P_PREFIX = process.argv[2].replace(/\/$/, "");
 
 if(!P_PREFIX) {
 	throw new Error(`Must provide context prefix IRI as positional argument`);
@@ -154,10 +154,10 @@ const ds_writer = trig_write({
 		mms: 'https://mms.openmbee.org/rdf/ontology/',
 		'mms-object': 'https://mms.openmbee.org/rdf/objects/',
 		m: P_PREFIX,
-		'm-graph': `${P_PREFIX}graphs/`,
-		'm-user': `${P_PREFIX}users/`,
-		'm-group': `${P_PREFIX}groups/`,
-		'm-policy': `${P_PREFIX}policies/`,
+		'm-graph': `${P_PREFIX}/graphs/`,
+		'm-user': `${P_PREFIX}/users/`,
+		'm-group': `${P_PREFIX}/groups/`,
+		'm-policy': `${P_PREFIX}/policies/`,
 	},
 	style: {
 		directives: 'sparql',
