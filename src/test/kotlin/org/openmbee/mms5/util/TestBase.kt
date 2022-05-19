@@ -117,6 +117,7 @@ abstract class TestBase {
         val queryUrl = if (runSparqlBackend) {
             backend.getQueryUrl()
         } else {
+            println("Found environment variable")
             System.getenv("MMS5_QUERY_URL")
         }
         val results = ArrayList<QuerySolution>()
