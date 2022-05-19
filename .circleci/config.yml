@@ -21,7 +21,7 @@ jobs:
           name: Generate schema
           command: |
             cd deploy && mkdir -p build
-            npx ts-node src/main.ts http://layer1-service.test > ../src/test/resources/cluster.trig
+            npx ts-node src/main.ts http://layer1-service.test/ > ../src/test/resources/cluster.trig
       - persist_to_workspace:
           root: /home/circleci/
           paths:

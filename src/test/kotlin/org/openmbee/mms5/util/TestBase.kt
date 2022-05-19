@@ -89,12 +89,14 @@ abstract class TestBase {
         PREFIX bd: <http://www.bigdata.com/rdf#>
         PREFIX bds: <http://www.bigdata.com/rdf/search#>
 
-    """.trimIndent()
+    """.trimIndent().format("", "")
 
     private fun testEnv(): ApplicationEngineEnvironment {
         return createTestEnvironment {
-            InputStreamReader(javaClass.classLoader.getResourceAsStream("application.conf.example")).use {
-                config = HoconApplicationConfig(ConfigFactory.parseReader(it).resolve())
+            javaClass.classLoader.getResourceAsStream("application.conf.example")?.let { it ->
+                InputStreamReader(it).use { iit ->
+                    config = HoconApplicationConfig(ConfigFactory.parseReader(iit).resolve())
+                }
             }
         }
     }
