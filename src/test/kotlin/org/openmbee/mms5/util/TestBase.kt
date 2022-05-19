@@ -59,7 +59,7 @@ abstract class TestBase {
      */
     private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("src", "test", "resources", "cluster.trig"))
 
-    private val rootContext = System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), "")
+    private val rootContext = "http://layer-service.test" //System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), "")
 
     /**
      * Standard SPARQL prefixes
