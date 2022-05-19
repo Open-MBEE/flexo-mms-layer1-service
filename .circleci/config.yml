@@ -11,9 +11,9 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          name: Restore Yarn Package Cache
+          name: Restore NPM Package Cache
           keys:
-            - yarn-packages-{{ checksum "yarn.lock" }}
+            - npm-packages-{{ checksum "package-lock.json" }}
       - node/install-packages:
           pkg-manager: npm
           app-dir: deploy
