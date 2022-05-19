@@ -181,7 +181,7 @@ abstract class TestBase {
             .withAudience(jwtAudience)
             .withIssuer(issuer)
             .withClaim("username", username)
-            .withClaim("groups", groups)
+            //.withClaim("groups", groups)
             .withExpiresAt(expires)
             .sign(Algorithm.HMAC256(secret))
     }
