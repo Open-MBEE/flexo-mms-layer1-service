@@ -177,11 +177,11 @@ abstract class TestBase {
         val issuer = testEnv.config.property("jwt.domain").getString()
         val secret = testEnv.config.property("jwt.secret").getString()
         val expires = Date(System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000))
-        return JWT.create()
+        return "Bearer " + JWT.create()
             .withAudience(jwtAudience)
             .withIssuer(issuer)
             .withClaim("username", username)
-            //.withClaim("groups", groups)
+            .withClaim("groups", groups)
             .withExpiresAt(expires)
             .sign(Algorithm.HMAC256(secret))
     }
