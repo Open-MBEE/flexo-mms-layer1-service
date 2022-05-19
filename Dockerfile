@@ -1,7 +1,7 @@
 FROM openjdk:17.0.2-jdk-slim as build
 WORKDIR application
 COPY . .
-RUN ./gradlew --no-daemon installDist
+RUN ./gradlew installDist
 
 FROM openjdk:17.0.2-jdk-slim
 WORKDIR application
