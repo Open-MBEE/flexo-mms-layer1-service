@@ -38,6 +38,7 @@ jobs:
       - run:
           name: Build stack and run tests
           command: |
+            ls -al src/test/resources
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:

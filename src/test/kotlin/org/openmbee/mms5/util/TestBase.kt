@@ -103,7 +103,7 @@ abstract class TestBase {
      * Run a SPARQL query on a Turtle response body and return
      * all results. Queries will be prepended with all the sparqlPrefixes.
      */
-    fun findAllInResponse(call: TestApplicationCall, sparql: String): List<QuerySolution> {
+    private fun findAllInResponse(call: TestApplicationCall, sparql: String): List<QuerySolution> {
         val model = ModelFactory.createDefaultModel()
         RDFDataMgr.read(model, ByteArrayInputStream(call.response.byteContent), Lang.TURTLE)
         val results = ArrayList<QuerySolution>()
@@ -113,7 +113,7 @@ abstract class TestBase {
         return results
     }
 
-    fun findAllInBackend(sparql: String): List<QuerySolution> {
+    private fun findAllInBackend(sparql: String): List<QuerySolution> {
         val queryUrl = if (runSparqlBackend) {
             backend.getQueryUrl()
         } else {
@@ -171,7 +171,7 @@ abstract class TestBase {
     /**
      * Generate an Authorization: header Bearer token value for the given username.
      */
-    fun authorization(username: String, groups: List<String>): String {
+    private fun authorization(username: String, groups: List<String>): String {
         val testEnv = testEnv()
         val jwtAudience = testEnv.config.property("jwt.audience").getString()
         val issuer = testEnv.config.property("jwt.domain").getString()

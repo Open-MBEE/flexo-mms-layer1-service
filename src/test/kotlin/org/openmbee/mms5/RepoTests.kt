@@ -9,11 +9,14 @@ import kotlin.test.assertTrue
 
 class RepoTests : TestBase() {
 
+    private val username = "root"
+    private val groups = listOf("SuperAdmins")
+
     @Test
     fun createOnNonExistentOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
-                addAuthorizationHeader("root", listOf("SuperAdmins"))
+                addAuthorizationHeader(username, groups)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
@@ -30,7 +33,7 @@ class RepoTests : TestBase() {
     fun createOnValidOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
-                addAuthorizationHeader("root", listOf("SuperAdmins"))
+                addAuthorizationHeader(username, groups)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
