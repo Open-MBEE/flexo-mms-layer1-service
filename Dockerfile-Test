@@ -2,4 +2,4 @@ FROM openjdk:17.0.2-jdk-slim as build
 WORKDIR application
 COPY . .
 RUN apt-get update && apt-get install -y procps dnsutils
-RUN ./gradlew test
+RUN ./gradlew test --debug
