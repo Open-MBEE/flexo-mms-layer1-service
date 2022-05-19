@@ -16,6 +16,7 @@ import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFDataMgr
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.openmbee.mms5.ROOT_CONTEXT
 import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
 import java.net.URI
@@ -58,31 +59,31 @@ abstract class TestBase {
      */
     private val initTrig = Files.readAllBytes(FileSystems.getDefault().getPath("src", "test", "resources", "cluster.trig"));
 
-    private val rootContext = System.getenv("MMS5_ROOT_CONTEXT")
+    private val rootContext = System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), "")
 
     /**
      * Standard SPARQL prefixes
      */
     private val sparqlPrefixes = """
         PREFIX mms-txn: <https://mms.openmbee.org/rdf/ontology/txn.>
-        PREFIX mo: <${rootContext}orgs/openmbee>
+        PREFIX mo: <${rootContext}/orgs/openmbee>
         PREFIX mms-datatype: <https://mms.openmbee.org/rdf/datatypes/>
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        PREFIX m-object: <${rootContext}objects/>
-        PREFIX mt: <${rootContext}transactions/cb059b78-f239-453d-b4e3-e1b081e8390f>
+        PREFIX m-object: <${rootContext}/objects/>
+        PREFIX mt: <${rootContext}/transactions/cb059b78-f239-453d-b4e3-e1b081e8390f>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-        PREFIX mu: <${rootContext}users/root>
+        PREFIX mu: <${rootContext}/users/root>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
         PREFIX m: <${rootContext}>
-        PREFIX m-group: <${rootContext}groups/>
+        PREFIX m-group: <${rootContext}/groups/>
         PREFIX mms-object: <https://mms.openmbee.org/rdf/objects/>
         PREFIX mms: <https://mms.openmbee.org/rdf/ontology/>
-        PREFIX m-org: <${rootContext}orgs/>
+        PREFIX m-org: <${rootContext}/orgs/>
         PREFIX dct: <http://purl.org/dc/terms/>
-        PREFIX m-policy: <${rootContext}policies/>
+        PREFIX m-policy: <${rootContext}/policies/>
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-        PREFIX m-user: <${rootContext}users/>
-        PREFIX m-graph: <${rootContext}graphs/>
+        PREFIX m-user: <${rootContext}/users/>
+        PREFIX m-graph: <${rootContext}/graphs/>
         PREFIX sesame: <http://www.openrdf.org/schema/sesame#>
         PREFIX fn: <http://www.w3.org/2005/xpath-functions#>
         PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -215,7 +216,7 @@ abstract class TestBase {
             System.getenv("MMS5_UPDATE_URL")
         }
         val dropSparql = """
-            PREFIX m-graph: <https://mms.openmbee.org/demo/graphs/>
+            PREFIX m-graph: <${ROOT_CONTEXT}/graphs/>
             DROP GRAPH m-graph:Schema ;
             DROP GRAPH m-graph:Cluster ;
             DROP GRAPH m-graph:AccessControl.Agents ;
