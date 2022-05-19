@@ -13,7 +13,7 @@ class RepoTests : TestBase() {
     fun createOnNonExistentOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
-                addAuthorizationHeader("root")
+                addAuthorizationHeader("root", listOf("SuperAdmins"))
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
@@ -30,7 +30,7 @@ class RepoTests : TestBase() {
     fun createOnValidOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
-                addAuthorizationHeader("root")
+                addAuthorizationHeader("root", listOf("SuperAdmins"))
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;

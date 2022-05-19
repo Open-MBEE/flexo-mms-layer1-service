@@ -26,6 +26,8 @@ import java.net.http.HttpResponse.BodyHandlers
 import java.nio.charset.StandardCharsets
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
 /**
@@ -162,22 +164,25 @@ abstract class TestBase {
      * Extension function to add an Authorization: header with a Bearer token for the
      * given username to a test request
      */
-    fun TestApplicationRequest.addAuthorizationHeader(username: String) {
-        addHeader("Authorization", authorization(username))
+    fun TestApplicationRequest.addAuthorizationHeader(username: String, groups: List<String>) {
+        addHeader("Authorization", authorization(username, groups))
     }
 
     /**
      * Generate an Authorization: header Bearer token value for the given username.
      */
-    fun authorization(username: String): String {
+    fun authorization(username: String, groups: List<String>): String {
         val testEnv = testEnv()
         val jwtAudience = testEnv.config.property("jwt.audience").getString()
         val issuer = testEnv.config.property("jwt.domain").getString()
         val secret = testEnv.config.property("jwt.secret").getString()
-        return "Bearer " + JWT.create()
+        val expires = Date(System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000))
+        return JWT.create()
             .withAudience(jwtAudience)
             .withIssuer(issuer)
             .withClaim("username", username)
+            .withClaim("groups", groups)
+            .withExpiresAt(expires)
             .sign(Algorithm.HMAC256(secret))
     }
 
