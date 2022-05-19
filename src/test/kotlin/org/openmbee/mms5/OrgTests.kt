@@ -30,7 +30,7 @@ class OrgTests : TestBase() {
     @Test
     fun createAndReadOrgWithIfMatchSuccess() {
         val putOrg = doCreateOrg(testOrgId, testOrgName)
-        println(putOrg.response.toString())
+        println("CreateOrg Response Status" + putOrg.response.status())
         assertEquals(HttpStatusCode.OK, putOrg.response.status(), "PUT Org Successful")
         val etag = putOrg.response.headers["ETag"]
         assertNotNull(etag, "Etag Present")

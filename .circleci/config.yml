@@ -11,7 +11,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          name: Restore NPM Package Cache
+          name: Restore NPM package Cache
           keys:
             - npm-packages-{{ checksum "deploy/package-lock.json" }}
       - node/install-packages:
