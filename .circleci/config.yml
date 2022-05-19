@@ -13,7 +13,7 @@ jobs:
       - restore_cache:
           name: Restore NPM Package Cache
           keys:
-            - npm-packages-{{ checksum "package-lock.json" }}
+            - npm-packages-{{ checksum "deploy/package-lock.json" }}
       - node/install-packages:
           pkg-manager: npm
           app-dir: deploy
@@ -39,7 +39,6 @@ jobs:
       - run:
           name: Build stack and run tests
           command: |
-            mv deploy/build/cluster.trig ./src/test/resources/
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
