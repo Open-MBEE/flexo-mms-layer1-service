@@ -76,8 +76,6 @@ services:
     domainname: layer1-service.test
     networks:
       - backend
-    depends_on:
-      - start_dependencies
     ports:
       - 8080:8080
 

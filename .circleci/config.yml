@@ -39,6 +39,7 @@ jobs:
           name: Build stack and run tests
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
+            docker-compose -f src/test/resources/docker-compose.yml run -d start_dependencies
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
           name: Build docker image
