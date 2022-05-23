@@ -36,10 +36,13 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build stack and run tests
+          name: Build stack
           command: |
-            cp src/main/resources/application.conf.example ./src/main/resources/application.conf
-            docker-compose -f src/test/resources/docker-compose.yml run -d start_dependencies && docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
+            docker-compose -f src/test/resources/docker-compose.yml run -d start_dependencies
+      - run:
+          name: Run Tests
+          command: |
+            docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
           name: Build docker image
           command: |
