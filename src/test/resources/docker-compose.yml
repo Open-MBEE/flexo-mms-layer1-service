@@ -9,7 +9,7 @@ services:
     networks:
       - backend
     volumes:
-      - ${PWD}/src/test/resources/test.trig:/tmp/data.trig
+      - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
     command: --file=/tmp/data.trig /ds
     ports:
       - 3030:3030
@@ -51,19 +51,17 @@ services:
     build:
       context: ../../..
       dockerfile: Dockerfile-Test
+      args:
+        - MMS5_ROOT_CONTEXT=http://layer1-service.test
+        - MMS5_LOAD_SERVICE_URL=http://store-service.test:8081/store
+        - MMS5_QUAD_STORE_URL=http://quad-store-server.test:3030/ds/sparql
+        - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
+        - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
+        - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
     container_name: layer1-service
     domainname: layer1-service.test
     networks:
       - backend
-    env_file:
-      - ${PWD}/src/test/resources/test.env
-    environment:
-      - MMS5_ROOT_CONTEXT=http://layer1-service.test
-      - MMS5_LOAD_SERVICE_URL=http://store-service.test:8081/store
-      - MMS5_QUAD_STORE_URL=http://quad-store-server.test:3030/ds/sparql
-      - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
-      - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
-      - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
     depends_on:
       - store-service
       - quad-store-server

@@ -1,6 +1,11 @@
 FROM openjdk:17.0.2-jdk-slim as build
 WORKDIR application
+ARG MMS5_ROOT_CONTEXT
+ARG MMS5_LOAD_SERVICE_URL
+ARG MMS5_QUAD_STORE_URL
+ARG MMS5_QUERY_URL
+ARG MMS5_UPDATE_URL
+ARG MMS5_GRAPH_STORE_PROTOCOL_URL
 COPY . .
 RUN apt-get update && apt-get install -y procps dnsutils
-RUN echo $MMS5_ROOT_CONTEXT
-RUN ./gradlew test --debug
+RUN ./gradlew test
