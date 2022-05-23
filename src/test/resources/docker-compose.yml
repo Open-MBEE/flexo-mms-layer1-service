@@ -47,6 +47,20 @@ services:
     ports:
       - 8081:8080
 
+  start_dependencies:
+    image: ubuntu:14.04
+    depends_on:
+      - quad-store-server
+    command: >
+      /bin/bash -c "
+        while ! nc -z quad-store-server 3030;
+        do
+          echo sleeping;
+          sleep 1;
+        done;
+        echo Connected!;
+      "
+
   layer1-service:
     build:
       context: ../../..
@@ -63,8 +77,7 @@ services:
     networks:
       - backend
     depends_on:
-      - store-service
-      - quad-store-server
+      - start_dependencies
     ports:
       - 8080:8080
 
