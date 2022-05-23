@@ -29,11 +29,9 @@ class OrgTests : TestBase() {
 
     @Test
     fun createAndReadOrgWithIfMatchSuccess() {
-        println(System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), ""))
+        println("MMS5_ROOT_CONTEXT: " + System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), ""))
         val putOrg = doCreateOrg(testOrgId, testOrgName)
         println("PutOrg Response Status: " + putOrg.response.status())
-        val rootContext = System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), "")
-        println("RootContext: $rootContext")
 
         assertEquals(HttpStatusCode.OK, putOrg.response.status(), "PUT Org Successful")
         val etag = putOrg.response.headers["ETag"]

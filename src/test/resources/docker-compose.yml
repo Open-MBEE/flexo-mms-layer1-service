@@ -50,7 +50,6 @@ services:
   layer1-service:
     build:
       context: ../../..
-      dockerfile: Dockerfile-Test
       args:
         - MMS5_ROOT_CONTEXT=http://layer1-service.test
         - MMS5_LOAD_SERVICE_URL=http://store-service.test:8081/store
@@ -58,6 +57,7 @@ services:
         - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
         - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
         - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
+      dockerfile: Dockerfile-Test
     container_name: layer1-service
     domainname: layer1-service.test
     networks:
