@@ -29,6 +29,7 @@ class OrgTests : TestBase() {
 
     @Test
     fun createAndReadOrgWithIfMatchSuccess() {
+        println(System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), ""))
         val putOrg = doCreateOrg(testOrgId, testOrgName)
         println("PutOrg Response Status: " + putOrg.response.status())
         val rootContext = System.getenv("MMS5_ROOT_CONTEXT").replace("/+$".toRegex(), "")
