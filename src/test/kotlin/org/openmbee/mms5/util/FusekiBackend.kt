@@ -61,7 +61,7 @@ class FusekiBackend : SparqlBackend {
     }
 
     override fun getUploadUrl(): String {
-        return "http://localhost:${fusekiPort}/ds"
+        return "http://localhost:${fusekiPort}/ds/data"
     }
 
 }

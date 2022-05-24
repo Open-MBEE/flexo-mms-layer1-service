@@ -52,7 +52,7 @@ abstract class TestBase {
     /**
      * Determines whether to run the Fuseki backend by lack of MMS5_QUERY_URL and MMS5_UPDATE_URL environment variables.
      */
-    private val runSparqlBackend = System.getenv("MMS5_QUERY_URL") == null && System.getenv("MMS5_UPDATE_URL") == null
+    private val runSparqlBackend = System.getenv("MMS5_QUERY_URL") == null && System.getenv("MMS5_UPDATE_URL") == null && System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL") == null
 
     /**
      * Contents of init.trig used to reset database
@@ -235,7 +235,7 @@ abstract class TestBase {
         val uploadUrl = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
-            System.getenv("MMS5_UPDATE_URL")
+            System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
         }
         val loadRequest = HttpRequest.newBuilder()
             .uri(URI(uploadUrl))
