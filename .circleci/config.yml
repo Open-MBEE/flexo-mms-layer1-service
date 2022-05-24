@@ -38,7 +38,9 @@ jobs:
       - run:
           name: Build stack
           command: |
-            docker-compose -f src/test/resources/docker-compose.yml run -d start_dependencies
+            docker-compose -f src/test/resources/docker-compose.yml run -d quad-store-server
+            docker-compose -f src/test/resources/docker-compose.yml run -d minio-server
+            docker-compose -f src/test/resources/docker-compose.yml run -d store-service
       - run:
           name: Run Tests
           command: |
