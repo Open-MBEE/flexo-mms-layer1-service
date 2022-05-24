@@ -31,6 +31,7 @@ class OrgTests : TestBase() {
     fun createAndReadOrgWithIfMatchSuccess() {
         val putOrg = doCreateOrg(testOrgId, testOrgName)
         println("PutOrg Response Status: " + putOrg.response.status())
+        println("PutOrg Response Body: " + putOrg.response.content)
 
         assertEquals(HttpStatusCode.OK, putOrg.response.status(), "PUT Org Successful")
         val etag = putOrg.response.headers["ETag"]
