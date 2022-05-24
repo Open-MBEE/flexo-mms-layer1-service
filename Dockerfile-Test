@@ -9,5 +9,5 @@ ARG MMS5_GRAPH_STORE_PROTOCOL_URL
 COPY . .
 RUN apt-get update && apt-get install -y procps iputils-ping
 #RUN echo $MMS5_ROOT_CONTEXT && echo $MMS5_LOAD_SERVICE_URL && echo $MMS5_QUAD_STORE_URL
-RUN ping quad-store-server.test
+RUN ping quad-store-server
 #RUN ./gradlew test

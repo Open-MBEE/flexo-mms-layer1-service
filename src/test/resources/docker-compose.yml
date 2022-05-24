@@ -4,10 +4,7 @@ services:
 
   quad-store-server:
     image: atomgraph/fuseki:latest
-    container_name: quad-store-server
-    domainname: quad-store-server.test
-    networks:
-      - backend
+    hostname: quad-store-server
     volumes:
       - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
     command: --file=/tmp/data.trig /ds
@@ -16,10 +13,7 @@ services:
 
   minio-server:
     image: minio/minio:latest
-    container_name: minio-server
-    domainname: minio-server.test
-    networks:
-      - backend
+    hostname: minio-server
     env_file:
       - ${PWD}/src/test/resources/test.env
     environment:
@@ -31,10 +25,7 @@ services:
 
   store-service:
     image: openmbee/mms5-store-service:latest
-    container_name: store-service
-    domainname: store-service.test
-    networks:
-      - backend
+    hostname: store-service
     env_file:
       - ${PWD}/src/test/resources/test.env
     environment:
@@ -47,19 +38,7 @@ services:
     ports:
       - 8081:8080
 
-  layer1-service:
-    build:
-      context: ../../..
-      args:
-        - MMS5_ROOT_CONTEXT=http://layer1-service.test
-        - MMS5_LOAD_SERVICE_URL=http://store-service.test:8081/store
-        - MMS5_QUAD_STORE_URL=http://quad-store-server.test:3030/ds/sparql
-        - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
-        - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
-        - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
-      network: resources_backend
-      dockerfile: Dockerfile-Test
-
 networks:
-  backend:
+  default:
+    name: mms5-test-network
     driver: bridge
