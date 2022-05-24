@@ -9,5 +9,5 @@ ARG MMS5_GRAPH_STORE_PROTOCOL_URL
 COPY . .
 RUN apt-get update && apt-get install -y procps dnsutils
 #RUN echo $MMS5_ROOT_CONTEXT && echo $MMS5_LOAD_SERVICE_URL && echo $MMS5_QUAD_STORE_URL
-RUN nslookup http://quad-store-server.test
+RUN ping http://quad-store-server.test:3030/
 #RUN ./gradlew test
