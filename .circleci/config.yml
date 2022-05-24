@@ -36,14 +36,11 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build stack
+          name: Build stack and run tests
           command: |
             docker-compose -f src/test/resources/docker-compose.yml run -d quad-store-server
             docker-compose -f src/test/resources/docker-compose.yml run -d minio-server
             docker-compose -f src/test/resources/docker-compose.yml run -d store-service
-      - run:
-          name: Run Tests
-          command: |
             docker-compose -f src/test/resources/docker-compose.yml run -d layer1-service
       - run:
           name: Build docker image
