@@ -226,7 +226,7 @@ abstract class TestBase {
         val dropRequest = HttpRequest.newBuilder()
             .uri(URI(updateUrl))
             .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(dropSparql, StandardCharsets.UTF_8)))
+            .PUT(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(dropSparql, StandardCharsets.UTF_8)))
             .build()
         val dropResponse = HttpClient.newHttpClient().send(dropRequest, BodyHandlers.ofString())
         assertEquals(200, dropResponse.statusCode(), "Drop graphs successful")
