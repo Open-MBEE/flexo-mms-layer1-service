@@ -39,11 +39,9 @@ jobs:
           name: Build stack and run tests
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
-            docker build --network=mms5-test-network --build-arg MMS5_ROOT_CONTEXT=http://layer1-service --build-arg MMS5_LOAD_SERVICE_URL=http://store-service:8081/store --build-arg MMS5_QUAD_STORE_URL=http://quad-store-server:3030/ds/sparql --build-arg MMS5_QUERY_URL=http://quad-store-server:3030/ds/sparql --build-arg MMS5_UPDATE_URL=http://quad-store-server:3030/ds/update --build-arg MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server:3030/ds/data -f Dockerfile-Test .
-      - run:
-          name: Debug docker-compose stack
-          command: |
             docker ps -a
+            docker logs resources-quad-store-server-1
+            docker build --network=mms5-test-network --build-arg MMS5_ROOT_CONTEXT=http://layer1-service --build-arg MMS5_LOAD_SERVICE_URL=http://store-service:8081/store --build-arg MMS5_QUAD_STORE_URL=http://quad-store-server:3030/ds/sparql --build-arg MMS5_QUERY_URL=http://quad-store-server:3030/ds/sparql --build-arg MMS5_UPDATE_URL=http://quad-store-server:3030/ds/update --build-arg MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server:3030/ds/data -f Dockerfile-Test .
       - run:
           name: Build docker image
           command: |
