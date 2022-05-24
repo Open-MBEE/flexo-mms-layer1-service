@@ -7,7 +7,7 @@ services:
     hostname: quad-store-server
     volumes:
       - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
-    command: --file=/tmp/data.trig /ds
+    command: --file=/tmp/data.trig --update /ds
     ports:
       - 3030:3030
 
