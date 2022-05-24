@@ -242,6 +242,7 @@ abstract class TestBase {
             .header("Content-Type", "application/trig")
             .POST(HttpRequest.BodyPublishers.ofByteArray(initTrig))
             .build()
+        println("HEADERS: " + loadRequest.headers().toString())
         val loadResponse = HttpClient.newHttpClient().send(loadRequest, BodyHandlers.ofString())
         assertEquals(200, loadResponse.statusCode(), "Load cluster.trig successful")
     }
