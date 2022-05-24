@@ -239,8 +239,8 @@ abstract class TestBase {
         }
         val loadRequest = HttpRequest.newBuilder()
             .uri(URI(uploadUrl))
-            .header("Content-Type", "text/trig")
-            .PUT(HttpRequest.BodyPublishers.ofByteArray(initTrig))
+            .header("Content-Type", "application/trig")
+            .POST(HttpRequest.BodyPublishers.ofByteArray(initTrig))
             .build()
         val loadResponse = HttpClient.newHttpClient().send(loadRequest, BodyHandlers.ofString())
         assertEquals(200, loadResponse.statusCode(), "Load cluster.trig successful")
