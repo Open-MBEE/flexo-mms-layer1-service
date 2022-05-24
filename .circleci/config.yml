@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Generate schema
           command: |
-            cd deploy && mkdir -p build
+            cd deploy
             npx ts-node src/main.ts http://layer1-service.test > ../src/test/resources/cluster.trig
       - persist_to_workspace:
           root: /home/circleci/
