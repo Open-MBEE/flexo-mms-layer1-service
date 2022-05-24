@@ -57,13 +57,10 @@ services:
         - MMS5_QUERY_URL=http://quad-store-server.test:3030/ds/sparql
         - MMS5_UPDATE_URL=http://quad-store-server.test:3030/ds/update
         - MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-store-server.test:3030/ds/data
+      network: backend
       dockerfile: Dockerfile-Test
     container_name: layer1-service
     domainname: layer1-service.test
-    networks:
-      - backend
-    ports:
-      - 8080:8080
 
 networks:
   backend:
