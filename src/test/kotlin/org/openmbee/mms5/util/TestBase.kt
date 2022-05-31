@@ -251,15 +251,22 @@ abstract class TestBase {
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX mms: <https://mms.openmbee.org/rdf/ontology/>
             PREFIX mms-object: <https://mms.openmbee.org/rdf/objects/>
-            PREFIX m-policy: <${ROOT_CONTEXT}/graphs/>
-            PREFIX m-user: <${ROOT_CONTEXT}/users/>
+            PREFIX m: <${ROOT_CONTEXT}/>
             PREFIX m-graph: <${ROOT_CONTEXT}/graphs/>
-            insert {
+            PREFIX m-user: <${ROOT_CONTEXT}/users/>
+            PREFIX m-group: <${ROOT_CONTEXT}/groups/>
+            PREFIX m-policy: <${ROOT_CONTEXT}/policies/>
+            insert data {
                 graph m-graph:AccessControl.Policies {
-                    m-policy:TestuperAdminPolicyName rdf:type mms:Policy ;
-                        mms:subject m-group:super_admin, m-user:root ;
-                        mms:scope <${ROOT_CONTEXT}> ;
-                        mms:role mms-object:Role.AdminAccessControl, mms-object:Role.AdminCluster, mms-object:Role.AdminMetadata, mms-object:Role.AdminModel .
+                    m-policy:TestSuperAdminPolicyName a mms:Policy ;
+                        mms:subject m-group:SuperAdmins ;
+                        mms:scope m: ;
+                        mms:role 
+                            mms-object:Role.AdminAccessControl, 
+                            mms-object:Role.AdminCluster, 
+                            mms-object:Role.AdminMetadata, 
+                            mms-object:Role.AdminModel ;
+                        .
                 }
             }
         """.trimIndent()
