@@ -90,7 +90,10 @@ class OrgTests : TestBase() {
 
     @Test
     fun createAndReadWithIfNoneMatchSameEtag() {
-        val etag = doCreateOrg(testOrgId, testOrgName).response.headers["ETag"]
+        val createOrg = doCreateOrg(testOrgId, testOrgName)
+        println("createAndReadWithIfNoneMatchSameEtag headers: " + createOrg.response.headers)
+        println("createAndReadWithIfNoneMatchSameEtag body: " + createOrg.response.content)
+        val etag = createOrg.response.headers["ETag"]
         // If-None-Match same etag
         withTestEnvironment {
             val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
@@ -111,6 +114,9 @@ class OrgTests : TestBase() {
             val delete = handleRequest(HttpMethod.Delete, "/orgs/$testOrgId") {
                 addAuthorizationHeader(username, groups)
             }
+            println("createAndDeleteOrg headers: " + delete.response.headers)
+            println("createAndDeleteOrg body: " + delete.response.content)
+
             assertTrue(delete.response.status()?.isSuccess() ?: false, "DELETE worked")
         }
 
