@@ -105,7 +105,7 @@ class OrgTests : TestBase() {
         }
     }
 
-    @Test
+    //@Test
     fun createAndDeleteOrg() {
         doCreateOrg(testOrgId, testOrgName)
 
@@ -130,7 +130,7 @@ class OrgTests : TestBase() {
         }
     }
 
-    //@Test
+    @Test
     fun testReadNonExistentOrg() {
         withTestEnvironment {
             val getOrg = handleRequest(HttpMethod.Get, "/orgs/testReadNonExistentOrg") {
@@ -140,7 +140,7 @@ class OrgTests : TestBase() {
         }
     }
 
-    //@Test
+    @Test
     fun testUpdateOrg() {
         val orgNameUpdated = "OpenMBEE testUpdateOrg"
 
@@ -180,7 +180,7 @@ class OrgTests : TestBase() {
         }
     }
 
-    //@Test
+    @Test
     fun listAllOrgs() {
         doCreateOrg("org1", "Org 1")
         doCreateOrg("org2", "Org 2")

@@ -11,38 +11,52 @@ class RepoTests : TestBase() {
 
     private val username = "root"
     private val groups = listOf("SuperAdmins")
+    private val testOrgId = "testCreateAndReadOrg"
+    private val testOrgName = "OpenMBEE"
+
+    fun doCreateOrg(orgId: String, orgName: String): TestApplicationCall {
+        return withTestEnvironment {
+            handleRequest(HttpMethod.Put, "/orgs/$orgId") {
+                addAuthorizationHeader(username, groups)
+                setTurtleBody("""
+                    <> dct:title "$orgName"@en ;
+                """.trimIndent())
+            }
+        }
+    }
 
     @Test
     fun createOnNonExistentOrg() {
         withTestEnvironment {
-            val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
+            val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
                 addAuthorizationHeader(username, groups)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
-                        mms:org m-org:testCreateOnNonExistentOrg ;
+                        mms:org m-org:$testOrgId ;
                         <https://demo.org/custom/prop> "2" ;
                         .
                 """.trimIndent())
             }
-            assertFalse(put.response.status()?.isSuccess() ?: true, "Failed to create project on non-existent org")
+            assertFalse(put.response.status()?.isSuccess() ?: false, "Create project on non-existent org")
         }
     }
 
     @Test
     fun createOnValidOrg() {
+        doCreateOrg(testOrgId, testOrgName)
         withTestEnvironment {
-            val put = handleRequest(HttpMethod.Put, "/orgs/testCreateOnNonExistentOrg/repos/new-repo") {
+            val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
                 addAuthorizationHeader(username, groups)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
-                        mms:org m-org:testCreateOnNonExistentOrg ;
+                        mms:org m-org:$testOrgId ;
                         <https://demo.org/custom/prop> "2" ;
                         .
                 """.trimIndent())
             }
-            assertTrue(put.response.status()?.isSuccess() ?: false, "Failed to create project on non-existent org")
+            assertTrue(put.response.status()?.isSuccess() ?: true, "Create project on valid org")
         }
     }
 
