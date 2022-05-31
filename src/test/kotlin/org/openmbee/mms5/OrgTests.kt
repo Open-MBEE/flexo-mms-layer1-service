@@ -115,6 +115,7 @@ class OrgTests : TestBase() {
                 addAuthorizationHeader(username, groups)
             }
             println("createAndDeleteOrg headers: " + delete.response.headers.allValues().toString())
+            println("createAndDeleteOrg status: " + delete.response.status())
             println("createAndDeleteOrg body: " + delete.response.content)
 
             assertTrue(delete.response.status()?.isSuccess() ?: false, "DELETE worked")
