@@ -197,6 +197,8 @@ object MMS {
     val Repo = ResourceFactory.createResource("${BASE}Repo")
     val Collection = ResourceFactory.createResource("${BASE}Collection")
     val Snapshot = ResourceFactory.createResource("${BASE}Snapshot")
+    val Model = ResourceFactory.createResource("${BASE}Model")
+    val Staging = ResourceFactory.createResource("${BASE}Staging")
     val Update = ResourceFactory.createResource("${BASE}Update")
     val Load = ResourceFactory.createResource("${BASE}Load")
     val Commit = ResourceFactory.createResource("${BASE}Commit")

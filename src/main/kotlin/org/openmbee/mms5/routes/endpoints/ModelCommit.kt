@@ -118,7 +118,7 @@ fun Route.commitModel() {
                 assertPreconditions(this) {
                     """
                         graph mor-graph:Metadata {
-                            morb: mms:etag ?etag .
+                            morb: mms:etag ?__mms_etag .
                             
                             $it
                         }

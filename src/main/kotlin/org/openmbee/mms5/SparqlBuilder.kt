@@ -159,24 +159,31 @@ open class WhereBuilder(
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(mms, indentLevel) {
     fun txn(subTxnId: String?=null): WhereBuilder {
+        auth()
         return raw("""
             graph m-graph:Transactions {
                 mt:${subTxnId?: ""} ?mt_p ?mt_o .
             }
-            
+        """)
+    }
+
+    fun auth(scope: String="mo", conditions: ConditionsGroup?=null): WhereBuilder {
+        return raw("""
             graph m-graph:AccessControl.Policies {
                 optional {
-                    ?policy mms:scope mo: ;
-                        ?policy_p ?policy_o .
+                    ?__mms_policy mms:scope ${scope}: ;
+                        ?__mms_policy_p ?__mms_policy_o .
                 }
-            }    
+            }
+            
+            ${conditions?.requiredPatterns()?.joinToString("\n") ?: ""}
         """)
     }
 
     fun etag(subject: String): WhereBuilder {
         return raw("""
             graph mor-graph:Metadata {
-                $subject mms:etag ?etag .
+                $subject mms:etag ?__mms_etag .
             }
         """)
     }
@@ -248,18 +255,23 @@ class ConstructBuilder(
     indentLevel: Int,
 ): PatternBuilder<ConstructBuilder>(mms, indentLevel) {
     fun txn(subTxnId: String?=null): ConstructBuilder {
+        auth()
         return raw("""
             mt:${subTxnId?: ""} ?mt_p ?mt_o .
+        """)
+    }
+
+    fun auth(): ConstructBuilder {
+        return raw("""
+            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
             
-            ?policy ?policy_p ?policy_o .
-            
-            <mms://inspect> <mms://pass> ?inspect .
+            <urn:mms:inspect> <urn:mms:pass> ?__mms_inspect_pass .
         """)
     }
 
     fun etag(subject: String): ConstructBuilder {
         return raw("""
-            $subject mms:etag ?etag .
+            $subject mms:etag ?__mms_etag .
         """)
     }
 }

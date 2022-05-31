@@ -551,14 +551,14 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         return """
             ${if(ifMatch?.isStar == false) """
-                values ?etag {
+                values ?__mms_etag {
                     ${ifMatch.etags.joinToString(" ") { escapeLiteral(it) }}
                 }
             """ else ""}
             
             ${if(ifNoneMatch != null) """
-                filter(?etag != ?etagNot)
-                values ?etagNot {
+                filter(?__mms_etag != ?__mms_etagNot)
+                values ?__mms_etagNot {
                     ${ifNoneMatch.etags.joinToString(" ") { escapeLiteral(it) }}
                 }
             """ else ""}
@@ -604,9 +604,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // compose etag
         val etag = if(bindings.size == 1) {
-            bindings[0].jsonObject["etag"]!!.jsonPrimitive.content
+            bindings[0].jsonObject["__mms_etag"]!!.jsonPrimitive.content
         }  else {
-            bindings.joinToString(":") { it.jsonObject["etag"]!!.jsonPrimitive.content }.sha256()
+            bindings.joinToString(":") { it.jsonObject["__mms_etag"]!!.jsonPrimitive.content }.sha256()
         }
 
         // set etag value in response header
@@ -786,7 +786,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         assertPreconditions(this) {
             """
                 graph $graph {
-                    $objectKey: mms:etag ?etag .
+                    $objectKey: mms:etag ?__mms_etag .
                     
                     $it
                 }
@@ -801,7 +801,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
             graph(graph) {
                 raw("""
                     # delete old etag
-                    $objectKey: mms:etag ?etag .
+                    $objectKey: mms:etag ?__mms_etag .
                 """)
 
                 if(deleteBgpString.isNotEmpty()) {
@@ -828,7 +828,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
 
             raw("""
                 # match old etag
-                $objectKey: mms:etag ?etag .
+                $objectKey: mms:etag ?__mms_etag .
             """)
         }
     }

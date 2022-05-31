@@ -46,7 +46,7 @@ fun Route.loadModel() {
                 assertPreconditions(this) {
                     """
                         graph mor-graph:Metadata {
-                            morb: mms:etag ?etag .
+                            morb: mms:etag ?__mms_etag .
                             
                             $it
                         }
