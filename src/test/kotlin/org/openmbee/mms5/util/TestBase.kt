@@ -286,6 +286,7 @@ abstract class TestBase {
             .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(policyCreate, StandardCharsets.UTF_8)))
             .build()
         val policyResponse = HttpClient.newHttpClient().send(policyRequest, BodyHandlers.ofString())
+        println("policyResponse: " + policyResponse.body())
         assertEquals(200, policyResponse.statusCode(), "Policy creation successful")
     }
 
