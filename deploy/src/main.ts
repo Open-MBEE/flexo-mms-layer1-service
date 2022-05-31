@@ -153,7 +153,7 @@ const ds_writer = trig_write({
 		rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
 		mms: 'https://mms.openmbee.org/rdf/ontology/',
 		'mms-object': 'https://mms.openmbee.org/rdf/objects/',
-		m: P_PREFIX,
+		m: `${P_PREFIX}/`,
 		'm-graph': `${P_PREFIX}/graphs/`,
 		'm-user': `${P_PREFIX}/users/`,
 		'm-group': `${P_PREFIX}/groups/`,
