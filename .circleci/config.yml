@@ -34,6 +34,10 @@ jobs:
       - attach_workspace:
           at: ~/
       - run:
+          name: Cat out cluster.trig
+          command: |
+            cat src/test/resources/cluster.trig
+      - run:
           name: Build stack and run tests
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
