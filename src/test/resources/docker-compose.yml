@@ -4,7 +4,7 @@ services:
 
   quad-store-server:
     image: atomgraph/fuseki:latest
-    hostname: quad-store-server
+    hostname: quad-server
     volumes:
       - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
     command: --file=/tmp/data.trig --update /ds
