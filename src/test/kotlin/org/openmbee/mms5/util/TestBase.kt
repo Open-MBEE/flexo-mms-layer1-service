@@ -261,8 +261,6 @@ abstract class TestBase {
                         mms:role 
                             mms-object:Role.AdminAccessControl, 
                             mms-object:Role.AdminCluster, 
-                            mms-object:Role.AdminOrg, 
-                            mms-object:Role.AdminRepo, 
                             mms-object:Role.AdminMetadata, 
                             mms-object:Role.AdminModel ;
                         .
