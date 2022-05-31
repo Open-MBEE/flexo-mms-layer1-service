@@ -45,7 +45,7 @@ fun Route.createOrg() {
                 assertPreconditions(this) {
                     """
                         graph m-graph:Cluster {
-                            mo: mms:etag ?etag .
+                            mo: mms:etag ?__mms_etag .
                             
                             $it
                         }

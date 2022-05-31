@@ -29,13 +29,13 @@ private const val SPARQL_BGP_REPO = """
             mms:etag ?etagRepo .
     }
     
-    bind(concat(?etagCluster, ?etagRepo) as ?etag)
+    bind(concat(?etagCluster, ?etagRepo) as ?__mms_etag)
 """
 
 private const val SPARQL_SELECT_REPO = """
-    select ?etag {
+    select ?__mms_etag {
         $SPARQL_BGP_REPO
-    } order by asc(?etag)
+    } order by asc(?__mms_etag)
 """
 
 private const val SPARQL_CONSTRUCT_REPO = """
@@ -46,7 +46,7 @@ private const val SPARQL_CONSTRUCT_REPO = """
         
         ?m_s ?m_p ?m_o .
         
-        <mms://inspect> <mms://etag> ?etag .
+        <urn:mms:inspect> <urn:mms:etag> ?__mms_etag .
     } where {
         $SPARQL_BGP_REPO
     }
@@ -92,6 +92,8 @@ fun Route.readRepo() {
                     repo()
                 }
 
+                log.debug("Reading repo with CONSTRUCT query:\n${SPARQL_CONSTRUCT_REPO}")
+
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
                     prefixes(prefixes)
 
@@ -107,14 +109,9 @@ fun Route.readRepo() {
                     }
                 }
 
-                val model = KModel(prefixes) {
-                    parseTurtle(
-                        body = constructResponseText,
-                        model = this,
-                    )
+                parseConstructResponse(constructResponseText) {
+                    checkPreconditions(model, prefixes["mor"])
                 }
-
-                checkPreconditions(model, prefixes["mor"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

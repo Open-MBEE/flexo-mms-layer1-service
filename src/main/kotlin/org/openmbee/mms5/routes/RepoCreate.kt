@@ -29,8 +29,8 @@ private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String 
             }
     
             graph m-graph:AccessControl.Policies {
-                ?policy mms:scope mor: ;
-                    ?policy_p ?policy_o .
+                ?__mms_policy mms:scope mor: ;
+                    ?__mms_policy_p ?__mms_policy_o .
             }
         
             graph mor-graph:Metadata {

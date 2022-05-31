@@ -47,7 +47,7 @@ fun Route.createGroup() {
                 assertPreconditions(this) {
                     """
                         graph m-graph:AccessControl.Agents {
-                            mag: mms:etag ?etag .
+                            mag: mms:etag ?__mms_etag .
                             
                             $it
                         }

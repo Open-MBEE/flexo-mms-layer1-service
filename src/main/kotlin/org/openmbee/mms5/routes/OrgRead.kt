@@ -11,7 +11,7 @@ import org.openmbee.mms5.*
 private val SPARQL_BGP_ORG = """
     graph m-graph:Cluster {
         ?_org a mms:Org ;
-            mms:etag ?etag ;
+            mms:etag ?__mms_etag ;
             ?org_p ?org_o .
         
         optional {
@@ -24,15 +24,15 @@ private val SPARQL_BGP_ORG = """
 """
 
 private val SPARQL_SELECT_ORG = """
-    select ?etag {
+    select ?__mms_etag {
         $SPARQL_BGP_ORG
-    } order by asc(?etag)
+    } order by asc(?__mms_etag)
 """
 
 private val SPARQL_CONSTRUCT_ORG = """
     construct {
         ?_org ?org_p ?org_o ;
-            mms:etag ?etag .
+            mms:etag ?__mms_etag .
         
         ?thing ?thing_p ?thing_o .
         
@@ -41,14 +41,14 @@ private val SPARQL_CONSTRUCT_ORG = """
             mms:policy ?policy ;
             .
         
-        ?policy ?policy_p ?policy_o .
+        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
         ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
     } where {
         $SPARQL_BGP_ORG
         
         graph m-graph:AccessControl.Policies {
-            ?policy ?policy_p ?policy_o .
+            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
                 ?orgPolicy a mms:Policy ;
