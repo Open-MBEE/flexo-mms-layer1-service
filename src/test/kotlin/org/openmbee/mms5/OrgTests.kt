@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 class OrgTests : TestBase() {
 
     private val username = "root"
-    private val groups = listOf("SuperAdmins")
+    private val groups = listOf("super_admins")
     private val testOrgId = "testCreateAndReadOrg"
     private val testOrgName = "OpenMBEE"
 

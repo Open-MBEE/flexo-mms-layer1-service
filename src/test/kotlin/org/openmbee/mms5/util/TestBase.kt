@@ -227,7 +227,7 @@ abstract class TestBase {
             .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(dropSparql, StandardCharsets.UTF_8)))
             .build()
         val dropResponse = HttpClient.newHttpClient().send(dropRequest, BodyHandlers.ofString())
-        assertEquals(200, dropResponse.statusCode(), "Drop graphs successful")
+        assertEquals(200, dropResponse.statusCode(), "Drop graphs")
 
         // Initalize with init.trig
         val uploadUrl = if (runSparqlBackend) {
@@ -240,11 +240,8 @@ abstract class TestBase {
             .header("Content-Type", "application/trig")
             .POST(HttpRequest.BodyPublishers.ofByteArray(initTrig))
             .build()
-        println("UPLOAD URL: $uploadUrl")
-        println("HEADERS: " + loadRequest.headers().toString())
         val loadResponse = HttpClient.newHttpClient().send(loadRequest, BodyHandlers.ofString())
-        println("RESPONSE: " + loadResponse.body())
-        assertEquals(200, loadResponse.statusCode(), "Load cluster.trig successful")
+        assertEquals(200, loadResponse.statusCode(), "Load cluster.trig")
 
         // Create policy for super admin
         val policyCreate = """
@@ -286,8 +283,7 @@ abstract class TestBase {
             .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(policyCreate, StandardCharsets.UTF_8)))
             .build()
         val policyResponse = HttpClient.newHttpClient().send(policyRequest, BodyHandlers.ofString())
-        println("policyResponse: " + policyResponse.body())
-        assertEquals(200, policyResponse.statusCode(), "Policy creation successful")
+        assertEquals(200, policyResponse.statusCode(), "Policy creation")
     }
 
     /**
