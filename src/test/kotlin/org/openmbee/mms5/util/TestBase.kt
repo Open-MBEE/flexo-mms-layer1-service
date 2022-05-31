@@ -283,7 +283,7 @@ abstract class TestBase {
         val policyRequest = HttpRequest.newBuilder()
             .uri(URI(updateUrl))
             .header("Content-Type", "application/sparql-update")
-            .POST(HttpRequest.BodyPublishers.ofString(URLEncoder.encode(policyCreate, StandardCharsets.UTF_8)))
+            .POST(HttpRequest.BodyPublishers.ofString(policyCreate))
             .build()
         val policyResponse = HttpClient.newHttpClient().send(policyRequest, BodyHandlers.ofString())
         println("policyResponse: " + policyResponse.body())
