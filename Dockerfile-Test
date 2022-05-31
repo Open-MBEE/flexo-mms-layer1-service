@@ -8,4 +8,4 @@ ARG MMS5_UPDATE_URL
 ARG MMS5_GRAPH_STORE_PROTOCOL_URL
 COPY . .
 RUN apt-get update && apt-get install -y procps
-RUN ./gradlew test --debug
+RUN ./gradlew test
