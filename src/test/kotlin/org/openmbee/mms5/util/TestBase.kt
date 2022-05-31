@@ -268,6 +268,16 @@ abstract class TestBase {
                             mms-object:Role.AdminModel ;
                         .
                 }
+                graph m-graph:AccessControl.Definitions {
+                    mms-object:Role.AdminAccessControl a mms:Role ;
+                        mms:permits mms-object:Permission.DeleteAccessControl .
+                    mms-object:Role.AdminCluster a mms:Role ;
+                        mms:permits mms-object:Permission.DeleteCluster .
+                    mms-object:Role.AdminMetadata a mms:Role ;
+                        mms:permits mms-object:Permission.DeleteMetadata .
+                    mms-object:Role.AdminModel a mms:Role ;
+                        mms:permits mms-object:Permission.DeleteModel .
+                }
             }
         """.trimIndent()
         val policyRequest = HttpRequest.newBuilder()
