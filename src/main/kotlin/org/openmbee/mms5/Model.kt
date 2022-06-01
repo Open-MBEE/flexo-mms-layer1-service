@@ -104,7 +104,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
     val append = mutableListOf<Element>()
 
     fun rewrite(uri: String): String {
-        return "mms://access-denied/?to=${URLEncoder.encode(uri, UTF8Name)}"
+        return "urn:mms:error/access-denied?to=${URLEncoder.encode(uri, UTF8Name)}"
     }
 
     fun rewrite(node: Node): Node {
@@ -132,7 +132,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
         }
 
         // unhandled node type
-        return NodeFactory.createURI("mms://error/unhandled-node-type")
+        return NodeFactory.createURI("urn:mms:error/unhandled-node-type")
     }
 }
 
@@ -238,7 +238,7 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
  *
  *       # engine will only evaluate this if the above block matched, meaning that the user *is not* authorized.
  *       # evaluating the expression causes an error to be thrown for the invalid endpoint URI.
- *       service <urn:throw> { }
+ *       service <urn:mms:throw> { }
  *     }
  *   }
  *   # allow the engine to evaluate these two blocks independently
@@ -290,7 +290,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     addElement(ElementNotExists(patternPlaceholder))
 
                     // throw error
-                    addElement(ElementService("urn:throw", ElementTriplesBlock()))
+                    addElement(ElementService("urn:mms:throw", ElementTriplesBlock()))
                 }))
 
                 // add user query block
@@ -306,10 +306,10 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                         prefixes["mor"] -> {
                             modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Metadata")
                         }
-                        // apply special optimization for persistent graph URI
-                        prefixes["morb"] -> {
-                            modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
-                        }
+                        // // apply special optimization for persistent graph URI
+                        // prefixes["morb"] -> {
+                        //     modelGraphNode = NodeFactory.createURI("${prefixes["mor-graph"]}Latest.${branchId}")
+                        // }
                         // need to match model graph dynamically
                         else -> {
                             // model graph selection
