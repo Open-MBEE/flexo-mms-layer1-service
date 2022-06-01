@@ -2,10 +2,8 @@ package org.openmbee.mms5.routes
 
 import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.server.engine.*
 import kotlinx.serialization.json.*
 import org.openmbee.mms5.*
 
@@ -79,7 +77,7 @@ fun Route.readRepo() {
 
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                checkPreconditions(results)
+                handleEtagAndPreconditions(results)
 
                 call.respondText("", status = HttpStatusCode.OK)
             }
@@ -110,7 +108,7 @@ fun Route.readRepo() {
                 }
 
                 parseConstructResponse(constructResponseText) {
-                    checkPreconditions(model, prefixes["mor"])
+                    handleEtagAndPreconditions(model, prefixes["mor"])
                 }
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)

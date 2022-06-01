@@ -6,44 +6,12 @@ import io.ktor.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
-
-private val SPARQL_CONSTRUCT_TRANSACTION: (conditions: ConditionsGroup)->String = { """
-    construct  {
-        
-        ?thing ?thing_p ?thing_o .
-        
-        ?m_s ?m_p ?m_o .
-        
-    } where {
-        {
-  
-            graph m-graph:Cluster {
-                mor: a mms:Repo ;
-                    ?mor_p ?mor_o ;
-                    .
-    
-                optional {
-                    ?thing mms:repo mor: ; 
-                        ?thing_p ?thing_o .
-                }
-            }
-    
-            graph m-graph:AccessControl.Policies {
-                ?__mms_policy mms:scope mor: ;
-                    ?__mms_policy_p ?__mms_policy_o .
-            }
-        
-            graph mor-graph:Metadata {
-                ?m_s ?m_p ?m_o .
-            }
-        } union ${it.unionInspectPatterns()}
-    }
-"""}
-
-
+// default starting conditions for any calls to create a repo
 private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    // require that the user has the ability to create repos on a repo-level scope
     permit(Permission.CREATE_REPO, Scope.REPO)
 
+    // require that the given repo does not exist before attempting to create it
     require("repoNotExists") {
         handler = { mms -> "The provided repo <${mms.prefixes["mor"]}> already exists." }
 
@@ -57,6 +25,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
         """
     }
 
+    // require that there is no pre-existing metadata graph associated with the given repo id
     require("repoMetadataGraphEmpty") {
         handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> is not empty." }
 
@@ -78,15 +47,20 @@ fun String.normalizeIndentation(spaces: Int=0): String {
 fun Route.createRepo() {
     put("/orgs/{orgId}/repos/{repoId}") {
         call.mmsL1(Permission.CREATE_REPO) {
-            branchId = "main"
+            // set the default starting branch id
+            branchId = "master"
 
+            // parse the path params
             pathParams {
                 org()
                 repo(legal = true)
             }
 
+            // process RDF body from user about this new repo
             val repoTriples = filterIncomingStatements("mor") {
+                // relative to this org node
                 repoNode().apply {
+                    // sanitize statements
                     sanitizeCrudObject {
                         setProperty(RDF.type, MMS.Repo)
                         setProperty(MMS.id, repoId!!)
@@ -96,8 +70,10 @@ fun Route.createRepo() {
                 }
             }
 
+            // inherit the default conditions
             val localConditions = DEFAULT_CONDITIONS
 
+            // prep SPARQL UPDATE string
             val updateString = buildSparqlUpdate {
                 insert {
                     txn {

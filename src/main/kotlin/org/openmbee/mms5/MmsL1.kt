@@ -395,6 +395,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }
     }
 
+
+    /**
+     * Process RDF body from user request, for normalizing content and sanitizing inputs.
+     */
     fun filterIncomingStatements(basePrefixId: String, setup: RdfModeler.()->Resource): String {
         val baseIri = prefixes[basePrefixId]?: throw ParamNotParsedException(basePrefixId)
 
@@ -403,10 +407,16 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }.stringify(emitPrefixes=false)
     }
 
+
     fun parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {
         return RdfModeler(this, prefixes["m"]!!, responseText).apply(setup).model
     }
 
+
+    /**
+     * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
+     * a call to [RdfModeler.normalizeRefOrCommit] within a [MmsL1Context.filterIncomingStatements] block.
+     */
     fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
         return append {
             require("validSource") {
@@ -415,17 +425,17 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 """
                     ${if(refSource != null) """
                         graph m-graph:Schema {
-                            ?refSourceClass rdfs:subClassOf* mms:Ref .
+                            ?__mms_refSourceClass rdfs:subClassOf* mms:Ref .
                         }
                
                         graph mor-graph:Metadata {         
-                            ?_refSource a ?refSourceClass ;
-                                mms:commit ?commitSource ;
+                            ?_refSource a ?__mms_refSourceClass ;
+                                mms:commit ?__mms_commitSource ;
                                 .
                         }
                     """ else ""} 
                     graph mor-graph:Metadata {
-                       ?commitSource a mms:Commit .
+                       ?__mms_commitSource a mms:Commit .
                     }
                 """
             }
@@ -592,8 +602,34 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         } else null
     }
 
+    private fun checkPreconditions(etag: String) {
+        // `create` operation; exit
+        if(permission.crud == Crud.CREATE) return
 
-    fun checkPreconditions(response: JsonObject) {
+
+        // check If-Match preconditions
+        if(ifMatch != null && !ifMatch.isStar) {
+            // precondition failed
+            if(!ifMatch.etags.contains(etag)) {
+                throw PreconditionFailedException("If-Match")
+            }
+        }
+
+        // check If-None-Match preconditions
+        if(ifNoneMatch != null) {
+            // precondition is that resource does not exist
+            if(ifNoneMatch.isStar) {
+                // but the resource does exist; 304
+                throw NotModifiedException()
+            }
+            // precondition failed
+            else if(ifNoneMatch.etags.contains(etag)) {
+                throw PreconditionFailedException("If-None-Match")
+            }
+        }
+    }
+
+    fun handleEtagAndPreconditions(response: JsonObject) {
         // destructure bindings
         val bindings = response["results"]!!.jsonObject["bindings"]!!.jsonArray
 
@@ -611,9 +647,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // set etag value in response header
         call.response.header(HttpHeaders.ETag, etag)
+
+        // check preconditions
+        checkPreconditions(etag)
     }
 
-    fun checkPreconditions(model: KModel, resourceUri: String?) {
+    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?) {
         // single resource
         if(resourceUri != null) {
             // create resource node in model
@@ -641,30 +680,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             // set etag value in response header
             call.response.header(HttpHeaders.ETag, etag)
 
-            // `create` operation; exit
-            if(permission.crud == Crud.CREATE) return
-
-
-            // check If-Match preconditions
-            if(ifMatch != null && !ifMatch.isStar) {
-                // precondition failed
-                if(!ifMatch.etags.contains(etag)) {
-                    throw PreconditionFailedException("If-Match")
-                }
-            }
-
-            // check If-None-Match preconditions
-            if(ifNoneMatch != null) {
-                // precondition is that resource does not exist
-                if(ifNoneMatch.isStar) {
-                    // but the resource does exist; 304
-                    throw NotModifiedException()
-                }
-                // precondition failed
-                else if(ifNoneMatch.etags.contains(etag)) {
-                    throw PreconditionFailedException("If-None-Match")
-                }
-            }
+            // check preconditions
+            checkPreconditions(etag)
         }
     }
 
@@ -783,6 +800,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
             }
         }
 
+        // assert any HTTP preconditions supplied by the user
         assertPreconditions(this) {
             """
                 graph $graph {

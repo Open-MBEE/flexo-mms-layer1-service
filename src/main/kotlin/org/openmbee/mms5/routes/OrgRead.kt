@@ -1,7 +1,6 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
-import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import kotlinx.serialization.json.Json
@@ -82,7 +81,7 @@ fun Route.readOrg() {
 
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                checkPreconditions(results)
+                handleEtagAndPreconditions(results)
 
                 call.respondText("")
             }
@@ -112,7 +111,7 @@ fun Route.readOrg() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["mo"]!!)
+                handleEtagAndPreconditions(model, prefixes["mo"]!!)
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

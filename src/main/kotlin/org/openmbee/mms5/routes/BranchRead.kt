@@ -83,7 +83,7 @@ fun Route.readBranch() {
 
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                checkPreconditions(results)
+                handleEtagAndPreconditions(results)
 
                 call.respondText("")
             }
@@ -115,7 +115,7 @@ fun Route.readBranch() {
                     )
                 }
 
-                checkPreconditions(model, prefixes["morb"])
+                handleEtagAndPreconditions(model, prefixes["morb"])
 
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }

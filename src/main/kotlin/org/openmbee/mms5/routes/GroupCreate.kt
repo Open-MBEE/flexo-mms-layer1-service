@@ -1,12 +1,10 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
-import io.ktor.auth.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
-import org.openmbee.mms5.plugins.UserDetailsPrincipal
 
 
 private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
@@ -103,7 +101,7 @@ fun Route.createGroup() {
 
             val model = validateTransaction(constructResponseText, localConditions)
 
-            checkPreconditions(model, prefixes["mag"])
+            handleEtagAndPreconditions(model, prefixes["mag"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)

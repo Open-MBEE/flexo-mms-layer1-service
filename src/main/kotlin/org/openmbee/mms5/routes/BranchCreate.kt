@@ -64,7 +64,7 @@ fun Route.createBranch() {
                         raw("""
                             $branchTriples
                             
-                            morb: mms:commit ?commitSource .
+                            morb: mms:commit ?__mms_commitSource .
                         """)
                     }
                 }
@@ -74,7 +74,7 @@ fun Route.createBranch() {
                     raw("""
                         optional {
                             graph mor-graph:Metadata {
-                                ?commitSource ^mms:commit/mms:snapshot ?snapshot .
+                                ?__mms_commitSource ^mms:commit/mms:snapshot ?snapshot .
                                 ?snapshot mms:graph ?sourceGraph .
                             }
                         }
@@ -87,7 +87,7 @@ fun Route.createBranch() {
 
                 iri(
                     if(refSource != null) "_refSource" to refSource!!
-                    else "commitSource" to commitSource!!,
+                    else "__mms_commitSource" to commitSource!!,
                 )
             }
 

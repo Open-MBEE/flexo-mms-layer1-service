@@ -146,6 +146,9 @@ class Condition(val type: ConditionType, val key: String) {
 
 
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
+    /**
+     * Adds a requirement to the query conditions that the current user has the given permission within the given scope.
+     */
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
             handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" }
@@ -167,6 +170,9 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
+    /**
+     * Adds a pattern to the query conditions that is only evaluated upon inspection.
+     */
     fun inspect(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.INSPECT, key).apply {
             pattern = setup()
@@ -175,6 +181,9 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         return this
     }
 
+    /**
+     * Adds a requirement to the query conditions.
+     */
     fun require(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.REQUIRE, key).apply {
             pattern = setup()
