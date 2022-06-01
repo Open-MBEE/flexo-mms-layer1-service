@@ -35,7 +35,7 @@ class ParamNotParsedException(paramId: String): Exception("The {$paramId} is bei
 private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
 private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 
-private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
+private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
