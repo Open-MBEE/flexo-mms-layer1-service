@@ -200,7 +200,10 @@ fun Route.createRepo() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions)
+
+            // check that the user-supplied HTTP preconditions were met
+            handleEtagAndPreconditions(constructModel, prefixes["mor"])
 
             // respond
             call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)

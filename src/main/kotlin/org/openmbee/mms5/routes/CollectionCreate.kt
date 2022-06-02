@@ -39,8 +39,6 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
             }
         """
     }
-
-
 }
 
 fun Route.createCollection() {
@@ -169,7 +167,10 @@ fun Route.createCollection() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions)
+
+            // check that the user-supplied HTTP preconditions were met
+            handleEtagAndPreconditions(constructModel, prefixes["moc"])
 
             // respond
             call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)

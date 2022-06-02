@@ -42,9 +42,10 @@ fun Route.createBranch() {
             val branchTriples = filterIncomingStatements("morb") {
                 // relative to this branch node
                 branchNode().apply {
-                    // assert ref/commit triples
+                    // assert and normalize ref/commit triples
                     normalizeRefOrCommit(this)
 
+                    // sanitize statements
                     sanitizeCrudObject {
                         setProperty(RDF.type, MMS.Branch)
                         setProperty(MMS.id, branchId!!)
@@ -53,8 +54,6 @@ fun Route.createBranch() {
                     }
                 }
             }
-
-            log.info(branchTriples)
 
             // extend the default conditions with requirements for user-specified ref or commit
             val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
@@ -141,6 +140,9 @@ fun Route.createBranch() {
 
             // validate whether the transaction succeeded
             val constructModel = validateTransaction(constructResponseText, localConditions)
+
+            // check that the user-supplied HTTP preconditions were met
+            handleEtagAndPreconditions(constructModel, prefixes["morb"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
