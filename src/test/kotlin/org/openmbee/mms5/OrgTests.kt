@@ -182,6 +182,8 @@ class OrgTests : TestBase() {
         withTestEnvironment {
             val get = doGetOrg()
             println("listAllOrgs headers: " + get.response.headers.allValues().toString())
+            println("listAllOrgs status: " + get.response.status())
+            println("listAllOrgs content: " + get.response.content)
             assertTrue(get.response.status()?.isSuccess() ?: false, "Get /orgs success")
         }
     }
