@@ -5,5 +5,6 @@ Generates a TriG file with necessary object and access control definitions for a
 ### Build
 
 ```sh
-npx ts-node src/main.ts $ROOT_CONTEXT
+mkdir build
+npx ts-node src/main.ts $ROOT_CONTEXT > build/cluster.trig
 ```
