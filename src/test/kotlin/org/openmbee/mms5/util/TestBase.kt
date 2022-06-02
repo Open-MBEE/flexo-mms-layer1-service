@@ -8,15 +8,15 @@ import org.junit.jupiter.api.BeforeAll
 import com.github.stefanbirkner.systemlambda.SystemLambda.*;
 import com.typesafe.config.ConfigFactory
 import io.ktor.config.*
+import io.ktor.http.*
 import io.ktor.server.engine.*
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.rdf.model.ModelFactory
 import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFDataMgr
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestInstance
-import org.openmbee.mms5.ROOT_CONTEXT
 import java.io.ByteArrayInputStream
 import java.io.InputStreamReader
 import java.net.URI
@@ -30,6 +30,8 @@ import java.nio.file.Files
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
+
+import org.openmbee.mms5.ROOT_CONTEXT
 
 /**
  * Base class for JUnit tests with helpers for setting up a test environment.
@@ -195,6 +197,7 @@ abstract class TestBase {
      * set.
      */
     @BeforeAll
+    @Order(1)
     fun startBackend() {
         if (runSparqlBackend) {
             backend.start()
@@ -204,7 +207,8 @@ abstract class TestBase {
     /**
      * Before each test is run drop all the Example MMS graphs and re-initialize with init.trig
      */
-    @BeforeEach
+    @BeforeAll
+    @Order(2)
     fun reset() {
         // Drop MMS graphs
         // Initalize with init.trig

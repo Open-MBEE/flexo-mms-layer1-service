@@ -16,7 +16,7 @@ class OrgTests : TestBase() {
     private val testOrgId = "testCreateAndReadOrg"
     private val testOrgName = "OpenMBEE"
 
-    fun doCreateOrg(orgId: String, orgName: String): TestApplicationCall {
+    private fun doCreateOrg(orgId: String, orgName: String): TestApplicationCall {
         return withTestEnvironment {
             handleRequest(HttpMethod.Put, "/orgs/$orgId") {
                 addAuthorizationHeader(username, groups)
@@ -27,11 +27,21 @@ class OrgTests : TestBase() {
         }
     }
 
+    private fun doGetOrg(orgId: String? = "", headers: Map<String, String>? = null): TestApplicationCall {
+        return withTestEnvironment {
+            handleRequest(HttpMethod.Get, "/orgs/$orgId") {
+                addAuthorizationHeader(username, groups)
+                headers?.forEach { header ->
+                    addHeader(header.key, header.value)
+                }
+            }
+        }
+    }
+
     @Test
+    @Order(1)
     fun createAndReadOrgWithIfMatchSuccess() {
         val putOrg = doCreateOrg(testOrgId, testOrgName)
-        println("PutOrg Response Status: " + putOrg.response.status())
-        println("PutOrg Response Body: " + putOrg.response.content)
 
         assertEquals(HttpStatusCode.OK, putOrg.response.status(), "PUT Org Successful")
         val etag = putOrg.response.headers["ETag"]
@@ -39,10 +49,7 @@ class OrgTests : TestBase() {
 
         // Read with Etag OK
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-                addHeader("If-Match", '"' + etag + '"')
-            }
+            val getOrg = doGetOrg(testOrgId, mapOf("If-Match" to '"' + etag + '"'))
             assertEquals(HttpStatusCode.OK, getOrg.response.status(), "GET Org Successful")
             val match = findOneInResponse(getOrg, """
                 SELECT ?title WHERE {
@@ -55,12 +62,11 @@ class OrgTests : TestBase() {
     }
 
     @Test
+    @Order(2)
     fun createAndReadOrgWithNoETag() {
-        val etag = doCreateOrg(testOrgId, testOrgName).response.headers["Etag"]
+        val etag = doGetOrg(testOrgId).response.headers["Etag"]
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-            }
+            val getOrg = doGetOrg(testOrgId)
             assertEquals(HttpStatusCode.OK, getOrg.response.status(), "GET Org Successful")
             assertEquals(etag, getOrg.response.headers["ETag"], "Etag unchanged")
 
@@ -75,37 +81,32 @@ class OrgTests : TestBase() {
     }
 
     @Test
+    @Order(3)
     fun createAndReadWithIfMatchFailed() {
         doCreateOrg(testOrgId, testOrgName)
 
         // If-Match different etag
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-                addHeader("If-Match", '"' + UUID.randomUUID().toString() + '"')
-            }
+            val getOrg = doGetOrg(testOrgId, mapOf("If-Match" to '"' + UUID.randomUUID().toString() + '"'))
             assertEquals(HttpStatusCode.PreconditionFailed, getOrg.response.status(), "Precondition Failed")
         }
     }
 
     @Test
+    @Order(4)
     fun createAndReadWithIfNoneMatchSameEtag() {
         val createOrg = doCreateOrg(testOrgId, testOrgName)
-        println("createAndReadWithIfNoneMatchSameEtag headers: " + createOrg.response.headers.allValues().toString())
-        println("createAndReadWithIfNoneMatchSameEtag body: " + createOrg.response.content)
         val etag = createOrg.response.headers["ETag"]
         // If-None-Match same etag
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-                addHeader("If-None-Match", "\"$etag\"")
-            }
+            val getOrg = doGetOrg(testOrgId, mapOf("If-None-Match" to "\"$etag\""))
             // Expect 304 Not Modified
             assertTrue(getOrg.response.status()?.isSuccess() ?: false, "Success with If-None-Match same etag ${getOrg.response.status()}")
         }
     }
 
     //@Test
+    @Order(5)
     fun createAndDeleteOrg() {
         doCreateOrg(testOrgId, testOrgName)
 
@@ -114,33 +115,28 @@ class OrgTests : TestBase() {
             val delete = handleRequest(HttpMethod.Delete, "/orgs/$testOrgId") {
                 addAuthorizationHeader(username, groups)
             }
-            println("createAndDeleteOrg headers: " + delete.response.headers.allValues().toString())
-            println("createAndDeleteOrg status: " + delete.response.status())
-            println("createAndDeleteOrg body: " + delete.response.content)
 
             assertTrue(delete.response.status()?.isSuccess() ?: false, "DELETE worked")
         }
 
         // Get deleted org should fail
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-            }
+            val getOrg = doGetOrg(testOrgId)
             Assertions.assertFalse(getOrg.response.status()?.isSuccess() ?: false, "Getting deleted org fails")
         }
     }
 
     @Test
+    @Order(6)
     fun testReadNonExistentOrg() {
         withTestEnvironment {
-            val getOrg = handleRequest(HttpMethod.Get, "/orgs/testReadNonExistentOrg") {
-                addAuthorizationHeader(username, groups)
-            }
+            val getOrg = doGetOrg("testReadNonExistentOrg")
             assertEquals(HttpStatusCode.NotFound, getOrg.response.status(), "Non existent org not found")
         }
     }
 
     @Test
+    @Order(7)
     fun testUpdateOrg() {
         val orgNameUpdated = "OpenMBEE testUpdateOrg"
 
@@ -173,21 +169,18 @@ class OrgTests : TestBase() {
                     }
                 """.trimIndent())
             }
-            val get = handleRequest(HttpMethod.Get, "/orgs/$testOrgId") {
-                addAuthorizationHeader(username, groups)
-            }
+            val get = doGetOrg(testOrgId)
             assertTrue(get.response.status()?.isSuccess() ?: false, "")
         }
     }
 
     @Test
+    @Order(8)
     fun listAllOrgs() {
         doCreateOrg("org1", "Org 1")
         doCreateOrg("org2", "Org 2")
         withTestEnvironment {
-            val get = handleRequest(HttpMethod.Get, "/orgs") {
-                addAuthorizationHeader(username, groups)
-            }
+            val get = doGetOrg()
             assertTrue(get.response.status()?.isSuccess() ?: false, "Get /orgs success")
         }
     }
