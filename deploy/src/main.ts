@@ -195,6 +195,9 @@ ds_writer.write({
 
 		[factory.comment()]: 'copy of static schema inherited from global MMS definitions',
 		'm-graph:Schema': {
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==            Classes             ==',
+			[factory.comment()]: '====================================',
 			...classes({
 				Ref: {},
 				Branch: {
@@ -218,6 +221,9 @@ ds_writer.write({
 				Commit: {},
 			}),
 
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==           Properties           ==',
+			[factory.comment()]: '====================================',
 			...properties({
 				ref: {
 					range: 'Ref',

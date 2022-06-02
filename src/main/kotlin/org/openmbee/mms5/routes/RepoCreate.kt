@@ -122,7 +122,7 @@ fun Route.createRepo() {
                     // declare new graph
                     graph("m-graph:Graphs") {
                         raw("""
-                            mor-graph:Metadata a mms:MetadataGraph .
+                            mor-graph:Metadata a mms:RepoMetadataGraph .
                         """)
                     }
                 }
