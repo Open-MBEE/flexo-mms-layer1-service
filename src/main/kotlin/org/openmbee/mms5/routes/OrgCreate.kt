@@ -73,7 +73,6 @@ fun Route.createOrg() {
             // execute update
             executeSparqlUpdate(updateString)
 
-
             // create construct query to confirm transaction and fetch org details
             val constructString = buildSparqlQuery {
                 construct {

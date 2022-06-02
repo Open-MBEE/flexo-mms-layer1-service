@@ -7,9 +7,12 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
+// default starting conditions for any calls to create a branch
 private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    // require that the user has the ability to create branches on a repo-level scope
     permit(Permission.CREATE_BRANCH, Scope.REPO)
 
+    // require that the given branch does not exist before attempting to create it
     require("branchNotExists") {
         handler = { mms -> "The provided branch <${mms.prefixes["morb"]}> already exists." }
 
@@ -28,13 +31,16 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 fun Route.createBranch() {
     put("/orgs/{orgId}/repos/{repoId}/branches/{branchId}") {
         call.mmsL1(Permission.CREATE_BRANCH) {
+            // parse the path params
             pathParams {
                 org()
                 repo()
                 branch(legal=true)
             }
 
+            // process RDF body from user about this new branch
             val branchTriples = filterIncomingStatements("morb") {
+                // relative to this branch node
                 branchNode().apply {
                     // assert ref/commit triples
                     normalizeRefOrCommit(this)
@@ -50,27 +56,36 @@ fun Route.createBranch() {
 
             log.info(branchTriples)
 
+            // extend the default conditions with requirements for user-specified ref or commit
             val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
+            // prep SPARQL UPDATE string
             val updateString = buildSparqlUpdate {
                 insert {
+                    // create a new txn object in the transactions graph
                     txn(
+                        // add the source graph to the transaction results
                         "mms-txn:sourceGraph" to "?sourceGraph",
                     ) {
+                        // create a new policy that grants this user admin over the new branch
                         autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
                     }
 
+                    // insert the triples about the new branch, including arbitrary metadata supplied by user
                     graph("mor-graph:Metadata") {
                         raw("""
                             $branchTriples
                             
+                            # reference the commit source
                             morb: mms:commit ?__mms_commitSource .
                         """)
                     }
                 }
                 where {
+                    // assert the required conditions (e.g., access-control, existence, etc.)
                     raw(*localConditions.requiredPatterns())
 
+                    // attempt to locate the source graph for inclusion in the transaction results
                     raw("""
                         optional {
                             graph mor-graph:Metadata {
@@ -82,24 +97,31 @@ fun Route.createBranch() {
                 }
             }
 
+            // execute update
             executeSparqlUpdate(updateString) {
                 prefixes(prefixes)
 
+                // replace IRI substitution variables
                 iri(
+                    // user specified either ref or commit
                     if(refSource != null) "_refSource" to refSource!!
                     else "__mms_commitSource" to commitSource!!,
                 )
             }
 
+            // create construct query to confirm transaction and fetch repo details
             val constructString = buildSparqlQuery {
                 construct {
+                    // all the details about this transaction
                     txn()
 
+                    // all the properties about this branch
                     raw("""
                         morb: ?morb_p ?morb_o .
                     """)
                 }
                 where {
+                    // first group in a series of unions fetches intended outputs
                     group {
                         txn()
 
@@ -109,24 +131,25 @@ fun Route.createBranch() {
                             }
                         """)
                     }
-                    raw("""
-                        union ${localConditions.unionInspectPatterns()}    
-                    """)
+                    // all subsequent unions are for inspecting what if any conditions failed
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
                 }
             }
 
-            // create construct query to confirm transaction and fetch project details
+            // execute construct
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
+            // validate whether the transaction succeeded
             val constructModel = validateTransaction(constructResponseText, localConditions)
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
-            val transactionNode = constructModel.createResource(prefixes["mt"])
-
             // clone graph
             run {
+                // isolate the transaction node
+                val transactionNode = constructModel.createResource(prefixes["mt"])
+
                 // snapshot is available for source commit
                 val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
                 if(sourceGraphs.size >= 1) {

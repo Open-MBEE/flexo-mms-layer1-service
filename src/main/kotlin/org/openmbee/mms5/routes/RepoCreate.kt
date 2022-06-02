@@ -40,10 +40,6 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     }
 }
 
-fun String.normalizeIndentation(spaces: Int=0): String {
-    return this.trimIndent().prependIndent(" ".repeat(spaces)).replace("^\\s+".toRegex(), "")
-}
-
 fun Route.createRepo() {
     put("/orgs/{orgId}/repos/{repoId}") {
         call.mmsL1(Permission.CREATE_REPO) {
@@ -76,16 +72,21 @@ fun Route.createRepo() {
             // prep SPARQL UPDATE string
             val updateString = buildSparqlUpdate {
                 insert {
+                    // create a new txn object in the transactions graph
                     txn {
+                        // create a new policy that grants this user admin over the new repo
                         autoPolicy(Scope.REPO, Role.ADMIN_REPO)
                     }
 
+                    // insert the triples about the new repo, including arbitrary metadata supplied by user
                     graph("m-graph:Cluster") {
                         raw(repoTriples)
                     }
 
+                    // initialize the repo metadata graph
                     graph("mor-graph:Metadata") {
                         raw("""
+                            # root commit
                             morc: a mms:Commit ;
                                 mms:parent rdf:nil ;
                                 mms:submitted ?_now ;
@@ -93,10 +94,12 @@ fun Route.createRepo() {
                                 mms:data morc-data: ;
                                 .
                     
+                            # root commit data
                             morc-data: a mms:Load ;
                                 mms:body ""^^mms-datatype:sparql ;
                                 .
 
+                            # default branch
                             morb: a mms:Branch ;
                                 mms:id ?_branchId ;
                                 mms:etag ?_branchEtag ;
@@ -104,16 +107,19 @@ fun Route.createRepo() {
                                 mms:snapshot ?_model, ?_staging ;
                                 .
                             
+                            # initial model graph
                             ?_model a mms:Model ;
                                 mms:graph ?_modelGraph ;
                                 .
                             
+                            # initial staging graph
                             ?_staging a mms:Staging ;
                                 mms:graph ?_stagingGraph ;
                                 .
                         """)
                     }
 
+                    // declare new graph
                     graph("m-graph:Graphs") {
                         raw("""
                             mor-graph:Metadata a mms:MetadataGraph .
@@ -121,13 +127,17 @@ fun Route.createRepo() {
                     }
                 }
                 where {
+                    // assert the required conditions (e.g., access-control, existence, etc.)
                     raw(*localConditions.requiredPatterns())
                 }
             }
 
+            // execute update
             executeSparqlUpdate(updateString) {
+                // provide explicit prefix map
                 prefixes(prefixes)
 
+                // replace IRI substitution variables
                 iri(
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
@@ -135,24 +145,33 @@ fun Route.createRepo() {
                     "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
                 )
 
+                // replace Literal substitution variables
                 literal(
+                    // append "0" to branch etag in order to distinguish between repo etag
                     "_branchEtag" to "${transactionId}0",
                 )
             }
 
+            // create construct query to confirm transaction and fetch repo details
             val constructString = buildSparqlQuery {
                 construct {
+                    // all the details about this transaction
                     txn()
 
+                    // all the properties about this repo
                     raw("""
+                        # outgoing repo properties
                         mor: ?mor_p ?mor_o .
                         
+                        # properties of things that belong to this repo
                         ?thing ?thing_p ?thing_o .
                         
+                        # all triples in metadata graph
                         ?m_s ?m_p ?m_o .
                     """)
                 }
                 where {
+                    // first group in a series of unions fetches intended outputs
                     group {
                         txn()
 
@@ -172,12 +191,15 @@ fun Route.createRepo() {
                             }
                         """)
                     }
+                    // all subsequent unions are for inspecting what if any conditions failed
                     raw("""union ${localConditions.unionInspectPatterns()}""")
                 }
             }
 
+            // execute construct
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
+            // validate whether the transaction succeeded
             validateTransaction(constructResponseText, localConditions)
 
             // respond
