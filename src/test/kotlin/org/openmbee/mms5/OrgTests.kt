@@ -131,6 +131,9 @@ class OrgTests : TestBase() {
     fun testReadNonExistentOrg() {
         withTestEnvironment {
             val getOrg = doGetOrg("testReadNonExistentOrg")
+            println("listAllOrgs headers: " + getOrg.response.headers.allValues().toString())
+            println("listAllOrgs status: " + getOrg.response.status())
+            println("listAllOrgs content: " + getOrg.response.content)
             assertEquals(HttpStatusCode.NotFound, getOrg.response.status(), "Non existent org not found")
         }
     }
@@ -180,11 +183,11 @@ class OrgTests : TestBase() {
         doCreateOrg("org1", "Org 1")
         doCreateOrg("org2", "Org 2")
         withTestEnvironment {
-            val get = doGetOrg()
-            println("listAllOrgs headers: " + get.response.headers.allValues().toString())
-            println("listAllOrgs status: " + get.response.status())
-            println("listAllOrgs content: " + get.response.content)
-            assertTrue(get.response.status()?.isSuccess() ?: false, "Get /orgs success")
+            val getOrg = doGetOrg()
+            println("listAllOrgs headers: " + getOrg.response.headers.allValues().toString())
+            println("listAllOrgs status: " + getOrg.response.status())
+            println("listAllOrgs content: " + getOrg.response.content)
+            assertTrue(getOrg.response.status()?.isSuccess() ?: false, "Get /orgs success")
         }
     }
 }
