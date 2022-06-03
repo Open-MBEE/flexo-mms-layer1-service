@@ -64,59 +64,76 @@ fun Route.readBranch() {
     route("/orgs/{orgId}/repos/{repoId}/branches/{branchId?}") {
         head {
             call.mmsL1(Permission.READ_BRANCH) {
+                // parse path params
                 pathParams {
                     org()
                     repo()
                     branch()
                 }
 
+                // cache whether this request is asking for all branches
+                val allBranches = branchId?.isBlank() ?: true
+
+                // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_BRANCH) {
                     prefixes(prefixes)
 
-                    // get by orgId
-                    if(false == orgId?.isBlank()) {
+                    // get by branchId
+                    if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
                 }
 
+                // parse the results
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                checkPreconditions(results)
+                // hash all the branch etags
+                handleEtagAndPreconditions(results)
 
+                // respond
                 call.respondText("")
             }
         }
 
         get {
             call.mmsL1(Permission.READ_BRANCH) {
+                // parse path params
                 pathParams {
                     org()
                     repo()
                     branch()
                 }
 
+                // cache whether this request is asking for all branches
+                val allBranches = branchId?.isBlank() ?: true
+
+                // fetch all branch details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_BRANCH) {
                     prefixes(prefixes)
 
-                    // get by orgId
-                    if(false == orgId?.isBlank()) {
+                    // get by branchId
+                    if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
                 }
 
-                val model = KModel(prefixes) {
-                    parseTurtle(
-                        body = constructResponseText,
-                        model = this,
-                    )
+                // parse the response
+                parseConstructResponse(constructResponseText) {
+                    // hash all the repo etags
+                    if(allBranches) {
+                        handleEtagAndPreconditions(model, MMS.Branch)
+                    }
+                    // just the individual repo
+                    else {
+                        handleEtagAndPreconditions(model, prefixes["morb"])
+                    }
                 }
 
-                checkPreconditions(model, prefixes["morb"])
-
+                // respond
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
 

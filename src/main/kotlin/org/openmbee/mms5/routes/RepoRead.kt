@@ -2,10 +2,8 @@ package org.openmbee.mms5.routes
 
 import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
-import io.ktor.server.engine.*
 import kotlinx.serialization.json.*
 import org.openmbee.mms5.*
 
@@ -57,62 +55,84 @@ fun Route.readRepo() {
     route("/orgs/{orgId}/repos/{repoId?}") {
         head {
             call.mmsL1(Permission.READ_REPO) {
+                // parse path params
                 pathParams {
                     org()
                     repo()
                 }
 
+                // cache whether this request is asking for all repos
+                val allRepos = repoId?.isBlank() ?: true
+
+                // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO) {
                     prefixes(prefixes)
 
+                    // always belongs to some org
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
 
                     // get by repoId
-                    if(false == repoId?.isBlank()) {
+                    if(!allRepos) {
                         iri(
                             "_repo" to prefixes["mor"]!!,
                         )
                     }
                 }
 
+                // parse the results
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                checkPreconditions(results)
+                // hash all the repo etags
+                handleEtagAndPreconditions(results)
 
+                // respond
                 call.respondText("", status = HttpStatusCode.OK)
             }
         }
 
         get {
             call.mmsL1(Permission.READ_REPO) {
+                // parse path params
                 pathParams {
                     org()
                     repo()
                 }
 
-                log.debug("Reading repo with CONSTRUCT query:\n${SPARQL_CONSTRUCT_REPO}")
+                // cache whether this request is asking for all repos
+                val allRepos = repoId?.isBlank() ?: true
 
+                // fetch all repo details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
                     prefixes(prefixes)
 
+                    // always belongs to some org
                     iri(
                         "_org" to prefixes["mo"]!!,
                     )
 
                     // get by repoId
-                    if(false == repoId?.isBlank()) {
+                    if(!allRepos) {
                         iri(
                             "_repo" to prefixes["mor"]!!,
                         )
                     }
                 }
 
+                // parse the response
                 parseConstructResponse(constructResponseText) {
-                    checkPreconditions(model, prefixes["mor"])
+                    // hash all the repo etags
+                    if(allRepos) {
+                        handleEtagAndPreconditions(model, MMS.Repo)
+                    }
+                    // just the individual repo
+                    else {
+                        handleEtagAndPreconditions(model, prefixes["mor"])
+                    }
                 }
 
+                // respond
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
         }

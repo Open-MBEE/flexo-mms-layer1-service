@@ -391,7 +391,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                 log.debug("Caught non-200 response from quadstore: ${statusCode} \"\"\"${executeError.body}\"\"\"")
 
                 // 4xx error
-                if(statusCode >= 400 && statusCode < 500) {
+                if(statusCode in 400..499) {
                     // do access control check
                     val checkQuery = buildSparqlQuery {
                         construct {
