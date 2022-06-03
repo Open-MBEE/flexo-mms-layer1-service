@@ -70,6 +70,7 @@ enum class Permission(
 enum class Role(val id: String) {
     ADMIN_ORG("AdminOrg"),
     ADMIN_REPO("AdminRepo"),
+    ADMIN_COLLECTION("AdminCollection"),
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),

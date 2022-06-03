@@ -1,18 +1,10 @@
-# MMS5 Cluster Graphs Configruation Generator
+# MMS-5 Layer 0: Database Initialization Generator
 
-MMS5 requires the underlying quadstore (layer 0) to follow a rigid database schema complete with schema definitions for Access Control and Version Control objects.
+Generates a TriG file with necessary object and access control definitions for a new MMS5 deployment.
 
-This tool generates a cluster-specific initialization dataset in the form of a TriG file which should loaded into the new quadstore before any transactions take place.
+### Build
 
-## Building
-
-Set the root context URL for the MMS deployment. This should reflect the actual URL of your deployed service. For example:
-```shell
-ROOT_CONTEXT="https://your-app-domain/path-to-mms5"
+```sh
+mkdir build
+npx ts-node src/main.ts $ROOT_CONTEXT > build/cluster.trig
 ```
-
-```shell
-yarn build $ROOT_CONTEXT
-```
-
-Output file will be in `build/cluster.trig`

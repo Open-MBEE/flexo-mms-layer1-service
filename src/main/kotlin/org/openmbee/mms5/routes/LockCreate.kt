@@ -9,15 +9,18 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
+// default starting conditions for any calls to create a lock
 private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    // require that the user has the ability to create locks on a repo-level scope
     permit(Permission.CREATE_LOCK, Scope.REPO)
 
+    // require that the given lock does not exist before attempting to create it
     require("lockNotExists") {
         handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." }
 
         """
             # lock must not yet exist
-            graph m-graph:Cluster {
+            graph mor-graph:Metadata {
                 filter not exists {
                     morl: a mms:Lock .
                 }
@@ -80,16 +83,21 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
 fun Route.createLock() {
     put("/orgs/{orgId}/repos/{repoId}/locks/{lockId}") {
         call.mmsL1(Permission.CREATE_LOCK) {
+            // parse the path params
             pathParams {
                 org()
                 repo()
                 lock(legal = true)
             }
 
+            // process RDF body from user about this new lock
             val lockTriples = filterIncomingStatements("morl") {
+                // relative to this lock node
                 lockNode().apply {
+                    // assert and normalize ref/commit triples
                     normalizeRefOrCommit(this)
 
+                    // sanitize statements
                     sanitizeCrudObject {
                         setProperty(RDF.type, MMS.Lock)
                         setProperty(MMS.id, lockId!!)
@@ -100,6 +108,7 @@ fun Route.createLock() {
                 }
             }
 
+            // extend the default conditions with requirements for user-specified ref or commit
             val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
             // locate base snapshot
@@ -119,6 +128,7 @@ fun Route.createLock() {
                 // initialize to target commit in case target snapshot already exists
                 var baseCommit = commitNode()
 
+                // prep accessor function
                 val literalStringValueAt = { res: Resource, prop: Property -> model.listObjectsOfProperty(res, prop).next().asLiteral().string }
 
                 // traverse up the ancestry chain
@@ -130,6 +140,7 @@ fun Route.createLock() {
                     // key by commit uri
                     commitSequenceUris.add(0, baseCommit.uri)
 
+                    // iterate
                     baseCommit = parents.next().asResource()
                     parents = model.listObjectsOfProperty(baseCommit, MMS.parent)
                 }
@@ -146,7 +157,9 @@ fun Route.createLock() {
             // log.info("base snapshot graph: <$baseSnapshotGraphUri>")
             // log.info(commitSequenceUris.joinToString(", ") { "<$it> :: ${patchWhereBodies[it]!!.first}" })
 
+            // prep SPARQL UPDATE string
             val updateString = buildSparqlUpdate {
+                // first, copy the base snapshot graph to the new lock model graph
                 raw("""
                     copy <$baseSnapshotGraphUri> to ?__mms_model ; 
                 """)
@@ -158,40 +171,49 @@ fun Route.createLock() {
                 }.joinToString(""))
 
                 insert {
+                    // create a new txn object in the transactions graph
                     txn {
+                        // create a new policy that grants this user admin over the new lock
                         autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
                     }
 
+                    // insert the triples about the new lock, including arbitrary metadata supplied by user
                     graph("mor-graph:Metadata") {
                         raw(lockTriples)
                     }
                 }
                 where {
+                    // assert the required conditions (e.g., access-control, existence, etc.)
                     raw(*localConditions.requiredPatterns())
                 }
             }
 
             log.info(updateString)
 
+            // execute update
             executeSparqlUpdate(updateString) {
                 prefixes(prefixes)
 
+                // replace IRI substitution variables
                 iri(
                     "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}"
                 )
             }
 
 
-            // create construct query to confirm transaction and fetch project details
+            // create construct query to confirm transaction and fetch lock details
             val constructString = buildSparqlQuery {
                 construct  {
+                    // all the details about this transaction
                     txn()
 
+                    // all the properties about this lock
                     raw("""
                         morl: ?morl_p ?morl_o .
                     """)
                 }
                 where {
+                    // first group in a series of unions fetches intended outputs
                     group {
                         txn()
 
@@ -201,14 +223,21 @@ fun Route.createLock() {
                             }
                         """)
                     }
+                    // all subsequent unions are for inspecting what if any conditions failed
                     raw("""union ${localConditions.unionInspectPatterns()}""")
                 }
             }
 
+            // execute construct
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-            validateTransaction(constructResponseText, localConditions)
+            // validate whether the transaction succeeded
+            val constructModel = validateTransaction(constructResponseText, localConditions)
 
+            // check that the user-supplied HTTP preconditions were met
+            handleEtagAndPreconditions(constructModel, prefixes["morl"])
+
+            // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
             // log

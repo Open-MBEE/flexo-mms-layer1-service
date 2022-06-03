@@ -1,5 +1,7 @@
 // @ts-ignore
 import trig_write from '@graphy/content.trig.write';
+// @ts-ignore
+import factory from '@graphy/core.data.factory';
 
 const P_PREFIX = process.argv[2].replace(/\/$/, "");
 
@@ -170,6 +172,7 @@ ds_writer.pipe(process.stdout);
 ds_writer.write({
 	type: 'c4',
 	value: {
+		[factory.comment()]: 'users and groups which are the subjects of access control policies',
 		'm-graph:AccessControl.Agents': {
 			'm-user:root': {
 				a: 'mms:User',
@@ -183,13 +186,18 @@ ds_writer.write({
 			},
 		},
 
+		[factory.comment()]: 'cluster-specific classes',
 		'm-graph:Cluster': {
 			'm:': {
 				a: 'mms:Cluster',
 			},
 		},
 
+		[factory.comment()]: 'copy of static schema inherited from global MMS definitions',
 		'm-graph:Schema': {
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==            Classes             ==',
+			[factory.comment()]: '====================================',
 			...classes({
 				Ref: {},
 				Branch: {
@@ -213,6 +221,9 @@ ds_writer.write({
 				Commit: {},
 			}),
 
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==           Properties           ==',
+			[factory.comment()]: '====================================',
 			...properties({
 				ref: {
 					range: 'Ref',
@@ -225,6 +236,9 @@ ds_writer.write({
 		},
 
 		'm-graph:AccessControl.Definitions': {
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==             Scopes             ==',
+			[factory.comment()]: '====================================',
 			...scopes({
 				Cluster: {
 					implies: 'Org',
@@ -254,6 +268,10 @@ ds_writer.write({
 				},
 			}),
 
+
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==   Object-Centric Permissions   ==',
+			[factory.comment()]: '====================================',
 			...permissions({
 				Cluster: {
 					crud: {
@@ -363,6 +381,9 @@ ds_writer.write({
 				// },
 			}),
 
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==             Roles              ==',
+			[factory.comment()]: '====================================',
 			...roles({
 				Org: H_ROLE_DEFAULT,
 				Repo: H_ROLE_DEFAULT,
