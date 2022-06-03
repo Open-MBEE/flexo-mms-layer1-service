@@ -122,20 +122,15 @@ fun Route.readOrg() {
                 }
 
                 // parse the response
-                val model = KModel(prefixes) {
-                    parseTurtle(
-                        body = constructResponseText,
-                        model = this,
-                    )
-                }
-
-                // hash all the org etags
-                if(allOrgs) {
-                    handleEtagAndPreconditions(model, MMS.Org)
-                }
-                // just the individual org
-                else {
-                    handleEtagAndPreconditions(model, prefixes["mo"])
+                parseConstructResponse(constructResponseText) {
+                    // hash all the org etags
+                    if(allOrgs) {
+                        handleEtagAndPreconditions(model, MMS.Org)
+                    }
+                    // just the individual org
+                    else {
+                        handleEtagAndPreconditions(model, prefixes["mo"])
+                    }
                 }
 
                 // respond
