@@ -652,6 +652,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         checkPreconditions(etag)
     }
 
+
     fun handleEtagAndPreconditions(model: KModel, resourceUri: String?) {
         // single resource
         if(resourceUri != null) {
@@ -683,6 +684,31 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             // check preconditions
             checkPreconditions(etag)
         }
+    }
+
+    fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
+        // prep map of resources to etags
+        val resEtags = mutableListOf<String>()
+
+        // each node that has an etag...
+        model.listSubjectsWithProperty(MMS.etag).forEach { subject ->
+            // ...that is of the specified type
+            if(subject.hasProperty(RDF.type, resourceType)) {
+                // add all etgas
+                resEtags.addAll(subject.listProperties(MMS.etag).mapWith { statement ->
+                    statement.`object`.asLiteral().string
+                }.toList())
+            }
+        }
+
+        // sort list of etags and hash them
+        val etag = resEtags.sorted().toList().joinToString(":").sha256()
+
+        // set etag value in response header
+        call.response.header(HttpHeaders.ETag, etag)
+
+        // check preconditions
+        checkPreconditions(etag)
     }
 
     suspend fun downloadModel(graphUri: String): KModel {

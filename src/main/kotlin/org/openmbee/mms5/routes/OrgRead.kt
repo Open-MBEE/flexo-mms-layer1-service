@@ -1,11 +1,15 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
+import io.ktor.http.HttpHeaders.ETag
 import io.ktor.response.*
 import io.ktor.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import org.apache.jena.rdf.model.Resource
+import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+import java.net.http.HttpHeaders
 
 private val SPARQL_BGP_ORG = """
     graph m-graph:Cluster {
@@ -64,46 +68,60 @@ fun Route.readOrg() {
     route("/orgs/{orgId?}") {
         head {
             call.mmsL1(Permission.READ_ORG) {
+                // parse path params
                 pathParams {
                     org()
                 }
 
+                // cache whether this request is asking for all orgs
+                val allOrgs = orgId?.isBlank() ?: true
+
+                // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(false == orgId?.isBlank()) {
+                    if(!allOrgs) {
                         iri(
                             "_org" to prefixes["mo"]!!,
                         )
                     }
                 }
 
+                // parse the results
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
+                // hash all the org etags
                 handleEtagAndPreconditions(results)
 
+                // respond
                 call.respondText("")
             }
         }
 
         get {
             call.mmsL1(Permission.READ_ORG) {
+                // parse path params
                 pathParams {
                     org()
                 }
 
+                // cache whether this request is asking for all orgs
+                val allOrgs = orgId?.isBlank() ?: true
+
+                // fetch all org details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(false == orgId?.isBlank()) {
+                    if(!allOrgs) {
                         iri(
                             "_org" to prefixes["mo"]!!,
                         )
                     }
                 }
 
+                // parse the response
                 val model = KModel(prefixes) {
                     parseTurtle(
                         body = constructResponseText,
@@ -111,8 +129,16 @@ fun Route.readOrg() {
                     )
                 }
 
-                handleEtagAndPreconditions(model, prefixes["mo"]!!)
+                // hash all the org etags
+                if(allOrgs) {
+                    handleEtagAndPreconditions(model, MMS.Org)
+                }
+                // just the individual org
+                else {
+                    handleEtagAndPreconditions(model, prefixes["mo"])
+                }
 
+                // respond
                 call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
             }
 
