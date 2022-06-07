@@ -81,7 +81,7 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         val inspectValue = call.parameters["inspect"]?: ""
         mms.inspectOnly = if(inspectValue.isNotEmpty()) {
             if(inspectValue != "inspect") {
-                throw NotFoundException()
+                throw Http404Exception()
             } else true
         } else false
     }
@@ -661,7 +661,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
             // resource not exists; 404
             if(!resourceNode.listProperties().hasNext()) {
-                throw NotFoundException()
+                throw Http404Exception()
             }
 
             // etags
