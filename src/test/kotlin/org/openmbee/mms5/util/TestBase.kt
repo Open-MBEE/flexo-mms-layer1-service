@@ -169,14 +169,14 @@ abstract class TestBase {
      * Extension function to add an Authorization: header with a Bearer token for the
      * given username to a test request
      */
-    fun TestApplicationRequest.addAuthorizationHeader(username: String, groups: List<String>) {
-        addHeader("Authorization", authorization(username, groups))
+    fun TestApplicationRequest.addAuthorizationHeader(auth: AuthObject) {
+        addHeader("Authorization", authorization(auth))
     }
 
     /**
      * Generate an Authorization: header Bearer token value for the given username.
      */
-    private fun authorization(username: String, groups: List<String>): String {
+    private fun authorization(auth: AuthObject): String {
         val testEnv = testEnv()
         val jwtAudience = testEnv.config.property("jwt.audience").getString()
         val issuer = testEnv.config.property("jwt.domain").getString()
@@ -185,8 +185,8 @@ abstract class TestBase {
         return "Bearer " + JWT.create()
             .withAudience(jwtAudience)
             .withIssuer(issuer)
-            .withClaim("username", username)
-            .withClaim("groups", groups)
+            .withClaim("username", auth.username)
+            .withClaim("groups", auth.groups)
             .withExpiresAt(expires)
             .sign(Algorithm.HMAC256(secret))
     }
@@ -303,6 +303,28 @@ abstract class TestBase {
         }
     }
 
+    fun doCreateOrg(auth: AuthObject, orgId: String, orgName: String): TestApplicationCall {
+        return withTestEnvironment {
+            handleRequest(HttpMethod.Put, "/orgs/$orgId") {
+                addAuthorizationHeader(auth)
+                setTurtleBody("""
+                    <> dct:title "$orgName"@en ;
+                """.trimIndent())
+            }
+        }
+    }
+
+    fun doGetOrg(auth: AuthObject, orgId: String? = "", headers: Map<String, String>? = null): TestApplicationCall {
+        return withTestEnvironment {
+            handleRequest(HttpMethod.Get, "/orgs/$orgId") {
+                addAuthorizationHeader(auth)
+                headers?.forEach { header ->
+                    addHeader(header.key, header.value)
+                }
+            }
+        }
+    }
+
     /**
      * After all tests finish, stop the SPARQL backend.
      */
@@ -311,3 +333,8 @@ abstract class TestBase {
         if (runSparqlBackend) backend.stop()
     }
 }
+
+data class AuthObject (
+    val username: String = "",
+    val groups: List<String> = listOf("")
+)

@@ -3,33 +3,25 @@ package org.openmbee.mms5
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.junit.jupiter.api.Test
+import org.openmbee.mms5.util.AuthObject
 import org.openmbee.mms5.util.TestBase
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RepoTests : TestBase() {
 
-    private val username = "root"
-    private val groups = listOf("SuperAdmins")
+    private val defaultAuthObject = AuthObject(
+        username = "root",
+        groups = listOf("super_admins")
+    )
     private val testOrgId = "testCreateAndReadOrg"
     private val testOrgName = "OpenMBEE"
-
-    fun doCreateOrg(orgId: String, orgName: String): TestApplicationCall {
-        return withTestEnvironment {
-            handleRequest(HttpMethod.Put, "/orgs/$orgId") {
-                addAuthorizationHeader(username, groups)
-                setTurtleBody("""
-                    <> dct:title "$orgName"@en ;
-                """.trimIndent())
-            }
-        }
-    }
 
     @Test
     fun createOnNonExistentOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
-                addAuthorizationHeader(username, groups)
+                addAuthorizationHeader(defaultAuthObject)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
@@ -44,10 +36,10 @@ class RepoTests : TestBase() {
 
     @Test
     fun createOnValidOrg() {
-        doCreateOrg(testOrgId, testOrgName)
+        doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
-                addAuthorizationHeader(username, groups)
+                addAuthorizationHeader(defaultAuthObject)
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
