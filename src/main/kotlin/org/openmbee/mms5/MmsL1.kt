@@ -124,15 +124,9 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
         val inputs = node.listProperties(property)
 
         // user document includes triple(s) about this property
-        if(inputs.hasNext()) {
-            // ensure value is acceptable
-            for(input in inputs) {
-                // not acceptable
-                if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
-
-                // remove from model
-                input.remove()
-            }
+        while (inputs.hasNext()) {
+            val input = inputs.nextStatement()
+            if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
         }
 
         // set value
