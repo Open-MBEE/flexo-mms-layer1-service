@@ -27,7 +27,7 @@ fun assertOperationsAllowed(operations: List<Update>) {
             }
         }
 
-        throw Exception("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
+        throw ServerBugException("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
     }
 }
 
@@ -216,7 +216,7 @@ fun Route.commitModel() {
             // something is wrong
             if(stagingGraph == null) {
             // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
-                throw Exception("failed to fetch graph/model")
+                throw ServerBugException("failed to fetch graph/model")
             }
 
 

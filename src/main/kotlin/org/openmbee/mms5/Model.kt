@@ -423,6 +423,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
     else {
-        throw Exception("Query operation not supported")
+        throw Http400Exception("Query operation not supported")
     }
 }
