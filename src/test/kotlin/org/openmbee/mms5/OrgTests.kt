@@ -165,9 +165,6 @@ class OrgTests : TestBase() {
         doCreateOrg(defaultAuthObject, "org2", "Org 2")
         withTestEnvironment {
             val getOrg = doGetOrg(defaultAuthObject)
-            println("listAllOrgs headers: " + getOrg.response.headers.allValues().toString())
-            println("listAllOrgs status: " + getOrg.response.status())
-            println("listAllOrgs content: " + getOrg.response.content)
             assertTrue(getOrg.response.status()?.isSuccess() ?: false, "Get /orgs success")
         }
     }

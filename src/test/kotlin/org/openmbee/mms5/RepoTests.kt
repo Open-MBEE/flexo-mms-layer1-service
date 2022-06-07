@@ -48,6 +48,9 @@ class RepoTests : TestBase() {
                         .
                 """.trimIndent())
             }
+            println("createOnValidOrg headers: " + put.response.headers.allValues().toString())
+            println("createOnValidOrg status: " + put.response.status())
+            println("createOnValidOrg content: " + put.response.content)
             assertTrue(put.response.status()?.isSuccess() ?: true, "Create project on valid org")
         }
     }
