@@ -123,10 +123,13 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     fun setProperty(property: Property, value: Resource, unsettable: Boolean?=false) {
         val inputs = node.listProperties(property)
 
-        // user document includes triple(s) about this property
-        while (inputs.hasNext()) {
-            val input = inputs.nextStatement()
+        // user document includes triple(s) about this property; ensure value is acceptable
+        inputs.forEach { input ->
+            // not acceptable
             if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
+
+            // remove from model
+            input.remove()
         }
 
         // set value
@@ -136,16 +139,13 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     fun setProperty(property: Property, value: String, unsettable: Boolean?=false) {
         val inputs = node.listProperties(property)
 
-        // user document includes triple(s) about this property
-        if(inputs.hasNext()) {
-            // ensure value is acceptable
-            for(input in inputs) {
-                // not acceptable
-                if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
+        // user document includes triple(s) about this property; ensure value is acceptable
+        inputs.forEach { input ->
+            // not acceptable
+            if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
 
-                // remove from model
-                input.remove()
-            }
+            // remove from model
+            input.remove()
         }
 
         // set value
