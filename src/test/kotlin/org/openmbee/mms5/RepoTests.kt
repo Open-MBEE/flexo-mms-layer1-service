@@ -43,7 +43,6 @@ class RepoTests : TestBase() {
                 setTurtleBody("""
                     <>
                         dct:title "TMT"@en ;
-                        mms:org m-org:$testOrgId ;
                         <https://demo.org/custom/prop> "2" ;
                         .
                 """.trimIndent())
