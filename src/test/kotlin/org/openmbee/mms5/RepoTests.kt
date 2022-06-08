@@ -2,6 +2,7 @@ package org.openmbee.mms5
 
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.openmbee.mms5.util.AuthObject
 import org.openmbee.mms5.util.TestBase
@@ -18,6 +19,7 @@ class RepoTests : TestBase() {
     private val testOrgName = "OpenMBEE"
 
     @Test
+    @Order(2)
     fun createOnNonExistentOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
@@ -35,8 +37,15 @@ class RepoTests : TestBase() {
     }
 
     @Test
+    @Order(2)
+    fun createOrgToExist() {
+        val existingOrg = doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
+        assertTrue(existingOrg.response.status()?.isSuccess() ?: true, "Create org for repo")
+    }
+
+    @Test
+    @Order(3)
     fun createOnValidOrg() {
-        doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
                 addAuthorizationHeader(defaultAuthObject)
