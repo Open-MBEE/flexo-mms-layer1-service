@@ -117,16 +117,17 @@ val FORBIDDEN_PREDICATES_REGEX = listOf(
 ).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
 
 class Sanitizer(val mms: MmsL1Context, val node: Resource) {
-    val explicitUris = hashMapOf<String, Resource>()
-    val explicitLiterals = hashMapOf<String, String>()
+    private val explicitUris = hashMapOf<String, Resource>()
+    private val explicitLiterals = hashMapOf<String, String>()
 
     fun setProperty(property: Property, value: Resource, unsettable: Boolean?=false) {
-        val inputs = node.listProperties(property)
-
         // user document includes triple(s) about this property; ensure value is acceptable
-        inputs.forEach { input ->
+        node.listProperties(property).forEach { input ->
             // not acceptable
             if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
+
+            // verbose
+            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -137,12 +138,13 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     }
 
     fun setProperty(property: Property, value: String, unsettable: Boolean?=false) {
-        val inputs = node.listProperties(property)
-
         // user document includes triple(s) about this property; ensure value is acceptable
-        inputs.forEach { input ->
+        node.listProperties(property).forEach { input ->
             // not acceptable
             if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
+
+            // verbose
+            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -154,7 +156,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
 
     fun finalize() {
         // check each property
-        node.listProperties().toList().forEach {
+        node.listProperties().forEach {
             val predicateUri = it.predicate.uri
 
             // sensitive property
