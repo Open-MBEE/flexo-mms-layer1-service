@@ -38,14 +38,9 @@ class RepoTests : TestBase() {
 
     @Test
     @Order(2)
-    fun createOrgToExist() {
-        val existingOrg = doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
-        assertTrue(existingOrg.response.status()?.isSuccess() ?: true, "Create org for repo")
-    }
-
-    @Test
-    @Order(3)
     fun createOnValidOrg() {
+        doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
+
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
                 addAuthorizationHeader(defaultAuthObject)
