@@ -18,23 +18,6 @@ class RepoTests : TestBase() {
     private val testOrgId = "testCreateAndReadOrg"
     private val testOrgName = "OpenMBEE"
 
-    //@Test
-    @Order(1)
-    fun createOnNonExistentOrg() {
-        withTestEnvironment {
-            val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
-                addAuthorizationHeader(defaultAuthObject)
-                setTurtleBody("""
-                    <>
-                        dct:title "TMT"@en ;
-                        mms:org m-org:$testOrgId ;
-                        <https://demo.org/custom/prop> "2" ;
-                        .
-                """.trimIndent())
-            }
-            assertFalse(put.response.status()?.isSuccess() ?: false, "Create project on non-existent org")
-        }
-    }
 
     @Test
     @Order(2)
