@@ -18,7 +18,7 @@ class RepoTests : TestBase() {
     private val testOrgId = "testCreateAndReadOrg"
     private val testOrgName = "OpenMBEE"
 
-    @Test
+    //@Test
     @Order(1)
     fun createOnNonExistentOrg() {
         withTestEnvironment {
