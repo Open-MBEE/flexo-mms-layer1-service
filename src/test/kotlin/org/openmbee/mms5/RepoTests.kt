@@ -19,7 +19,7 @@ class RepoTests : TestBase() {
     private val testOrgName = "OpenMBEE"
 
     @Test
-    @Order(2)
+    @Order(1)
     fun createOnNonExistentOrg() {
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
