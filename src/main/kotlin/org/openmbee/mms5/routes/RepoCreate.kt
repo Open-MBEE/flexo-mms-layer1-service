@@ -25,6 +25,20 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
         """
     }
 
+    // require that the metadata graph does not exist before attempting to create it
+    require("repoMetadataGraphNotExists") {
+        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> already exists." }
+
+        """
+            # metadata graph must not yet exist
+            graph m-graph:Graphs {
+                filter not exists {
+                    mor-graph:Metadata a mms:RepoMetadataGraph .
+                }
+            }
+        """
+    }
+
     // require that there is no pre-existing metadata graph associated with the given repo id
     require("repoMetadataGraphEmpty") {
         handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> is not empty." }

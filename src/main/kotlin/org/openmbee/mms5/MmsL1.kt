@@ -543,6 +543,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
+                // debug
+                log.warn("Transaction failed.\n${results}")
+
                 // use response to diagnose cause
                 conditions.handle(model, mms);
 

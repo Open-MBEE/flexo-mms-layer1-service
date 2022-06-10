@@ -9,6 +9,9 @@ import org.apache.jena.sparql.syntax.*
 
 class RequirementNotMetException(info: String): Exception("A required condition was not met. $info")
 
+class RequirementsNotMetException(conditions: List<String>): Exception("The following conditions failed after the transaction attempt:\n"
+    +conditions.mapIndexed { i, v -> "${i}. $v" }.joinToString("\n"))
+
 class QuadsNotAllowedException(graph: String): Exception("Quads not allowed here. Encountered graph `${graph}`") {}
 
 class ServiceNotAllowedException(): Exception("SERVICE blocks not allowed in MMS 5 SPARQL Update") {}

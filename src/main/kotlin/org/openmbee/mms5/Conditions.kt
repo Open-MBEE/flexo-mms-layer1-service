@@ -232,12 +232,19 @@ class ConditionsGroup(var conditions: List<Condition>) {
         val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
             .map { it.`object`.asLiteral().string }.toHashSet()
 
+        val failedConditions = mutableListOf<String>()
+
         // each conditions
         for(condition in conditions) {
             // inspection key is missing from set of passes
             if(!passes.contains(condition.key)) {
-                throw RequirementNotMetException(condition.handler(mms))
+                // add to possible reasons
+                failedConditions.add(condition.handler(mms))
             }
+        }
+
+        if(failedConditions.isNotEmpty()) {
+            throw RequirementsNotMetException(failedConditions)
         }
 
         throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")
