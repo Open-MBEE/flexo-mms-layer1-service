@@ -8,6 +8,7 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.util.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -543,6 +544,61 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
+                // debug
+                log.warn("Transaction failed.\n${results}")
+
+                runBlocking {
+                    val constructQuery = buildSparqlQuery {
+                        construct {
+                            raw("""
+                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o . 
+                                
+                                mt: ?mt_p ?mt_o .
+                                # outgoing repo properties
+                                mor: ?mor_p ?mor_o .
+                            
+                                # properties of things that belong to this repo
+                                ?thing ?thing_p ?thing_o .
+                            
+                                # all triples in metadata graph
+                                ?m_s ?m_p ?m_o .
+                            """)
+                        }
+                        where {
+                            raw("""
+                                {
+                                    graph m-graph:AccessControl.Policies {
+                                        optional {
+                                            ?__mms_policy mms:scope mo: ;
+                                                ?__mms_policy_p ?__mms_policy_o .
+                                        }
+                                    }
+                                } union {
+                                    graph m-graph:Transactions {
+                                        mt: ?mt_p ?mt_o .
+                                    }
+                                } union {
+                                    graph m-graph:Cluster {
+                                        mor: a mms:Repo ;
+                                            ?mor_p ?mor_o .
+    
+                                        optional {
+                                            ?thing mms:repo mor: ;
+                                                ?thing_p ?thing_o .
+                                        }
+                                    }
+                                } union {
+                                    graph mor-graph:Metadata {
+                                        ?m_s ?m_p ?m_o .
+                                    }
+                                }                                
+                            """)
+                        }
+                    }
+
+                    log.info("Union inspect: ${executeSparqlConstructOrDescribe(constructQuery)}")
+                }
+
                 // use response to diagnose cause
                 conditions.handle(model, mms);
 
