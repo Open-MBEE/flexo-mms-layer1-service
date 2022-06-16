@@ -25,7 +25,7 @@ dependencies {
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 
-    val commonsCliVersion = "1.4"
+    val commonsCliVersion = "1.5.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
     val kotlinxJsonVersion = "1.3.2"
