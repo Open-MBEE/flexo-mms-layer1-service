@@ -34,7 +34,7 @@ dependencies {
     val klaxonVersion = "5.5"
     implementation("com.beust:klaxon:$klaxonVersion")
 
-    val jenaVersion = "4.2.0"
+    val jenaVersion = "4.5.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
