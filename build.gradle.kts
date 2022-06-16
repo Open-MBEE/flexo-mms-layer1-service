@@ -1,12 +1,5 @@
-val jena_version: String by project
-val klaxon_version: String by project
-val kotlinx_json_version: String by project
-val ktor_version: String by project
-val kotlin_version: String by project
-val logback_version: String by project
-val consul_version: String by project
-val system_lambda_version: String by project
-val junit_version: String by project
+
+val kotlinVersion = "1.6.10"
 
 plugins {
     application
@@ -30,30 +23,44 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    implementation("commons-cli:commons-cli:1.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinx_json_version")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
 
-    implementation("com.beust:klaxon:$klaxon_version")
+    val commonsCliVersion = "1.4"
+    implementation("commons-cli:commons-cli:$commonsCliVersion")
 
-    implementation("org.apache.jena:jena-arq:${jena_version}")
+    val kotlinxJsonVersion = "1.3.2"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
-    implementation("io.ktor:ktor-client-core:${ktor_version}")
-    implementation("io.ktor:ktor-client-cio:${ktor_version}")
-    implementation("io.ktor:ktor-server-core:$ktor_version")
-    implementation("io.ktor:ktor-server-host-common:$ktor_version")
-    implementation("io.ktor:ktor-locations:$ktor_version")
-    implementation("io.ktor:ktor-auth:$ktor_version")
-    implementation("io.ktor:ktor-auth-jwt:$ktor_version")
-    implementation("io.ktor:ktor-server-netty:$ktor_version")
-    implementation("com.orbitz.consul:consul-client:$consul_version")
-    implementation("ch.qos.logback:logback-classic:$logback_version")
+    val klaxonVersion = "5.5"
+    implementation("com.beust:klaxon:$klaxonVersion")
 
-    testImplementation("io.ktor:ktor-server-tests:$ktor_version")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-    testImplementation("com.github.stefanbirkner:system-lambda:$system_lambda_version")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:$junit_version")
+    val jenaVersion = "4.2.0"
+    implementation("org.apache.jena:jena-arq:${jenaVersion}")
+    testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    testFuseki("org.apache.jena:jena-fuseki-server:$jena_version")
+    val ktorVersion = "1.6.7"
+    implementation("io.ktor:ktor-client-core:${ktorVersion}")
+    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
+    implementation("io.ktor:ktor-locations:$ktorVersion")
+    implementation("io.ktor:ktor-auth:$ktorVersion")
+    implementation("io.ktor:ktor-auth-jwt:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
+
+    val consulVersion = "1.5.3"
+    implementation("com.orbitz.consul:consul-client:$consulVersion")
+
+    val logbackVersion = "1.2.3"
+    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+
+    val systemLambdaVersion = "1.2.1"
+    testImplementation("com.github.stefanbirkner:system-lambda:$systemLambdaVersion")
+
+    val junitVersion = "5.8.2"
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+
 }
 
 tasks {
