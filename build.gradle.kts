@@ -38,7 +38,7 @@ dependencies {
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "1.6.7"
+    val ktorVersion = "1.6.8"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-server-core:$ktorVersion")
