@@ -31,7 +31,7 @@ dependencies {
     val kotlinxJsonVersion = "1.3.2"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
-    val klaxonVersion = "5.5"
+    val klaxonVersion = "5.6"
     implementation("com.beust:klaxon:$klaxonVersion")
 
     val jenaVersion = "4.2.0"
@@ -52,7 +52,7 @@ dependencies {
     val consulVersion = "1.5.3"
     implementation("com.orbitz.consul:consul-client:$consulVersion")
 
-    val logbackVersion = "1.2.3"
+    val logbackVersion = "1.2.11"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
