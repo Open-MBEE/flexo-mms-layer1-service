@@ -28,7 +28,7 @@ dependencies {
     val commonsCliVersion = "1.5.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
-    val kotlinxJsonVersion = "1.3.2"
+    val kotlinxJsonVersion = "1.3.3"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
     val klaxonVersion = "5.6"
