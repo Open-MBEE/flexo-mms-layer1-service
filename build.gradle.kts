@@ -4,7 +4,7 @@ val kotlinVersion = "1.6.10"
 plugins {
     application
     kotlin("jvm") version "1.6.10"
-    kotlin("plugin.serialization") version "1.6.10"
+    kotlin("plugin.serialization") version "1.7.0"
     jacoco
 }
 
