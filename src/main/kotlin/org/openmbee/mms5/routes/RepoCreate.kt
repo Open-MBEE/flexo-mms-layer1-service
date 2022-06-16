@@ -58,7 +58,7 @@ fun Route.createRepo() {
     put("/orgs/{orgId}/repos/{repoId}") {
         call.mmsL1(Permission.CREATE_REPO) {
             // set the default starting branch id
-            branchId = "master"
+            branchId = DEFAULT_BRANCH_ID
 
             // parse the path params
             pathParams {

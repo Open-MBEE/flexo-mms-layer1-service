@@ -18,7 +18,10 @@ fun Route.queryModel() {
                 inspect()
             }
 
-            queryModel(requestBody, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+            // auto-inject default prefixes
+            val inputQueryString = "$prefixes\n$requestBody"
+
+            queryModel(inputQueryString, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }

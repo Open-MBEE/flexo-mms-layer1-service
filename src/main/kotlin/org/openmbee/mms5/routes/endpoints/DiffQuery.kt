@@ -18,7 +18,10 @@ fun Route.queryDiff() {
                 inspect()
             }
 
-            queryModel(requestBody, prefixes["mord"]!!, DIFF_QUERY_CONDITIONS.append {
+            // auto-inject default prefixes
+            val inputQueryString = "$prefixes\n$requestBody"
+
+            queryModel(inputQueryString, prefixes["mord"]!!, DIFF_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }

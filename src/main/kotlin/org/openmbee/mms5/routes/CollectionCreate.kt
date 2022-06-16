@@ -45,7 +45,7 @@ fun Route.createCollection() {
     put("/orgs/{orgId}/collections/{collectionId}") {
         call.mmsL1(Permission.CREATE_COLLECTION) {
             // set the default starting branch id
-            branchId = "main"
+            branchId = DEFAULT_BRANCH_ID
 
             // parse the path params
             pathParams {
