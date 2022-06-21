@@ -210,6 +210,7 @@ abstract class TestBase {
     @BeforeAll
     @Order(2)
     fun reset() {
+        backend.saveToFile()
         // Drop MMS graphs
         // Initalize with init.trig
         val updateUrl = if (runSparqlBackend) {
@@ -278,6 +279,10 @@ abstract class TestBase {
             .build()
         val policyResponse = HttpClient.newHttpClient().send(policyRequest, BodyHandlers.ofString())
         assertEquals(200, policyResponse.statusCode(), "Policy creation")
+    }
+
+    fun save() {
+        backend.saveToFile()
     }
 
     /**

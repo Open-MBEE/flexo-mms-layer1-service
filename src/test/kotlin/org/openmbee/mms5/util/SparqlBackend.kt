@@ -15,6 +15,8 @@ interface SparqlBackend {
      */
     fun stop()
 
+    fun saveToFile()
+
     /**
      * Get the URL to run SPARQL queries on
      */

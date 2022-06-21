@@ -42,7 +42,8 @@ class FusekiBackend : SparqlBackend {
     private val fusekiPort = ServerSocket(0).use { it.localPort }
 
     /** FusekiServer object */
-    private val fusekiServer = makeFusekiMethod.invoke(null, fusekiPort, "/ds", datasetGraphInMemoryConstructor.newInstance());
+    private val dsg = datasetGraphInMemoryConstructor.newInstance() as org.apache.jena.sparql.core.DatasetGraph
+    private val fusekiServer = makeFusekiMethod.invoke(null, fusekiPort, "/ds", dsg);
 
     override fun start() {
         startFusekiMethod.invoke(fusekiServer)
@@ -50,6 +51,12 @@ class FusekiBackend : SparqlBackend {
 
     override fun stop() {
         stopFusekiMethod.invoke(fusekiServer)
+    }
+
+    override fun saveToFile() {
+        dsg.stream()
+        val testFile = File("/tmp/data.trig")
+        val artifact = File("build" + File.separator + "test-fuseki-server")
     }
 
     override fun getQueryUrl(): String {

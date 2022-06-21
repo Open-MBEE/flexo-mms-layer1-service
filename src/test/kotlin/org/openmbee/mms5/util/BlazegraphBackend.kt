@@ -63,6 +63,10 @@ class BlazegraphBackend : SparqlBackend {
         server.stop(0)
     }
 
+    override fun saveToFile() {
+        TODO("Not yet implemented")
+    }
+
     override fun getQueryUrl(): String {
         return "http://localhost:9999/blazegraph/sparql"
     }
