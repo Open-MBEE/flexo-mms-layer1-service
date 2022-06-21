@@ -33,6 +33,8 @@ import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
 
+val DEFAULT_BRANCH_ID = "master"
+
 private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
 private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 

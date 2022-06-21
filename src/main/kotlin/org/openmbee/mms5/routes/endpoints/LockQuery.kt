@@ -14,7 +14,10 @@ fun Route.queryLock() {
                 inspect()
             }
 
-            queryModel(requestBody, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+            // auto-inject default prefixes
+            val inputQueryString = "$prefixes\n$requestBody"
+
+            queryModel(inputQueryString, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }
