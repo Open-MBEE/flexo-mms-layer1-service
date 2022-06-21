@@ -54,9 +54,10 @@ class FusekiBackend : SparqlBackend {
     }
 
     override fun saveToFile() {
-        dsg.stream()
-        val testFile = File("/tmp/data.trig")
-        val artifact = File("build" + File.separator + "test-fuseki-server")
+        //dsg.stream()
+        //val testFile = File("/tmp/data.trig")
+        //val artifact = File("build" + File.separator + "test-fuseki-server")
+        TODO("Not yet implemented")
     }
 
     override fun getQueryUrl(): String {

@@ -281,10 +281,6 @@ abstract class TestBase {
         assertEquals(200, policyResponse.statusCode(), "Policy creation")
     }
 
-    fun save() {
-        backend.saveToFile()
-    }
-
     /**
      * Set up the test environment (application server and required environment variables to
      * conect to SPARQL backend) and run a test body in the context of that environment.
