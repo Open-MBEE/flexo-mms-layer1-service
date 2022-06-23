@@ -41,12 +41,12 @@ jobs:
           name: Build stack and run tests
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
-            docker build --network=mms5-test-network --build-arg MMS5_ROOT_CONTEXT=http://layer1-service --build-arg MMS5_LOAD_SERVICE_URL=http://store-service:8081/store --build-arg MMS5_QUAD_STORE_URL=http://quad-server:3030/ds/sparql --build-arg MMS5_QUERY_URL=http://quad-server:3030/ds/sparql --build-arg MMS5_UPDATE_URL=http://quad-server:3030/ds/update --build-arg MMS5_GRAPH_STORE_PROTOCOL_URL=http://quad-server:3030/ds/data -t mms5-test:latest -f Dockerfile-Test .
+            docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
+            docker run --network=mms5-test-network mms5-test:latest --name mms5-test-container
       - run:
           name: Archive dataset
           command: |
-            docker create mms5-test:latest --name mms5-test-container
-            docker cp mms5-test-container:/tmp/ /home/circleci/results
+            docker cp mms5-test-container:/test-results/ /home/circleci/results
       - store_artifacts:
           path: /home/circleci/results
       - persist_to_workspace:
