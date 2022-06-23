@@ -6,7 +6,7 @@ services:
     image: atomgraph/fuseki:9985c4edd850c9277d241f6edc0d883013713ad3
     hostname: quad-server
     container_name: quad-server
-    command: --mem --update /ds
+    command: --loc=/tmp/dataset /ds
     ports:
       - 3030:3030
 

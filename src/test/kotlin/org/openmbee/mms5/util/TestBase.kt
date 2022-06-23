@@ -281,6 +281,22 @@ abstract class TestBase {
         assertEquals(200, policyResponse.statusCode(), "Policy creation")
     }
 
+    @AfterAll
+    fun exportGraphs() {
+        val dsgEndpoint = if (runSparqlBackend) {
+            backend.getUploadUrl()
+        } else {
+            System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
+        }
+        val exportRequest = HttpRequest.newBuilder()
+            .uri(URI("$dsgEndpoint?default"))
+            .header("Content-Type", "application/trig")
+            .GET()
+            .build()
+        val exportResponse = HttpClient.newHttpClient().send(exportRequest, BodyHandlers.ofString())
+        println(exportResponse.body())
+    }
+
     /**
      * Set up the test environment (application server and required environment variables to
      * conect to SPARQL backend) and run a test body in the context of that environment.
