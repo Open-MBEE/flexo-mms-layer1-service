@@ -14,6 +14,7 @@ import org.apache.jena.query.QueryExecution
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.rdf.model.ModelFactory
+import org.apache.jena.rdfconnection.RDFConnectionFuseki
 import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFDataMgr
 import org.junit.jupiter.api.Order
@@ -283,18 +284,42 @@ abstract class TestBase {
 
     @AfterAll
     fun exportGraphs() {
+        val queryUrl = if (runSparqlBackend) {
+            backend.getQueryUrl()
+        } else {
+            System.getenv("MMS5_QUERY_URL")
+        }
+
+        val allGraphs = ArrayList<String>()
+        val sparql = """
+            select ?g where {
+              graph ?g { }
+            }
+        """.trimIndent()
+        QueryExecution.service(queryUrl).query(sparqlPrefixes + "\n" + sparql).build().execSelect().forEachRemaining {
+            allGraphs.add(it.get("g").toString())
+        }
+
         val gspEndpoint = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
             System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
         }
-        val exportRequest = HttpRequest.newBuilder()
-            .uri(URI("$gspEndpoint?graph=$ROOT_CONTEXT/graphs/AccessControl.Policies"))
-            .header("Content-Type", "application/trig")
-            .GET()
-            .build()
-        val exportResponse = HttpClient.newHttpClient().send(exportRequest, BodyHandlers.ofString())
-        println(exportResponse.body())
+        val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
+        val dataset = fusekiRDFConnection.fetchDataset()
+        println(dataset.unionModel)
+
+        /*
+        allGraphs.forEach {
+            val exportRequest = HttpRequest.newBuilder()
+                .uri(URI("$gspEndpoint?graph=$it"))
+                .header("Content-Type", "application/trig")
+                .GET()
+                .build()
+            val exportResponse = HttpClient.newHttpClient().send(exportRequest, BodyHandlers.ofString())
+            println(exportResponse.body())
+        }
+         */
     }
 
     /**
