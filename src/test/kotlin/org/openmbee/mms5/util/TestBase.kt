@@ -20,8 +20,6 @@ import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFDataMgr
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestInstance
-import java.io.ByteArrayInputStream
-import java.io.InputStreamReader
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -35,8 +33,7 @@ import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
 import org.openmbee.mms5.ROOT_CONTEXT
-import java.io.FileOutputStream
-import java.io.OutputStream
+import java.io.*
 
 /**
  * Base class for JUnit tests with helpers for setting up a test environment.
@@ -321,7 +318,9 @@ abstract class TestBase {
         }
         val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
         val dataset = fusekiRDFConnection.fetchDataset()
-        val out = FileOutputStream("/tmp/$ROOT_CONTEXT.ttl")
+        val exportFile = File("/tmp/$ROOT_CONTEXT.ttl");
+        exportFile.createNewFile()
+        val out = FileOutputStream(exportFile.absoluteFile)
         dataset.unionModel.write(out, Lang.TURTLE.name)
     }
 
