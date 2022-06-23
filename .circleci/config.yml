@@ -45,8 +45,7 @@ jobs:
       - run:
           name: Archive dataset
           command: |
-            docker create --name mms5-test-results mms5-test:latest
-            docker cp mms5-test-results:/application/src/test/resources /home/circleci/results
+            docker cp quad-server:/tmp/ /home/circleci/results
       - store_artifacts:
           path: /home/circleci/results
       - persist_to_workspace:

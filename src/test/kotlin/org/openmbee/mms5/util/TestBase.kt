@@ -280,6 +280,23 @@ abstract class TestBase {
         assertEquals(200, policyResponse.statusCode(), "Policy creation")
     }
 
+    fun exportDataset(updateUrl: String) {
+        val dropSparql = """
+            PREFIX m-graph: <${ROOT_CONTEXT}/graphs/>
+            DROP GRAPH m-graph:Schema ;
+            DROP GRAPH m-graph:Cluster ;
+            DROP GRAPH m-graph:AccessControl.Agents ;
+            DROP GRAPH m-graph:AccessControl.Policies ;
+            DROP GRAPH m-graph:AccessControl.Definitions ;
+        """.trimIndent()
+        val dropRequest = HttpRequest.newBuilder()
+            .uri(URI(updateUrl))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString("update=" + URLEncoder.encode(dropSparql, StandardCharsets.UTF_8)))
+            .build()
+        val dropResponse = HttpClient.newHttpClient().send(dropRequest, BodyHandlers.ofString())
+    }
+
     /**
      * Set up the test environment (application server and required environment variables to
      * conect to SPARQL backend) and run a test body in the context of that environment.
