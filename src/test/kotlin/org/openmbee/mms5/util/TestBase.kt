@@ -10,6 +10,7 @@ import com.typesafe.config.ConfigFactory
 import io.ktor.config.*
 import io.ktor.http.*
 import io.ktor.server.engine.*
+import org.apache.jena.query.QueryExecution
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.rdf.model.ModelFactory
@@ -125,7 +126,7 @@ abstract class TestBase {
             System.getenv("MMS5_QUERY_URL")
         }
         val results = ArrayList<QuerySolution>()
-        QueryExecutionFactory.sparqlService(queryUrl, sparqlPrefixes + "\n" + sparql).execSelect().forEachRemaining {
+        QueryExecution.service(queryUrl).query(sparqlPrefixes + "\n" + sparql).build().execSelect().forEachRemaining {
             results.add(it)
         }
         return results
