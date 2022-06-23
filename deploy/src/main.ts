@@ -186,6 +186,23 @@ ds_writer.write({
 			},
 		},
 
+		[factory.comment()]: 'default policies',
+		'm-graph:AccessControl.Policies': {
+			'm-policy:DefaultSuperAdmins': {
+				a: 'mms:Policy',
+				'mms:subject': 'm-group:SuperAdmins',
+				'mms:scope': 'm:',
+				'mms:role': [
+					'AdminAccessControl',
+					'AdminCluster',
+					'AdminOrg',
+					'AdminRepo',
+					'AdminMetadata',
+					'AdminModel',
+				].map(s => `mms-object:Role.${s}`),
+			},
+		},
+
 		[factory.comment()]: 'cluster-specific classes',
 		'm-graph:Cluster': {
 			'm:': {

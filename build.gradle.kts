@@ -1,5 +1,5 @@
 
-val kotlinVersion = "1.6.10"
+val kotlinVersion = "1.7.0"
 
 plugins {
     application
@@ -46,6 +46,7 @@ dependencies {
 
     val jenaVersion = "4.5.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
+    testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
     val ktorVersion = "1.6.8"
