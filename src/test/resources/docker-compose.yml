@@ -8,7 +8,7 @@ services:
     container_name: quad-server
     volumes:
       - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
-    command: --file=/tmp/data.trig --update /ds
+    command: --mem /ds
     ports:
       - 3030:3030
 
