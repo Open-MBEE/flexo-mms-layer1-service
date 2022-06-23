@@ -10,6 +10,7 @@ import com.typesafe.config.ConfigFactory
 import io.ktor.config.*
 import io.ktor.http.*
 import io.ktor.server.engine.*
+import io.ktor.utils.io.streams.*
 import org.apache.jena.query.QueryExecution
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QuerySolution
@@ -34,6 +35,8 @@ import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
 import org.openmbee.mms5.ROOT_CONTEXT
+import java.io.FileOutputStream
+import java.io.OutputStream
 
 /**
  * Base class for JUnit tests with helpers for setting up a test environment.
@@ -284,6 +287,7 @@ abstract class TestBase {
 
     @AfterAll
     fun exportGraphs() {
+        /*
         val queryUrl = if (runSparqlBackend) {
             backend.getQueryUrl()
         } else {
@@ -299,17 +303,6 @@ abstract class TestBase {
         QueryExecution.service(queryUrl).query(sparqlPrefixes + "\n" + sparql).build().execSelect().forEachRemaining {
             allGraphs.add(it.get("g").toString())
         }
-
-        val gspEndpoint = if (runSparqlBackend) {
-            backend.getUploadUrl()
-        } else {
-            System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
-        }
-        val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
-        val dataset = fusekiRDFConnection.fetchDataset()
-        println(dataset.unionModel)
-
-        /*
         allGraphs.forEach {
             val exportRequest = HttpRequest.newBuilder()
                 .uri(URI("$gspEndpoint?graph=$it"))
@@ -320,6 +313,16 @@ abstract class TestBase {
             println(exportResponse.body())
         }
          */
+
+        val gspEndpoint = if (runSparqlBackend) {
+            backend.getUploadUrl()
+        } else {
+            System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
+        }
+        val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
+        val dataset = fusekiRDFConnection.fetchDataset()
+        val out = FileOutputStream("/tmp/$ROOT_CONTEXT.ttl")
+        dataset.unionModel.write(out, Lang.TURTLE.name)
     }
 
     /**
