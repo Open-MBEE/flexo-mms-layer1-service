@@ -6,8 +6,6 @@ services:
     image: atomgraph/fuseki:9985c4edd850c9277d241f6edc0d883013713ad3
     hostname: quad-server
     container_name: quad-server
-    volumes:
-      - ${PWD}/src/test/resources/cluster.trig:/tmp/data.trig
     command: --mem /ds
     ports:
       - 3030:3030
