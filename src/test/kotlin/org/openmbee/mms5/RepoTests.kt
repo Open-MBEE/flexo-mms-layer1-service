@@ -23,9 +23,6 @@ class RepoTests : TestBase() {
     @Order(2)
     fun createOnValidOrg() {
         doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
-
-        Thread.sleep(20000)
-
         withTestEnvironment {
             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
                 addAuthorizationHeader(defaultAuthObject)

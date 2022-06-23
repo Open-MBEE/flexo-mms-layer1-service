@@ -283,13 +283,13 @@ abstract class TestBase {
 
     @AfterAll
     fun exportGraphs() {
-        val dsgEndpoint = if (runSparqlBackend) {
+        val gspEndpoint = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
             System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
         }
         val exportRequest = HttpRequest.newBuilder()
-            .uri(URI("$dsgEndpoint?default"))
+            .uri(URI("$gspEndpoint?graph=$ROOT_CONTEXT/graphs/AccessControl.Policies"))
             .header("Content-Type", "application/trig")
             .GET()
             .build()
