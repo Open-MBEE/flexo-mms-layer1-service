@@ -318,8 +318,13 @@ abstract class TestBase {
         }
         val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
         val dataset = fusekiRDFConnection.fetchDataset()
-        val exportFile = File("/tmp/$ROOT_CONTEXT.ttl");
-        exportFile.createNewFile()
+        val exportFile = File("/tmp/$ROOT_CONTEXT.ttl")
+
+        if (!exportFile.parentFile.exists())
+            exportFile.parentFile.mkdirs()
+        if (!exportFile.exists())
+            exportFile.createNewFile()
+
         val out = FileOutputStream(exportFile.absoluteFile)
         dataset.unionModel.write(out, Lang.TURTLE.name)
     }
