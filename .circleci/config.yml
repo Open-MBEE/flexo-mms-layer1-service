@@ -43,16 +43,23 @@ jobs:
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
             docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest
-      - run:
-          name: Archive dataset
-          command: |
-            docker cp mms5-test-container:/test-results/ /home/circleci/results
-      - store_artifacts:
-          path: /home/circleci/results
       - persist_to_workspace:
           root: /home/circleci/
           paths:
             - mms5-layer1-service/*
+  archive_artifacts:
+    machine:
+      image: ubuntu-2204:2022.04.1
+    working_directory: /home/circleci/mms5-layer1-service
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Archive datasets
+          command: |
+            docker cp mms5-test-container:/test-results/ /home/circleci/results
+      - store_artifacts:
+          path: /home/circleci/results
 
   deploy_snapshot:
     executor:
@@ -104,6 +111,17 @@ jobs:
           name: Deploy release as latest to dockerhub
           command: docker push openmbee/mms5-layer1-service:latest
 
+  waiter:
+    docker:
+      - image: circleci/node
+    steps:
+      - run: |
+          while [[ $(curl --location --request GET "https://circleci.com/api/v2/workflow/$CIRCLE_WORKFLOW_ID/job" --header "Circle-Token: $CCI_TOKEN"| jq -r '.items[]|select(.name != "waiter")|.status' | grep -c "running") -gt 0 ]]
+            do
+              sleep 1
+            done
+      - run: echo "All required jobs have now completed"
+
 workflows:
   version: 2
   build-test-deploy:
@@ -119,6 +137,10 @@ workflows:
               only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
           context:
             - DockerHub
+      - waiter
+      - archive_artifacts:
+          requires:
+            - waiter
       - deploy_snapshot:
           requires:
             - build_and_test
