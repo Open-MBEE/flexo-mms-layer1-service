@@ -3,8 +3,6 @@ package org.openmbee.mms5.util
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.server.testing.*
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
 import com.github.stefanbirkner.systemlambda.SystemLambda.*;
 import com.typesafe.config.ConfigFactory
 import io.ktor.config.*
@@ -18,8 +16,7 @@ import org.apache.jena.rdf.model.ModelFactory
 import org.apache.jena.rdfconnection.RDFConnectionFuseki
 import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFDataMgr
-import org.junit.jupiter.api.Order
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.*
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -283,34 +280,7 @@ abstract class TestBase {
     }
 
     @AfterAll
-    fun exportGraphs() {
-        /*
-        val queryUrl = if (runSparqlBackend) {
-            backend.getQueryUrl()
-        } else {
-            System.getenv("MMS5_QUERY_URL")
-        }
-
-        val allGraphs = ArrayList<String>()
-        val sparql = """
-            select ?g where {
-              graph ?g { }
-            }
-        """.trimIndent()
-        QueryExecution.service(queryUrl).query(sparqlPrefixes + "\n" + sparql).build().execSelect().forEachRemaining {
-            allGraphs.add(it.get("g").toString())
-        }
-        allGraphs.forEach {
-            val exportRequest = HttpRequest.newBuilder()
-                .uri(URI("$gspEndpoint?graph=$it"))
-                .header("Content-Type", "application/trig")
-                .GET()
-                .build()
-            val exportResponse = HttpClient.newHttpClient().send(exportRequest, BodyHandlers.ofString())
-            println(exportResponse.body())
-        }
-         */
-
+    fun exportGraphs(testInfo: TestInfo) {
         val gspEndpoint = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
@@ -318,7 +288,7 @@ abstract class TestBase {
         }
         val fusekiRDFConnection = RDFConnectionFuseki.create().destination(gspEndpoint).build()
         val dataset = fusekiRDFConnection.fetchDataset()
-        val exportFile = File("/test-results/$ROOT_CONTEXT.ttl")
+        val exportFile = File("/test-results/${testInfo.displayName}.ttl")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
