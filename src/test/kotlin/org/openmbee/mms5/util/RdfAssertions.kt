@@ -56,7 +56,7 @@ class ExactPairPattern(private val property: Property, private val node: RDFNode
         // assert no other statements have the same subject and predicate
         val others = subjectContext.subject.listProperties(property)
         if(others.hasNext()) {
-            fail("${subjectContext.modelName} model has extraneous triples on subject/predicate ${subjectContext.subject}/$property:\n"
+            fail("\"${subjectContext.modelName}\" model has extraneous triples on subject/predicate ${subjectContext.subject}/$property:\n"
                     +others.toList().joinToString("\n") { "$it" })
         }
     }
@@ -82,7 +82,7 @@ class ModelContext(val model: Model, val modelName: String) {
     fun assertEmpty() {
         val others = model.listStatements()
         if(others.hasNext()) {
-            fail("$modelName model has extraneous triples:\n"+others.toList().joinToString("\n") { "$it" })
+            fail("\"$modelName\" model has extraneous triples:\n"+others.toList().joinToString("\n") { "$it" })
         }
     }
 }
@@ -100,7 +100,7 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
     fun assertEmpty() {
         val others = subject.listProperties()
         if(others.hasNext()) {
-            fail("$modelName model has extraneous triples on subject $subject:\n"+others.toList().joinToString("\n") { "$it" })
+            fail("\"$modelName\" model has extraneous triples on subject $subject:\n"+others.toList().joinToString("\n") { "$it" })
         }
     }
 
@@ -115,7 +115,7 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
         val stmts = subject.listProperties(property)
 
         // missing triple
-        withClue("$modelName model should have triple(s) for subject $subject") {
+        withClue("\"$modelName\" model should have triple(s) for subject $subject") {
             stmts.shouldHaveNext()
         }
 
@@ -160,7 +160,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
 
         // check for existence
         val exists = model.contains(subject, null)
-        if(!exists) fail("No triples were found in the $modelName model having subject <$iri>")
+        if(!exists) fail("No triples were found in the \"$modelName\" model having subject <$iri>")
 
         // apply assertions
         SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }
@@ -169,7 +169,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
 
 infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
     // assert content-type header
-    this.shouldHaveHeader(HttpHeaders.ContentType, RdfContentTypes.Turtle.toString())
+    this.shouldHaveHeader(HttpHeaders.ContentType, "${RdfContentTypes.Turtle}; charset=UTF-8")
 
     // parse turtle into model
     val model = ModelFactory.createDefaultModel()

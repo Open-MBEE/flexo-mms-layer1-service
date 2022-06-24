@@ -1,65 +1,84 @@
 package org.openmbee.mms5
-//
-// import io.kotest.core.spec.style.StringSpec
-// import io.ktor.http.*
-// import io.ktor.server.testing.*
-// import org.junit.jupiter.api.Order
-// import org.junit.jupiter.api.Test
-// import org.openmbee.mms5.util.AuthObject
-// import org.openmbee.mms5.util.KotestBase
-// import kotlin.test.assertEquals
-// import kotlin.test.assertTrue
-//
-// class RepoTests : KotestBase() {
-//
-//     private val defaultAuthObject = AuthObject(
-//         username = "root",
-//         groups = listOf("super_admins")
-//     )
-//     private val testOrgId = "repoTests"
-//     private val testOrgName = "Repo Tests"
-//
-//
-//     @Test
-//     @Order(1)
-//     fun createOnNewOrg() {
-//         doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
-//
-//         withTestEnvironment {
-//             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
-//                 addAuthorizationHeader(defaultAuthObject)
-//                 setTurtleBody("""
-//                     <>
-//                         dct:title "$testOrgName"@en ;
-//                         <https://demo.org/custom/prop> "test" ;
-//                         .
-//                 """.trimIndent())
-//             }
-//             println("createOnValidOrg headers: " + put.response.headers.allValues().toString())
-//             println("createOnValidOrg status: " + put.response.status())
-//             println("createOnValidOrg content: " + put.response.content)
-//             assertTrue(put.response.status()?.isSuccess() ?: true, "Create repo on valid org")
-//         }
-//     }
-//
-//     @Test
-//     @Order(2)
-//     fun invalidRepoId() {
-//         withTestEnvironment {
-//             val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/invalid%20id") {
-//                 addAuthorizationHeader(defaultAuthObject)
-//                 setTurtleBody("""<> dct:title "$testOrgName"@en .""")
-//             }
-//
-//             assertEquals("400 HTTP Status", 400, put.response.status())
-//                 put.response.status()?.isSuccess() ?: false, "Create repo with invalid id")
-//         }
-//     }
-// }
-//
-// class RepoTests : StringSpec({
-//     isolationMode
-//     "rejects invalid repo id" {
-//         withTest
-//     }
-// })
+
+import io.kotest.assertions.ktor.shouldHaveStatus
+import io.kotest.core.test.TestCase
+import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.http.*
+import org.apache.jena.vocabulary.DCTerms
+import org.apache.jena.vocabulary.RDF
+import org.openmbee.mms5.util.*
+import org.slf4j.LoggerFactory
+
+
+class RepoTests : CommonSpec() {
+    val logger = LoggerFactory.getLogger(RepoTests::class.java)
+
+    val orgId = "base-org"
+    val orgPath = "/orgs/$orgId"
+    val orgName = "Base Org"
+
+    val repoId = "new-repo"
+    val repoName = "New Repo"
+    val repoPath = "$orgPath/repos/$repoId"
+
+    val arbitraryPropertyIri = "https://demo.org/custom/prop"
+    val arbitraryPropertyValue = "test"
+
+    val validRepoBody = """
+        <> dct:title "$repoName"@en .
+    """.trimIndent()
+
+
+    // create an org before each repo test
+    override suspend fun beforeEach(testCase: TestCase) {
+        super.beforeEach(testCase)
+
+        logger.info("Creating org $orgId")
+
+        createOrg(orgId, orgName)
+
+        logger.info("done")
+    }
+
+    init {
+        "reject invalid repo id" {
+            withTest {
+                httpPut("/repo/invalid repo id") {
+                    setTurtleBody(validRepoBody)
+                }.apply {
+                    response shouldHaveStatus 400
+                }
+            }
+        }
+
+
+        "create valid repo" {
+            withTest {
+                httpPut(repoPath) {
+                    setTurtleBody("""
+                        $validRepoBody
+                        <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
+                    """.trimIndent())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+
+                    response exclusivelyHasTriples {
+                        modelName = "response"
+
+                        subject(localIri(repoPath)) {
+                            exclusivelyHas(
+                                RDF.type exactly MMS.Repo,
+                                MMS.id exactly repoId,
+                                MMS.org exactly localIri(orgPath).iri,
+                                DCTerms.title exactly repoName.en,
+                                MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
+                                arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

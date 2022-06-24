@@ -1,4 +1,12 @@
 package org.openmbee.mms5
+
+import io.kotest.assertions.ktor.shouldHaveStatus
+import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.http.*
+import org.apache.jena.vocabulary.DCTerms
+import org.apache.jena.vocabulary.RDF
+import org.openmbee.mms5.util.*
+
 //
 // import io.ktor.http.*
 // import io.ktor.server.testing.*
@@ -169,3 +177,65 @@ package org.openmbee.mms5
 //         }
 //     }
 // }
+
+class OrgTests : CommonSpec() {
+    val orgId = "open-mbee"
+    val orgName = "OpenMBEE"
+    val orgPath = "/orgs/$orgId"
+
+    val validOrgBody = """
+        <> dct:title "$orgName"@en .
+    """.trimIndent()
+
+    init {
+        "reject invalid org id" {
+            withTest {
+                httpPut("/orgs/invalid org id") {
+                    setTurtleBody(validOrgBody)
+                }.apply {
+                    response shouldHaveStatus 400
+                }
+            }
+        }
+
+        "create valid org" {
+            withTest {
+                httpPut(orgPath) {
+                    setTurtleBody(validOrgBody)
+                }.apply {
+                    response shouldHaveStatus 200
+                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+
+                    response exclusivelyHasTriples {
+                        modelName = it
+
+                        subject(localIri(orgPath)) {
+                            exclusivelyHas(
+                                RDF.type exactly MMS.Org,
+                                MMS.id exactly orgId,
+                                DCTerms.title exactly orgName.en,
+                                MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        "delete org" {
+            createOrg(orgId, orgName)
+
+            withTest {
+                // delete org should work
+                httpDelete(orgPath) {}.apply {
+                    response shouldHaveStatus 200
+                }
+
+                // get deleted org should 404
+                httpGet(orgPath) {}.apply {
+                    response shouldHaveStatus 404
+                }
+            }
+        }
+    }
+}
