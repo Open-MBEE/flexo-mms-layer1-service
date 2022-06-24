@@ -137,7 +137,9 @@ workflows:
               only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
           context:
             - DockerHub
-      - waiter
+      - waiter:
+          requires:
+            - generate_schema
       - archive_artifacts:
           requires:
             - waiter
