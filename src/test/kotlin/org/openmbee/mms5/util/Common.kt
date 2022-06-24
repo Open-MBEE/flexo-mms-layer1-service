@@ -1,12 +1,15 @@
 package org.openmbee.mms5.util
 
 import io.kotest.core.spec.style.StringSpec
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.apache.jena.rdfconnection.RDFConnection
 import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.riot.RDFFormat
 import org.apache.jena.sparql.exec.http.UpdateExecutionHTTP
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.FileOutputStream
 
 
 val backend = RemoteBackend()
@@ -29,11 +32,23 @@ open class CommonSpec() : StringSpec({
         }
     }
 
-    afterEach {
+    afterEach { it ->
+        val exportFile = File("/application/build/reports/tests/trig/${it.a.name.testName}.trig")
+
+        if (!exportFile.parentFile.exists())
+            exportFile.parentFile.mkdirs()
+        if (!exportFile.exists())
+            withContext(Dispatchers.IO) {
+                exportFile.createNewFile()
+            }
+
+        val out = withContext(Dispatchers.IO) {
+            FileOutputStream(exportFile.absoluteFile)
+        }
         // // dump all graphs
-        // RDFConnection.connect(backend.getGspdUrl()).use {
-        //     RDFDataMgr.write(outputStream, it.fetchDataset(), RDFFormat.TRIG)
-        // }
+        RDFConnection.connect(backend.getGspdUrl()).use {
+            RDFDataMgr.write(out, it.fetchDataset(), RDFFormat.TRIG)
+        }
     }
 
     afterSpec {
