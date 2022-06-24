@@ -1,46 +1,84 @@
 package org.openmbee.mms5
 
+import io.kotest.assertions.ktor.shouldHaveStatus
+import io.kotest.core.test.TestCase
+import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
-import io.ktor.server.testing.*
-import org.junit.jupiter.api.Order
-import org.junit.jupiter.api.Test
-import org.openmbee.mms5.util.AuthObject
-import org.openmbee.mms5.util.TestBase
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
-
-class RepoTests : TestBase() {
-
-    private val defaultAuthObject = AuthObject(
-        username = "root",
-        groups = listOf("super_admins")
-    )
-    private val testOrgId = "testCreateAndReadOrg"
-    private val testOrgName = "OpenMBEE"
+import org.apache.jena.vocabulary.DCTerms
+import org.apache.jena.vocabulary.RDF
+import org.openmbee.mms5.util.*
+import org.slf4j.LoggerFactory
 
 
-    @Test
-    @Order(2)
-    fun createOnValidOrg() {
-        doCreateOrg(defaultAuthObject, testOrgId, testOrgName)
+class RepoTests : CommonSpec() {
+    val logger = LoggerFactory.getLogger(RepoTests::class.java)
 
-        Thread.sleep(20000)
+    val orgId = "base-org"
+    val orgPath = "/orgs/$orgId"
+    val orgName = "Base Org"
 
-        withTestEnvironment {
-            val put = handleRequest(HttpMethod.Put, "/orgs/$testOrgId/repos/new-repo") {
-                addAuthorizationHeader(defaultAuthObject)
-                setTurtleBody("""
-                    <>
-                        dct:title "TMT"@en ;
-                        <https://demo.org/custom/prop> "2" ;
-                        .
-                """.trimIndent())
-            }
-            println("createOnValidOrg headers: " + put.response.headers.allValues().toString())
-            println("createOnValidOrg status: " + put.response.status())
-            println("createOnValidOrg content: " + put.response.content)
-            assertTrue(put.response.status()?.isSuccess() ?: true, "Create project on valid org")
-        }
+    val repoId = "new-repo"
+    val repoName = "New Repo"
+    val repoPath = "$orgPath/repos/$repoId"
+
+    val arbitraryPropertyIri = "https://demo.org/custom/prop"
+    val arbitraryPropertyValue = "test"
+
+    val validRepoBody = """
+        <> dct:title "$repoName"@en .
+    """.trimIndent()
+
+
+    // create an org before each repo test
+    override suspend fun beforeEach(testCase: TestCase) {
+        super.beforeEach(testCase)
+
+        logger.info("Creating org $orgId")
+
+        createOrg(orgId, orgName)
+
+        logger.info("done")
     }
 
+    init {
+        "reject invalid repo id" {
+            withTest {
+                httpPut("/repo/invalid repo id") {
+                    setTurtleBody(validRepoBody)
+                }.apply {
+                    response shouldHaveStatus 400
+                }
+            }
+        }
+
+
+        "create valid repo" {
+            withTest {
+                httpPut(repoPath) {
+                    setTurtleBody("""
+                        $validRepoBody
+                        <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
+                    """.trimIndent())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+
+                    response exclusivelyHasTriples {
+                        modelName = "response"
+
+                        subject(localIri(repoPath)) {
+                            exclusivelyHas(
+                                RDF.type exactly MMS.Repo,
+                                MMS.id exactly repoId,
+                                MMS.org exactly localIri(orgPath).iri,
+                                DCTerms.title exactly repoName.en,
+                                MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
+                                arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

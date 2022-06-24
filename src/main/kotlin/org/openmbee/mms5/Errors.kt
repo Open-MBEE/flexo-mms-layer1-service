@@ -35,6 +35,8 @@ class InvalidDocumentSemanticsException(detail: String): Http400Exception("The i
 
 class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The input document content-type is not recognized as an acceptable triples format: $detail")
 
+class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
+
 
 open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)
 

@@ -26,7 +26,7 @@ interface SparqlBackend {
     fun getUpdateUrl(): String
 
     /**
-     * Get the URL to directly upload RDF data to
+     * Get the URL to the graph store protocol endpoint
      */
-    fun getUploadUrl(): String
+    fun getGspdUrl(): String
 }
