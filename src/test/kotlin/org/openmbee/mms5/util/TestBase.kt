@@ -281,6 +281,7 @@ abstract class TestBase {
 
     @AfterAll
     fun exportGraphs(testInfo: TestInfo) {
+        println("Exporting results for ${testInfo.displayName}")
         val gspEndpoint = if (runSparqlBackend) {
             backend.getUploadUrl()
         } else {
