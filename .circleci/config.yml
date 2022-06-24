@@ -42,7 +42,7 @@ jobs:
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
-            docker run --network=mms5-test-network mms5-test:latest --name mms5-test-container
+            docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest
       - run:
           name: Archive dataset
           command: |
