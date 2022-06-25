@@ -14,6 +14,11 @@ import java.io.FileOutputStream
 
 val backend = RemoteBackend()
 
+fun escapeFileName(name: String): String {
+    return name.replace("""\s+""".toRegex(), "-")
+        .replace("""[^a-z0-9A-Z-]""".toRegex(), "_")
+}
+
 open class CommonSpec() : StringSpec({
     val logger = LoggerFactory.getLogger(CommonSpec::class.java)
     val clusterFilePath = File(javaClass.classLoader.getResource("cluster.trig")!!.file).absolutePath
@@ -33,7 +38,7 @@ open class CommonSpec() : StringSpec({
     }
 
     afterEach { it ->
-        val exportFile = File("/application/build/reports/tests/trig/${it.a.name.testName}.trig")
+        val exportFile = File("/application/build/reports/tests/trig/${escapeFileName(it.a.name.testName)}.trig")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
