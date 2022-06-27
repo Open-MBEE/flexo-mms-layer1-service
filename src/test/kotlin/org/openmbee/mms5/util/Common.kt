@@ -38,7 +38,7 @@ open class CommonSpec() : StringSpec({
     }
 
     afterEach { it ->
-        val exportFile = File("/application/build/reports/tests/trig/${escapeFileName(it.a.name.testName)}.trig")
+        val exportFile = File("${it.a.name.testName}.trig")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
