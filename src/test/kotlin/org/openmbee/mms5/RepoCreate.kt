@@ -9,37 +9,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.util.*
 import org.slf4j.LoggerFactory
 
-
-class RepoTests : CommonSpec() {
-    val logger = LoggerFactory.getLogger(RepoTests::class.java)
-
-    val orgId = "base-org"
-    val orgPath = "/orgs/$orgId"
-    val orgName = "Base Org"
-
-    val repoId = "new-repo"
-    val repoName = "New Repo"
-    val repoPath = "$orgPath/repos/$repoId"
-
-    val arbitraryPropertyIri = "https://demo.org/custom/prop"
-    val arbitraryPropertyValue = "test"
-
-    val validRepoBody = """
-        <> dct:title "$repoName"@en .
-    """.trimIndent()
-
-
-    // create an org before each repo test
-    override suspend fun beforeEach(testCase: TestCase) {
-        super.beforeEach(testCase)
-
-        logger.info("Creating org $orgId")
-
-        createOrg(orgId, orgName)
-
-        logger.info("done")
-    }
-
+class RepoCreate : RepoAny() {
     init {
         "reject invalid repo id" {
             withTest {
@@ -51,14 +21,15 @@ class RepoTests : CommonSpec() {
             }
         }
 
-
         "create valid repo" {
             withTest {
                 httpPut(repoPath) {
-                    setTurtleBody("""
+                    setTurtleBody(
+                        """
                         $validRepoBody
                         <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
-                    """.trimIndent())
+                    """.trimIndent()
+                    )
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
