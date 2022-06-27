@@ -42,9 +42,9 @@ jobs:
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
-            trap "docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest" EXIT || true
+            trap "docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest || true" SIGINT
             docker cp mms5-test-container:/application/ /home/circleci/results
-            exit $EXIT
+            exit $SIGINT
       - store_artifacts:
           path: /home/circleci/results
       - persist_to_workspace:
