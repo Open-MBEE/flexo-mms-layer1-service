@@ -43,7 +43,7 @@ jobs:
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
             docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest && SIGINT=$?
-            docker cp mms5-test-container:/application/ /home/circleci/results
+            docker cp mms5-test-container:/application/build/ /home/circleci/results
             exit $SIGINT
       - store_artifacts:
           path: /home/circleci/results
