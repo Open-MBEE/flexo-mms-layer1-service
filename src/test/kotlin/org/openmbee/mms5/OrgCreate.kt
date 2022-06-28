@@ -20,6 +20,25 @@ class OrgCreate : OrgAny() {
             }
         }
 
+        mapOf(
+            "rdf:type" to "mms:NotOrg",
+            "mms:id" to "\"not-$orgId\"",
+            "mms:etag" to "\"${UUID.randomUUID()}\"",
+        ).forEach { (pred, obj) ->
+            "reject wrong $pred" {
+                withTest {
+                    httpPut(orgPath) {
+                        setTurtleBody("""
+                            $validOrgBody
+                            <> $pred $obj .
+                        """.trimIndent())
+                    }.apply {
+                        response shouldHaveStatus HttpStatusCode.BadRequest
+                    }
+                }
+            }
+        }
+
         "create valid org" {
             withTest {
                 httpPut(orgPath) {
