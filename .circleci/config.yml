@@ -39,11 +39,14 @@ jobs:
             cat src/test/resources/cluster.trig
       - run:
           name: Build stack and run tests
+          shell: /bin/bash
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
-            docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest || true
-            docker cp mms5-test-container:/application/build/reports/tests/ /home/circleci/results
+            docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest
+            SIG_INT=$?
+            docker cp mms5-test-container:/application/build/reports/tests /home/circleci/results
+            exit "$SIG_INT"
       - store_artifacts:
           path: /home/circleci/results
       - persist_to_workspace:
