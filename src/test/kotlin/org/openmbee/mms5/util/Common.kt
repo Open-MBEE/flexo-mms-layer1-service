@@ -1,11 +1,15 @@
 package org.openmbee.mms5.util
 
+import io.kotest.core.spec.Spec
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.core.test.TestCase
+import io.kotest.core.test.TestResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.jena.rdfconnection.RDFConnection
 import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.riot.RDFFormat
+import org.apache.jena.sparql.core.mem.PMapQuadTable
 import org.apache.jena.sparql.exec.http.UpdateExecutionHTTP
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -19,15 +23,17 @@ fun escapeFileName(name: String): String {
         .replace("""[^a-z0-9A-Z-]""".toRegex(), "_")
 }
 
-open class CommonSpec() : StringSpec({
-    val logger = LoggerFactory.getLogger(CommonSpec::class.java)
+open class CommonSpec : StringSpec() {
     val clusterFilePath = File(javaClass.classLoader.getResource("cluster.trig")!!.file).absolutePath
 
-    beforeSpec {
+    override suspend fun beforeSpec(spec: Spec) {
+        super.beforeSpec(spec)
         backend.start()
     }
 
-    beforeEach {
+    override suspend fun beforeEach(testCase: TestCase) {
+        super.beforeEach(testCase)
+
         // drop all graphs
         UpdateExecutionHTTP.service(backend.getUpdateUrl()).update("drop all").execute()
 
@@ -37,8 +43,11 @@ open class CommonSpec() : StringSpec({
         }
     }
 
-    afterEach { it ->
-        val exportFile = File("./build/reports/tests/trig/${escapeFileName(it.a.name.testName)}.trig")
+    override suspend fun afterEach(testCase: TestCase, result: TestResult) {
+        super.afterEach(testCase, result)
+
+        // prep output file
+        val exportFile = File("build/reports/tests/trig/${escapeFileName(testCase.name.testName)}.trig")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
@@ -47,17 +56,20 @@ open class CommonSpec() : StringSpec({
                 exportFile.createNewFile()
             }
 
+        // create output stream
         val out = withContext(Dispatchers.IO) {
             FileOutputStream(exportFile.absoluteFile)
         }
-        // // dump all graphs
+
+        // dump all graphs
         RDFConnection.connect(backend.getGspdUrl()).use {
             RDFDataMgr.write(out, it.fetchDataset(), RDFFormat.TRIG)
         }
     }
 
-    afterSpec {
+    override suspend fun afterSpec(spec: Spec) {
+        super.afterSpec(spec)
         backend.stop()
     }
-})
+}
 

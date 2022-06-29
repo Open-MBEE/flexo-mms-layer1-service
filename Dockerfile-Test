@@ -1,8 +1,6 @@
 FROM openjdk:17.0.2-jdk-slim as build
 WORKDIR application
 ENV MMS5_ROOT_CONTEXT http://layer1-service
-ENV MMS5_LOAD_SERVICE_URL http://store-service:8081/store
-ENV MMS5_QUAD_STORE_URL http://quad-server:3030/ds/sparql
 ENV MMS5_QUERY_URL http://quad-server:3030/ds/sparql
 ENV MMS5_UPDATE_URL http://quad-server:3030/ds/update
 ENV MMS5_GRAPH_STORE_PROTOCOL_URL http://quad-server:3030/ds/data

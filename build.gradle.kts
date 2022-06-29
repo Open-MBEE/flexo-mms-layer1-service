@@ -82,11 +82,10 @@ tasks {
             this.showStandardStreams = true
         }
         environment("MMS5_ROOT_CONTEXT", System.getenv("MMS5_ROOT_CONTEXT"))
-        environment("MMS5_LOAD_SERVICE_URL", System.getenv("MMS5_LOAD_SERVICE_URL"))
-        environment("MMS5_QUAD_STORE_URL", System.getenv("MMS5_QUAD_STORE_URL"))
         environment("MMS5_QUERY_URL", System.getenv("MMS5_QUERY_URL"))
         environment("MMS5_UPDATE_URL", System.getenv("MMS5_UPDATE_URL"))
         environment("MMS5_GRAPH_STORE_PROTOCOL_URL", System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL"))
+        environment("MMS5_LOAD_SERVICE_URL", System.getenv("MMS5_LOAD_SERVICE_URL"))
     }
     register<Copy>("copy-test-fuseki-server") {
         // Copy fuseki-server jar to known location (build/test-fuseki-server)

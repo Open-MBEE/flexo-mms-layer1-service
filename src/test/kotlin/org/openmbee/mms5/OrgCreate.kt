@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import io.kotest.assertions.fail
 import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.ktor.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
