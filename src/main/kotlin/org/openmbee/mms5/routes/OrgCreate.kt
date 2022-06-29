@@ -17,8 +17,8 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
         """
             # org must not yet exist
-            graph m-graph:Cluster {
-                filter not exists {
+            filter not exists {
+                graph m-graph:Cluster {
                     mo: a mms:Org .
                 }
             }

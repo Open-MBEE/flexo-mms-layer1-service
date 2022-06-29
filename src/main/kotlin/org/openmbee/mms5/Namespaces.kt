@@ -210,6 +210,8 @@ object MMS {
     val Group = ResourceFactory.createResource("${BASE}Group")
     val Policy = ResourceFactory.createResource("${BASE}Policy")
 
+    val Transaction = ResourceFactory.createResource("${BASE}Transaction")
+
 
     val RepoMetadataGraph = ResourceFactory.createResource("${BASE}RepoMetadataGraph")
     val CollectionMetadataGraph = ResourceFactory.createResource("${BASE}CollectionMetadataGraph")
@@ -237,6 +239,9 @@ object MMS {
 
     val srcRef = ResourceFactory.createProperty(BASE, "srcRef")
     val dstRef = ResourceFactory.createProperty(BASE, "dstRef")
+
+    val scope = ResourceFactory.createProperty(BASE, "scope")
+    val role = ResourceFactory.createProperty(BASE, "role")
 
     val etag = ResourceFactory.createProperty(BASE, "etag")
     val ref = ResourceFactory.createProperty(BASE, "ref")

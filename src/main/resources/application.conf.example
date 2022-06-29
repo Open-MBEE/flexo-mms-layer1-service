@@ -1,6 +1,6 @@
 mms {
     load-service {
-        url = "https://mms-domain/loader"
+        url = "https://load-service-domain/loader"
         url = ${?MMS5_LOAD_SERVICE_URL}
     }
 

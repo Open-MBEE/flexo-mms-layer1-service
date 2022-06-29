@@ -1,6 +1,7 @@
 package org.openmbee.mms5.util
 
 import io.kotest.assertions.ktor.shouldHaveStatus
+import io.kotest.matchers.shouldHave
 import io.ktor.server.testing.*
 
 
@@ -12,6 +13,11 @@ fun createOrg(orgId: String, orgName: String): TestApplicationCall {
             """.trimIndent())
         }.apply {
             response shouldHaveStatus 200
+
+            // assert it exists
+            httpGet("/orgs/$orgId") {}.apply {
+                response shouldHaveStatus 200
+            }
         }
     }
 }
