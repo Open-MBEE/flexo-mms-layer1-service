@@ -1,6 +1,7 @@
 package org.openmbee.mms5.util
 
 import io.kotest.core.spec.style.StringSpec
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.jena.rdfconnection.RDFConnection
@@ -38,7 +39,7 @@ open class CommonSpec() : StringSpec({
     }
 
     afterEach { it ->
-        val exportFile = File("/application/build/reports/tests/trig/${escapeFileName(it.a.name.testName)}.trig")
+        val exportFile = File("build/reports/tests/trig/${escapeFileName(it.a.name.testName)}.trig")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
