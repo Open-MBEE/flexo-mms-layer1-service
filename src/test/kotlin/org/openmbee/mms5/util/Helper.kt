@@ -13,6 +13,10 @@ fun createOrg(orgId: String, orgName: String): TestApplicationCall {
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
+            // assert it exists
+            httpGet("/orgs/$orgId") {}.apply {
+                response shouldHaveStatus 200
+            }
         }
     }
 }

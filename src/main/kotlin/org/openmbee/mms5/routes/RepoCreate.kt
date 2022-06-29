@@ -17,8 +17,8 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
         """
             # repo must not yet exist
-            graph m-graph:Cluster {
-                filter not exists {
+            filter not exists {
+                graph m-graph:Cluster {
                     mor: a mms:Repo .
                 }
             }
@@ -31,8 +31,8 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
         """
             # metadata graph must not yet exist
-            graph m-graph:Graphs {
-                filter not exists {
+            filter not exists {
+                graph m-graph:Graphs {
                     mor-graph:Metadata a mms:RepoMetadataGraph .
                 }
             }
@@ -45,8 +45,8 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
         """
             # repo metadata graph must be empty
-            graph mor-graph:Metadata {
-                filter not exists {
+            filter not exists {
+                graph mor-graph:Metadata {
                     ?e_s ?e_p ?e_o .
                 }
             }

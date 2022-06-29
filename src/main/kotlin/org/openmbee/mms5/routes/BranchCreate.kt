@@ -18,8 +18,8 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
         """
             # branch must not yet exist
-            graph mor-graph:Metadata {
-                filter not exists {
+            filter not exists {
+                graph mor-graph:Metadata {
                     morb: a mms:Branch .
                 }
             }

@@ -4,7 +4,8 @@ package org.openmbee.mms5.util
 import io.kotest.assertions.fail
 import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.withClue
-import io.kotest.matchers.iterator.shouldHaveNext
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
 import io.ktor.http.*
 import io.ktor.request.*
@@ -50,13 +51,35 @@ abstract class PairPattern {
  */
 class ExactPairPattern(private val property: Property, private val node: RDFNode): PairPattern() {
     override fun evaluate(subjectContext: SubjectContext) {
+        val subject = subjectContext.subject
+
         // assert the statements existence and then remove it from the model
         subjectContext.assertAndRemove(property, node)
 
         // assert no other statements have the same subject and predicate
-        val others = subjectContext.subject.listProperties(property)
+        val others = subject.listProperties(property)
         if(others.hasNext()) {
-            fail("\"${subjectContext.modelName}\" model has extraneous triples on subject/predicate ${subjectContext.subject}/$property:\n"
+            fail("\"${subjectContext.modelName}\" model has extraneous triples on subject/predicate <${subject}>/<$property>:\n"
+                    +others.toList().joinToString("\n") { "$it" })
+        }
+    }
+}
+
+
+/**
+ * Requires a predicate/object pair match exactly
+ */
+class DatatypePairPattern(private val property: Property, private val datatype: Resource): PairPattern() {
+    override fun evaluate(subjectContext: SubjectContext) {
+        val subject = subjectContext.subject
+
+        // assert the statements existence and then remove it from the model
+        subjectContext.assertDatatype(property, datatype)
+
+        // assert no other statements have the same subject and predicate
+        val others = subject.listProperties(property)
+        if(others.hasNext()) {
+            fail("\"${subjectContext.modelName}\" model has extraneous triples on subject/predicate <$subject>/<$property>:\n"
                     +others.toList().joinToString("\n") { "$it" })
         }
     }
@@ -71,21 +94,15 @@ infix fun Property.exactly(string: String): PairPattern {
     return ExactPairPattern(this, ResourceFactory.createStringLiteral(string))
 }
 
+infix fun Property.hasDatatype(datatype: Resource): PairPattern {
+    return DatatypePairPattern(this, datatype)
+}
+
 
 /**
  * Adds context to a Model
  */
-class ModelContext(val model: Model, val modelName: String) {
-    /**
-     * Asserts that no other statements exist in the model
-     */
-    fun assertEmpty() {
-        val others = model.listStatements()
-        if(others.hasNext()) {
-            fail("\"$modelName\" model has extraneous triples:\n"+others.toList().joinToString("\n") { "$it" })
-        }
-    }
-}
+data class ModelContext(val model: Model, val modelName: String)
 
 /**
  * Adds contexts to a subject Resource in some Model
@@ -104,36 +121,63 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
         }
     }
 
+    fun cardinality(property: Property, expectedSize: Int): List<RDFNode> {
+        // fetch all statements with this property
+        val nodes = model.listObjectsOfProperty(subject, property).toList()
+
+        // under target
+        if(nodes.size < expectedSize) {
+            withClue("\"$modelName\" model is missing triple(s) for subject/predicate <$subject>/<$property>") {
+                nodes.size shouldBe expectedSize
+            }
+        }
+        // over target
+        else if(nodes.size > expectedSize) {
+            var reason: String = "has too many"
+
+            // should be empty
+            if(expectedSize == 0) {
+                reason = "should NOT have any"
+            }
+
+            withClue("\"$modelName\" model $reason triple(s) for subject/predicate <$subject>/<$property>") {
+                nodes.size shouldBe expectedSize
+            }
+        }
+
+        return nodes
+    }
+
+    fun assertDatatype(property: Property, datatype: Resource, expectedCardinality: Int=1) {
+        // assert cardinality and fetch objects
+        val nodes = cardinality(property, expectedCardinality)
+
+        // assert expected value (if there are extra, this will catch them)
+        nodes.forEach { it.asLiteral().datatype.uri shouldBe datatype.uri }
+
+        // remove statements from model
+        model.removeAll(subject, property, null)
+    }
+
     /**
      * Asserts the given statement exists and then removes it
      */
-    fun assertAndRemove(property: Property, obj: RDFNode) {
-        // create expected statement
-        val expected = model.createStatement(subject, property, obj)
+    fun assertAndRemove(property: Property, obj: RDFNode, expectedCardinality: Int=1) {
+        // assert cardinality and fetch objects
+        val nodes = cardinality(property, expectedCardinality)
 
-        // fetch all statements with this property
-        val stmts = subject.listProperties(property)
-
-        // missing triple
-        withClue("\"$modelName\" model should have triple(s) for subject $subject") {
-            stmts.shouldHaveNext()
-        }
-
-        // assert expected value
-        stmts.forEach { stmt ->
-            stmt shouldBe expected
-        }
-
-        // // check for existence
-        // val exists = model.contains(stmt)
-        // if(!exists) {
-        //     stmt.toString().asClue {
-        //     }
-        //     fail("$modelName model missing required triple: $stmt")
-        // }
+        // assert expected value (if there are extra, this will catch them)
+        nodes.forEach { it shouldBe obj }
 
         // remove statement from model
-        model.remove(expected)
+        model.remove(subject, property, obj)
+    }
+
+    /**
+     * Removes all the remaining triples about this subject
+     */
+    fun removeRest() {
+        model.removeAll(subject, null, null)
     }
 }
 
@@ -150,10 +194,38 @@ class SubjectHandle(modelContext: ModelContext, subject: Resource) {
         // no other statements should exist
         subjectContext.assertEmpty()
     }
+
+    fun includes(vararg pattern: PairPattern) {
+        // assert and remove each statement
+        pattern.forEach {
+            it.evaluate(subjectContext)
+        }
+
+        // remove the rest
+        subjectContext.removeRest()
+    }
+
+    fun ignoreAll() {
+        subjectContext.removeRest()
+    }
 }
 
 
 class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
+
+    /**
+     * Asserts that no other statements exist in the model
+     */
+    fun assertEmpty() {
+        val others = model.listStatements()
+        if(others.hasNext()) {
+            fail("\"$modelName\" model has extraneous triples:\n"+others.toList().joinToString("\n") { "$it" })
+        }
+    }
+
+    /**
+     * Asserts the given subject by IRI exists and asserts its contents
+     */
     fun subject(iri: String, assertions: SubjectHandle.() -> Unit) {
         // create resource
         val subject = model.createResource(iri)
@@ -165,6 +237,51 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
         // apply assertions
         SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }
     }
+
+    /**
+     * Asserts the given subject by terse string exists and asserts its contents
+     */
+    fun subjectTerse(terse: String, assertions: SubjectHandle.() -> Unit) {
+        // extract prefix id
+        val prefixId = terse.substringBefore(':')
+
+        // locate it and assert it exists
+        val prefixIri = model.getNsPrefixURI(prefixId)
+            ?: fail("Expected the '$prefixId:' prefix to be set on the parse model but it was missing")
+
+        // expand and carry on
+        return this.subject(model.expandPrefix(terse), assertions)
+    }
+
+
+    /**
+     * Asserts that exactly one subject's IRI starts with the given string and asserts its contents
+     */
+    fun matchOneSubjectByPrefix(iri: String, assertions: SubjectHandle.() -> Unit) {
+        // find matching subjects
+        val matches = model.listSubjects().filterKeep { it?.uri?.startsWith(iri)?: false }.toList()
+
+        withClue("Expected exactly one subject to start with \"$iri\"") {
+            matches.size shouldBe 1
+        }
+
+        return this.subject(matches[0]!!.uri, assertions)
+    }
+
+    /**
+     * Asserts the given subject by terse string exists and asserts its contents
+     */
+    fun matchOneSubjectTerseByPrefix(terse: String, assertions: SubjectHandle.() -> Unit) {
+        // extract prefix id
+        val prefixId = terse.substringBefore(':')
+
+        // locate it and assert it exists
+        val prefixIri = model.getNsPrefixURI(prefixId)
+            ?: fail("Expected the '$prefixId:' prefix to be set on the parse model but it was missing")
+
+        // expand and carry on
+        return this.matchOneSubjectByPrefix(model.expandPrefix(terse), assertions)
+    }
 }
 
 infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
@@ -175,5 +292,7 @@ infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsser
     val model = ModelFactory.createDefaultModel()
     parseTurtle(this.content.toString(), model, this.call.request.uri)
 
-    TriplesAsserter(model).apply { assertions() }
+    // make triple assertions and then assert the model is empty
+    TriplesAsserter(model).apply { assertions() }.assertEmpty()
+
 }
