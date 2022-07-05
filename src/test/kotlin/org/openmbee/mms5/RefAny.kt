@@ -9,19 +9,25 @@ import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
-import org.slf4j.LoggerFactory
 
-open class BranchAny : RepoAny() {
+open class RefAny : RepoAny() {
 
     val branchId = "new-branch"
     val branchName = "New Branch"
     val branchPath = "$repoPath/branches/$branchId"
     val masterPath = "$repoPath/branches/master"
-
+    val lockId = "new-lock"
+    val lockPath = "$repoPath/locks/$lockId"
+    val lockName = "New Lock"
     val validBranchBodyFromMaster = """
         <> dct:title "$branchName"@en .
         <> mms:ref <./master> .
     """.trimIndent()
+    val validLockBodyFromMaster = """
+        <> dct:title "$lockName"@en .
+        <> mms:ref <./master> .
+    """.trimIndent()
+
     var repoEtag = ""
     // create a repo before each branch test
     override suspend fun beforeEach(testCase: TestCase) {

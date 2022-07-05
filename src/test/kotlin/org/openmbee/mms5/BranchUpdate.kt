@@ -7,7 +7,7 @@ import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.util.*
 
-class BranchUpdate : BranchAny() {
+class BranchUpdate : RefAny() {
     init {
         "patch branch" {
             createBranch(branchId, branchName, "master", repoId, orgId)

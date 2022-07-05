@@ -46,12 +46,25 @@ fun createBranch(branchId: String, branchName: String, fromRefId: String, repoId
     }
 }
 
+fun createLock(lockId: String, lockName: String, fromRefId: String, repoId: String, orgId: String): TestApplicationCall {
+    return withTest {
+        httpPut("/orgs/$orgId/repos/$repoId/locks/$lockId") {
+            setTurtleBody("""
+                <> dct:title "$lockName"@en .
+                <> mms:ref <./$fromRefId> .
+            """.trimIndent())
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
 fun updateModel(sparql: String, branchId: String, repoId: String, orgId: String):  TestApplicationCall {
     return withTest {
         httpPost("/orgs/$orgId/repos/$repoId/branches/$branchId/update") {
             setSparqlUpdateBody(sparql)
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
         }
     }
 }

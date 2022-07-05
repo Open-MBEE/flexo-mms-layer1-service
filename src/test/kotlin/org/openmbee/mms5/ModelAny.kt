@@ -10,7 +10,7 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 
-open class ModelAny: BranchAny() {
+open class ModelAny: RefAny() {
     val sparqlUpdate = """
         prefix : <https://mms.openmbee.org/demos/people/>
         prefix foaf: <http://xmlns.com/foaf/0.1/>

@@ -6,7 +6,7 @@ import org.openmbee.mms5.util.httpDelete
 import org.openmbee.mms5.util.httpGet
 import org.openmbee.mms5.util.withTest
 import org.openmbee.mms5.util.*
-class BranchDelete : BranchAny() {
+class BranchDelete : RefAny() {
     init {
         "delete branch" {
             createBranch(branchId, branchName, "master", repoId, orgId)
