@@ -12,7 +12,7 @@ open class RepoAny : OrgAny() {
     val repoId = "new-repo"
     val repoName = "New Repo"
     val repoPath = "$orgPath/repos/$repoId"
-
+    val commitsPath = "$repoPath/commits"
     val validRepoBody = """
         <> dct:title "$repoName"@en .
     """.trimIndent()

@@ -1,0 +1,137 @@
+package org.openmbee.mms5
+
+import io.kotest.assertions.json.shouldBeJsonObject
+import io.kotest.assertions.json.shouldEqualJson
+import io.kotest.assertions.ktor.shouldHaveHeader
+import io.kotest.assertions.ktor.shouldHaveStatus
+import io.ktor.http.*
+import io.ktor.server.testing.*
+import org.apache.jena.vocabulary.RDF
+import org.apache.jena.vocabulary.XSD
+import org.openmbee.mms5.util.*
+
+open class ModelAny: BranchAny() {
+    val sparqlUpdate = """
+        prefix : <https://mms.openmbee.org/demos/people/>
+        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        insert data {
+            :Alice a :Person ;
+                foaf:name "Alice" ;
+                .
+
+            :Rex a :Dog ;
+                :owner :Alice ;
+                :likes :PeanutButter ;
+                foaf:name "Rex" ;
+                .
+        }
+    """.trimIndent()
+
+    val sparqlUpdate2 = """
+        prefix : <https://mms.openmbee.org/demos/people/>
+        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        insert data {
+            :Bob a :Person ;
+                foaf:name "Bob" ;
+                .
+
+            :Fluffy a :Cat ;
+                :owner :Bob ;
+                :likes :Jelly ;
+                foaf:name "Fluffy" ;
+                .
+        }
+    """.trimIndent()
+
+    val sparqlQueryAll = """
+        select * where {
+            ?s ?p ?o
+        }
+    """.trimIndent()
+
+    val sparqlQueryNames = """
+        prefix : <https://mms.openmbee.org/demos/people/>
+        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        select ?name where {
+            ?s a :Person .
+            ?s foaf:name ?name .
+        }
+    """.trimIndent()
+
+    val sparqlQueryNamesResult = """
+        {
+            "head": {
+                "vars": [
+                    "name"
+                ]
+            },
+            "results": {
+                "bindings": [
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Alice"
+                        }
+                    }
+                ]
+            }
+        }
+    """.trimIndent()
+
+    val loadTurtle = """
+        @prefix : <https://mms.openmbee.org/demos/people/>
+        @prefix foaf: <http://xmlns.com/foaf/0.1/>
+
+        :Alice a :Person ;
+            foaf:name "Alice" .
+        :Rex a :Dog ;
+            :owner :Alice ;
+            :likes :PeanutButter ;
+            foaf:name "Rex" .
+    """.trimIndent()
+
+    fun TestApplicationCall.validateModelQueryResponse(
+        expectedJson: String
+    ) {
+        response shouldHaveStatus HttpStatusCode.OK
+        response.shouldHaveHeader("Content-Type", "application/sparql-results+json")
+        response.content!!.shouldBeJsonObject()
+        response.content!!.shouldEqualJson(expectedJson)
+    }
+
+    fun TriplesAsserter.validateModelCommitResponse(
+        branchPath: String,
+        etag: String,
+        parentCommit: String
+    ) {
+        subject(localIri("$commitsPath/$etag")) {
+            includes(
+                RDF.type exactly MMS.Commit,
+                MMS.etag exactly etag!!,//shoudl this be MMS.commitId? instead
+                //   MMS.submitted hasDatatype XSD.dateTime, //this should be "created" to be consistent?
+                MMS.parent exactly localIri("$commitsPath/$parentCommit").iri,
+                MMS.data exactly localIri("$commitsPath/$etag/data/")
+            )
+        }
+        /*
+        //currently it returns AutoOrgOwner,
+        matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {
+            includes(
+                RDF.type exactly MMS.Policy,
+            )
+        }*/
+        subjectTerse("mt:") {
+            includes(
+                RDF.type exactly MMS.Transaction,
+                MMS.created hasDatatype XSD.dateTime,
+                MMS.org exactly orgPath.iri,
+                MMS.repo exactly repoPath.iri,
+                MMS.branch exactly branchPath.iri,
+                MMS.user exactly userIri("root").iri
+            )
+        }
+
+        // inspect
+        subject("urn:mms:inspect") { ignoreAll() }
+    }
+}

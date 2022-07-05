@@ -6,6 +6,7 @@ import io.ktor.http.*
 import io.ktor.response.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
+import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 import java.util.*
 
@@ -14,7 +15,7 @@ class BranchCreate : BranchAny() {
         "reject invalid branch id" {
             withTest {
                 httpPut("/orgs/$orgId/repos/$repoId/branches/bad branch id") {
-                    setTurtleBody(validBranchBody)
+                    setTurtleBody(validBranchBodyFromMaster)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -25,7 +26,7 @@ class BranchCreate : BranchAny() {
             "rdf:type" to "mms:NotBranch",
             "mms:id" to "\"not-$branchId\"",
             "mms:etag" to "\"${UUID.randomUUID()}\"",
-            "mms:ref" to "<${localIri("/orgs/$orgId/repos/$repoId/branches/nosuchbranch")}>"
+            "mms:ref" to "<./nosuchbranch>"
         ).forEach { (pred, obj) ->
             "reject wrong $pred" {
                 withTest {
@@ -41,36 +42,33 @@ class BranchCreate : BranchAny() {
             }
         }
 
-        "create valid branch" {
+        "create branch from master after a commit to master" {
             val update = updateModel("""
-                insert { <somesub> <somepred> 5 .}
+                insert { <http:somesub> <http:somepred> 5 .}
             """.trimIndent(), "master", repoId, orgId)
+            val commit = update.response.headers[HttpHeaders.ETag]
             withTest {
                 httpPut(branchPath) {
                     setTurtleBody(
                         """
-                        $validBranchBody
-                        <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
+                        $validBranchBodyFromMaster
                     """.trimIndent()
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
-
-                    response exclusivelyHasTriples {
-                        modelName = "response"
-
-                        subject(localIri(branchPath)) {
-                            exclusivelyHas(
-                                RDF.type exactly MMS.Branch,
-                                MMS.id exactly branchId,
-                                DCTerms.title exactly branchName.en,
-                                MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
-                                MMS.commit exactly update.response.headers[HttpHeaders.ETag]!!,
-                                arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue
-                            )
-                        }
-                    }
+                    validateCreateBranchResponse(commit!!)
+                }
+            }
+        }
+        "create branch from empty master" {
+            withTest {
+                httpPut(branchPath) {
+                    setTurtleBody(
+                        """
+                        $validBranchBodyFromMaster
+                    """.trimIndent()
+                    )
+                }.apply {
+                    validateCreateBranchResponse(repoEtag)
                 }
             }
         }

@@ -19,6 +19,9 @@ fun localIri(suffix: String): String {
     return "http://layer1-service$suffix"
 }
 
+fun userIri(user: String): String {
+    return localIri("/users/$user")
+}
 
 /**
  * Generate an Authorization: header Bearer token value for the given username.
@@ -57,6 +60,10 @@ fun TestApplicationRequest.setSparqlUpdateBody(body: String) {
     setBody(body)
 }
 
+fun TestApplicationRequest.setSparqlQueryBody(body: String) {
+    addHeader("Content-Type", "application/sparql-query")
+    setBody(body)
+}
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
     return handleRequest(method, uri) {
