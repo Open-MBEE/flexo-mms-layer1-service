@@ -77,6 +77,31 @@ open class ModelAny: BranchAny() {
             }
         }
     """.trimIndent()
+    val sparqlQueryNamesResult2 = """
+        {
+            "head": {
+                "vars": [
+                    "name"
+                ]
+            },
+            "results": {
+                "bindings": [
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Alice"
+                        }
+                    },
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Bob"
+                        }
+                    }
+                ]
+            }
+        }
+    """.trimIndent()
 
     val loadTurtle = """
         @prefix : <https://mms.openmbee.org/demos/people/>

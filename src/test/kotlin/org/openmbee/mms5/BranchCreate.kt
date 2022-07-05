@@ -44,7 +44,9 @@ class BranchCreate : BranchAny() {
 
         "create branch from master after a commit to master" {
             val update = updateModel("""
-                insert { <http:somesub> <http:somepred> 5 .}
+                insert data { 
+                    <http://somesub.com> <http://somepred.com> 5 . 
+                }
             """.trimIndent(), "master", repoId, orgId)
             val commit = update.response.headers[HttpHeaders.ETag]
             withTest {
