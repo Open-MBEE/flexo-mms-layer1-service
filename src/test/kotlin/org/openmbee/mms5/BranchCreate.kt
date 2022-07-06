@@ -26,9 +26,13 @@ class BranchCreate : RefAny() {
             "reject wrong $pred" {
                 withTest {
                     httpPut(branchPath) {
+                        var ref = "<> mms:ref <./master> ."
+                        if (pred == "mms:ref")
+                            ref = ""
                         setTurtleBody("""
                             <> dct:title "$branchName"@en .
                             <> $pred $obj .
+                            $ref
                         """.trimIndent())
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.BadRequest
