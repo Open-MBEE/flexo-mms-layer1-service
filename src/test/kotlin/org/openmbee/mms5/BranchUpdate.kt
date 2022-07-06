@@ -30,7 +30,7 @@ class BranchUpdate : RefAny() {
 
                     response exclusivelyHasTriples {
                         subject(localIri(branchPath)) {
-                            exclusivelyHas(
+                            includes(
                                 RDF.type exactly MMS.Branch,
                                 MMS.id exactly branchId,
                                 DCTerms.title exactly branchName.en,
