@@ -30,6 +30,11 @@ fun createRepo(repoId: String, repoName: String, orgId: String): TestApplication
             """.trimIndent())
         }.apply {
             response shouldHaveStatus 200
+
+            // assert it exists
+            httpGet("/orgs/$orgId/repos/$repoId") {}.apply {
+                response shouldHaveStatus 200
+            }
         }
     }
 }
