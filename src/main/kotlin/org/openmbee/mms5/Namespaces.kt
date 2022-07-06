@@ -225,6 +225,7 @@ object MMS {
     val serviceId = ResourceFactory.createProperty(BASE, "serviceId")
     val org = ResourceFactory.createProperty(BASE, "org")
     val repo = ResourceFactory.createProperty(BASE, "repo")
+    val branch = ResourceFactory.createProperty(BASE, "branch")
     val collection = ResourceFactory.createProperty(BASE, "collection")
     val user = ResourceFactory.createProperty(BASE, "user")
     val completed = ResourceFactory.createProperty(BASE, "completed")
@@ -232,7 +233,7 @@ object MMS {
     val requestPath = ResourceFactory.createProperty(BASE, "requestPath")
 
     val commitId = ResourceFactory.createProperty(BASE, "commitId")
-
+    val submitted = ResourceFactory.createProperty(BASE, "submitted")
     // access control properties
     val implies = ResourceFactory.createProperty(BASE, "implies")
 
