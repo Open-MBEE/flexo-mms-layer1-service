@@ -233,7 +233,7 @@ object MMS {
     val requestPath = ResourceFactory.createProperty(BASE, "requestPath")
 
     val commitId = ResourceFactory.createProperty(BASE, "commitId")
-
+    val submitted = ResourceFactory.createProperty(BASE, "submitted")
     // access control properties
     val implies = ResourceFactory.createProperty(BASE, "implies")
 

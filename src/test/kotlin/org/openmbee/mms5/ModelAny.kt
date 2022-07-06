@@ -55,7 +55,7 @@ open class ModelAny: RefAny() {
         select ?name where {
             ?s a :Person .
             ?s foaf:name ?name .
-        }
+        } order by asc(?name)
     """.trimIndent()
 
     val sparqlQueryNamesResult = """
@@ -132,8 +132,8 @@ open class ModelAny: RefAny() {
         subject(localIri("$commitsPath/$etag")) {
             includes(
                 RDF.type exactly MMS.Commit,
-                MMS.etag exactly etag!!,//shoudl this be MMS.commitId? instead
-                //   MMS.submitted hasDatatype XSD.dateTime, //this should be "created" to be consistent?
+                MMS.etag exactly etag!!,
+                MMS.submitted hasDatatype XSD.dateTime,
                 MMS.parent exactly localIri("$commitsPath/$parentCommit").iri,
                 MMS.data exactly localIri("$commitsPath/$etag/data/")
             )

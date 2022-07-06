@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.ktor.shouldHaveStatus
 import io.ktor.http.*
 import org.apache.jena.vocabulary.DCTerms
@@ -23,7 +24,6 @@ class BranchRead : RefAny() {
                 }
             }
         }
-/* not working
         "create and head new branch" {
             //val update = updateModel("""
             //    insert { <somesub> <somepred> 5 .}
@@ -37,8 +37,7 @@ class BranchRead : RefAny() {
                 }
             }
         }
-*/
-        /* weird response
+
         "get master branch" {
             withTest {
                 httpGet(masterPath) {}.apply {
@@ -48,20 +47,22 @@ class BranchRead : RefAny() {
                         val branchiri = localIri(masterPath)
 
                         subject(branchiri) {
-                            exclusivelyHas(
+                            includes(
                                 RDF.type exactly MMS.Branch,
-                                MMS.id exactly branchId,
+                                MMS.id exactly "master",
                                 DCTerms.title exactly branchName.en,
                             )
                         }
                     }
                 }
             }
-        }*/
+        }
 
         "create from master then get all branches" {
             val update = updateModel("""
-                insert { <http:somesub> <http:somepred> 5 .}
+                insert { 
+                    <http://somesub> <http://somepred> 5 .
+                }
             """.trimIndent(), "master", repoId, orgId)
             val create = createBranch(branchId, branchName, "master", repoId, orgId)
             withTest {
@@ -69,7 +70,7 @@ class BranchRead : RefAny() {
                     response shouldHaveStatus HttpStatusCode.OK
                     response exclusivelyHasTriples {
                         subject(localIri(branchPath)) {
-                            exclusivelyHas(
+                            includes(
                                 RDF.type exactly MMS.Branch,
                                 MMS.id exactly branchId,
                                 DCTerms.title exactly branchName.en,
@@ -77,7 +78,7 @@ class BranchRead : RefAny() {
                             )
                         }
                         subject(localIri(masterPath)) {
-                            exclusivelyHas(
+                            includes(
                                 RDF.type exactly MMS.Branch,
                                 MMS.id exactly "master",
                                 DCTerms.title exactly "master"
