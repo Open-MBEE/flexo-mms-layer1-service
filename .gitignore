@@ -79,4 +79,5 @@ application.conf
 
 cluster.trig
 application.conf
+results/*
 *-logback.xml
