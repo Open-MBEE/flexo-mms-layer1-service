@@ -14,7 +14,7 @@ import java.io.InputStreamReader
  */
 fun testEnv(): ApplicationEngineEnvironment {
     return createTestEnvironment {
-        javaClass.classLoader.getResourceAsStream("application.conf.example")?.let { it ->
+        javaClass.classLoader.getResourceAsStream("application.conf.test")?.let { it ->
             InputStreamReader(it).use { iit ->
                 config = HoconApplicationConfig(ConfigFactory.parseReader(iit).resolve())
             }
