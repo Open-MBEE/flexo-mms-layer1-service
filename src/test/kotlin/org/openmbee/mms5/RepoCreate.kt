@@ -28,8 +28,7 @@ class RepoCreate : RepoAny() {
                         """
                         $validRepoBody
                         <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
-                    """.trimIndent()
-                    )
+                    """.trimIndent())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()

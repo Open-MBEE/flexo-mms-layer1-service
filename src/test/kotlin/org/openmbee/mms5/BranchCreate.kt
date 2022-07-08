@@ -43,7 +43,7 @@ class BranchCreate : RefAny() {
 
         "create branch from master after a commit to master" {
             val update = commitModel(masterPath, """
-                insert data { 
+                insert data {
                     <http://somesub.com> <http://somepred.com> 5 . 
                 }
             """.trimIndent())
@@ -52,8 +52,7 @@ class BranchCreate : RefAny() {
                 httpPut(branchPath) {
                     setTurtleBody("""
                         $validBranchBodyFromMaster
-                    """.trimIndent()
-                    )
+                    """.trimIndent())
                 }.apply {
                     validateCreateBranchResponse(commit!!)
                 }
@@ -65,8 +64,7 @@ class BranchCreate : RefAny() {
                 httpPut(branchPath) {
                     setTurtleBody("""
                         $validBranchBodyFromMaster
-                    """.trimIndent()
-                    )
+                    """.trimIndent())
                 }.apply {
                     validateCreateBranchResponse(repoEtag)
                 }
