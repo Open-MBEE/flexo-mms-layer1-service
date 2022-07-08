@@ -556,14 +556,19 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                                 ?__mms_policy ?__mms_policy_p ?__mms_policy_o . 
                                 
                                 mt: ?mt_p ?mt_o .
-                                # outgoing repo properties
-                                mor: ?mor_p ?mor_o .
-                            
-                                # properties of things that belong to this repo
-                                ?thing ?thing_p ?thing_o .
-                            
-                                # all triples in metadata graph
-                                ?m_s ?m_p ?m_o .
+                                
+                                ${if(repoId != null) {
+                                    """
+                                        # outgoing repo properties
+                                        mor: ?mor_p ?mor_o .
+                                    
+                                        # properties of things that belong to this repo
+                                        ?thing ?thing_p ?thing_o .
+                                    
+                                        # all triples in metadata graph
+                                        ?m_s ?m_p ?m_o .
+                                    """
+                                } else ""}
                             """)
                         }
                         where {
@@ -579,21 +584,26 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                                     graph m-graph:Transactions {
                                         mt: ?mt_p ?mt_o .
                                     }
-                                } union {
-                                    graph m-graph:Cluster {
-                                        mor: a mms:Repo ;
-                                            ?mor_p ?mor_o .
-    
-                                        optional {
-                                            ?thing mms:repo mor: ;
-                                                ?thing_p ?thing_o .
+                                } 
+                                ${if(repoId != null) {
+                                    """
+                                        union {
+                                            graph m-graph:Cluster {
+                                                mor: a mms:Repo ;
+                                                    ?mor_p ?mor_o .
+            
+                                                optional {
+                                                    ?thing mms:repo mor: ;
+                                                        ?thing_p ?thing_o .
+                                                }
+                                            }
+                                        } union {
+                                            graph mor-graph:Metadata {
+                                                ?m_s ?m_p ?m_o .
+                                            }
                                         }
-                                    }
-                                } union {
-                                    graph mor-graph:Metadata {
-                                        ?m_s ?m_p ?m_o .
-                                    }
-                                }                                
+                                    """
+                                } else ""}
                             """)
                         }
                     }

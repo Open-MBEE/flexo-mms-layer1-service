@@ -21,9 +21,9 @@ fun createOrg(orgId: String, orgName: String): TestApplicationCall {
     }
 }
 
-fun createRepo(repoId: String, repoName: String, orgId: String): TestApplicationCall {
+fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicationCall {
     return withTest {
-        httpPut("/orgs/$orgId/repos/$repoId") {
+        httpPut("$orgPath/repos/$repoId") {
             setTurtleBody("""
                 <> dct:title "$repoName"@en .
             """.trimIndent())
@@ -33,12 +33,12 @@ fun createRepo(repoId: String, repoName: String, orgId: String): TestApplication
     }
 }
 
-fun createBranch(branchId: String, branchName: String, fromRefId: String, repoId: String, orgId: String): TestApplicationCall {
+fun createBranch(repoPath: String, refId: String, branchId: String, branchName: String): TestApplicationCall {
     return withTest {
-        httpPut("/orgs/$orgId/repos/$repoId/branches/$branchId") {
+        httpPut("$repoPath/branches/$branchId") {
             setTurtleBody("""
                 <> dct:title "$branchName"@en .
-                <> mms:ref <./$fromRefId> .
+                <> mms:ref <./$refId> .
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
@@ -46,12 +46,12 @@ fun createBranch(branchId: String, branchName: String, fromRefId: String, repoId
     }
 }
 
-fun createLock(lockId: String, lockName: String, fromRefId: String, repoId: String, orgId: String): TestApplicationCall {
+fun createLock(repoPath: String, refId: String, lockId: String, lockName: String): TestApplicationCall {
     return withTest {
-        httpPut("/orgs/$orgId/repos/$repoId/locks/$lockId") {
+        httpPut("$repoPath/locks/$lockId") {
             setTurtleBody("""
                 <> dct:title "$lockName"@en .
-                <> mms:ref <./$fromRefId> .
+                <> mms:ref <./$refId> .
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
@@ -59,9 +59,9 @@ fun createLock(lockId: String, lockName: String, fromRefId: String, repoId: Stri
     }
 }
 
-fun updateModel(sparql: String, branchId: String, repoId: String, orgId: String):  TestApplicationCall {
+fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
     return withTest {
-        httpPost("/orgs/$orgId/repos/$repoId/branches/$branchId/update") {
+        httpPost("$refPath/update") {
             setSparqlUpdateBody(sparql)
         }.apply {
             response shouldHaveStatus HttpStatusCode.Created

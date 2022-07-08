@@ -10,7 +10,7 @@ import org.openmbee.mms5.util.*
 class BranchUpdate : RefAny() {
     init {
         "patch branch" {
-            createBranch(branchId, branchName, "master", repoId, orgId)
+            createBranch(repoPath, "master", branchId, branchName)
 
             withTest {
                 httpPatch(branchPath) {

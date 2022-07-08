@@ -13,7 +13,7 @@ class RepoCreate : RepoAny() {
     init {
         "reject invalid repo id" {
             withTest {
-                httpPut("/orgs/$orgId/repo/invalid repo id") {
+                httpPut("$repoPath with invalid id") {
                     setTurtleBody(validRepoBody)
                 }.apply {
                     response shouldHaveStatus 400

@@ -6,7 +6,6 @@ import io.ktor.http.*
 import org.openmbee.mms5.util.*
 
 class ModelCommit: ModelAny() {
-
     init {
         "commit model on master" {
             withTest {
@@ -23,8 +22,9 @@ class ModelCommit: ModelAny() {
                 }
             }
         }
+
         "commit model on branch" {
-            val branch = createBranch(branchId, branchName, "master", repoId, orgId)
+            val branch = createBranch(repoPath, "master", branchId, branchName)
             withTest {
                 httpPost("$branchPath/update") {
                     setSparqlUpdateBody(sparqlUpdate)

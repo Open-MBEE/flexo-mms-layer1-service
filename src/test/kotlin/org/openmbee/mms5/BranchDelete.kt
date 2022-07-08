@@ -9,7 +9,7 @@ import org.openmbee.mms5.util.*
 class BranchDelete : RefAny() {
     init {
         "delete branch" {
-            createBranch(branchId, branchName, "master", repoId, orgId)
+            createBranch(repoPath, "master", branchId, branchName)
 
             withTest {
                 // delete branch should work

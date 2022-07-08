@@ -28,7 +28,7 @@ class BranchRead : RefAny() {
             //val update = updateModel("""
             //    insert { <somesub> <somepred> 5 .}
             //""".trimIndent(), "master", repoId, orgId)
-            val create = createBranch(branchId, branchName, "master", repoId, orgId)
+            val create = createBranch(repoPath, "master", branchId, branchName)
 
             withTest {
                 httpHead(branchPath) {}.apply {
@@ -59,12 +59,12 @@ class BranchRead : RefAny() {
         }
 
         "create from master then get all branches" {
-            val update = updateModel("""
+            val update = commitModel(masterPath, """
                 insert { 
                     <http://somesub> <http://somepred> 5 .
                 }
-            """.trimIndent(), "master", repoId, orgId)
-            val create = createBranch(branchId, branchName, "master", repoId, orgId)
+            """.trimIndent())
+            val create = createBranch(repoPath, "master", branchId, branchName)
             withTest {
                 httpGet("/orgs/$orgId/repos/$repoId/branches") {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK

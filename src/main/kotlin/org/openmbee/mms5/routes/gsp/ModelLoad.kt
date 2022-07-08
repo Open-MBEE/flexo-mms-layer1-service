@@ -395,7 +395,7 @@ fun Route.loadModel() {
 
                 // start copying staging to new model
                 executeSparqlUpdate("""
-                    copy ?_stagingGraph to ?_modelGraph;
+                    copy graph ?_stagingGraph to graph ?_modelGraph ;
                     
                     insert data {
                         graph mor-graph:Metadata {
