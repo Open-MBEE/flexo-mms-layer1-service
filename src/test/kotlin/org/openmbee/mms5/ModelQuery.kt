@@ -5,7 +5,7 @@ import org.openmbee.mms5.util.*
 class ModelQuery : ModelAny() {
     init {
         "query data from model" {
-            val update = updateModel(sparqlUpdate, "master", repoId, orgId)
+            val update = commitModel(masterPath, sparqlUpdate)
             withTest {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(sparqlQueryNames)
@@ -15,9 +15,9 @@ class ModelQuery : ModelAny() {
             }
         }
         "query result is different between master and branch" {
-            updateModel(sparqlUpdate, "master", repoId, orgId)
-            createBranch(branchId, branchName, "master", repoId, orgId)
-            updateModel(sparqlUpdate2, "master", repoId, orgId)
+            commitModel(masterPath, sparqlUpdate)
+            createBranch(repoPath, "master", branchId, branchName)
+            commitModel(masterPath, sparqlUpdate2)
             withTest {
                 //branch model does not have second updates
                 httpPost("$branchPath/query") {
@@ -34,9 +34,9 @@ class ModelQuery : ModelAny() {
             }
         }
         "query result is different between master and lock" {
-            updateModel(sparqlUpdate, "master", repoId, orgId)
-            createLock(lockId, lockName, "master", repoId, orgId)
-            updateModel(sparqlUpdate2, "master", repoId, orgId)
+            commitModel(masterPath, sparqlUpdate)
+            createLock(repoPath, "master", lockId, lockName)
+            commitModel(masterPath, sparqlUpdate2)
             withTest {
                 //branch model does not have second updates
                 httpPost("$lockPath/query") {

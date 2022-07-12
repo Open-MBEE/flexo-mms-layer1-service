@@ -284,7 +284,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     }
 }
 
-infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
+infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
     // assert content-type header
     this.shouldHaveHeader(HttpHeaders.ContentType, "${RdfContentTypes.Turtle}; charset=UTF-8")
 
@@ -293,6 +293,10 @@ infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsser
     parseTurtle(this.content.toString(), model, this.call.request.uri)
 
     // make triple assertions and then assert the model is empty
-    TriplesAsserter(model).apply { assertions() }.assertEmpty()
-
+    return TriplesAsserter(model).apply { assertions() }
 }
+
+infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
+    includesTriples(assertions).assertEmpty()
+}
+
