@@ -10,6 +10,10 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 
+fun title(name: String): String {
+    return "<> dct:title \"$name\"@en .\n"
+}
+
 open class RefAny : RepoAny() {
     val branchId = "new-branch"
     val branchName = "New Branch"
@@ -22,13 +26,10 @@ open class RefAny : RepoAny() {
 
     val validBranchBodyFromMaster = """
         <> dct:title "$branchName"@en .
-        <> mms:ref <./master> .
+        <> mms:ref <../branches/master> .
     """.trimIndent()
 
-    val validLockBodyFromMaster = """
-        <> dct:title "$lockName"@en .
-        <> mms:ref <./master> .
-    """.trimIndent()
+    val fromMaster = "<> mms:ref <../branches/master> .\n"
 
     var repoEtag = ""
 

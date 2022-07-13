@@ -8,7 +8,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.util.*
 
 class LockCreate : LockAny() {
-    fun createAndValidateLock(_lockId: String=lockId, lockBody: String=validLockBodyFromMaster) {
+    fun createAndValidateLock(_lockId: String=lockId, lockBody: String=title(lockName)+fromMaster) {
         withTest {
             httpPut("$repoPath/locks/$_lockId") {
                 setTurtleBody(lockBody)
@@ -29,7 +29,7 @@ class LockCreate : LockAny() {
         "reject invalid lock id" {
             withTest {
                 httpPut("$lockPath with invalid id") {
-                    setTurtleBody(validLockBodyFromMaster)
+                    setTurtleBody(title(lockName)+fromMaster)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
