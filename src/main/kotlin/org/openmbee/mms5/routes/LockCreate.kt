@@ -161,7 +161,7 @@ fun Route.createLock() {
             val updateString = buildSparqlUpdate {
                 // first, copy the base snapshot graph to the new lock model graph
                 raw("""
-                    copy <$baseSnapshotGraphUri> to ?__mms_model ; 
+                    copy graph <$baseSnapshotGraphUri> to graph ?__mms_model ; 
                 """)
 
                 // rebuilding snapshot does not require checking update conditions...

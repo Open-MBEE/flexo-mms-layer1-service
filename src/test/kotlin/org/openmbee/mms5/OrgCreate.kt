@@ -13,7 +13,7 @@ class OrgCreate : OrgAny() {
     init {
         "reject invalid org id" {
             withTest {
-                httpPut("/orgs/invalid org id") {
+                httpPut("$orgPath with invalid id") {
                     setTurtleBody(validOrgBody)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest

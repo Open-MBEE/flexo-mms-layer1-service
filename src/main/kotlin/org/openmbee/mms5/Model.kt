@@ -11,6 +11,8 @@ import org.apache.jena.sparql.core.PathBlock
 import org.apache.jena.sparql.core.TriplePath
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
+import org.apache.jena.sparql.expr.E_Exists
+import org.apache.jena.sparql.expr.E_NotExists
 import org.apache.jena.sparql.expr.nodevalue.NodeValueString
 import org.apache.jena.sparql.path.Path
 import org.apache.jena.sparql.path.PathFactory
@@ -285,18 +287,18 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
             // create union between auth failure and user query block
             addElement(ElementUnion().apply {
                 // prevent any bindings to outer scope
-                addElement(ElementExists(ElementGroup().apply {
+                addElement(ElementFilter(E_Exists(ElementGroup().apply {
                     // negate authorization query; it must fail in order to produce a binding
-                    addElement(ElementNotExists(patternPlaceholder))
+                    addElement(ElementFilter(E_NotExists(patternPlaceholder)))
 
                     // throw error
                     addElement(ElementService("urn:mms:throw", ElementTriplesBlock()))
-                }))
+                })))
 
                 // add user query block
                 addElement(ElementGroup().apply {
                     // authorization query; it must match in order to evaluate user query
-                    addElement(ElementExists(patternPlaceholder))
+                    addElement(ElementFilter(E_Exists(patternPlaceholder)))
 
                     // prep to set/bind the model graph node
                     lateinit var modelGraphNode: Node
@@ -340,9 +342,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                                         addTriplePattern(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Staging.asNode()))
 
                                         // filter not exists { ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model }
-                                        addElement(ElementNotExists(ElementPathBlock().apply {
+                                        addElement(ElementFilter(E_NotExists(ElementPathBlock().apply {
                                             addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
-                                        }))
+                                        })))
                                     })
                                 })
                             }))

@@ -233,10 +233,11 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
+            application.log.info("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
 
             // begin copying staging to model
             executeSparqlUpdate("""
-                copy ?_stagingGraph to ?_modelGraph;
+                copy graph <$stagingGraph> to graph ?_modelGraph ;
                 
                 insert data {
                     graph mor-graph:Metadata {

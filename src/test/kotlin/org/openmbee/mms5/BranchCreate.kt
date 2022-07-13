@@ -42,32 +42,29 @@ class BranchCreate : RefAny() {
         }
 
         "create branch from master after a commit to master" {
-            val update = updateModel("""
-                insert data { 
+            val update = commitModel(masterPath, """
+                insert data {
                     <http://somesub.com> <http://somepred.com> 5 . 
                 }
-            """.trimIndent(), "master", repoId, orgId)
+            """.trimIndent())
             val commit = update.response.headers[HttpHeaders.ETag]
             withTest {
                 httpPut(branchPath) {
-                    setTurtleBody(
-                        """
+                    setTurtleBody("""
                         $validBranchBodyFromMaster
-                    """.trimIndent()
-                    )
+                    """.trimIndent())
                 }.apply {
                     validateCreateBranchResponse(commit!!)
                 }
             }
         }
+
         "create branch from empty master" {
             withTest {
                 httpPut(branchPath) {
-                    setTurtleBody(
-                        """
+                    setTurtleBody("""
                         $validBranchBodyFromMaster
-                    """.trimIndent()
-                    )
+                    """.trimIndent())
                 }.apply {
                     validateCreateBranchResponse(repoEtag)
                 }
