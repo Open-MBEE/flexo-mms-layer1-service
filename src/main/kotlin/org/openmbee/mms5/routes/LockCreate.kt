@@ -366,7 +366,7 @@ fun Route.createLock() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "morl")
 
                         raw("""
                             graph mor-graph:Metadata {

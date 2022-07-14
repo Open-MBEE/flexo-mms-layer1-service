@@ -87,7 +87,7 @@ fun Route.createOrg() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "mo")
 
                         graph("m-graph:Cluster") {
                             raw("""

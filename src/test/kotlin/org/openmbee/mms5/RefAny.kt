@@ -21,15 +21,11 @@ open class RefAny : RepoAny() {
     val masterPath = "$repoPath/branches/master"
 
     val lockId = "new-lock"
-    val lockName = "New Lock"
     val lockPath = "$repoPath/locks/$lockId"
 
-    val validBranchBodyFromMaster = """
-        <> dct:title "$branchName"@en .
-        <> mms:ref <../branches/master> .
-    """.trimIndent()
-
     val fromMaster = "<> mms:ref <../branches/master> .\n"
+
+    val validBranchBodyFromMaster = title(branchName)+fromMaster
 
     var repoEtag = ""
 

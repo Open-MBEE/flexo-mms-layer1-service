@@ -122,7 +122,7 @@ fun Route.createBranch() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "morb")
 
                         raw("""
                             graph mor-graph:Metadata {

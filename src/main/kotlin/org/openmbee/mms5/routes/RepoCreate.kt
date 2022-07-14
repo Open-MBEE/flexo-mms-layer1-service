@@ -187,7 +187,7 @@ fun Route.createRepo() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "mor")
 
                         raw("""
                             graph m-graph:Cluster {
