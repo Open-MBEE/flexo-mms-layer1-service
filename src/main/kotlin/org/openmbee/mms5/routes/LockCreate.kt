@@ -342,17 +342,15 @@ fun Route.createLock() {
             log.info(updateString)
 
             // execute update
-            val updateResponseText = executeSparqlUpdate(updateString) {
+            executeSparqlUpdate(updateString) {
                 prefixes(prefixes)
 
                 // replace IRI substitution variables
                 iri(
                     "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}",
-                    "_refSource" to "$refSource"
+                    "_refSource" to refSource!!
                 )
             }
-
-            log.info(updateResponseText)
 
             // create construct query to confirm transaction and fetch lock details
             val constructString = buildSparqlQuery {
