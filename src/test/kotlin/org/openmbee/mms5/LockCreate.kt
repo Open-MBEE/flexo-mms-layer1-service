@@ -4,6 +4,7 @@ import io.kotest.assertions.ktor.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.util.*
 
@@ -19,7 +20,7 @@ class LockCreate : LockAny() {
                 etag.shouldNotBeBlank()
 
                 response.exclusivelyHasTriples {
-                    validateLockTriples(lockId, etag!!, orgPath)
+                    validateLockTriples(_lockId, etag!!, orgPath)
                 }
             }
         }
@@ -59,9 +60,7 @@ class LockCreate : LockAny() {
 
             createAndValidateLock()
 
-            createAndValidateLock("other-lock", """
-                <> mms:ref <./$lockId> .
-            """.trimIndent())
+            createAndValidateLock("other-lock", "<> mms:ref <./$lockId> .")
         }
     }
 }

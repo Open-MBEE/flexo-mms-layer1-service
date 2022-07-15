@@ -6,6 +6,7 @@ import io.ktor.routing.*
 import kotlinx.coroutines.selects.select
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
@@ -103,7 +104,6 @@ fun Route.createLock() {
                         setProperty(RDF.type, MMS.Lock)
                         setProperty(MMS.id, lockId!!)
                         setProperty(MMS.etag, transactionId, true)
-                        setProperty(MMS.commit, commitNode())
                         setProperty(MMS.createdBy, userNode(), true)
                     }
                 }
@@ -330,7 +330,11 @@ fun Route.createLock() {
 
                     // insert the triples about the new lock, including arbitrary metadata supplied by user
                     graph("mor-graph:Metadata") {
-                        raw(lockTriples)
+                        raw("""
+                            $lockTriples
+                            
+                            morl: mms:commit ?__mms_commitSource .
+                        """)
                     }
                 }
                 where {

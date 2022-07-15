@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
@@ -16,7 +17,7 @@ fun TriplesAsserter.validateLockTriples(
             RDF.type exactly MMS.Lock,
             MMS.id exactly lockId,
             MMS.etag exactly etag,
-            MMS.commit exactly model.expandPrefix("morc:").iri,
+            MMS.commit startsWith model.expandPrefix("mor:/commits/").iri,
             MMS.createdBy exactly model.expandPrefix("mu:").iri,
         )
     }
