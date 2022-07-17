@@ -6,7 +6,9 @@ import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.iterator.shouldHaveNext
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.server.testing.*
@@ -86,6 +88,38 @@ class DatatypePairPattern(private val property: Property, private val datatype: 
 }
 
 
+/**
+ * Requires a predicate/object pair match given the object starts with the specified value
+ */
+class StartsWithPairPattern(private val property: Property, private val node: RDFNode): PairPattern() {
+    override fun evaluate(subjectContext: SubjectContext) {
+        val subject = subjectContext.subject
+
+        // assert cardinality and fetch objects
+        val nodes = subjectContext.cardinality(property, 1)
+        val node0 = nodes[0]
+
+        if(node.isURIResource) {
+            if(!node0.isURIResource) {
+                fail("Expected object at <${subject}>/<$property> to be an URI resource")
+            }
+
+            node0.asResource().uri shouldStartWith node.asResource().uri
+        }
+        else {
+            if(!node0.isLiteral) {
+                fail("Expected object at <${subject}>/<$property> to be a literal")
+            }
+
+            node0.asLiteral().string shouldStartWith node.asLiteral().string
+        }
+
+        // remove statement from model
+        subjectContext.model.remove(subject, property, node0)
+    }
+}
+
+
 infix fun Property.exactly(node: RDFNode): PairPattern {
     return ExactPairPattern(this, node)
 }
@@ -96,6 +130,10 @@ infix fun Property.exactly(string: String): PairPattern {
 
 infix fun Property.hasDatatype(datatype: Resource): PairPattern {
     return DatatypePairPattern(this, datatype)
+}
+
+infix fun Property.startsWith(node: RDFNode): PairPattern {
+    return StartsWithPairPattern(this, node)
 }
 
 

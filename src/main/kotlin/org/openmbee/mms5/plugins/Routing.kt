@@ -77,14 +77,6 @@ fun Application.configureRouting() {
             queryDiff()
             // deleteDiff()
 
-            createLock()
-            queryLock()
-            deleteLock()
-
-            createDiff()
-            queryDiff()
-            // deleteDiff()
-
             createGroup()
             // updateGroup()
             // deleteGroup()

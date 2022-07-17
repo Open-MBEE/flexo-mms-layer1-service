@@ -158,8 +158,8 @@ open class WhereBuilder(
     private val mms: MmsL1Context,
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(mms, indentLevel) {
-    fun txn(subTxnId: String?=null): WhereBuilder {
-        auth()
+    fun txn(subTxnId: String?=null, scope: String?=null): WhereBuilder {
+        auth(scope)
         return raw("""
             graph m-graph:Transactions {
                 mt:${subTxnId?: ""} ?mt_p ?mt_o .
@@ -167,11 +167,11 @@ open class WhereBuilder(
         """)
     }
 
-    fun auth(scope: String="mo", conditions: ConditionsGroup?=null): WhereBuilder {
+    fun auth(scope: String?="mo", conditions: ConditionsGroup?=null): WhereBuilder {
         return raw("""
             graph m-graph:AccessControl.Policies {
                 optional {
-                    ?__mms_policy mms:scope ${scope}: ;
+                    ?__mms_policy mms:scope ${scope?: "mo"}: ;
                         ?__mms_policy_p ?__mms_policy_o .
                 }
             }
