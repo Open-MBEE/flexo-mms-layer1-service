@@ -29,7 +29,7 @@ class RepoRead : RepoAny() {
         }
 
         "head repo" {
-            val create = createRepo(repoId, repoName, orgId)
+            val create = createRepo(orgPath, repoId, repoName)
 
             withTest {
                 httpHead(repoPath) {}.apply {
@@ -40,7 +40,7 @@ class RepoRead : RepoAny() {
         }
 
         "get repo" {
-            val create = createRepo(repoId, repoName, orgId)
+            val create = createRepo(orgPath, repoId, repoName)
 
             withTest {
                 httpGet(repoPath) {}.apply {

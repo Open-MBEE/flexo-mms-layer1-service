@@ -13,8 +13,7 @@ import org.slf4j.LoggerFactory
 class RepoUpdate : RepoAny() {
     init {
         "patch repo insert" {
-            createOrg(orgId, orgName)
-            createRepo(repoId, repoName, orgId)
+            createRepo(orgPath, repoId, repoName)
 
             withTest {
                 httpPatch(repoPath) {
@@ -43,8 +42,7 @@ class RepoUpdate : RepoAny() {
         }
 
         "patch repo insert failed condition" {
-            createOrg(orgId, orgName)
-            createRepo(repoId, repoName, orgId)
+            createRepo(orgPath, repoId, repoName)
 
             withTest {
                 httpPatch(repoPath) {
