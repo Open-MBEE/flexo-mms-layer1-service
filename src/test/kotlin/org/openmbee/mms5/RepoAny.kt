@@ -18,7 +18,7 @@ fun TriplesAsserter.validateRepoTriples(
 ) {
     val repoPath = localIri("$orgPath/repos/$repoId")
 
-    // org triples
+    // repo triples
     subject(repoPath) {
         exclusivelyHas(
             RDF.type exactly MMS.Repo,
