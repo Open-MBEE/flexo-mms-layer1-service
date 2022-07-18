@@ -52,5 +52,23 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+        "query between model loads" {
+            loadModel(masterPath, loadTurtle)
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    validateModelQueryResponse(sparqlQueryNamesResult)
+                }
+            }
+            loadModel(masterPath, loadTurtle2)
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    validateModelQueryResponse(sparqlQueryNamesResultBob)
+                }
+            }
+        }
     }
 }
