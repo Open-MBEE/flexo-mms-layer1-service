@@ -139,7 +139,7 @@ fun Route.createBranch() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "morb")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(constructModel, prefixes["morb"])

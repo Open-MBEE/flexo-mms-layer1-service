@@ -50,7 +50,7 @@ fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicati
     return withTest {
         httpPut("$repoPath/locks/$lockId") {
             setTurtleBody("""
-                <> mms:ref <../$refPath> .
+                <> mms:ref <$refPath> .
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK

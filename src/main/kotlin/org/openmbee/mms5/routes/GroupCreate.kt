@@ -88,7 +88,7 @@ fun Route.createGroup() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "mag")
 
                         raw("""
                             graph m-graph:AccessControl.Agents {
@@ -108,7 +108,7 @@ fun Route.createGroup() {
             log.info("Triplestore responded with:\n$constructResponseText")
 
             // validate whether the transaction succeeded
-            val model = validateTransaction(constructResponseText, localConditions)
+            val model = validateTransaction(constructResponseText, localConditions, null, "mag")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(model, prefixes["mag"])

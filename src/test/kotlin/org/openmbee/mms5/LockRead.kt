@@ -37,7 +37,7 @@ class LockRead : LockAny() {
                 httpGet(lockPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    response exclusivelyHasTriples {
+                    response includesTriples {
                         // lock triples
                         subjectTerse("mor-lock:$lockId") {
                             exclusivelyHas(

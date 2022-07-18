@@ -23,7 +23,7 @@ private val SPARQL_BGP_LOCK = """
 """
 
 private val SPARQL_SELECT_LOCK = """
-    select ?__mms_etag {
+    select distinct ?__mms_etag {
         $SPARQL_BGP_LOCK
     } order by asc(?__mms_etag)
 """
@@ -35,7 +35,7 @@ private val SPARQL_CONSTRUCT_LOCK = """
         
         ?thing ?thing_p ?thing_o .
         
-        ?context a mms:Context ;
+        ?_context a mms:Context ;
             mms:permit mms-object:Permission.ReadLock ;
             mms:policy ?policy .
         
@@ -54,8 +54,6 @@ private val SPARQL_CONSTRUCT_LOCK = """
                     ?lockPolicy_p ?lockPolicy_o .
             }
         }
-        
-        bind(bnode() as ?context)
     }
 """
 
@@ -83,6 +81,10 @@ fun Route.readLock() {
                             "_lock" to prefixes["morl"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the results
@@ -118,6 +120,10 @@ fun Route.readLock() {
                             "_lock" to prefixes["morl"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the response

@@ -20,6 +20,7 @@ class LockCreate : LockAny() {
                 etag.shouldNotBeBlank()
 
                 response.exclusivelyHasTriples {
+                    modelName = "ValidateLock"
                     validateLockTriples(_lockId, etag!!, orgPath)
                 }
             }

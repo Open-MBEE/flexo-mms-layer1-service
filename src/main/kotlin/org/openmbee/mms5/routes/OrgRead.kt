@@ -39,7 +39,7 @@ private val SPARQL_CONSTRUCT_ORG = """
         
         ?thing ?thing_p ?thing_o .
         
-        ?context a mms:Context ;
+        ?_context a mms:Context ;
             mms:permit mms-object:Permission.ReadOrg ;
             mms:policy ?policy ;
             .
@@ -59,8 +59,6 @@ private val SPARQL_CONSTRUCT_ORG = """
                     ?orgPolicy_p ?orgPolicy_o .
             }
         }
-        
-        bind(bnode() as ?context)
     }
 """
 
@@ -86,6 +84,10 @@ fun Route.readOrg() {
                             "_org" to prefixes["mo"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the results
@@ -119,6 +121,10 @@ fun Route.readOrg() {
                             "_org" to prefixes["mo"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the response

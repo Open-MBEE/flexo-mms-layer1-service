@@ -107,7 +107,7 @@ fun Route.createOrg() {
             log.info("Triplestore responded with:\n$constructResponseText")
 
             // validate whether the transaction succeeded
-            val model = validateTransaction(constructResponseText, localConditions)
+            val model = validateTransaction(constructResponseText, localConditions, null, "mo")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(model, prefixes["mo"])
