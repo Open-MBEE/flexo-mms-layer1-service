@@ -19,7 +19,7 @@ private const val SPARQL_BGP_REPO = """
                 ?thing_p ?thing_o .
         }
         
-        bind(iri(concat(str(?_repo), "/graphs/")) as ?metadataGraph)
+        bind(iri(concat(str(?_repo), "/graphs/Metadata")) as ?metadataGraph)
     }
     
     graph ?metadataGraph {
@@ -31,7 +31,7 @@ private const val SPARQL_BGP_REPO = """
 """
 
 private const val SPARQL_SELECT_REPO = """
-    select ?__mms_etag {
+    select distinct ?__mms_etag {
         $SPARQL_BGP_REPO
     } order by asc(?__mms_etag)
 """

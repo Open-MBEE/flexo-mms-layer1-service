@@ -4,6 +4,7 @@ import io.kotest.assertions.ktor.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
+import org.apache.jena.rdf.model.Literal
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.util.*
@@ -42,7 +43,7 @@ class RepoCreate : RepoAny() {
                                 MMS.id exactly repoId,
                                 MMS.org exactly localIri(orgPath).iri,
                                 DCTerms.title exactly repoName.en,
-                                MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
+                                MMS.etag startsWith "",
                                 arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
                             )
                         }

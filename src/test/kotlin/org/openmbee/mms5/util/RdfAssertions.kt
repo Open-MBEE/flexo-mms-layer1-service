@@ -136,6 +136,9 @@ infix fun Property.startsWith(node: RDFNode): PairPattern {
     return StartsWithPairPattern(this, node)
 }
 
+infix fun Property.startsWith(value: String): PairPattern {
+    return StartsWithPairPattern(this, ResourceFactory.createStringLiteral(value))
+}
 
 /**
  * Adds context to a Model

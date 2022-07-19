@@ -217,7 +217,7 @@ fun Route.createRepo() {
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "mor")
 
             // check that the user-supplied HTTP preconditions were met
-            handleEtagAndPreconditions(constructModel, prefixes["mor"])
+            handleEtagAndPreconditions(constructModel, prefixes["mor"], true)
 
             // respond
             call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)

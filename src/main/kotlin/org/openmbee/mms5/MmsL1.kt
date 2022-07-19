@@ -716,8 +716,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         checkPreconditions(etag)
     }
 
-
-    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?) {
+    @JvmOverloads
+    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?, allEtags: Boolean?=false) {
         // single resource
         if(resourceUri != null) {
             // create resource node in model
@@ -729,17 +729,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             }
 
             // etags
-            val etags = resourceNode.listProperties(MMS.etag).toList()
-            val etag = if(etags.size == 1) {
-                etags[0].`object`.asLiteral().string
-            } else {
-                etags.map { it.`object`.asLiteral().string }.sorted()
+            val etags = model.listObjectsOfProperty(if(true == allEtags) null else resourceNode, MMS.etag).toList()
+            val etag = when(etags.size) {
+                0 -> throw ServerBugException("Constructed model did not contain any etag values.")
+                1 -> etags[0].asLiteral().string
+                else -> etags.map { it.asLiteral().string }.sorted()
                     .joinToString(":").sha256()
-            }
-
-            // no etags were parsed
-            if(etags.size == 0) {
-                throw ServerBugException("Constructed model did not contain any etag values.")
             }
 
             // set etag value in response header
