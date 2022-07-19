@@ -6,21 +6,26 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 
-fun TriplesAsserter.validateLockTriples(
-    lockId: String,
-    etag: String,
-    orgPath: String,
-) {
+fun TriplesAsserter.thisLockTriples(lockId: String, etag: String) {
     // lock triples
     subjectTerse("mor-lock:$lockId") {
         exclusivelyHas(
             RDF.type exactly MMS.Lock,
             MMS.id exactly lockId,
             MMS.etag exactly etag,
-            MMS.commit startsWith model.expandPrefix("mor:/commits/").iri,
+            MMS.commit startsWith model.expandPrefix("mor-commit:").iri,
+            MMS.snapshot startsWith model.expandPrefix("mor-snapshot:Model.").iri,
             MMS.createdBy exactly model.expandPrefix("mu:").iri,
         )
     }
+}
+
+fun TriplesAsserter.validateLockTriples(
+    lockId: String,
+    etag: String,
+    orgPath: String,
+) {
+    thisLockTriples(lockId, etag)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoLockOwner") {

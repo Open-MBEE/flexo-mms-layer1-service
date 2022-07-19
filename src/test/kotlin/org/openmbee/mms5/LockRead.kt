@@ -38,16 +38,7 @@ class LockRead : LockAny() {
                     response shouldHaveStatus HttpStatusCode.OK
 
                     response includesTriples {
-                        // lock triples
-                        subjectTerse("mor-lock:$lockId") {
-                            exclusivelyHas(
-                                RDF.type exactly MMS.Lock,
-                                MMS.id exactly lockId,
-                                MMS.etag exactly etag!!,
-                                MMS.commit startsWith model.expandPrefix("mor:/commits/").iri,
-                                MMS.createdBy exactly model.expandPrefix("mu:").iri,
-                            )
-                        }
+                        thisLockTriples(lockId, etag!!)
                     }
                 }
             }

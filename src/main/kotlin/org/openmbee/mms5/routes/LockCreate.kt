@@ -333,7 +333,11 @@ fun Route.createLock() {
                         raw("""
                             $lockTriples
                             
-                            morl: mms:commit ?__mms_commitSource .
+                            morl: mms:commit ?__mms_commitSource ;
+                                mms:snapshot ?_snapshot .
+
+                            ?_snapshot a mms:Model ;
+                                mms:graph ?__mms_model .
                         """)
                     }
                 }
@@ -351,6 +355,7 @@ fun Route.createLock() {
 
                 // replace IRI substitution variables
                 iri(
+                    "_snapshot" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "__mms_model" to "${prefixes["mor-graph"]}Model.${transactionId}",
                     "_refSource" to refSource!!
                 )
