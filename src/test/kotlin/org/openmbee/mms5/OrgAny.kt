@@ -14,10 +14,10 @@ fun TriplesAsserter.validateOrgTriples(
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    val orgPath = localIri("/orgs/$orgId")
+    val orgIri = localIri("/orgs/$orgId")
 
     // org triples
-    subject(orgPath) {
+    subject(orgIri) {
         exclusivelyHas(
             RDF.type exactly MMS.Org,
             MMS.id exactly orgId,
@@ -26,6 +26,15 @@ fun TriplesAsserter.validateOrgTriples(
             *extraPatterns.toTypedArray()
         )
     }
+}
+
+fun TriplesAsserter.validateCreatedOrgTriples(
+    createResponse: TestApplicationResponse,
+    orgId: String,
+    orgName: String,
+    extraPatterns: List<PairPattern> = listOf()
+) {
+    validateOrgTriples(createResponse, orgId, orgName, extraPatterns)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {
@@ -34,12 +43,14 @@ fun TriplesAsserter.validateOrgTriples(
         )
     }
 
+    val orgIri = localIri("/orgs/$orgId")
+
     // transaction
     subjectTerse("mt:") {
         includes(
             RDF.type exactly MMS.Transaction,
             MMS.created hasDatatype XSD.dateTime,
-            MMS.org exactly orgPath.iri,
+            MMS.org exactly orgIri.iri,
         )
     }
 

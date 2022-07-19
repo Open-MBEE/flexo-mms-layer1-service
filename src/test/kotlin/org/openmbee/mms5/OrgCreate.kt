@@ -51,7 +51,7 @@ class OrgCreate : OrgAny() {
                     response exclusivelyHasTriples {
                         modelName = it
 
-                        validateOrgTriples(response, orgId, orgName)
+                        validateCreatedOrgTriples(response, orgId, orgName)
                     }
                 }
             }

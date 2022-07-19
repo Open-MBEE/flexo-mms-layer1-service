@@ -43,7 +43,7 @@ class OrgRead : OrgAny() {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
 
-                    response exclusivelyHasTriples {
+                    response includesTriples  {
                         validateOrgTriples(response, orgId, orgName)
                     }
                 }
@@ -52,9 +52,9 @@ class OrgRead : OrgAny() {
 
 
         "get org if-match etag" {
-            withTest {
-                val etag = createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
+            val etag = createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
 
+            withTest {
                 httpGet(orgPath) {
                     addHeader("If-Match", "\"${etag}\"")
                 }.apply {
@@ -64,9 +64,9 @@ class OrgRead : OrgAny() {
         }
 
         "get org if-match random" {
-            withTest {
-                createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
+            createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
 
+            withTest {
                 httpGet(orgPath) {
                     addHeader("If-Match", "\"${UUID.randomUUID()}\"")
                 }.apply {
@@ -110,14 +110,12 @@ class OrgRead : OrgAny() {
 
                     logger.info(response.content)
 
-                    response.exclusivelyHasTriples {
+                    response.includesTriples {
                         modelName = it
 
-                        subject(localIri(orgPath)) {
-                            validateOrgTriples(createBase.response, orgId, orgName)
-                            validateOrgTriples(createFoo.response, orgFooId, orgFooName)
-                            validateOrgTriples(createBar.response, orgBarId, orgBarName)
-                        }
+                        validateOrgTriples(createBase.response, orgId, orgName)
+                        validateOrgTriples(createFoo.response, orgFooId, orgFooName)
+                        validateOrgTriples(createBar.response, orgBarId, orgBarName)
                     }
                 }
             }
