@@ -27,7 +27,7 @@ private val SPARQL_BGP_ORG = """
 """
 
 private val SPARQL_SELECT_ORG = """
-    select ?__mms_etag {
+    select distinct ?__mms_etag {
         $SPARQL_BGP_ORG
     } order by asc(?__mms_etag)
 """

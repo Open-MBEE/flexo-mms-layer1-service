@@ -16,7 +16,7 @@ fun TriplesAsserter.validateRepoTriples(
     orgPath: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    val repoPath = localIri("$orgPath/repos/$repoId")
+    val repoPath = "$orgPath/repos/$repoId"
 
     // repo triples
     subject(repoPath) {
