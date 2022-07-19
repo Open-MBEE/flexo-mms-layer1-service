@@ -52,5 +52,23 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+        "query result is different between master and lock from model loads" {
+            loadModel(masterPath, loadTurtle)
+            createLock(repoPath, "branches/master", lockId)
+            loadModel(masterPath, loadTurtle2)
+            withTest {
+                httpPost("$lockPath/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    validateModelQueryResponse(sparqlQueryNamesResult)
+                }
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    // the load overwrites, so only bob exists
+                    validateModelQueryResponse(sparqlQueryNamesResultBob)
+                }
+            }
+        }
     }
 }

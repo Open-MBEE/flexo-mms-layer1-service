@@ -67,3 +67,13 @@ fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
         }
     }
 }
+
+fun loadModel(refPath: String, turtle: String): TestApplicationCall {
+    return withTest {
+        httpPost("$refPath/graph") {
+            setTurtleBody(turtle)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}

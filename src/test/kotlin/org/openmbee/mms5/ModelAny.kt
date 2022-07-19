@@ -103,6 +103,25 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
+    val sparqlQueryNamesResultBob = """
+        {
+            "head": {
+                "vars": [
+                    "name"
+                ]
+            },
+            "results": {
+                "bindings": [
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Bob"
+                        }
+                    }
+                ]
+            }
+        }
+    """.trimIndent()
     val loadTurtle = """
         @prefix : <https://mms.openmbee.org/demos/people/>
         @prefix foaf: <http://xmlns.com/foaf/0.1/>
@@ -113,6 +132,18 @@ open class ModelAny: RefAny() {
             :owner :Alice ;
             :likes :PeanutButter ;
             foaf:name "Rex" .
+    """.trimIndent()
+
+    val loadTurtle2 = """
+        @prefix : <https://mms.openmbee.org/demos/people/>
+        @prefix foaf: <http://xmlns.com/foaf/0.1/>
+
+        :Bob a :Person ;
+            foaf:name "Bob" .
+        :Fluffy a :Cat ;
+            :owner :Bob ;
+            :likes :Jelly ;
+            foaf:name "Fluffy" .
     """.trimIndent()
 
     fun TestApplicationCall.validateModelQueryResponse(
