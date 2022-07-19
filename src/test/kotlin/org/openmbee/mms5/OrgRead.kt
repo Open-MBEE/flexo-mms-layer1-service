@@ -80,7 +80,7 @@ class OrgRead : OrgAny() {
 
             withTest {
                 httpGet(orgPath) {
-                    addHeader("If-None-Match", create.response.headers[HttpHeaders.ETag]!!)
+                    addHeader("If-None-Match", "\"${create.response.headers[HttpHeaders.ETag]!!}\"")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }
