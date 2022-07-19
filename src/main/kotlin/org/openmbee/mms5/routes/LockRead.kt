@@ -1,87 +1,84 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.application.*
-import io.ktor.http.HttpHeaders.ETag
 import io.ktor.response.*
 import io.ktor.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
-import java.net.http.HttpHeaders
 
-private val SPARQL_BGP_ORG = """
-    graph m-graph:Cluster {
-        ?_org a mms:Org ;
+private val SPARQL_BGP_LOCK = """
+    graph mor-graph:Metadata {
+        ?_lock a mms:Lock ;
             mms:etag ?__mms_etag ;
-            ?org_p ?org_o .
+            ?lock_p ?lock_o .
         
         optional {
-            ?thing mms:org ?_org ;
+            ?thing mms:lock ?_lock ;
                 ?thing_p ?thing_o .
         }
     }
     
-    ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
+    ${permittedActionSparqlBgp(Permission.READ_LOCK, Scope.LOCK)}
 """
 
-private val SPARQL_SELECT_ORG = """
-    select ?__mms_etag {
-        $SPARQL_BGP_ORG
+private val SPARQL_SELECT_LOCK = """
+    select distinct ?__mms_etag {
+        $SPARQL_BGP_LOCK
     } order by asc(?__mms_etag)
 """
 
-private val SPARQL_CONSTRUCT_ORG = """
+private val SPARQL_CONSTRUCT_LOCK = """
     construct {
-        ?_org ?org_p ?org_o ;
+        ?_lock ?lock_p ?lock_o ;
             mms:etag ?__mms_etag .
         
         ?thing ?thing_p ?thing_o .
         
         ?_context a mms:Context ;
-            mms:permit mms-object:Permission.ReadOrg ;
-            mms:policy ?policy ;
-            .
+            mms:permit mms-object:Permission.ReadLock ;
+            mms:policy ?policy .
         
         ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
-        ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
+        ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
     } where {
-        $SPARQL_BGP_ORG
+        $SPARQL_BGP_LOCK
         
         graph m-graph:AccessControl.Policies {
             ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
-                ?orgPolicy a mms:Policy ;
-                    mms:scope ?_org ;
-                    ?orgPolicy_p ?orgPolicy_o .
+                ?lockPolicy a mms:Policy ;
+                    mms:scope ?_lock ;
+                    ?lockPolicy_p ?lockPolicy_o .
             }
         }
     }
 """
 
-fun Route.readOrg() {
-    route("/orgs/{orgId?}") {
+fun Route.readLock() {
+    route("/orgs/{orgId}/repos/{repoId}/locks/{lockId?}") {
         head {
-            call.mmsL1(Permission.READ_ORG) {
+            call.mmsL1(Permission.READ_LOCK) {
                 // parse path params
                 pathParams {
                     org()
+                    repo()
+                    lock()
                 }
 
-                // cache whether this request is asking for all orgs
-                val allOrgs = orgId?.isBlank() ?: true
+                // cache whether this request is asking for all locks
+                val allLocks = lockId?.isBlank() ?: true
 
                 // use quicker select query to fetch etags
-                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_LOCK) {
                     prefixes(prefixes)
 
-                    // get by orgId
-                    if(!allOrgs) {
+                    // get by lockId
+                    if(!allLocks) {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_lock" to prefixes["morl"]!!,
                         )
                     }
 
@@ -93,7 +90,7 @@ fun Route.readOrg() {
                 // parse the results
                 val results = Json.parseToJsonElement(selectResponseText).jsonObject
 
-                // hash all the org etags
+                // hash all the lock etags
                 handleEtagAndPreconditions(results)
 
                 // respond
@@ -102,23 +99,25 @@ fun Route.readOrg() {
         }
 
         get {
-            call.mmsL1(Permission.READ_ORG) {
+            call.mmsL1(Permission.READ_LOCK) {
                 // parse path params
                 pathParams {
                     org()
+                    repo()
+                    lock()
                 }
 
-                // cache whether this request is asking for all orgs
-                val allOrgs = orgId?.isBlank() ?: true
+                // cache whether this request is asking for all locks
+                val allLocks = lockId?.isBlank() ?: true
 
-                // fetch all org details
-                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                // fetch all lock details
+                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_LOCK) {
                     prefixes(prefixes)
 
-                    // get by orgId
-                    if(!allOrgs) {
+                    // get by lockId
+                    if(!allLocks) {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_lock" to prefixes["morl"]!!,
                         )
                     }
 
@@ -129,13 +128,13 @@ fun Route.readOrg() {
 
                 // parse the response
                 parseConstructResponse(constructResponseText) {
-                    // hash all the org etags
-                    if(allOrgs) {
-                        handleEtagAndPreconditions(model, MMS.Org)
+                    // hash all the repo etags
+                    if(allLocks) {
+                        handleEtagAndPreconditions(model, MMS.Lock)
                     }
-                    // just the individual org
+                    // just the individual repo
                     else {
-                        handleEtagAndPreconditions(model, prefixes["mo"])
+                        handleEtagAndPreconditions(model, prefixes["morl"])
                     }
                 }
 

@@ -35,7 +35,7 @@ class ModelQuery : ModelAny() {
         }
         "query result is different between master and lock" {
             commitModel(masterPath, sparqlUpdate)
-            createLock(repoPath, "master", lockId, lockName)
+            createLock(repoPath, "branches/master", lockId)
             commitModel(masterPath, sparqlUpdate2)
             withTest {
                 //branch model does not have second updates

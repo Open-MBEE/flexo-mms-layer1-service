@@ -35,7 +35,6 @@ class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): 
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
-
     }
 
     fun addNodes(subject: Resource, vararg pairs: Pair<Property, String>): KModel {

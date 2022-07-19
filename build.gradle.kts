@@ -1,6 +1,4 @@
 
-val kotlinVersion = "1.7.0"
-
 plugins {
     application
     kotlin("jvm") version "1.7.10"

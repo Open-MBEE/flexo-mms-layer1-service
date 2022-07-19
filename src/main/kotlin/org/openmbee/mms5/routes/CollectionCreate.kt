@@ -140,7 +140,7 @@ fun Route.createCollection() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "moc")
 
                         raw("""
                             graph m-graph:Cluster {
@@ -167,7 +167,7 @@ fun Route.createCollection() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "moc")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(constructModel, prefixes["moc"])

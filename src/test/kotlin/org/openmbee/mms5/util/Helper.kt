@@ -46,12 +46,11 @@ fun createBranch(repoPath: String, refId: String, branchId: String, branchName: 
     }
 }
 
-fun createLock(repoPath: String, refId: String, lockId: String, lockName: String): TestApplicationCall {
+fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicationCall {
     return withTest {
         httpPut("$repoPath/locks/$lockId") {
             setTurtleBody("""
-                <> dct:title "$lockName"@en .
-                <> mms:ref <./$refId> .
+                <> mms:ref <$refPath> .
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK

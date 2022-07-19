@@ -127,7 +127,7 @@ fun Route.createDiff() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn("diff")
+                        txn("diff", "mord")
 
                         raw("""
                             graph mor-graph:Metadata {
@@ -144,7 +144,7 @@ fun Route.createDiff() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, "diff", "mord")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(constructModel, prefixes["mord"])

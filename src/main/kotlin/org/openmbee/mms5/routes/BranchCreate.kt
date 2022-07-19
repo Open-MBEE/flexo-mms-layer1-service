@@ -122,7 +122,7 @@ fun Route.createBranch() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "morb")
 
                         raw("""
                             graph mor-graph:Metadata {
@@ -139,7 +139,7 @@ fun Route.createBranch() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "morb")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(constructModel, prefixes["morb"])

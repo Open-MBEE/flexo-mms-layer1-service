@@ -183,7 +183,7 @@ fun Route.commitModel() {
                 }
                 where {
                     group {
-                        txn()
+                        txn(null, "morc")
 
                         raw("""
                             graph mor-graph:Metadata {
@@ -200,7 +200,7 @@ fun Route.commitModel() {
             // log
             log.info("Triplestore responded with \n$constructResponseText")
 
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "morc")
 
             val transactionNode = constructModel.createResource(prefixes["mt"])
 

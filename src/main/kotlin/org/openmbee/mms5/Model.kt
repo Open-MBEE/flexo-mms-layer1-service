@@ -289,7 +289,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                 // prevent any bindings to outer scope
                 addElement(ElementFilter(E_Exists(ElementGroup().apply {
                     // negate authorization query; it must fail in order to produce a binding
-                    addElement(ElementFilter(E_NotExists(patternPlaceholder)))
+                    addElement(ElementFilter(E_NotExists(ElementGroup().apply {
+                        addElement(patternPlaceholder)
+                    })))
 
                     // throw error
                     addElement(ElementService("urn:mms:throw", ElementTriplesBlock()))
@@ -298,7 +300,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                 // add user query block
                 addElement(ElementGroup().apply {
                     // authorization query; it must match in order to evaluate user query
-                    addElement(ElementFilter(E_Exists(patternPlaceholder)))
+                    addElement(ElementFilter(E_Exists(ElementGroup().apply {
+                        addElement(patternPlaceholder)
+                    })))
 
                     // prep to set/bind the model graph node
                     lateinit var modelGraphNode: Node
@@ -342,8 +346,10 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                                         addTriplePattern(Triple.create(snapshotVar, RDF.type.asNode(), MMS.Staging.asNode()))
 
                                         // filter not exists { ?__mms_snapshot ^mms:snapshot/mms:snapshot/a mms:Model }
-                                        addElement(ElementFilter(E_NotExists(ElementPathBlock().apply {
-                                            addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
+                                        addElement(ElementFilter(E_NotExists(ElementGroup().apply {
+                                            addElement(ElementPathBlock().apply {
+                                                addTriplePath(TriplePath(snapshotVar, SNAPSHOT_SIBLINGS_PATH, MMS.Model.asNode()))
+                                            })
                                         })))
                                     })
                                 })

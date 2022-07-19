@@ -187,7 +187,7 @@ fun Route.createRepo() {
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn()
+                        txn(null, "mor")
 
                         raw("""
                             graph m-graph:Cluster {
@@ -214,7 +214,7 @@ fun Route.createRepo() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // validate whether the transaction succeeded
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "mor")
 
             // check that the user-supplied HTTP preconditions were met
             handleEtagAndPreconditions(constructModel, prefixes["mor"])

@@ -35,7 +35,7 @@ private val SPARQL_CONSTRUCT_BRANCH = """
         
         ?thing ?thing_p ?thing_o .
         
-        ?context a mms:Context ;
+        ?_context a mms:Context ;
             mms:permit mms-object:Permission.ReadBranch ;
             mms:policy ?policy ;
             .
@@ -55,8 +55,6 @@ private val SPARQL_CONSTRUCT_BRANCH = """
                     ?branchPolicy_p ?branchPolicy_o .
             }
         }
-        
-        bind(bnode() as ?context)
     }
 """
 
@@ -84,6 +82,10 @@ fun Route.readBranch() {
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the results
@@ -119,6 +121,10 @@ fun Route.readBranch() {
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
+
+                    iri(
+                        "_context" to "urn:mms:context:$transactionId",
+                    )
                 }
 
                 // parse the response

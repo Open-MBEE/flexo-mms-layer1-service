@@ -542,7 +542,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
     }
 
-    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null): KModel {
+    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
@@ -576,7 +576,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                                 {
                                     graph m-graph:AccessControl.Policies {
                                         optional {
-                                            ?__mms_policy mms:scope mo: ;
+                                            ?__mms_policy mms:scope ${scope?: "mo"}: ;
                                                 ?__mms_policy_p ?__mms_policy_o .
                                         }
                                     }
@@ -704,9 +704,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // compose etag
         val etag = if(bindings.size == 1) {
-            bindings[0].jsonObject["__mms_etag"]!!.jsonPrimitive.content
+            bindings[0].jsonObject["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content
         }  else {
-            bindings.joinToString(":") { it.jsonObject["__mms_etag"]!!.jsonPrimitive.content }.sha256()
+            bindings.joinToString(":") { it.jsonObject["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }.sha256()
         }
 
         // set etag value in response header

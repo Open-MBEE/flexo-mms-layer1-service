@@ -70,16 +70,10 @@ fun Application.configureRouting() {
             commitModel()
 
             createLock()
-            queryLock()
+            readLock()
             deleteLock()
 
-            createDiff()
-            queryDiff()
-            // deleteDiff()
-
-            createLock()
             queryLock()
-            deleteLock()
 
             createDiff()
             queryDiff()
