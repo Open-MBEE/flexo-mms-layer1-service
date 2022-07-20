@@ -1,21 +1,69 @@
 package org.openmbee.mms5.plugins
 
-import io.ktor.application.*
-import io.ktor.auth.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.locations.*
-import io.ktor.routing.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.serialization.*
+
+import io.ktor.server.locations.*
+import io.ktor.server.routing.*
 import io.ktor.util.*
+import io.ktor.util.reflect.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.charsets.*
+import org.openmbee.mms5.RdfContentTypes
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
 import org.openmbee.mms5.routes.gsp.readModel
 
 
 val client = HttpClient(CIO) {
+    install(ContentNegotiation) {
+        register(RdfContentTypes.Turtle, TextConverter())
+        register(RdfContentTypes.JsonLd, TextConverter())
+    }
+
     engine {
         requestTimeout = 15 * 60 * 1000 // timeout after 15 minutes
     }
+}
+
+
+class TextConverter: ContentConverter {
+    fun stringify(obj: Any?): String {
+        if(obj == null) return ""
+        return obj as String
+    }
+
+    override suspend fun deserialize(charset: Charset, typeInfo: TypeInfo, content: ByteReadChannel): Any? {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun serialize(
+        contentType: ContentType,
+        charset: Charset,
+        typeInfo: TypeInfo,
+        value: Any
+    ): OutgoingContent? {
+        TODO("Not yet implemented")
+    }
+
+    //
+    // override suspend fun convertForReceive(context: PipelineContext<ApplicationReceiveRequest, ApplicationCall>): Any? {
+    //     return context.context.receiveText()
+    // }
+    //
+    // override suspend fun convertForSend(
+    //     context: PipelineContext<Any, ApplicationCall>,
+    //     contentType: ContentType,
+    //     value: Any
+    // ): Any? {
+    //     return TextContent(this.stringify(value), contentType.withCharset(context.call.suitableCharset()))
+    // }
 }
 
 

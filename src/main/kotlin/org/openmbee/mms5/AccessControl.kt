@@ -1,6 +1,6 @@
 package org.openmbee.mms5
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 
 enum class Crud(val id: String) {
     CREATE("Create"),

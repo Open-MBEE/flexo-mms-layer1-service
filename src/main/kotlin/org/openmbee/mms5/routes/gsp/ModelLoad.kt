@@ -1,13 +1,13 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -98,23 +98,23 @@ fun Route.loadModel() {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
-                            call.request.headers[HttpHeaders.Authorization]?.let { auth ->
+                            call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
                                 append(HttpHeaders.Authorization, auth)
                             }
                         }
                         // stream request body from client to load service
                         // TODO: Handle exceptions
-                        body = object: OutgoingContent.WriteChannelContent() {
+                        setBody(object: OutgoingContent.WriteChannelContent() {
                             override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)
                             override val contentLength = call.request.header(HttpHeaders.ContentLength)!!.toLong()
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
-                        }
+                        })
                     }
 
                     // read response body
-                    val responseText = response.readText()
+                    val responseText = response.bodyAsText()
 
                     // non-200
                     if(!response.status.isSuccess()) {
@@ -164,17 +164,20 @@ fun Route.loadModel() {
 
                         // forward the header for the content type, or default to turtle
                         contentType(ContentType.parse(modelContentType))
+                        // headers {
+                        //     append(HttpHeaders.ContentType, modelContentType)
+                        // }
 
                         // stream request body from client to GSP endpoint
-                        body = object : OutgoingContent.WriteChannelContent() {
+                        setBody(object : OutgoingContent.WriteChannelContent() {
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
-                        }
+                        })
                     }
 
                     // read response body
-                    val responseText = response.readText()
+                    val responseText = response.bodyAsText()
 
                     // non-200
                     if(!response.status.isSuccess())  {

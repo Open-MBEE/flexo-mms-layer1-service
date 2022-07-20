@@ -1,8 +1,8 @@
 package org.openmbee.mms5.routes
 
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.selects.select
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource

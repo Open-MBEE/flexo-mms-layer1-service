@@ -2,17 +2,20 @@ package org.openmbee.mms5.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import io.ktor.application.*
-import io.ktor.auth.*
-import io.ktor.auth.jwt.*
+import io.ktor.client.engine.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
+import io.ktor.server.engine.*
 
-fun Application.configureAuthentication() {
+fun Application.configureAuthentication(environment: ApplicationEnvironment) {
     authentication {
         jwt {
             val jwtAudience = environment.config.property("jwt.audience").getString()
             val issuer = environment.config.property("jwt.domain").getString()
             val secret = environment.config.property("jwt.secret").getString()
             realm = environment.config.property("jwt.realm").getString()
+
             verifier(
                 JWT.require(Algorithm.HMAC256(secret))
                     .withAudience(jwtAudience)

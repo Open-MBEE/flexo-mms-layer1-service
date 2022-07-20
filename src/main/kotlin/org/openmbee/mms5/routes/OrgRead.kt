@@ -1,9 +1,9 @@
 package org.openmbee.mms5.routes
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 import io.ktor.http.HttpHeaders.ETag
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.apache.jena.rdf.model.Resource

@@ -13,10 +13,11 @@ class ModelCommit: ModelAny() {
                     setSparqlUpdateBody(sparqlUpdate)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+
                     val etag = response.headers[HttpHeaders.ETag]
+                    etag.shouldNotBeBlank()
+
                     response exclusivelyHasTriples {
-                        modelName = "response"
                         validateModelCommitResponse(masterPath, etag!!, repoEtag)
                     }
                 }
@@ -25,15 +26,17 @@ class ModelCommit: ModelAny() {
 
         "commit model on branch" {
             val branch = createBranch(repoPath, "master", branchId, branchName)
+
             withTest {
                 httpPost("$branchPath/update") {
                     setSparqlUpdateBody(sparqlUpdate)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+
                     val etag = response.headers[HttpHeaders.ETag]
+                    etag.shouldNotBeBlank()
+
                     response exclusivelyHasTriples {
-                        modelName = "response"
                         validateModelCommitResponse(branchPath, etag!!, repoEtag)
                     }
                 }
