@@ -152,24 +152,22 @@ fun Route.loadModel() {
                 // GSP is configured; use it
                 if(application.quadStoreGraphStoreProtocolUrl != null) {
                     // deduce content type
-                    val modelContentType = requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
+                    val modelContentType = RdfContentTypes.fromString(requestBodyContentType)
+                        // requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
 
                     // not allowed
-                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType)
+                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType.toString())
 
                     // submit a PUT request to the quad-store's GSP endpoint
                     val response: HttpResponse = client.put(application.quadStoreGraphStoreProtocolUrl!!) {
                         // add the graph query parameter per the GSP specification
                         parameter("graph", loadGraphUri)
 
-                        // forward the header for the content type, or default to turtle
-                        contentType(ContentType.parse(modelContentType))
-                        // headers {
-                        //     append(HttpHeaders.ContentType, modelContentType)
-                        // }
-
                         // stream request body from client to GSP endpoint
                         setBody(object : OutgoingContent.WriteChannelContent() {
+                            // forward the header for the content type, or default to turtle
+                            override val contentType = modelContentType
+
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }

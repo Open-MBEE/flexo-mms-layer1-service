@@ -15,6 +15,7 @@ import io.ktor.util.*
 import io.ktor.util.reflect.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
+import io.ktor.utils.io.jvm.javaio.*
 import org.openmbee.mms5.RdfContentTypes
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
@@ -40,7 +41,7 @@ class TextConverter: ContentConverter {
     }
 
     override suspend fun deserialize(charset: Charset, typeInfo: TypeInfo, content: ByteReadChannel): Any? {
-        TODO("Not yet implemented")
+        return content.toInputStream().bufferedReader().use { it.readText() }
     }
 
     override suspend fun serialize(
@@ -49,7 +50,7 @@ class TextConverter: ContentConverter {
         typeInfo: TypeInfo,
         value: Any
     ): OutgoingContent? {
-        TODO("Not yet implemented")
+        return TextContent(this.stringify(value), contentType)
     }
 
     //
