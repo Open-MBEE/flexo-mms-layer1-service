@@ -153,7 +153,6 @@ fun Route.loadModel() {
                 if(application.quadStoreGraphStoreProtocolUrl != null) {
                     // deduce content type
                     val modelContentType = RdfContentTypes.fromString(requestBodyContentType)
-                        // requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
 
                     // not allowed
                     if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType.toString())
