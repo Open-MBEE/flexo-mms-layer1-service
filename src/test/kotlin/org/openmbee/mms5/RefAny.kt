@@ -39,7 +39,7 @@ open class RefAny : RepoAny() {
         response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
         response exclusivelyHasTriples {
-            modelName = "response"
+            modelName = "CreateBranch"
 
             subject(localIri(branchPath)) {
                 includes(
@@ -47,25 +47,24 @@ open class RefAny : RepoAny() {
                     MMS.id exactly branchId,
                     DCTerms.title exactly branchName.en,
                     MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
-                    MMS.commit exactly localIri("$commitsPath/$fromCommit").iri,
+                    MMS.commit startsWith localIri("$commitsPath/").iri,
                     MMS.createdBy exactly userIri("root").iri
                 )
             }
-            /*
-            //currently it returns AutoOrgOwner, shouldn't it be branch owner? or repo owner,
-            //or does it check for the same user as orgonwer??
-            matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {
+
+            matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner") {
                 includes(
                     RDF.type exactly MMS.Policy,
                 )
-            }*/
+            }
+
             subjectTerse("mt:") {
                 includes(
                     RDF.type exactly MMS.Transaction,
                     MMS.created hasDatatype XSD.dateTime,
-                    MMS.org exactly orgPath.iri,
-                    MMS.repo exactly repoPath.iri,
-                    MMS.branch exactly branchPath.iri,
+                    MMS.org exactly localIri(orgPath).iri,
+                    MMS.repo exactly localIri(repoPath).iri,
+                    MMS.branch exactly localIri(branchPath).iri,
                     MMS.user exactly userIri("root").iri
                 )
             }

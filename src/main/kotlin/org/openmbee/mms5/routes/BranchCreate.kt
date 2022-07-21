@@ -136,7 +136,16 @@ fun Route.createBranch() {
             }
 
             // execute construct
-            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+                prefixes(prefixes)
+
+                // replace IRI substitution variables
+                iri(
+                    // user specified either ref or commit
+                    if(refSource != null) "_refSource" to refSource!!
+                    else "__mms_commitSource" to commitSource!!,
+                )
+            }
 
             // validate whether the transaction succeeded
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "morb")
