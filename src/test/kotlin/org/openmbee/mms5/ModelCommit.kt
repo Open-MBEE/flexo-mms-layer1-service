@@ -1,6 +1,5 @@
 package org.openmbee.mms5
 
-import io.kotest.assertions.ktor.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import org.openmbee.mms5.util.*
@@ -18,7 +17,7 @@ class ModelCommit: ModelAny() {
                     etag.shouldNotBeBlank()
 
                     response exclusivelyHasTriples {
-                        validateModelCommitResponse(masterPath, etag!!, repoEtag)
+                        validateModelCommitResponse(masterPath, etag!!)
                     }
                 }
             }
@@ -37,7 +36,7 @@ class ModelCommit: ModelAny() {
                     etag.shouldNotBeBlank()
 
                     response exclusivelyHasTriples {
-                        validateModelCommitResponse(branchPath, etag!!, repoEtag)
+                        validateModelCommitResponse(branchPath, etag!!)
                     }
                 }
             }

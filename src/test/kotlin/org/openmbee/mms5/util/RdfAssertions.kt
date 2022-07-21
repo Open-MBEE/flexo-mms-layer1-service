@@ -2,11 +2,9 @@ package org.openmbee.mms5.util
 
 
 import io.kotest.assertions.fail
-import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
-import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.testing.*

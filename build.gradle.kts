@@ -31,9 +31,6 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
 
-    val kotestAssertionsKtorVersion = "1.0.3"
-    testImplementation("io.kotest.extensions:kotest-assertions-ktor:$kotestAssertionsKtorVersion")
-
     val commonsCliVersion = "1.5.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 

@@ -3,8 +3,6 @@ package org.openmbee.mms5
 import io.kotest.assertions.json.shouldBeJsonObject
 import io.kotest.assertions.json.shouldContainJsonKey
 import io.kotest.assertions.json.shouldContainJsonKeyValue
-import io.kotest.assertions.ktor.shouldHaveHeader
-import io.kotest.assertions.ktor.shouldHaveStatus
 import io.ktor.http.*
 import org.openmbee.mms5.util.*
 

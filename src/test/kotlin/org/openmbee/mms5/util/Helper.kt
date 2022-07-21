@@ -1,6 +1,5 @@
 package org.openmbee.mms5.util
 
-import io.kotest.assertions.ktor.shouldHaveStatus
 import io.ktor.http.*
 import io.ktor.server.testing.*
 
