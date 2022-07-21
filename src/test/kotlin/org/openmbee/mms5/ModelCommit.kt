@@ -4,42 +4,41 @@ import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import org.openmbee.mms5.util.*
 
+fun ModelCommit.commitAndValidateModel(branchPath: String) {
+    withTest {
+        httpPost("$branchPath/update") {
+            setSparqlUpdateBody(sparqlUpdate)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.Created
+
+            val etag = response.headers[HttpHeaders.ETag]
+            etag.shouldNotBeBlank()
+
+            response exclusivelyHasTriples {
+                validateModelCommitResponse(branchPath, etag!!)
+            }
+        }
+    }
+}
+
 class ModelCommit: ModelAny() {
     init {
         "commit model on master" {
-            withTest {
-                httpPost("$masterPath/update") {
-                    setSparqlUpdateBody(sparqlUpdate)
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-
-                    val etag = response.headers[HttpHeaders.ETag]
-                    etag.shouldNotBeBlank()
-
-                    response exclusivelyHasTriples {
-                        validateModelCommitResponse(masterPath, etag!!)
-                    }
-                }
-            }
+            commitAndValidateModel(masterPath)
         }
 
         "commit model on empty master" {
             val branch = createBranch(repoPath, "master", branchId, branchName)
 
-            withTest {
-                httpPost("$branchPath/update") {
-                    setSparqlUpdateBody(sparqlUpdate)
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
+            commitAndValidateModel(branchPath)
+        }
 
-                    val etag = response.headers[HttpHeaders.ETag]
-                    etag.shouldNotBeBlank()
+        "commit model on non-empty master" {
+            commitModel(masterPath, sparqlUpdate)
 
-                    response exclusivelyHasTriples {
-                        validateModelCommitResponse(branchPath, etag!!)
-                    }
-                }
-            }
+            val branch = createBranch(repoPath, "master", branchId, branchName)
+
+            commitAndValidateModel(branchPath)
         }
     }
 }
