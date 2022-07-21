@@ -157,27 +157,50 @@ fun Route.createBranch() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
-                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to graph mor-graph:Staging.${transactionId} ;
+                        copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
                         
-                        insert {
-                            morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
-                            mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                mms:graph mor-graph:Staging.${transactionId} ;
-                                .
+                        insert data {
+                            graph m:Graphs {
+                                ?_stgGraph a mms:SnapshotGraph .
+                            }
+                        
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_stgSnapshot . 
+                                ?_stgSnapshot a mms:Staging ;
+                                    mms:graph ?_stgGraph ;
+                                    .
+                            }
                         }
-                    """)
+                    """) {
+                        iri(
+                            "_stgGraph" to "mor-graph:Staging.${transactionId}",
+                            "_stgSnapshot" to "mor-snapshot:Staging.${transactionId}",
+                        )
+                    }
 
                     // copy staging => model
                     executeSparqlUpdate("""
-                        copy graph mor-graph:Staging.${transactionId} to graph mor-graph:Model.${transactionId} ;
+                        copy silent graph ?_stgGraph to ?_mdlGraph ;
                         
-                        insert {
-                            morb: mms:snapshot mor-snapshot:Model.${transactionId} .
-                            mor-snapshot:Model.${transactionId} a mms:Model ;
-                                mms:graph mor-graph:Model.${transactionId} ;
-                                .
+                        insert data {
+                            graph m:Graphs {
+                                ?_mdlGraph a mms:SnapshotGraph .
+                            }
+
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_mdlSnapshot .
+                                ?_mdlSnapshot a mms:Model ;
+                                    mms:graph ?_mdlGraph ;
+                                    .
+                            }
                         }
-                    """)
+                    """) {
+                        iri(
+                            "_stgGraph" to "mor-graph:Staging.${transactionId}",
+                            "_mdlGraph" to "mor-graph:Model.${transactionId}",
+                            "_mdlSnapshot" to "mor-snapshot:Model.${transactionId}",
+                        )
+                    }
                 }
                 // no snapshots available, must build for commit
                 else {

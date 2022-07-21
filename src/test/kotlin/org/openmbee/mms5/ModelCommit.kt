@@ -23,7 +23,7 @@ class ModelCommit: ModelAny() {
             }
         }
 
-        "commit model on branch" {
+        "commit model on empty master" {
             val branch = createBranch(repoPath, "master", branchId, branchName)
 
             withTest {
