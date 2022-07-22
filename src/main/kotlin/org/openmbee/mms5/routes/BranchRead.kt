@@ -23,7 +23,7 @@ private val SPARQL_BGP_BRANCH = """
 """
 
 private val SPARQL_SELECT_BRANCH = """
-    select ?__mms_etag {
+    select distinct ?__mms_etag {
         $SPARQL_BGP_BRANCH
     } order by asc(?__mms_etag)
 """
@@ -72,16 +72,20 @@ fun Route.readBranch() {
                 // cache whether this request is asking for all branches
                 val allBranches = branchId?.isBlank() ?: true
 
-                // use quicker select query to fetch etags
-                val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_BRANCH) {
-                    prefixes(prefixes)
+                val sparqlSelect = SPARQL_SELECT_BRANCH.let {
+                    if(allBranches) it.replace("""\smorb:(?=\s)""".toRegex(), "") else it
+                }
 
+                // use quicker select query to fetch etags
+                val selectResponseText = executeSparqlSelectOrAsk(sparqlSelect) {
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
+
+                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",
@@ -111,16 +115,20 @@ fun Route.readBranch() {
                 // cache whether this request is asking for all branches
                 val allBranches = branchId?.isBlank() ?: true
 
-                // fetch all branch details
-                val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_BRANCH) {
-                    prefixes(prefixes)
+                val sparqlConstruct = SPARQL_CONSTRUCT_BRANCH.let {
+                    if(allBranches) it.replace("""\smorb:(?=\s)""".toRegex(), "") else it
+                }
 
+                // fetch all branch details
+                val constructResponseText = executeSparqlConstructOrDescribe(sparqlConstruct) {
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
+
+                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",

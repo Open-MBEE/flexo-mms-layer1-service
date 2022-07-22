@@ -90,6 +90,9 @@ fun Route.createRepo() {
                     txn {
                         // create a new policy that grants this user admin over the new repo
                         autoPolicy(Scope.REPO, Role.ADMIN_REPO)
+
+                        // create similar policy for master branch
+                        autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
                     }
 
                     // insert the triples about the new repo, including arbitrary metadata supplied by user
@@ -119,6 +122,7 @@ fun Route.createRepo() {
                                 mms:etag ?_branchEtag ;
                                 mms:commit morc: ;
                                 mms:snapshot ?_model, ?_staging ;
+                                dct:title "Master"@en ;
                                 .
                             
                             # initial model graph

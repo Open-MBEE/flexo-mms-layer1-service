@@ -3,6 +3,7 @@ package org.openmbee.mms5.routes
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
@@ -182,8 +183,8 @@ fun Route.createBranch() {
                         }
                     """) {
                         iri(
-                            "_stgGraph" to "mor-graph:Staging.${transactionId}",
-                            "_stgSnapshot" to "mor-snapshot:Staging.${transactionId}",
+                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                            "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                         )
                     }
 
@@ -205,9 +206,9 @@ fun Route.createBranch() {
                         }
                     """) {
                         iri(
-                            "_stgGraph" to "mor-graph:Staging.${transactionId}",
-                            "_mdlGraph" to "mor-graph:Model.${transactionId}",
-                            "_mdlSnapshot" to "mor-snapshot:Model.${transactionId}",
+                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                            "_mdlGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                            "_mdlSnapshot" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                         )
                     }
                 }

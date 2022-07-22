@@ -24,7 +24,7 @@ fun TriplesAsserter.validateRepoTriples(
             RDF.type exactly MMS.Repo,
             MMS.id exactly repoId,
             DCTerms.title exactly repoName.en,
-            MMS.etag exactly createResponse.headers[HttpHeaders.ETag]!!,
+            MMS.etag startsWith "",
             *extraPatterns.toTypedArray()
         )
     }
