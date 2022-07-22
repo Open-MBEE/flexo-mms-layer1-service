@@ -193,6 +193,9 @@ fun Route.createRepo() {
                     group {
                         txn(null, "mor")
 
+                        // include the AutoBranchOwner policy
+                        auth("morb")
+
                         raw("""
                             graph m-graph:Cluster {
                                 mor: a mms:Repo ;

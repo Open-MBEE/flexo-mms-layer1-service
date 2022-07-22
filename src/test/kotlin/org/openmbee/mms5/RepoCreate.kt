@@ -7,6 +7,7 @@ import io.ktor.http.*
 import org.apache.jena.rdf.model.Literal
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
+import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 import org.slf4j.LoggerFactory
 
@@ -25,8 +26,7 @@ class RepoCreate : RepoAny() {
         "create valid repo" {
             withTest {
                 httpPut(repoPath) {
-                    setTurtleBody(
-                        """
+                    setTurtleBody("""
                         $validRepoBody
                         <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
                     """.trimIndent())
@@ -35,18 +35,30 @@ class RepoCreate : RepoAny() {
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
                     response exclusivelyHasTriples {
-                        modelName = "response"
+                        modelName = "CreateValidRepo"
 
-                        subject(localIri(repoPath)) {
-                            exclusivelyHas(
-                                RDF.type exactly MMS.Repo,
-                                MMS.id exactly repoId,
-                                MMS.org exactly localIri(orgPath).iri,
-                                DCTerms.title exactly repoName.en,
-                                MMS.etag startsWith "",
-                                arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                        validateRepoTriples(response, repoId, repoName, orgPath, listOf(
+                            arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                        ))
+
+                        // auto policy for master branch
+                        matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner.") {
+                            includes(
+                                RDF.type exactly MMS.Policy,
                             )
                         }
+
+                        // master branch
+                        subject(localIri("$repoPath/branches/master")) {
+                            includes(
+                                RDF.type exactly MMS.Branch,
+                                MMS.id exactly "master",
+                                DCTerms.title exactly "Master".en,
+                                MMS.etag startsWith "",
+                                MMS.commit startsWith localIri("$commitsPath/").iri,
+                            )
+                        }
+
                     }
                 }
             }
