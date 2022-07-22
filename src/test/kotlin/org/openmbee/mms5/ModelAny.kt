@@ -148,7 +148,7 @@ open class ModelAny: RefAny() {
         expectedJson: String
     ) {
         response shouldHaveStatus HttpStatusCode.OK
-        response.shouldHaveHeader("Content-Type", "application/sparql-results+json")
+        response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")
         response.content!!.shouldBeJsonObject()
         response.content!!.shouldEqualJson(expectedJson)
     }

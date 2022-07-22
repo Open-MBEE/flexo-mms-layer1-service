@@ -21,14 +21,14 @@ class RepoQuery : ModelAny() {
         "query time of commit of lock" {
             val update = commitModel(masterPath, sparqlUpdate)
             val etag = update.response.headers[HttpHeaders.ETag]!!
-            createLock(repoPath, "branches/master", lockId)
+            createLock(repoPath, masterPath, lockId)
             // lock should be pointing to the commit from update
             withTest {
                 httpPost("$repoPath/query") {
                     setSparqlQueryBody(lockCommitQuery)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
-                    response.shouldHaveHeader("Content-Type", "application/sparql-results+json")
+                    response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")
                     response.content!!.shouldBeJsonObject()
                     response.content!!.shouldContainJsonKeyValue("$.results.bindings[0].etag.value", etag)
                     response.content!!.shouldContainJsonKey("$.results.bindings[0].time.value")
