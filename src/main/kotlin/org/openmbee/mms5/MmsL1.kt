@@ -574,8 +574,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                         where {
                             raw("""
                                 {
-                                    graph m-graph:AccessControl.Policies {
-                                        optional {
+                                    optional {
+                                        graph m-graph:AccessControl.Policies {
                                             ?__mms_policy mms:scope ${scope?: "mo"}: ;
                                                 ?__mms_policy_p ?__mms_policy_o .
                                         }

@@ -169,8 +169,8 @@ open class WhereBuilder(
 
     fun auth(scope: String?="mo", conditions: ConditionsGroup?=null): WhereBuilder {
         return raw("""
-            graph m-graph:AccessControl.Policies {
-                optional {
+            optional {
+                graph m-graph:AccessControl.Policies {
                     ?__mms_policy mms:scope ${scope?: "mo"}: ;
                         ?__mms_policy_p ?__mms_policy_o .
                 }
