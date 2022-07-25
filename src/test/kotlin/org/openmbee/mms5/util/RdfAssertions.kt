@@ -2,15 +2,11 @@ package org.openmbee.mms5.util
 
 
 import io.kotest.assertions.fail
-import io.kotest.assertions.ktor.shouldHaveHeader
 import io.kotest.assertions.withClue
-import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldNotBeEmpty
-import io.kotest.matchers.iterator.shouldHaveNext
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
-import io.ktor.request.*
+import io.ktor.server.request.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.*
 import org.openmbee.mms5.RdfContentTypes
@@ -136,6 +132,9 @@ infix fun Property.startsWith(node: RDFNode): PairPattern {
     return StartsWithPairPattern(this, node)
 }
 
+infix fun Property.startsWith(value: String): PairPattern {
+    return StartsWithPairPattern(this, ResourceFactory.createStringLiteral(value))
+}
 
 /**
  * Adds context to a Model

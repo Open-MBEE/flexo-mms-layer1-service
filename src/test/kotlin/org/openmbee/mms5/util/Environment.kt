@@ -2,9 +2,8 @@ package org.openmbee.mms5.util
 
 import com.typesafe.config.ConfigFactory
 import io.kotest.core.test.TestScope
-import io.kotest.extensions.system.withEnvironment
 import io.kotest.extensions.system.withSystemProperties
-import io.ktor.config.*
+import io.ktor.server.config.*
 import io.ktor.server.engine.*
 import io.ktor.server.testing.*
 import java.io.InputStreamReader

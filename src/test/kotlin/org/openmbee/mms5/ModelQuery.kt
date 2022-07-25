@@ -35,7 +35,7 @@ class ModelQuery : ModelAny() {
         }
         "query result is different between master and lock" {
             commitModel(masterPath, sparqlUpdate)
-            createLock(repoPath, "branches/master", lockId)
+            createLock(repoPath, masterPath, lockId)
             commitModel(masterPath, sparqlUpdate2)
             withTest {
                 //branch model does not have second updates
@@ -54,7 +54,7 @@ class ModelQuery : ModelAny() {
         }
         "query result is different between master and lock from model loads" {
             loadModel(masterPath, loadTurtle)
-            createLock(repoPath, "branches/master", lockId)
+            createLock(repoPath, masterPath, lockId)
             loadModel(masterPath, loadTurtle2)
             withTest {
                 httpPost("$lockPath/query") {

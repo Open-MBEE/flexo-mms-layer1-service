@@ -2,8 +2,6 @@ package org.openmbee.mms5
 
 import io.kotest.assertions.json.shouldBeJsonObject
 import io.kotest.assertions.json.shouldEqualJson
-import io.kotest.assertions.ktor.shouldHaveHeader
-import io.kotest.assertions.ktor.shouldHaveStatus
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.RDF
@@ -150,7 +148,7 @@ open class ModelAny: RefAny() {
         expectedJson: String
     ) {
         response shouldHaveStatus HttpStatusCode.OK
-        response.shouldHaveHeader("Content-Type", "application/sparql-results+json")
+        response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")
         response.content!!.shouldBeJsonObject()
         response.content!!.shouldEqualJson(expectedJson)
     }
@@ -158,15 +156,14 @@ open class ModelAny: RefAny() {
     fun TriplesAsserter.validateModelCommitResponse(
         branchPath: String,
         etag: String,
-        parentCommit: String
     ) {
-        subject(localIri("$commitsPath/$etag")) {
+        matchOneSubjectByPrefix(localIri("$commitsPath/")) {
             includes(
                 RDF.type exactly MMS.Commit,
-                MMS.etag exactly etag!!,
+                MMS.etag exactly etag,
                 MMS.submitted hasDatatype XSD.dateTime,
-                MMS.parent exactly localIri("$commitsPath/$parentCommit").iri,
-                MMS.data exactly localIri("$commitsPath/$etag/data/")
+                MMS.parent startsWith localIri("$commitsPath/").iri,
+                MMS.data startsWith localIri("$commitsPath/").iri
             )
         }
         /*
@@ -180,9 +177,9 @@ open class ModelAny: RefAny() {
             includes(
                 RDF.type exactly MMS.Transaction,
                 MMS.created hasDatatype XSD.dateTime,
-                MMS.org exactly orgPath.iri,
-                MMS.repo exactly repoPath.iri,
-                MMS.branch exactly branchPath.iri,
+                MMS.org exactly localIri(orgPath).iri,
+                MMS.repo exactly localIri(repoPath).iri,
+                MMS.branch exactly localIri(branchPath).iri,
                 MMS.user exactly userIri("root").iri
             )
         }

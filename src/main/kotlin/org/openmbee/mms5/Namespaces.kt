@@ -214,6 +214,7 @@ object MMS {
 
 
     val RepoMetadataGraph = ResourceFactory.createResource("${BASE}RepoMetadataGraph")
+    val SnapshotGraph = ResourceFactory.createResource("${BASE}SnapshotGraph")
     val CollectionMetadataGraph = ResourceFactory.createResource("${BASE}CollectionMetadataGraph")
 
     // object properties
@@ -266,7 +267,7 @@ object MMS {
         val stagingGraph = ResourceFactory.createProperty(BASE_TXN, "stagingGraph")
         val baseModel = ResourceFactory.createProperty(BASE_TXN, "baseModel")
         val baseModelGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
-        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
+        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "sourceGraph")
 
         val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
         val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")

@@ -1,8 +1,9 @@
 package org.openmbee.mms5.routes
 
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
@@ -136,7 +137,16 @@ fun Route.createBranch() {
             }
 
             // execute construct
-            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+                prefixes(prefixes)
+
+                // replace IRI substitution variables
+                iri(
+                    // user specified either ref or commit
+                    if(refSource != null) "_refSource" to refSource!!
+                    else "__mms_commitSource" to commitSource!!,
+                )
+            }
 
             // validate whether the transaction succeeded
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "morb")
@@ -157,27 +167,50 @@ fun Route.createBranch() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
-                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to graph mor-graph:Staging.${transactionId} ;
+                        copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
                         
-                        insert {
-                            morb: mms:snapshot mor-snapshot:Staging.${transactionId} . 
-                            mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                mms:graph mor-graph:Staging.${transactionId} ;
-                                .
+                        insert data {
+                            graph m:Graphs {
+                                ?_stgGraph a mms:SnapshotGraph .
+                            }
+                        
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_stgSnapshot . 
+                                ?_stgSnapshot a mms:Staging ;
+                                    mms:graph ?_stgGraph ;
+                                    .
+                            }
                         }
-                    """)
+                    """) {
+                        iri(
+                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                            "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
+                        )
+                    }
 
                     // copy staging => model
                     executeSparqlUpdate("""
-                        copy graph mor-graph:Staging.${transactionId} to graph mor-graph:Model.${transactionId} ;
+                        copy silent graph ?_stgGraph to ?_mdlGraph ;
                         
-                        insert {
-                            morb: mms:snapshot mor-snapshot:Model.${transactionId} .
-                            mor-snapshot:Model.${transactionId} a mms:Model ;
-                                mms:graph mor-graph:Model.${transactionId} ;
-                                .
+                        insert data {
+                            graph m:Graphs {
+                                ?_mdlGraph a mms:SnapshotGraph .
+                            }
+
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_mdlSnapshot .
+                                ?_mdlSnapshot a mms:Model ;
+                                    mms:graph ?_mdlGraph ;
+                                    .
+                            }
                         }
-                    """)
+                    """) {
+                        iri(
+                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                            "_mdlGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+                            "_mdlSnapshot" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                        )
+                    }
                 }
                 // no snapshots available, must build for commit
                 else {

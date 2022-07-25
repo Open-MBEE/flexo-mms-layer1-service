@@ -31,9 +31,6 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
 
-    val kotestAssertionsKtorVersion = "1.0.3"
-    testImplementation("io.kotest.extensions:kotest-assertions-ktor:$kotestAssertionsKtorVersion")
-
     val commonsCliVersion = "1.5.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
@@ -48,15 +45,22 @@ dependencies {
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "1.6.8"
+    val ktorVersion = "2.0.3"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
+    implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
     implementation("io.ktor:ktor-server-core:$ktorVersion")
     implementation("io.ktor:ktor-server-host-common:$ktorVersion")
-    implementation("io.ktor:ktor-locations:$ktorVersion")
-    implementation("io.ktor:ktor-auth:$ktorVersion")
-    implementation("io.ktor:ktor-auth-jwt:$ktorVersion")
+    implementation("io.ktor:ktor-server-locations:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth:$ktorVersion")
+    implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-cors:$ktorVersion")
+    implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
+    implementation("io.ktor:ktor-server-forwarded-header:$ktorVersion")
+    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
+    // implementation("io.ktor:ktor-server-:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
     val consulVersion = "1.5.3"
