@@ -1140,10 +1140,12 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                         }
                     }
                 }
-                optional {
+                {
                     # insert every triple from the destination graph...
                     graph ?dstGraph {
-                        ?ins_s ?ins_p ?ins_o .
+                        optional {
+                            ?ins_s ?ins_p ?ins_o .
+                        }
                     }
                     
                     # ... that isn't in the source graph
