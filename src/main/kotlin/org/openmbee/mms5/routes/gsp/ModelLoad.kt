@@ -331,6 +331,7 @@ fun Route.loadModel() {
             }
 
             // empty delta (no changes)
+            /*  ignored for now for neptune workaround
             if(changeCount == 0uL) {
                 // locate branch node
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
@@ -348,6 +349,7 @@ fun Route.loadModel() {
                 call.respondText("$prefixes", RdfContentTypes.Turtle)
             }
             else {
+            */
                 // TODO add condition to update that the selected staging has not changed since diff creation using etag value
 
                 // replace current staging graph with the already loaded model in load graph
@@ -391,6 +393,7 @@ fun Route.loadModel() {
                 log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
+                call.response.header(HttpHeaders.ETag, transactionId)
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
                 // start copying staging to new model
@@ -415,7 +418,7 @@ fun Route.loadModel() {
                     )
                 }
 
-            }
+            //}
 
             // now that response has been sent to client, perform "clean up" work on quad-store
 
