@@ -90,9 +90,9 @@ fun Route.loadModel() {
             run {
                 // allow client to manually pass in URL to remote file
                 var loadUrl: String? = call.request.queryParameters["url"]
-                var loadServiceUrl = call.application.loadServiceUrl
+                var loadServiceUrl: String? = call.application.loadServiceUrl
                 // client did not explicitly provide a URL and the load service is configured
-                if(loadUrl == null && loadServiceUrl != null) {
+                if(loadUrl == null && loadServiceUrl != null && loadServiceUrl != "null") { // for some reason when running tests it's the string null
                     // submit a POST request to the load service endpoint
                     val response: HttpResponse = client.post(loadServiceUrl!! + "/" + diffId) {
                         // TODO: verify load service request is correct and complete
