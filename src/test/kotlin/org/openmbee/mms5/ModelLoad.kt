@@ -34,6 +34,7 @@ class ModelLoad : ModelAny() {
                 httpPost("$masterPath/graph") {
                     setTurtleBody("""
                         $loadTurtle
+
                         :Xavier a :Person ;
                             foaf:name "Xavier" .
                     """.trimIndent())
@@ -75,6 +76,7 @@ class ModelLoad : ModelAny() {
                     setTurtleBody("""
                         @prefix : <https://mms.openmbee.org/demos/people/>
                         @prefix foaf: <http://xmlns.com/foaf/0.1/>
+
                         :Xavier a :Person ;
                             foaf:name "Xavier" .
                     """.trimIndent())
