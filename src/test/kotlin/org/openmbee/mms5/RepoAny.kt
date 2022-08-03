@@ -16,21 +16,22 @@ fun TriplesAsserter.validateRepoTriples(
     orgPath: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    val repoPath = localIri("$orgPath/repos/$repoId")
+    val repoPath = "$orgPath/repos/$repoId"
 
     // repo triples
-    subject(repoPath) {
+    subject(localIri(repoPath)) {
         exclusivelyHas(
             RDF.type exactly MMS.Repo,
             MMS.id exactly repoId,
+            MMS.org exactly localIri(orgPath).iri,
             DCTerms.title exactly repoName.en,
-            MMS.etag exactly createResponse.headers[HttpHeaders.ETag]!!,
+            MMS.etag startsWith "",
             *extraPatterns.toTypedArray()
         )
     }
 
     // auto policy
-    matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner") {
+    matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
         includes(
             RDF.type exactly MMS.Policy,
         )
@@ -41,7 +42,7 @@ fun TriplesAsserter.validateRepoTriples(
         includes(
             RDF.type exactly MMS.Transaction,
             MMS.created hasDatatype XSD.dateTime,
-            MMS.repo exactly repoPath.iri,
+            MMS.repo exactly localIri(repoPath).iri,
         )
     }
 

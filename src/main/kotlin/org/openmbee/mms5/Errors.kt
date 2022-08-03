@@ -1,17 +1,14 @@
 package org.openmbee.mms5
 
-import io.ktor.application.*
-import io.ktor.features.*
+import io.ktor.server.application.*
 import io.ktor.http.*
-import io.ktor.response.*
+import io.ktor.server.response.*
 
 abstract class HttpException(msg: String, private val statusCode: HttpStatusCode): Exception(msg) {
     open suspend fun handle(call: ApplicationCall, text: String?=this.stackTraceToString()) {
         call.respondText(text ?: "Unspecified error", status=statusCode)
     }
 }
-
-
 
 open class Http304Exception(msg: String): HttpException(msg, HttpStatusCode.NotModified) {
     override suspend fun handle(call: ApplicationCall, text: String?) {

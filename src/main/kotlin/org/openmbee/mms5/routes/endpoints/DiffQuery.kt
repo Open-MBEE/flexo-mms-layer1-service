@@ -1,7 +1,7 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.application.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
 import org.openmbee.mms5.DIFF_QUERY_CONDITIONS
 import org.openmbee.mms5.Permission
 import org.openmbee.mms5.mmsL1

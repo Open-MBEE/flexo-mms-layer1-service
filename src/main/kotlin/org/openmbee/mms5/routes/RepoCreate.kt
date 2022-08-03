@@ -1,8 +1,8 @@
 package org.openmbee.mms5.routes
 
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
@@ -90,6 +90,9 @@ fun Route.createRepo() {
                     txn {
                         // create a new policy that grants this user admin over the new repo
                         autoPolicy(Scope.REPO, Role.ADMIN_REPO)
+
+                        // create similar policy for master branch
+                        autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
                     }
 
                     // insert the triples about the new repo, including arbitrary metadata supplied by user
@@ -119,6 +122,7 @@ fun Route.createRepo() {
                                 mms:etag ?_branchEtag ;
                                 mms:commit morc: ;
                                 mms:snapshot ?_model, ?_staging ;
+                                dct:title "Master"@en ;
                                 .
                             
                             # initial model graph
@@ -189,6 +193,9 @@ fun Route.createRepo() {
                     group {
                         txn(null, "mor")
 
+                        // include the AutoBranchOwner policy
+                        auth("morb")
+
                         raw("""
                             graph m-graph:Cluster {
                                 mor: a mms:Repo ;
@@ -217,7 +224,7 @@ fun Route.createRepo() {
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "mor")
 
             // check that the user-supplied HTTP preconditions were met
-            handleEtagAndPreconditions(constructModel, prefixes["mor"])
+            handleEtagAndPreconditions(constructModel, prefixes["mor"], true)
 
             // respond
             call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
