@@ -90,11 +90,11 @@ fun Route.loadModel() {
             run {
                 // allow client to manually pass in URL to remote file
                 var loadUrl: String? = call.request.queryParameters["url"]
-
+                var loadServiceUrl: String? = call.application.loadServiceUrl
                 // client did not explicitly provide a URL and the load service is configured
-                if(loadUrl == null && application.loadServiceUrl != null) {
+                if(loadUrl == null && loadServiceUrl != null && loadServiceUrl != "null") { // for some reason when running tests it's the string null
                     // submit a POST request to the load service endpoint
-                    val response: HttpResponse = client.post(application.loadServiceUrl!! + "/" + diffId) {
+                    val response: HttpResponse = client.post(loadServiceUrl!! + "/" + diffId) {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
@@ -331,6 +331,7 @@ fun Route.loadModel() {
             }
 
             // empty delta (no changes)
+            /*  ignored for now for neptune workaround
             if(changeCount == 0uL) {
                 // locate branch node
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
@@ -348,6 +349,7 @@ fun Route.loadModel() {
                 call.respondText("$prefixes", RdfContentTypes.Turtle)
             }
             else {
+            */
                 // TODO add condition to update that the selected staging has not changed since diff creation using etag value
 
                 // replace current staging graph with the already loaded model in load graph
@@ -391,6 +393,7 @@ fun Route.loadModel() {
                 log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
+                call.response.header(HttpHeaders.ETag, transactionId)
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
                 // start copying staging to new model
@@ -415,7 +418,7 @@ fun Route.loadModel() {
                     )
                 }
 
-            }
+            //}
 
             // now that response has been sent to client, perform "clean up" work on quad-store
 

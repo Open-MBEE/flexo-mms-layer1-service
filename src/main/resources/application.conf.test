@@ -1,5 +1,8 @@
 mms {
-
+    load-service {
+        url = ""
+        url = ${?MMS5_LOAD_SERVICE_URL}
+    }
 
     quad-store {
         query-url = "https://quad-store-domain-ro/sparql"
