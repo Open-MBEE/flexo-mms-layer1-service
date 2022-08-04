@@ -92,9 +92,9 @@ fun Route.loadModel() {
                 var loadUrl: String? = call.request.queryParameters["url"]
                 var loadServiceUrl: String? = call.application.loadServiceUrl
                 // client did not explicitly provide a URL and the load service is configured
-                if(loadUrl == null && loadServiceUrl != null && loadServiceUrl != "null") { // for some reason when running tests it's the string null
+                if(loadUrl == null && loadServiceUrl != null && loadServiceUrl != null) {
                     // submit a POST request to the load service endpoint
-                    val response: HttpResponse = client.post(loadServiceUrl!! + "/" + diffId) {
+                    val response: HttpResponse = client.post("$loadServiceUrl/$diffId") {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
@@ -106,7 +106,7 @@ fun Route.loadModel() {
                         // TODO: Handle exceptions
                         setBody(object: OutgoingContent.WriteChannelContent() {
                             override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)
-                            override val contentLength = call.request.header(HttpHeaders.ContentLength)!!.toLong()
+                            override val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLong() ?: 0L
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
