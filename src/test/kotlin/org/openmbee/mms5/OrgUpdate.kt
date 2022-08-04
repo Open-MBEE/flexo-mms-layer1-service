@@ -14,8 +14,10 @@ class OrgUpdate : OrgAny() {
 
             withTest {
                 httpPatch(orgPath) {
-                    setSparqlUpdateBody(
-                        """
+                    setSparqlUpdateBody("""
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        prefix dct: <http://purl.org/dc/terms/>
+
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
@@ -43,8 +45,10 @@ class OrgUpdate : OrgAny() {
 
             withTest {
                 httpPatch(orgPath) {
-                    setSparqlUpdateBody(
-                        """
+                    setSparqlUpdateBody("""                        
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        prefix dct: <http://purl.org/dc/terms/>
+
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }

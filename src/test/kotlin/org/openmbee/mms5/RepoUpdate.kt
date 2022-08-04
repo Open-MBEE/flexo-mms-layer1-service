@@ -17,8 +17,10 @@ class RepoUpdate : RepoAny() {
 
             withTest {
                 httpPatch(repoPath) {
-                    setSparqlUpdateBody(
-                        """
+                    setSparqlUpdateBody("""
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        prefix dct: <http://purl.org/dc/terms/>
+
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
@@ -32,7 +34,7 @@ class RepoUpdate : RepoAny() {
 
                     response exclusivelyHasTriples {
                         validateRepoTriples(
-                            response, repoId, repoName, orgPath, listOf(
+                            repoId, repoName, orgPath, listOf(
                                 FOAF.homepage exactly "https://www.openmbee.org/".iri
                             )
                         )
@@ -46,8 +48,10 @@ class RepoUpdate : RepoAny() {
 
             withTest {
                 httpPatch(repoPath) {
-                    setSparqlUpdateBody(
-                        """
+                    setSparqlUpdateBody("""
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        prefix dct: <http://purl.org/dc/terms/>
+
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }

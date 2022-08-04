@@ -10,7 +10,6 @@ import org.openmbee.mms5.util.*
 import org.slf4j.LoggerFactory
 
 fun TriplesAsserter.validateRepoTriples(
-    createResponse: TestApplicationResponse,
     repoId: String,
     repoName: String,
     orgPath: String,
@@ -30,6 +29,33 @@ fun TriplesAsserter.validateRepoTriples(
         )
     }
 
+    // master branch triples
+    subject(localIri("$repoPath/branches/master")) {
+        includes(
+            RDF.type exactly MMS.Branch,
+            MMS.id exactly "master",
+            DCTerms.title exactly "Master".en,
+            MMS.etag startsWith "",
+            MMS.commit startsWith "".iri,
+        )
+    }
+
+    // inspect
+    subject("urn:mms:inspect") { ignoreAll() }
+}
+
+
+fun TriplesAsserter.validateCreatedRepoTriples(
+    createResponse: TestApplicationResponse,
+    repoId: String,
+    repoName: String,
+    orgPath: String,
+    extraPatterns: List<PairPattern> = listOf()
+) {
+    val repoPath = "$orgPath/repos/$repoId"
+
+    validateRepoTriples(repoId, repoName, orgPath, extraPatterns)
+
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
         includes(
@@ -45,9 +71,6 @@ fun TriplesAsserter.validateRepoTriples(
             MMS.repo exactly localIri(repoPath).iri,
         )
     }
-
-    // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
 }
 
 open class RepoAny : OrgAny() {

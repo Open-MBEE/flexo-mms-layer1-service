@@ -37,7 +37,7 @@ class RepoCreate : RepoAny() {
                     response exclusivelyHasTriples {
                         modelName = "CreateValidRepo"
 
-                        validateRepoTriples(response, repoId, repoName, orgPath, listOf(
+                        validateCreatedRepoTriples(response, repoId, repoName, orgPath, listOf(
                             arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
                         ))
 

@@ -51,7 +51,7 @@ class RepoRead : RepoAny() {
                     // response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
 
                     response exclusivelyHasTriples {
-                        validateRepoTriples(response, repoId, repoName, orgPath)
+                        validateRepoTriples(repoId, repoName, orgPath)
                     }
                 }
             }
