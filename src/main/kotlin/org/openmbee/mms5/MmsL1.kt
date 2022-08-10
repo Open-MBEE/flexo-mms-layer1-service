@@ -1,13 +1,14 @@
 package org.openmbee.mms5
 
-import io.ktor.application.*
-import io.ktor.auth.*
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.client.request.*
-import io.ktor.features.*
 import io.ktor.http.*
-import io.ktor.request.*
-import io.ktor.response.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.util.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -32,10 +33,12 @@ import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
 
+val DEFAULT_BRANCH_ID = "master"
+
 private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
 private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 
-private val ETAG_PROPERTY = ResourceFactory.createProperty("mms://etag")
+private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
@@ -81,7 +84,7 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         val inspectValue = call.parameters["inspect"]?: ""
         mms.inspectOnly = if(inspectValue.isNotEmpty()) {
             if(inspectValue != "inspect") {
-                throw NotFoundException()
+                throw Http404Exception()
             } else true
         } else false
     }
@@ -117,22 +120,20 @@ val FORBIDDEN_PREDICATES_REGEX = listOf(
 ).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
 
 class Sanitizer(val mms: MmsL1Context, val node: Resource) {
-    val explicitUris = hashMapOf<String, Resource>()
-    val explicitLiterals = hashMapOf<String, String>()
+    private val explicitUris = hashMapOf<String, Resource>()
+    private val explicitLiterals = hashMapOf<String, String>()
 
     fun setProperty(property: Property, value: Resource, unsettable: Boolean?=false) {
-        val inputs = node.listProperties(property)
+        // user document includes triple(s) about this property; ensure value is acceptable
+        node.listProperties(property).forEach { input ->
+            // not acceptable
+            if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
 
-        // user document includes triple(s) about this property
-        if(inputs.hasNext()) {
-            // ensure value is acceptable
-            for(input in inputs) {
-                // not acceptable
-                if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
+            // verbose
+            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
 
-                // remove from model
-                input.remove()
-            }
+            // remove from model
+            input.remove()
         }
 
         // set value
@@ -140,18 +141,16 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     }
 
     fun setProperty(property: Property, value: String, unsettable: Boolean?=false) {
-        val inputs = node.listProperties(property)
+        // user document includes triple(s) about this property; ensure value is acceptable
+        node.listProperties(property).forEach { input ->
+            // not acceptable
+            if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
 
-        // user document includes triple(s) about this property
-        if(inputs.hasNext()) {
-            // ensure value is acceptable
-            for(input in inputs) {
-                // not acceptable
-                if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
+            // verbose
+            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
 
-                // remove from model
-                input.remove()
-            }
+            // remove from model
+            input.remove()
         }
 
         // set value
@@ -160,7 +159,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
 
     fun finalize() {
         // check each property
-        node.listProperties().toList().forEach {
+        node.listProperties().forEach {
             val predicateUri = it.predicate.uri
 
             // sensitive property
@@ -395,6 +394,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }
     }
 
+
+    /**
+     * Process RDF body from user request, for normalizing content and sanitizing inputs.
+     */
     fun filterIncomingStatements(basePrefixId: String, setup: RdfModeler.()->Resource): String {
         val baseIri = prefixes[basePrefixId]?: throw ParamNotParsedException(basePrefixId)
 
@@ -403,10 +406,16 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         }.stringify(emitPrefixes=false)
     }
 
+
     fun parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {
         return RdfModeler(this, prefixes["m"]!!, responseText).apply(setup).model
     }
 
+
+    /**
+     * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
+     * a call to [RdfModeler.normalizeRefOrCommit] within a [MmsL1Context.filterIncomingStatements] block.
+     */
     fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
         return append {
             require("validSource") {
@@ -415,17 +424,17 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 """
                     ${if(refSource != null) """
                         graph m-graph:Schema {
-                            ?refSourceClass rdfs:subClassOf* mms:Ref .
+                            ?__mms_refSourceClass rdfs:subClassOf* mms:Ref .
                         }
                
                         graph mor-graph:Metadata {         
-                            ?_refSource a ?refSourceClass ;
-                                mms:commit ?commitSource ;
+                            ?_refSource a ?__mms_refSourceClass ;
+                                mms:commit ?__mms_commitSource ;
                                 .
                         }
                     """ else ""} 
                     graph mor-graph:Metadata {
-                       ?commitSource a mms:Commit .
+                       ?__mms_commitSource a mms:Commit .
                     }
                 """
             }
@@ -533,10 +542,75 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
     }
 
-    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null): KModel {
+    fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
+                // debug
+                log.warn("Transaction failed.\n${results}")
+
+                runBlocking {
+                    val constructQuery = buildSparqlQuery {
+                        construct {
+                            raw("""
+                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o . 
+                                
+                                mt: ?mt_p ?mt_o .
+                                
+                                ${if(repoId != null) {
+                                    """
+                                        # outgoing repo properties
+                                        mor: ?mor_p ?mor_o .
+                                    
+                                        # properties of things that belong to this repo
+                                        ?thing ?thing_p ?thing_o .
+                                    
+                                        # all triples in metadata graph
+                                        ?m_s ?m_p ?m_o .
+                                    """
+                                } else ""}
+                            """)
+                        }
+                        where {
+                            raw("""
+                                {
+                                    optional {
+                                        graph m-graph:AccessControl.Policies {
+                                            ?__mms_policy mms:scope ${scope?: "mo"}: ;
+                                                ?__mms_policy_p ?__mms_policy_o .
+                                        }
+                                    }
+                                } union {
+                                    graph m-graph:Transactions {
+                                        mt: ?mt_p ?mt_o .
+                                    }
+                                } 
+                                ${if(repoId != null) {
+                                    """
+                                        union {
+                                            graph m-graph:Cluster {
+                                                mor: a mms:Repo ;
+                                                    ?mor_p ?mor_o .
+            
+                                                optional {
+                                                    ?thing mms:repo mor: ;
+                                                        ?thing_p ?thing_o .
+                                                }
+                                            }
+                                        } union {
+                                            graph mor-graph:Metadata {
+                                                ?m_s ?m_p ?m_o .
+                                            }
+                                        }
+                                    """
+                                } else ""}
+                            """)
+                        }
+                    }
+
+                    log.info("Union inspect: ${executeSparqlConstructOrDescribe(constructQuery)}")
+                }
+
                 // use response to diagnose cause
                 conditions.handle(model, mms);
 
@@ -551,14 +625,14 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         return """
             ${if(ifMatch?.isStar == false) """
-                values ?etag {
+                values ?__mms_etag {
                     ${ifMatch.etags.joinToString(" ") { escapeLiteral(it) }}
                 }
             """ else ""}
             
             ${if(ifNoneMatch != null) """
-                filter(?etag != ?etagNot)
-                values ?etagNot {
+                filter(?__mms_etag != ?__mms_etagNot)
+                values ?__mms_etagNot {
                     ${ifNoneMatch.etags.joinToString(" ") { escapeLiteral(it) }}
                 }
             """ else ""}
@@ -592,8 +666,34 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         } else null
     }
 
+    private fun checkPreconditions(etag: String) {
+        // `create` operation; exit
+        if(permission.crud == Crud.CREATE) return
 
-    fun checkPreconditions(response: JsonObject) {
+
+        // check If-Match preconditions
+        if(ifMatch != null && !ifMatch.isStar) {
+            // precondition failed
+            if(!ifMatch.etags.contains(etag)) {
+                throw PreconditionFailedException("If-Match")
+            }
+        }
+
+        // check If-None-Match preconditions
+        if(ifNoneMatch != null) {
+            // precondition is that resource does not exist
+            if(ifNoneMatch.isStar) {
+                // but the resource does exist; 304
+                throw NotModifiedException()
+            }
+            // precondition failed
+            else if(ifNoneMatch.etags.contains(etag)) {
+                throw PreconditionFailedException("If-None-Match")
+            }
+        }
+    }
+
+    fun handleEtagAndPreconditions(response: JsonObject) {
         // destructure bindings
         val bindings = response["results"]!!.jsonObject["bindings"]!!.jsonArray
 
@@ -604,16 +704,20 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // compose etag
         val etag = if(bindings.size == 1) {
-            bindings[0].jsonObject["etag"]!!.jsonPrimitive.content
+            bindings[0].jsonObject["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content
         }  else {
-            bindings.joinToString(":") { it.jsonObject["etag"]!!.jsonPrimitive.content }.sha256()
+            bindings.joinToString(":") { it.jsonObject["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }.sha256()
         }
 
         // set etag value in response header
         call.response.header(HttpHeaders.ETag, etag)
+
+        // check preconditions
+        checkPreconditions(etag)
     }
 
-    fun checkPreconditions(model: KModel, resourceUri: String?) {
+    @JvmOverloads
+    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?, allEtags: Boolean?=false) {
         // single resource
         if(resourceUri != null) {
             // create resource node in model
@@ -621,51 +725,49 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
             // resource not exists; 404
             if(!resourceNode.listProperties().hasNext()) {
-                throw NotFoundException()
+                throw Http404Exception()
             }
 
             // etags
-            val etags = resourceNode.listProperties(MMS.etag).toList()
-            val etag = if(etags.size == 1) {
-                etags[0].`object`.asLiteral().string
-            } else {
-                etags.map { it.`object`.asLiteral().string }.sorted()
+            val etags = model.listObjectsOfProperty(if(true == allEtags) null else resourceNode, MMS.etag).toList()
+            val etag = when(etags.size) {
+                0 -> throw ServerBugException("Constructed model did not contain any etag values.")
+                1 -> etags[0].asLiteral().string
+                else -> etags.map { it.asLiteral().string }.sorted()
                     .joinToString(":").sha256()
-            }
-
-            // no etags were parsed
-            if(etags.size == 0) {
-                throw ServerBugException("Constructed model did not contain any etag values.")
             }
 
             // set etag value in response header
             call.response.header(HttpHeaders.ETag, etag)
 
-            // `create` operation; exit
-            if(permission.crud == Crud.CREATE) return
+            // check preconditions
+            checkPreconditions(etag)
+        }
+    }
 
+    fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
+        // prep map of resources to etags
+        val resEtags = mutableListOf<String>()
 
-            // check If-Match preconditions
-            if(ifMatch != null && !ifMatch.isStar) {
-                // precondition failed
-                if(!ifMatch.etags.contains(etag)) {
-                    throw PreconditionFailedException("If-Match")
-                }
-            }
-
-            // check If-None-Match preconditions
-            if(ifNoneMatch != null) {
-                // precondition is that resource does not exist
-                if(ifNoneMatch.isStar) {
-                    // but the resource does exist; 304
-                    throw NotModifiedException()
-                }
-                // precondition failed
-                else if(ifNoneMatch.etags.contains(etag)) {
-                    throw PreconditionFailedException("If-None-Match")
-                }
+        // each node that has an etag...
+        model.listSubjectsWithProperty(MMS.etag).forEach { subject ->
+            // ...that is of the specified type
+            if(subject.hasProperty(RDF.type, resourceType)) {
+                // add all etgas
+                resEtags.addAll(subject.listProperties(MMS.etag).mapWith { statement ->
+                    statement.`object`.asLiteral().string
+                }.toList())
             }
         }
+
+        // sort list of etags and hash them
+        val etag = resEtags.sorted().toList().joinToString(":").sha256()
+
+        // set etag value in response header
+        call.response.header(HttpHeaders.ETag, etag)
+
+        // check preconditions
+        checkPreconditions(etag)
     }
 
     suspend fun downloadModel(graphUri: String): KModel {
@@ -783,10 +885,11 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
             }
         }
 
+        // assert any HTTP preconditions supplied by the user
         assertPreconditions(this) {
             """
                 graph $graph {
-                    $objectKey: mms:etag ?etag .
+                    $objectKey: mms:etag ?__mms_etag .
                     
                     $it
                 }
@@ -801,7 +904,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
             graph(graph) {
                 raw("""
                     # delete old etag
-                    $objectKey: mms:etag ?etag .
+                    $objectKey: mms:etag ?__mms_etag .
                 """)
 
                 if(deleteBgpString.isNotEmpty()) {
@@ -828,7 +931,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
 
             raw("""
                 # match old etag
-                $objectKey: mms:etag ?etag .
+                $objectKey: mms:etag ?__mms_etag .
             """)
         }
     }
@@ -1024,7 +1127,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                 )
 
 
-                {
+                optional {
                     # delete every triple from the source graph...
                     graph ?srcGraph {
                         ?del_s ?del_p ?del_o .
@@ -1036,7 +1139,8 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                             ?del_s ?del_p ?del_o .
                         }
                     }
-                } union {
+                }
+                optional {
                     # insert every triple from the destination graph...
                     graph ?dstGraph {
                         ?ins_s ?ins_p ?ins_o .

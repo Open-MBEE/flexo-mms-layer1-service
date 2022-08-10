@@ -1,9 +1,9 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 import io.ktor.http.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -27,7 +27,7 @@ fun assertOperationsAllowed(operations: List<Update>) {
             }
         }
 
-        throw Exception("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
+        throw ServerBugException("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
     }
 }
 
@@ -118,7 +118,7 @@ fun Route.commitModel() {
                 assertPreconditions(this) {
                     """
                         graph mor-graph:Metadata {
-                            morb: mms:etag ?etag .
+                            morb: mms:etag ?__mms_etag .
                             
                             $it
                         }
@@ -183,7 +183,7 @@ fun Route.commitModel() {
                 }
                 where {
                     group {
-                        txn()
+                        txn(null, "morc")
 
                         raw("""
                             graph mor-graph:Metadata {
@@ -200,7 +200,7 @@ fun Route.commitModel() {
             // log
             log.info("Triplestore responded with \n$constructResponseText")
 
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            val constructModel = validateTransaction(constructResponseText, localConditions, null, "morc")
 
             val transactionNode = constructModel.createResource(prefixes["mt"])
 
@@ -216,7 +216,7 @@ fun Route.commitModel() {
             // something is wrong
             if(stagingGraph == null) {
             // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
-                throw Exception("failed to fetch graph/model")
+                throw ServerBugException("failed to fetch graph/model")
             }
 
 
@@ -233,10 +233,11 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
+            application.log.info("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
 
             // begin copying staging to model
             executeSparqlUpdate("""
-                copy ?_stagingGraph to ?_modelGraph;
+                copy graph <$stagingGraph> to graph ?_modelGraph ;
                 
                 insert data {
                     graph mor-graph:Metadata {

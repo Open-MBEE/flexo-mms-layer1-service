@@ -1,11 +1,8 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.application.*
-import io.ktor.routing.*
-import org.openmbee.mms5.Permission
-import org.openmbee.mms5.mmsL1
-import org.openmbee.mms5.queryModel
-
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+import org.openmbee.mms5.*
 
 fun Route.queryLock() {
     post("/orgs/{orgId}/repos/{repoId}/locks/{lockId}/query/{inspect?}") {
@@ -17,7 +14,12 @@ fun Route.queryLock() {
                 inspect()
             }
 
-            queryModel(requestBody, prefixes["morl"]!!)
+            // auto-inject default prefixes
+            val inputQueryString = "$prefixes\n$requestBody"
+
+            queryModel(inputQueryString, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+                assertPreconditions(this) { "" }
+            })
         }
     }
 }

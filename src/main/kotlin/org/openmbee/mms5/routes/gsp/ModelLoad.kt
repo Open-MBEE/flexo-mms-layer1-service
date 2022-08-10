@@ -1,13 +1,13 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -23,7 +23,6 @@ private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
 
 fun Route.loadModel() {
-
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         call.mmsL1(Permission.UPDATE_BRANCH, true) {
 
@@ -46,7 +45,7 @@ fun Route.loadModel() {
                 assertPreconditions(this) {
                     """
                         graph mor-graph:Metadata {
-                            morb: mms:etag ?etag .
+                            morb: mms:etag ?__mms_etag .
                             
                             $it
                         }
@@ -90,31 +89,32 @@ fun Route.loadModel() {
             run {
                 // allow client to manually pass in URL to remote file
                 var loadUrl: String? = call.request.queryParameters["url"]
+                var loadServiceUrl: String? = call.application.loadServiceUrl
 
                 // client did not explicitly provide a URL and the load service is configured
-                if(loadUrl == null && application.loadServiceUrl != null) {
+                if(loadUrl == null && loadServiceUrl != null) {
                     // submit a POST request to the load service endpoint
-                    val response: HttpResponse = client.post(application.loadServiceUrl!! + "/" + diffId) {
+                    val response: HttpResponse = client.post("$loadServiceUrl/$diffId") {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
-                            call.request.headers[HttpHeaders.Authorization]?.let { auth ->
+                            call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
                                 append(HttpHeaders.Authorization, auth)
                             }
                         }
                         // stream request body from client to load service
                         // TODO: Handle exceptions
-                        body = object: OutgoingContent.WriteChannelContent() {
+                        setBody(object: OutgoingContent.WriteChannelContent() {
                             override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)
-                            override val contentLength = call.request.header(HttpHeaders.ContentLength)!!.toLong()
+                            override val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLong() ?: 0L
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
-                        }
+                        })
                     }
 
                     // read response body
-                    val responseText = response.readText()
+                    val responseText = response.bodyAsText()
 
                     // non-200
                     if(!response.status.isSuccess()) {
@@ -152,29 +152,29 @@ fun Route.loadModel() {
                 // GSP is configured; use it
                 if(application.quadStoreGraphStoreProtocolUrl != null) {
                     // deduce content type
-                    val modelContentType = requestBodyContentType.ifEmpty { RdfContentTypes.Turtle.toString() }
+                    val modelContentType = RdfContentTypes.fromString(requestBodyContentType)
 
                     // not allowed
-                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType)
+                    if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType.toString())
 
                     // submit a PUT request to the quad-store's GSP endpoint
                     val response: HttpResponse = client.put(application.quadStoreGraphStoreProtocolUrl!!) {
                         // add the graph query parameter per the GSP specification
                         parameter("graph", loadGraphUri)
 
-                        // forward the header for the content type, or default to turtle
-                        contentType(ContentType.parse(modelContentType))
-
                         // stream request body from client to GSP endpoint
-                        body = object : OutgoingContent.WriteChannelContent() {
+                        setBody(object : OutgoingContent.WriteChannelContent() {
+                            // forward the header for the content type, or default to turtle
+                            override val contentType = modelContentType
+
                             override suspend fun writeTo(channel: ByteWriteChannel) {
                                 call.request.receiveChannel().copyTo(channel)
                             }
-                        }
+                        })
                     }
 
                     // read response body
-                    val responseText = response.readText()
+                    val responseText = response.bodyAsText()
 
                     // non-200
                     if(!response.status.isSuccess())  {
@@ -331,6 +331,7 @@ fun Route.loadModel() {
             }
 
             // empty delta (no changes)
+            /*  ignored for now for neptune workaround
             if(changeCount == 0uL) {
                 // locate branch node
                 val branchNode = diffConstructModel.createResource(prefixes["morb"])
@@ -348,6 +349,7 @@ fun Route.loadModel() {
                 call.respondText("$prefixes", RdfContentTypes.Turtle)
             }
             else {
+            */
                 // TODO add condition to update that the selected staging has not changed since diff creation using etag value
 
                 // replace current staging graph with the already loaded model in load graph
@@ -391,11 +393,12 @@ fun Route.loadModel() {
                 log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
+                call.response.header(HttpHeaders.ETag, transactionId)
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
                 // start copying staging to new model
                 executeSparqlUpdate("""
-                    copy ?_stagingGraph to ?_modelGraph;
+                    copy graph ?_stagingGraph to graph ?_modelGraph ;
                     
                     insert data {
                         graph mor-graph:Metadata {
@@ -415,7 +418,7 @@ fun Route.loadModel() {
                     )
                 }
 
-            }
+            //}
 
             // now that response has been sent to client, perform "clean up" work on quad-store
 

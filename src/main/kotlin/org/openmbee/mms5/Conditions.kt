@@ -52,8 +52,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 # select the latest commit from the current named ref
                 morb: mms:commit ?baseCommit ;
                     # and its etag value
-                    mms:etag ?branchEtag ;
-                    .
+                    mms:etag ?branchEtag .
             
                 # and its staging snapshot
                 morb: mms:snapshot ?staging .
@@ -71,6 +70,40 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
             }
         """
     }
+}
+
+val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    permit(Permission.READ_REPO, Scope.REPO)
+
+    require("queryableSnapshotExists") {
+        handler = { mms -> "The target model is corrupt. No queryable snapshots found." }
+
+        """
+            graph mor-graph:Metadata {
+                ?__mms_ref
+                    # select the latest commit from the current named ref
+                    mms:commit ?__mms_baseCommit ;
+
+                    # and its etag value
+                    mms:etag ?__mms_etag ;
+
+                    # and a queryable snapshot
+                    mms:snapshot/mms:graph ?__mms_queryGraph .
+            }
+        """
+    }
+}
+
+val BRANCH_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_BRANCH, Scope.BRANCH)
+}
+
+val LOCK_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_LOCK, Scope.LOCK)
+}
+
+val DIFF_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+    permit(Permission.READ_DIFF, Scope.DIFF)
 }
 
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
@@ -113,6 +146,9 @@ class Condition(val type: ConditionType, val key: String) {
 
 
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
+    /**
+     * Adds a requirement to the query conditions that the current user has the given permission within the given scope.
+     */
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
             handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" }
@@ -134,6 +170,9 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
+    /**
+     * Adds a pattern to the query conditions that is only evaluated upon inspection.
+     */
     fun inspect(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.INSPECT, key).apply {
             pattern = setup()
@@ -142,6 +181,9 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         return this
     }
 
+    /**
+     * Adds a requirement to the query conditions.
+     */
     fun require(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.REQUIRE, key).apply {
             pattern = setup()
@@ -164,7 +206,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return conditions.filter { ConditionType.INSPECT == it.type }
     }
 
-    fun inspectPatterns(varName: String="inspect"): List<String> {
+    fun inspectPatterns(varName: String="__mms_inspect_pass"): List<String> {
         return conditions.map {
             """
                 {
@@ -186,16 +228,23 @@ class ConditionsGroup(var conditions: List<Condition>) {
 
     fun handle(model: KModel, mms: MmsL1Context): Nothing {
         // inspect node
-        val inspectNode = model.createResource("mms://inspect")
-        val passes = inspectNode.listProperties(PropertyImpl("mms://pass")).toList()
+        val inspectNode = model.createResource("urn:mms:inspect")
+        val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
             .map { it.`object`.asLiteral().string }.toHashSet()
+
+        val failedConditions = mutableListOf<String>()
 
         // each conditions
         for(condition in conditions) {
             // inspection key is missing from set of passes
             if(!passes.contains(condition.key)) {
-                throw RequirementNotMetException(condition.handler(mms))
+                // add to possible reasons
+                failedConditions.add(condition.handler(mms))
             }
+        }
+
+        if(failedConditions.isNotEmpty()) {
+            throw RequirementsNotMetException(failedConditions)
         }
 
         throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")

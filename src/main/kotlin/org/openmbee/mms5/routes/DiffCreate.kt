@@ -1,23 +1,26 @@
 package org.openmbee.mms5.routes
 
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import org.openmbee.mms5.*
 import java.security.MessageDigest
 
 
+// default starting conditions for any calls to create a lock
 private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
-    permit(Permission.CREATE_BRANCH, Scope.REPO)
+    // require that the user has the ability to create diffs on a repo-level scope
+    permit(Permission.CREATE_DIFF, Scope.REPO)
 
-    require("branchNotExists") {
-        handler = { mms -> "The provided branch <${mms.prefixes["morb"]}> already exists." }
+    // require that the given diff does not exist before attempting to create it
+    require("diffNotExists") {
+        handler = { mms -> "The provided diff <${mms.prefixes["mord"]}> already exists." }
 
         """
-            # branch must not yet exist
+            # diff must not yet exist
             graph mor-graph:Metadata {
                 filter not exists {
-                    morb: a mms:Branch .
+                    mord: a mms:Diff .
                 }
             }
         """
@@ -35,6 +38,7 @@ private fun hashString(input: String, algorithm: String): String {
 fun Route.createDiff() {
     post("/orgs/{orgId}/repos/{repoId}/diff") {
         call.mmsL1(Permission.CREATE_DIFF) {
+            // parse the path params
             pathParams {
                 org()
                 repo()
@@ -42,119 +46,110 @@ fun Route.createDiff() {
                 lock()
             }
 
-            // diffId = transactionId
-
+            // prepare to identify the source and destination refs for diff comparison
             lateinit var srcRef: String
             lateinit var dstRef: String
 
+            // additional user-supplied metadata about the diff object
             var createDiffUserDataTriples = ""
-            filterIncomingStatements("mor") {
+
+            // process RDF body from user about this new diff
+            filterIncomingStatements("morl") {
+                // relative to this diff node
                 diffNode().apply {
+                    // assert cardinality for src and dst refs
                     srcRef = extractExactly1Uri(MMS.srcRef).uri
                     dstRef = extractExactly1Uri(MMS.dstRef).uri
 
+                    // sanitize statements
                     sanitizeCrudObject {
                         removeAll(MMS.srcRef)
                         removeAll(MMS.dstRef)
                     }
                 }
 
+                // collect remaining statements about the diff object; save them to the user-supplied metadata field
                 val diffPairs = serializePairs(diffNode())
                 if(diffPairs.isNotEmpty()) {
                     createDiffUserDataTriples = "?diff $diffPairs ."
                 }
 
+                // return the diff object as required by the filter block signature
                 diffNode()
             }
 
+            // extend the default conditions with requirements for user-specified src and dst refs
             val localConditions = DEFAULT_CONDITIONS.appendSrcRef().appendDstRef()
 
-            // generate sparql update
+            // prep SPARQL UPDATE string
             val updateString = genDiffUpdate(createDiffUserDataTriples, localConditions, """
                 graph mor-graph:Metadata {
-                    # select the latest commit from the current named ref
+                    # select the commit pointed to by the source ref
                     ?srcRef mms:commit ?srcCommit .
                     
+                    # locate its corresponding snapshot and model graph
                     ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                    
                     ?srcSnapshot a mms:Model ; 
                         mms:graph ?srcGraph  .
                     
-                    
+                    # select the commit pointed to by the destination ref 
                     ?dstRef mms:commit ?dstCommit .
                     
+                    # locate its corresponding snapshot and model graph
                     ?dstCommit ^mms:commit/mms:snapshot ?dstSnapshot .
-                    
                     ?dstSnapshot a mms:Model ; 
                         mms:graph ?dstGraph .
                 }
             """)
 
+            // execute update
             executeSparqlUpdate(updateString) {
                 prefixes(prefixes)
 
+                // replace IRI substitution variables
                 iri(
                     "srcRef" to srcRef,
                     "dstRef" to dstRef,
                 )
             }
 
+            // create construct query to confirm transaction and fetch diff details
             val constructString = buildSparqlQuery {
                 construct {
+                    // all the details about this transaction (provide sub txn id to distinguish from others)
                     txn("diff")
+
+                    // all the properties about this diff
+                    raw("""
+                        mord: ?mord_p ?mord_o .
+                    """)
                 }
                 where {
+                    // first group in a series of unions fetches intended outputs
                     group {
-                        txn("diff")
+                        txn("diff", "mord")
+
+                        raw("""
+                            graph mor-graph:Metadata {
+                                mord: ?mord_p ?mord_o .
+                            }
+                        """)
                     }
-                    raw("""
-                        union ${localConditions.unionInspectPatterns()}    
-                    """)
+                    // all subsequent unions are for inspecting what if any conditions failed
+                    raw("""union ${localConditions.unionInspectPatterns()}""")
                 }
             }
 
+            // execute construct
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-            val constructModel = validateTransaction(constructResponseText, localConditions)
+            // validate whether the transaction succeeded
+            val constructModel = validateTransaction(constructResponseText, localConditions, "diff", "mord")
 
+            // check that the user-supplied HTTP preconditions were met
+            handleEtagAndPreconditions(constructModel, prefixes["mord"])
 
-            // clone graph
-            run {
-                val transactionNode = constructModel.createResource(prefixes["mt"])
-
-                // snapshot is available for source commit
-                val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-                if(sourceGraphs.size >= 1) {
-                    // copy graph
-                    executeSparqlUpdate("""
-                        copy graph <${sourceGraphs[0].`object`.asResource().uri}> to mor-graph:Staging.${transactionId} ;
-                        
-                        insert {
-                            morb: mms:snapshot ?snapshot .
-                            mor-snapshot:Staging.${transactionId} a mms:Staging ;
-                                mms:graph mor-graph:Staging.${transactionId} ;
-                                .
-                        }
-                    """)
-
-                    // copy staging => model
-                    executeSparqlUpdate("""
-                        copy mor-snapshot:Staging.${transactionId} mor-snapshot:Model.${transactionId} ;
-                        
-                        insert {
-                            morb: mms:snapshot mor-snapshot:Model.${transactionId} .
-                            mor-snapshot:Model.${transactionId} a mms:Model ;
-                                mms:graph mor-graph:Model.${transactionId} ;
-                                .
-                        }
-                    """)
-                }
-                // no snapshots available, must build for commit
-                else {
-                    TODO("build snapshot")
-                }
-            }
-
+            // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
             // delete transaction

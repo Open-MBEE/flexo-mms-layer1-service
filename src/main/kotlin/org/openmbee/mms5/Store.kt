@@ -10,7 +10,7 @@ val SERVICE_ID = System.getenv("MMS5_SERVICE_ID")?: "local-dev-0"
 
 suspend fun handleSparqlResponse(response: HttpResponse): String {
     // read response body
-    val responseText = response.readText()
+    val responseText = response.bodyAsText()
 
     // non-200
     if(!response.status.isSuccess())  {
@@ -20,8 +20,6 @@ suspend fun handleSparqlResponse(response: HttpResponse): String {
     return responseText
 }
 
-
-class IllegalIdException: Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.") {}
 
 private val LEGAL_ID_REGEX = """[._\pL0-9-]{3,256}""".toRegex()
 

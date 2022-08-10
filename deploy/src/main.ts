@@ -1,10 +1,12 @@
 // @ts-ignore
 import trig_write from '@graphy/content.trig.write';
+// @ts-ignore
+import factory from '@graphy/core.data.factory';
 
-const P_PREFIX = process.argv[2];
+const P_PREFIX = process.argv[2].replace(/\/$/, "");
 
 if(!P_PREFIX) {
-	throw new Error(`Must provide a prefix IRI as positional argument`);
+	throw new Error(`Must provide context prefix IRI as positional argument`);
 }
 
 import {
@@ -153,11 +155,11 @@ const ds_writer = trig_write({
 		rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
 		mms: 'https://mms.openmbee.org/rdf/ontology/',
 		'mms-object': 'https://mms.openmbee.org/rdf/objects/',
-		m: P_PREFIX,
-		'm-graph': `${P_PREFIX}graphs/`,
-		'm-user': `${P_PREFIX}users/`,
-		'm-group': `${P_PREFIX}groups/`,
-		'm-policy': `${P_PREFIX}policies/`,
+		m: `${P_PREFIX}/`,
+		'm-graph': `${P_PREFIX}/graphs/`,
+		'm-user': `${P_PREFIX}/users/`,
+		'm-group': `${P_PREFIX}/groups/`,
+		'm-policy': `${P_PREFIX}/policies/`,
 	},
 	style: {
 		directives: 'sparql',
@@ -170,6 +172,7 @@ ds_writer.pipe(process.stdout);
 ds_writer.write({
 	type: 'c4',
 	value: {
+		[factory.comment()]: 'users and groups which are the subjects of access control policies',
 		'm-graph:AccessControl.Agents': {
 			'm-user:root': {
 				a: 'mms:User',
@@ -183,13 +186,35 @@ ds_writer.write({
 			},
 		},
 
+		[factory.comment()]: 'default policies',
+		'm-graph:AccessControl.Policies': {
+			'm-policy:DefaultSuperAdmins': {
+				a: 'mms:Policy',
+				'mms:subject': 'm-group:SuperAdmins',
+				'mms:scope': 'm:',
+				'mms:role': [
+					'AdminAccessControl',
+					'AdminCluster',
+					'AdminOrg',
+					'AdminRepo',
+					'AdminMetadata',
+					'AdminModel',
+				].map(s => `mms-object:Role.${s}`),
+			},
+		},
+
+		[factory.comment()]: 'cluster-specific classes',
 		'm-graph:Cluster': {
 			'm:': {
 				a: 'mms:Cluster',
 			},
 		},
 
+		[factory.comment()]: 'copy of static schema inherited from global MMS definitions',
 		'm-graph:Schema': {
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==            Classes             ==',
+			[factory.comment()]: '====================================',
 			...classes({
 				Ref: {},
 				Branch: {
@@ -213,6 +238,9 @@ ds_writer.write({
 				Commit: {},
 			}),
 
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==           Properties           ==',
+			[factory.comment()]: '====================================',
 			...properties({
 				ref: {
 					range: 'Ref',
@@ -225,6 +253,9 @@ ds_writer.write({
 		},
 
 		'm-graph:AccessControl.Definitions': {
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==             Scopes             ==',
+			[factory.comment()]: '====================================',
 			...scopes({
 				Cluster: {
 					implies: 'Org',
@@ -254,6 +285,10 @@ ds_writer.write({
 				},
 			}),
 
+
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==   Object-Centric Permissions   ==',
+			[factory.comment()]: '====================================',
 			...permissions({
 				Cluster: {
 					crud: {
@@ -363,6 +398,9 @@ ds_writer.write({
 				// },
 			}),
 
+			[factory.comment()]: '====================================',
+			[factory.comment()]: '==             Roles              ==',
+			[factory.comment()]: '====================================',
 			...roles({
 				Org: H_ROLE_DEFAULT,
 				Repo: H_ROLE_DEFAULT,

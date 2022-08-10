@@ -23,10 +23,25 @@ object RdfContentTypes {
     val SparqlUpdate = ContentType("application", "sparql-update")
     val SparqlResultsJson = ContentType("application", "sparql-results+json")
 
-    fun isTriples(contentType: String): Boolean {
-        return when(ContentType.parse(contentType).withoutParameters()) {
+    fun isTriples(contentType: ContentType): Boolean {
+        return when(contentType) {
             Turtle, RdfXml, JsonLd -> true
             else -> false
+        }
+    }
+
+    fun fromString(type: String): ContentType {
+        val sanitize = ContentType.parse(type).withoutParameters()
+        val mime = "${sanitize.contentType}/${sanitize.contentSubtype}"
+
+        return when(mime) {
+            "text/turtle" -> Turtle
+            "application/rdf+xml" -> RdfXml
+            "application/ld+json" -> JsonLd
+            "application/sparql-query" -> SparqlQuery
+            "application/sparql-update" -> SparqlUpdate
+            "application/sparql-results+json" -> SparqlResultsJson
+            else -> sanitize
         }
     }
 }
@@ -35,7 +50,6 @@ class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): 
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
-
     }
 
     fun addNodes(subject: Resource, vararg pairs: Pair<Property, String>): KModel {

@@ -6,8 +6,8 @@ import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.syntax.*
 
-
-class RequirementNotMetException(info: String): Exception("A required condition was not met. $info")
+class RequirementsNotMetException(conditions: List<String>): Http400Exception("The following conditions failed after the transaction attempt:\n"
+    +conditions.mapIndexed { i, v -> "${i}. $v" }.joinToString("\n"))
 
 class QuadsNotAllowedException(graph: String): Exception("Quads not allowed here. Encountered graph `${graph}`") {}
 
@@ -17,7 +17,7 @@ class UpdateOperationNotAllowedException(operation: String): Exception(operation
 
 class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
-class Non200Response(body: String, status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
+class Non200Response(val body: String, val status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
 
 
 object NoQuadsElementVisitor: ElementVisitor {

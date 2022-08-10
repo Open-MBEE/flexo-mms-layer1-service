@@ -1,25 +1,54 @@
 version: 2.1
 orbs:
   docker: circleci/docker@2.1.1
+  node: circleci/node@5.0.2
 
 jobs:
-  build_and_test:
+  generate_schema:
     executor:
-      name: docker/docker
+      name: node/default
     working_directory: /home/circleci/mms5-layer1-service
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - restore_cache:
+          name: Restore NPM package Cache
+          keys:
+            - npm-packages-{{ checksum "deploy/package-lock.json" }}
+      - node/install-packages:
+          pkg-manager: npm
+          app-dir: deploy
       - run:
-          name: Build docker image
+          name: Generate schema
           command: |
-            cp src/main/resources/application.conf.example ./src/main/resources/application.conf
-            docker build -t openmbee/mms5-layer1-service:latest .
+            cd deploy
+            npx ts-node src/main.ts http://layer1-service > ../src/test/resources/cluster.trig
+      - persist_to_workspace:
+          root: /home/circleci/
+          paths:
+            - mms5-layer1-service/*
+  build_and_test:
+    machine:
+      image: ubuntu-2204:2022.04.1
+    working_directory: /home/circleci/mms5-layer1-service
+    steps:
+      - attach_workspace:
+          at: ~/
       - run:
-          name: Export docker image
+          name: Cat out cluster.trig
           command: |
-            docker save -o mms5-layer1-service.tar openmbee/mms5-layer1-service:latest
+            cat src/test/resources/cluster.trig
+      - run:
+          name: Build stack and run tests
+          shell: /bin/bash
+          command: |
+            docker-compose -f src/test/resources/docker-compose.yml up -d
+            docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
+            docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest
+            SIG_INT=$?
+            docker cp mms5-test-container:/application/build/reports/tests /home/circleci/results
+            exit "$SIG_INT"
+      - store_artifacts:
+          path: /home/circleci/results
       - persist_to_workspace:
           root: /home/circleci/
           paths:
@@ -38,8 +67,10 @@ jobs:
           name: Login to Dockerhub
           command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
       - run:
-          name: Load docker image
-          command: docker load -i mms5-layer1-service.tar
+          name: Build docker image
+          command: |
+            cp src/main/resources/application.conf.example ./src/main/resources/application.conf
+            docker build -t openmbee/mms5-layer1-service:latest .
       - run:
           name: Tag docker image
           command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
@@ -59,8 +90,10 @@ jobs:
           name: Login to Dockerhub
           command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
       - run:
-          name: Load docker image
-          command: docker load -i mms5-layer1-service.tar
+          name: Build docker image
+          command: |
+            cp src/main/resources/application.conf.example ./src/main/resources/application.conf
+            docker build -t openmbee/mms5-layer1-service:latest .
       - run:
           name: Tag docker image
           command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:${CIRCLE_TAG}
@@ -75,7 +108,12 @@ workflows:
   version: 2
   build-test-deploy:
     jobs:
+      - generate_schema:
+          context:
+            - DockerHub
       - build_and_test:
+          requires:
+            - generate_schema
           filters:
             tags:
               only: /[0-9.]+(-(a|b|rc)[0-9]+)?/

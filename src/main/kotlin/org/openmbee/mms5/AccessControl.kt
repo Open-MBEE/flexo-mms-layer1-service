@@ -1,6 +1,6 @@
 package org.openmbee.mms5
 
-import io.ktor.application.*
+import io.ktor.server.application.*
 
 enum class Crud(val id: String) {
     CREATE("Create"),
@@ -70,6 +70,7 @@ enum class Permission(
 enum class Role(val id: String) {
     ADMIN_ORG("AdminOrg"),
     ADMIN_REPO("AdminRepo"),
+    ADMIN_COLLECTION("AdminCollection"),
     ADMIN_METADATA("AdminMetadata"),
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),
@@ -78,7 +79,8 @@ enum class Role(val id: String) {
     ADMIN_GROUP("AdminGroup"),
 }
 
-fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
+@JvmOverloads
+fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=null, replace: String?=null): String {
     return """
         # user exists and may belong to some group
         graph m-graph:AccessControl.Agents {
@@ -111,7 +113,9 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope): String {
             
             # intersect scopes relevant to context
             values ?scope {
-                ${scope.values().joinToString(" ") { "$it:" } }
+                ${scope.values().joinToString(" ") { "$it:".run {
+                    if(find != null && replace != null) this.replace(find, replace) else this
+                } } }
             }
         }
         

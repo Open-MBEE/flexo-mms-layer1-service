@@ -197,6 +197,8 @@ object MMS {
     val Repo = ResourceFactory.createResource("${BASE}Repo")
     val Collection = ResourceFactory.createResource("${BASE}Collection")
     val Snapshot = ResourceFactory.createResource("${BASE}Snapshot")
+    val Model = ResourceFactory.createResource("${BASE}Model")
+    val Staging = ResourceFactory.createResource("${BASE}Staging")
     val Update = ResourceFactory.createResource("${BASE}Update")
     val Load = ResourceFactory.createResource("${BASE}Load")
     val Commit = ResourceFactory.createResource("${BASE}Commit")
@@ -208,6 +210,13 @@ object MMS {
     val Group = ResourceFactory.createResource("${BASE}Group")
     val Policy = ResourceFactory.createResource("${BASE}Policy")
 
+    val Transaction = ResourceFactory.createResource("${BASE}Transaction")
+
+
+    val RepoMetadataGraph = ResourceFactory.createResource("${BASE}RepoMetadataGraph")
+    val SnapshotGraph = ResourceFactory.createResource("${BASE}SnapshotGraph")
+    val CollectionMetadataGraph = ResourceFactory.createResource("${BASE}CollectionMetadataGraph")
+
     // object properties
     val id  = ResourceFactory.createProperty(BASE, "id")
 
@@ -217,19 +226,24 @@ object MMS {
     val serviceId = ResourceFactory.createProperty(BASE, "serviceId")
     val org = ResourceFactory.createProperty(BASE, "org")
     val repo = ResourceFactory.createProperty(BASE, "repo")
+    val branch = ResourceFactory.createProperty(BASE, "branch")
+    val collection = ResourceFactory.createProperty(BASE, "collection")
     val user = ResourceFactory.createProperty(BASE, "user")
     val completed = ResourceFactory.createProperty(BASE, "completed")
     val requestBody = ResourceFactory.createProperty(BASE, "requestBody")
     val requestPath = ResourceFactory.createProperty(BASE, "requestPath")
 
     val commitId = ResourceFactory.createProperty(BASE, "commitId")
-
+    val submitted = ResourceFactory.createProperty(BASE, "submitted")
     // access control properties
     val implies = ResourceFactory.createProperty(BASE, "implies")
 
 
     val srcRef = ResourceFactory.createProperty(BASE, "srcRef")
     val dstRef = ResourceFactory.createProperty(BASE, "dstRef")
+
+    val scope = ResourceFactory.createProperty(BASE, "scope")
+    val role = ResourceFactory.createProperty(BASE, "role")
 
     val etag = ResourceFactory.createProperty(BASE, "etag")
     val ref = ResourceFactory.createProperty(BASE, "ref")
@@ -253,7 +267,7 @@ object MMS {
         val stagingGraph = ResourceFactory.createProperty(BASE_TXN, "stagingGraph")
         val baseModel = ResourceFactory.createProperty(BASE_TXN, "baseModel")
         val baseModelGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
-        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
+        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "sourceGraph")
 
         val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
         val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")
