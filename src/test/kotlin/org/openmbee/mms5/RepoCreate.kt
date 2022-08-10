@@ -34,30 +34,30 @@ class RepoCreate : RepoAny() {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
-                    response exclusivelyHasTriples {
+                    response includesTriples {
                         modelName = "CreateValidRepo"
 
                         validateCreatedRepoTriples(response, repoId, repoName, orgPath, listOf(
                             arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
                         ))
 
-                        // auto policy for master branch
-                        matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner.") {
-                            includes(
-                                RDF.type exactly MMS.Policy,
-                            )
-                        }
+                        // // auto policy for master branch
+                        // matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner.") {
+                        //     includes(
+                        //         RDF.type exactly MMS.Policy,
+                        //     )
+                        // }
 
-                        // master branch
-                        subject(localIri("$repoPath/branches/master")) {
-                            includes(
-                                RDF.type exactly MMS.Branch,
-                                MMS.id exactly "master",
-                                DCTerms.title exactly "Master".en,
-                                MMS.etag startsWith "",
-                                MMS.commit startsWith localIri("$commitsPath/").iri,
-                            )
-                        }
+                        // // master branch
+                        // subject(localIri("$repoPath/branches/master")) {
+                        //     includes(
+                        //         RDF.type exactly MMS.Branch,
+                        //         MMS.id exactly "master",
+                        //         DCTerms.title exactly "Master".en,
+                        //         MMS.etag startsWith "",
+                        //         MMS.commit startsWith localIri("$commitsPath/").iri,
+                        //     )
+                        // }
 
                     }
                 }
