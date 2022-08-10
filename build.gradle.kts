@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.openmbee.mms5"
-version = "1.0.0-ALPHA"
+version = "0.1.0-ALPHA"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 }
