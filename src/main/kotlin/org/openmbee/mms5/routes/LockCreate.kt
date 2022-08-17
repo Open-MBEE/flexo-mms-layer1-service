@@ -279,7 +279,7 @@ fun Route.createLock() {
 
                     graph("m-graph:Graphs") {
                         raw("""
-                            ?__mms_model a mms:ModelGraph .
+                            ?__mms_model a mms:SnapshotGraph .
                         """)
                     }
                 }

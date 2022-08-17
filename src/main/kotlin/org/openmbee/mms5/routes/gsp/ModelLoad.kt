@@ -9,6 +9,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -368,11 +369,13 @@ fun Route.loadModel() {
 
                 log.info(commitUpdateString)
 
+                val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
+
                 executeSparqlUpdate(commitUpdateString) {
                     prefixes(prefixes)
 
                     iri(
-                        "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
+                        "_interim" to interimIri,
                         "_insGraph" to (diffInsGraph?: "mms:voidInsGraph"),
                         "_delGraph" to (diffDelGraph?: "mms:voidDelGraph"),
                         "_loadGraph" to loadGraphUri,
@@ -401,6 +404,10 @@ fun Route.loadModel() {
                     copy graph ?_stagingGraph to graph ?_modelGraph ;
                     
                     insert data {
+                        graph m-graph:Graphs {
+                            ?_modelGraph a mms:SnapshotGraph .
+                        }
+
                         graph mor-graph:Metadata {
                             morb: mms:snapshot ?_model .
                             ?_model a mms:Model ;
@@ -421,16 +428,44 @@ fun Route.loadModel() {
             //}
 
             // now that response has been sent to client, perform "clean up" work on quad-store
-
-            // delete both transactions
-            executeSparqlUpdate("""
-                delete where {
-                    graph m-graph:Transactions {
-                        mt:load ?load_p ?load_o .
-                        mt:diff ?diff_p ?diff_o .
+            run {
+                // delete both transactions
+                executeSparqlUpdate(
+                    """
+                    delete where {
+                        graph m-graph:Transactions {
+                            mt:load ?load_p ?load_o .
+                            mt:diff ?diff_p ?diff_o .
+                        }
                     }
+                """
+                )
+
+                // delete interim lock
+                executeSparqlUpdate(
+                    """
+                    delete where {
+                        graph mor-graph:Metadata {
+                            ?_interim ?lock_p ?lock_o ;
+                                mms:snapshot ?snapshot .
+                            
+                            ?snapshot mms:graph ?model ;
+                                ?snapshot_p ?snapshot_o .
+                        }
+                        
+                        optional {
+                            graph ?model {
+                                ?model_s ?model_p ?model_o .
+                            }
+                        }
+                    }
+                """
+                ) {
+                    iri(
+                        "_interim" to interimIri,
+                    )
                 }
-            """)
+            }
         }
     }
 }

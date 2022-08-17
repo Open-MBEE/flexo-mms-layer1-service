@@ -1,6 +1,8 @@
 package org.openmbee.mms5
 
+import io.kotest.core.spec.style.describeSpec
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import org.openmbee.mms5.util.*
 import java.util.*
 
@@ -46,7 +48,9 @@ class BranchCreate : RefAny() {
                     <http://somesub.com> <http://somepred.com> 5 . 
                 }
             """.trimIndent())
+
             val commit = update.response.headers[HttpHeaders.ETag]
+
             withTest {
                 httpPut(branchPath) {
                     setTurtleBody("""
@@ -66,6 +70,45 @@ class BranchCreate : RefAny() {
                     """.trimIndent())
                 }.apply {
                     validateCreateBranchResponse(repoEtag)
+                }
+            }
+        }
+
+        "insert, replace, branch on 1" {
+            val update1 = commitModel(
+                masterPath, """
+                insert data {
+                    <urn:s> <urn:p> 5 . 
+                }
+            """.trimIndent()
+            )
+
+            val commitId = update1.response.headers[HttpHeaders.ETag]
+
+
+            val update2 = commitModel(
+                masterPath, """
+                delete data {
+                    <urn:s> <urn:p> 5 .
+                } ;
+                insert data {
+                    <urn:s> <urn:p> 6 . 
+                }
+            """.trimIndent()
+            )
+
+            // wait for interim lock to be deleted
+            delay(2_000L)
+
+            withTest {
+                httpPut(branchPath) {
+                    setTurtleBody("""
+                        ${title(branchName)}
+                        <> mms:commit mor-commit:$commitId .
+                    """.trimIndent()
+                    )
+                }.apply {
+                    validateCreateBranchResponse(commitId!!)
                 }
             }
         }
