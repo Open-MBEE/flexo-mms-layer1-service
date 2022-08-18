@@ -1,8 +1,11 @@
 package org.openmbee.mms5
 
 import io.kotest.core.spec.style.describeSpec
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
 import io.ktor.http.*
 import kotlinx.coroutines.delay
+import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.mms5.util.*
 import java.util.*
 
@@ -74,41 +77,73 @@ class BranchCreate : RefAny() {
             }
         }
 
-        "insert, replace, branch on 1" {
-            val update1 = commitModel(
-                masterPath, """
+        "insert, replace x 4, branch on 2nd" {
+            val init = commitModel(masterPath, """
                 insert data {
-                    <urn:s> <urn:p> 5 . 
+                    <urn:s> <urn:p> 1 . 
                 }
-            """.trimIndent()
-            )
+            """.trimIndent())
 
-            val commitId = update1.response.headers[HttpHeaders.ETag]
+            val initCommitId = init.response.headers[HttpHeaders.ETag]
 
 
-            val update2 = commitModel(
-                masterPath, """
-                delete data {
-                    <urn:s> <urn:p> 5 .
-                } ;
-                insert data {
-                    <urn:s> <urn:p> 6 . 
-                }
-            """.trimIndent()
-            )
+            val commitIds = mutableListOf<String>();
 
-            // wait for interim lock to be deleted
-            delay(2_000L)
+            suspend fun replaceCounterValue(value: Int): String {
+                val update = commitModel(masterPath, """
+                    delete where {
+                        <urn:s> <urn:p> ?previous .
+                    } ;
+                    insert data {
+                        <urn:s> <urn:p> $value . 
+                    }
+                """.trimIndent()
+                )
+
+                val commitId = update.response.headers[HttpHeaders.ETag]!!
+
+                commitIds.add(commitId)
+
+                // wait for interim lock to be deleted
+                delay(2_000L)
+
+                return commitId;
+            }
+
+            val restoredValue = 2
+            val restoreCommitId = replaceCounterValue(restoredValue)
+
+            for(index in 3..5) {
+                replaceCounterValue(index)
+            }
 
             withTest {
+                // create branch and validate
                 httpPut(branchPath) {
                     setTurtleBody("""
                         ${title(branchName)}
-                        <> mms:commit mor-commit:$commitId .
+                        <> mms:commit mor-commit:$restoreCommitId .
                     """.trimIndent()
                     )
                 }.apply {
-                    validateCreateBranchResponse(commitId!!)
+                    validateCreateBranchResponse(restoreCommitId)
+                }
+
+                // assert the resultant model is in the correct state
+                val refPath = "$branchPath/graph"
+                httpGet(refPath) {
+                    addHeader(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    val model = KModel()
+                    parseTurtle(response.content!!, model, refPath)
+
+                    val s = ResourceFactory.createResource("urn:s")
+                    val p = ResourceFactory.createProperty("urn:p")
+                    val values = model.listObjectsOfProperty(s, p).toList()
+
+                    values shouldHaveSize 1
+                    values[0].asLiteral().string shouldBe "$restoredValue"
                 }
             }
         }

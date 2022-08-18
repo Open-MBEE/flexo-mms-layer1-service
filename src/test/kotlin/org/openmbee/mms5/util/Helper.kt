@@ -1,7 +1,12 @@
 package org.openmbee.mms5.util
 
 import io.ktor.http.*
+import io.ktor.server.request.*
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.Model
+import org.openmbee.mms5.KModel
+import org.openmbee.mms5.RdfContentTypes
+import org.openmbee.mms5.parseTurtle
 
 
 fun createOrg(orgId: String, orgName: String): TestApplicationCall {
@@ -74,5 +79,16 @@ fun loadModel(refPath: String, turtle: String): TestApplicationCall {
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
         }
+    }
+}
+
+fun TestApplicationEngine.fetchModel(refPath: String, setup: (Model.() -> Unit)): TestApplicationCall {
+    return httpGet("$refPath/graph") {
+        addHeader(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+    }.apply {
+        response shouldHaveStatus HttpStatusCode.OK
+        val model = KModel()
+        parseTurtle(response.content!!, model, refPath)
+        model.setup()
     }
 }
