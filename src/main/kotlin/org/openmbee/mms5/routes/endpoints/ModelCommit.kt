@@ -86,23 +86,61 @@ fun Route.commitModel() {
                 }
             }
 
-            patchString = """
-                delete {
-                    graph ?__mms_model {
-                        $deleteBgpString
-                    }
+            if(whereString.isBlank()) {
+                val patches = mutableListOf<String>()
+
+                if(deleteBgpString.isNotBlank()) {
+                    patches.add("""
+                        delete data {
+                            graph ?__mms_model {
+                                $deleteBgpString
+                            }
+                        }
+                    """)
                 }
-                insert {
-                    graph ?__mms_model {
-                        $insertBgpString
-                    }
+
+                if(insertBgpString.isNotBlank()) {
+                    patches.add("""
+                        insert data {
+                            graph ?__mms_model {
+                                $insertBgpString
+                            }
+                        }
+                    """)
                 }
-                where {
-                    graph ?__mms_model {
-                        $whereString
-                    }
+
+                patchString = patches.joinToString(" ; ")
+            }
+            else {
+                if(deleteBgpString.isNotBlank()) {
+                    patchString += """
+                        delete {
+                            graph ?__mms_model {
+                                $deleteBgpString
+                            }
+                        }
+                    """
                 }
-            """
+
+                if(insertBgpString.isNotBlank()) {
+                    patchString += """
+                        insert {
+                            graph ?__mms_model {
+                                $insertBgpString
+                            }
+                        }
+                    """
+                }
+
+                patchString += """
+                    where {
+                        graph ?__mms_model {
+                            $whereString
+                        }
+                    }
+                """
+            }
+
             log.info("INSERT: $insertBgpString")
             log.info("DELETE: $deleteBgpString")
             log.info("WHERE: $whereString")
