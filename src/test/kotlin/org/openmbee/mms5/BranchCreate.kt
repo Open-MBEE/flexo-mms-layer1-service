@@ -136,7 +136,7 @@ class BranchCreate : RefAny() {
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     val model = KModel()
-                    parseTurtle(response.content!!, model, refPath)
+                    parseTurtle(response.content!!, model, branchPath)
 
                     val s = ResourceFactory.createResource("urn:s")
                     val p = ResourceFactory.createProperty("urn:p")
@@ -144,6 +144,56 @@ class BranchCreate : RefAny() {
 
                     values shouldHaveSize 1
                     values[0].asLiteral().string shouldBe "$restoredValue"
+                }
+            }
+        }
+
+        "model load x 3, branch on 2" {
+            val load1 = loadModel(masterPath, """
+                <urn:s> <urn:p> 1 .
+            """.trimIndent())
+
+            delay(500L)
+
+            val load2 = loadModel(masterPath, """
+                <urn:s> <urn:p> 2 .
+            """.trimIndent())
+
+            val commitId2 = load2.response.headers[HttpHeaders.ETag]!!
+
+            delay(500L)
+
+            val load3 = loadModel(masterPath, """
+                <urn:s> <urn:p> 3 .
+            """.trimIndent())
+
+            delay(500L)
+
+            withTest {
+                httpPut(branchPath) {
+                    setTurtleBody("""
+                        ${title(branchName)}
+                        <> mms:commit mor-commit:${commitId2} .
+                    """.trimIndent())
+                }.apply {
+                    validateCreateBranchResponse(commitId2)
+                }
+
+
+                val refPath = "$branchPath/graph"
+                httpGet(refPath) {
+                    addHeader(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    val model = KModel()
+                    parseTurtle(response.content!!, model, branchPath)
+
+                    val s = ResourceFactory.createResource("urn:s")
+                    val p = ResourceFactory.createProperty("urn:p")
+                    val values = model.listObjectsOfProperty(s, p).toList()
+
+                    values shouldHaveSize 1
+                    values[0].asLiteral().string shouldBe "2"
                 }
             }
         }
