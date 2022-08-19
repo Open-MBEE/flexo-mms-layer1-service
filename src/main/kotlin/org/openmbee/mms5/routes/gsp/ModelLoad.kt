@@ -353,6 +353,38 @@ fun Route.loadModel() {
             */
                 // TODO add condition to update that the selected staging has not changed since diff creation using etag value
 
+                val deleteDataResponseText = executeSparqlConstructOrDescribe("""
+                    construct {
+                        ?del_s ?del_p ?del_o .
+                    }
+                    where {                    
+                        graph ?_delGraph {
+                            ?del_s ?del_p ?del_o .
+                        }
+                    }
+                """) {
+                    iri(
+                        "_delGraph" to diffDelGraph!!,
+                    )
+                }
+
+                // create patch string
+                val insertDataResponseText = executeSparqlConstructOrDescribe("""
+                    construct {
+                        ?ins_s ?ins_p ?ins_o .
+                    }
+                    where {                    
+                        graph ?_insGraph {
+                            ?ins_s ?ins_p ?ins_o .
+                        }
+                    }
+                """) {
+                    iri(
+                        "_insGraph" to diffInsGraph!!,
+                    )
+                }
+
+
                 // replace current staging graph with the already loaded model in load graph
                 val commitUpdateString = genCommitUpdate(localConditions,
                     delete = """
@@ -383,7 +415,14 @@ fun Route.loadModel() {
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to ("" to MMS_DATATYPE.sparql),
+                        "_patchString" to ("""
+                            delete data {
+                                $deleteDataResponseText
+                            } ;
+                            insert data {
+                                $insertDataResponseText
+                            }
+                        """.trimIndent() to MMS_DATATYPE.sparql),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
