@@ -82,43 +82,55 @@ enum class Role(val id: String) {
 @JvmOverloads
 fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=null, replace: String?=null): String {
     return """
-        # user exists and may belong to some group
-        graph m-graph:AccessControl.Agents {
-            {
-                mu: a mms:User .
-            } union {
-                ?group a mms:Group ;
-                    mms:id ?__mms_groupId .
-                    
-                values ?__mms_groupId {
-                    # @values groupId                
-                }
-            }
-        }
-        
-        # a policy exists that applies to this user/group within an appropriate scope
+        # some policy exists
         graph m-graph:AccessControl.Policies {
             ?policy a mms:Policy ;
                 mms:scope ?scope ;
                 mms:role ?role ;
                 .
-            
-            {
+        }
+
+        {
+            # user exists
+            graph m-graph:AccessControl.Agents {
+                mu: a mms:User .
+            }
+    
+            # the policy applies to this user within an appropriate scope
+            graph m-graph:AccessControl.Policies {
                 # policy about user
                 ?policy mms:subject mu: .
-            } union {
+            }
+    
+            bind("user" as ?__mms_authMethod)
+        } union {
+            # user belongs to some group
+            graph m-graph:AccessControl.Agents {
+                ?group a mms:Group ;
+                    mms:id ?__mms_groupId .
+        
+                values ?__mms_groupId {
+                    # @values groupId                
+                }
+            }
+        
+            # a policy exists that applies to this group within an appropriate scope
+            graph m-graph:AccessControl.Policies {
                 # or policy about group user belongs to
                 ?policy mms:subject ?group .
             }
-            
-            # intersect scopes relevant to context
-            values ?scope {
-                ${scope.values().joinToString(" ") { "$it:".run {
-                    if(find != null && replace != null) this.replace(find, replace) else this
-                } } }
-            }
+    
+            bind("group" as ?__mms_authMethod)
         }
-        
+
+
+        # intersect scopes relevant to context
+        values ?scope {
+            ${scope.values().joinToString(" ") { "$it:".run {
+                if(find != null && replace != null) this.replace(find, replace) else this
+            } } }
+        }
+    
         # lookup scope's class
         graph m-graph:Cluster {
             ?scope rdf:type ?scopeType .

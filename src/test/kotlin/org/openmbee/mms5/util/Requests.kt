@@ -14,6 +14,8 @@ data class AuthStruct (
 
 val rootAuth = AuthStruct("root", listOf("super_admins"))
 
+val anonAuth = AuthStruct("anon")
+
 
 fun localIri(suffix: String): String {
     return "http://layer1-service$suffix"
@@ -66,6 +68,19 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
+    if(true == System.getenv("MMS5_TEST_NO_AUTH")?.isNotBlank()) {
+        handleRequest(method, uri) {
+            addHeader("Authorization", authorization(anonAuth))
+            setup()
+        }.apply {
+            if(method == HttpMethod.Get) {
+                response shouldHaveStatus HttpStatusCode.NotFound
+            } else {
+                response shouldHaveStatus HttpStatusCode.Forbidden
+            }
+        }
+    }
+
     return handleRequest(method, uri) {
         addHeader("Authorization", authorization(rootAuth))
         setup()

@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -13,7 +14,7 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
     // require that the given org does not exist before attempting to create it
     require("orgNotExists") {
-        handler = { mms -> "The provided org <${mms.prefixes["mo"]}> already exists." }
+        handler = { mms -> "The provided org <${mms.prefixes["mo"]}> already exists." to HttpStatusCode.BadRequest }
 
         """
             # org must not yet exist

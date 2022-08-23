@@ -15,16 +15,20 @@ fun Route.readModel() {
                 branch()
             }
 
+            val authorizedIri = "<urn:mms:auth:${transactionId}>"
+
             val constructString = buildSparqlQuery {
                 construct {
                     raw("""
+                        $authorizedIri <urn:mms:policy> ?__mms_authMethod . 
+
                         ?s ?p ?o
                     """)
                 }
                 where {
                     auth(permission.scope.id, BRANCH_QUERY_CONDITIONS)
 
-                    raw("""                        
+                    raw("""
                         graph mor-graph:Metadata {
                             morb: mms:snapshot/mms:graph ?modelGraph .
                         }
@@ -36,7 +40,18 @@ fun Route.readModel() {
                 }
             }
 
-            call.respondText(executeSparqlConstructOrDescribe(constructString), contentType=RdfContentTypes.Turtle)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+
+            if(!constructResponseText.contains(authorizedIri)) {
+                throw Http404Exception()
+            }
+            else {
+                // try to avoid parsing model for performance reasons
+                val modelText = constructResponseText.replace("""$authorizedIri\s+<urn:mms:policy>\s+\"(user|group)\"\s+\.""".toRegex(), "")
+
+                call.respondText(modelText, contentType=RdfContentTypes.Turtle)
+            }
+
         }
 
     }

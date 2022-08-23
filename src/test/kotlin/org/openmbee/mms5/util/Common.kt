@@ -1,5 +1,6 @@
 package org.openmbee.mms5.util
 
+import io.kotest.core.NamedTag
 import io.kotest.core.spec.Spec
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.core.test.TestCase
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileOutputStream
 
+val NoAuth = NamedTag("NoAuth")
 
 val backend = RemoteBackend()
 

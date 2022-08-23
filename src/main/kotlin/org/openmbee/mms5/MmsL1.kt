@@ -419,7 +419,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
         return append {
             require("validSource") {
-                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" }
+                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" to HttpStatusCode.BadRequest }
 
                 """
                     ${if(refSource != null) """
@@ -444,7 +444,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendSrcRef(): ConditionsGroup {
         return append {
             require("validSourceRef") {
-                handler = { prefixes -> "Invalid source ref" }
+                handler = { prefixes -> "Invalid source ref" to HttpStatusCode.BadRequest }
 
                 """
                     graph m-graph:Schema {
@@ -464,7 +464,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendDstRef(): ConditionsGroup {
         return append {
             require("validSourceRef") {
-                handler = { prefixes -> "Invalid destination ref" }
+                handler = { prefixes -> "Invalid destination ref" to HttpStatusCode.BadRequest }
 
                 """
                     graph m-graph:Schema {
@@ -646,7 +646,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             }
 
             builder.require("userPreconditions") {
-                handler = { "User preconditions failed" }
+                handler = { "User preconditions failed" to HttpStatusCode.PreconditionFailed }
 
                 inject(injectPreconditions())
             }
@@ -875,7 +875,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
     conditions.append {
         if(whereString.isNotEmpty()) {
             require("userWhere") {
-                handler = { "User update condition is not satisfiable" }
+                handler = { "User update condition is not satisfiable" to HttpStatusCode.PreconditionFailed }
 
                 """
                     graph $graph {

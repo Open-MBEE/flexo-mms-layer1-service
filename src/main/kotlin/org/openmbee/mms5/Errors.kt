@@ -1,10 +1,11 @@
 package org.openmbee.mms5
 
+import io.ktor.client.engine.*
 import io.ktor.server.application.*
 import io.ktor.http.*
 import io.ktor.server.response.*
 
-abstract class HttpException(msg: String, private val statusCode: HttpStatusCode): Exception(msg) {
+open class HttpException(msg: String, private val statusCode: HttpStatusCode): Exception(msg) {
     open suspend fun handle(call: ApplicationCall, text: String?=this.stackTraceToString()) {
         call.respondText(text ?: "Unspecified error", status=statusCode)
     }
@@ -34,6 +35,7 @@ class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The
 
 class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
 
+open class Http403Exception(msg: String="User is not authorized to perform specified action on resource"): HttpException(msg, HttpStatusCode.Forbidden)
 
 open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)
 

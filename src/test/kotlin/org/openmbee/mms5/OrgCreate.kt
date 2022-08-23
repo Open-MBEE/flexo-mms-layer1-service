@@ -9,9 +9,10 @@ import org.apache.jena.sparql.vocabulary.FOAF
 import org.openmbee.mms5.util.*
 import java.util.*
 
+
 class OrgCreate : OrgAny() {
     init {
-        "reject invalid org id" {
+        "reject invalid org id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$orgPath with invalid id") {
                     setTurtleBody(validOrgBody)

@@ -22,22 +22,24 @@ fun testEnv(): ApplicationEngineEnvironment {
 }
 
 
-fun <R> withTest(testName: String, test: TestApplicationEngine.(String) -> R) : R {
+fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngine.(String) -> R) : R {
     return withSystemProperties(mapOf(
         "MMS5_QUERY_URL" to backend.getQueryUrl(),
         "MMS5_UPDATE_URL" to backend.getQueryUrl(),
         "MMS5_GRAPH_STORE_PROTOCOL_URL" to backend.getGspdUrl(),
+        "MMS5_TEST_NO_AUTH" to if(test?.testCase?.config?.tags?.contains(NoAuth) == true) "1" else "",
     )) {
         withApplication(testEnv()) {
-            test(testName)
+            engine(testName)
         }
     }
 }
 
 fun <R> withTest(test: TestApplicationEngine.(String) -> R) : R {
-    return withTest("(unnamed)", test)
+    return withTest("(unnamed)", null, test)
 }
 
+
 fun <R> TestScope.withTest(test: TestApplicationEngine.(String) -> R) : R {
-    return withTest(this.testCase.name.testName, test)
+    return withTest(this.testCase.name.testName, this, test)
 }

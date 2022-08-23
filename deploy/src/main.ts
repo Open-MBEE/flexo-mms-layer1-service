@@ -180,6 +180,11 @@ ds_writer.write({
 				'mms:id': '"root',
 			},
 
+			'm-user:anon': {
+				a: 'mms:User',
+				'mms:id': '"anon',
+			},
+
 			'm-group:SuperAdmins': {
 				a: 'mms:Group',
 				'mms:id': '"super_admins',
