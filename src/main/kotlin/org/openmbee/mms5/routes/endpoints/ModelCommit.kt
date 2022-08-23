@@ -4,6 +4,7 @@ import io.ktor.server.application.*
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.delay
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -85,18 +86,61 @@ fun Route.commitModel() {
                 }
             }
 
-            patchString = """
-                delete {
-                    graph ?__mms_model {
-                        $deleteBgpString
-                    }
+            if(whereString.isBlank()) {
+                val patches = mutableListOf<String>()
+
+                if(deleteBgpString.isNotBlank()) {
+                    patches.add("""
+                        delete data {
+                            graph ?__mms_model {
+                                $deleteBgpString
+                            }
+                        }
+                    """)
                 }
-                insert {
-                    graph ?__mms_model {
-                        $insertBgpString
-                    }
+
+                if(insertBgpString.isNotBlank()) {
+                    patches.add("""
+                        insert data {
+                            graph ?__mms_model {
+                                $insertBgpString
+                            }
+                        }
+                    """)
                 }
-            """
+
+                patchString = patches.joinToString(" ; ")
+            }
+            else {
+                if(deleteBgpString.isNotBlank()) {
+                    patchString += """
+                        delete {
+                            graph ?__mms_model {
+                                $deleteBgpString
+                            }
+                        }
+                    """
+                }
+
+                if(insertBgpString.isNotBlank()) {
+                    patchString += """
+                        insert {
+                            graph ?__mms_model {
+                                $insertBgpString
+                            }
+                        }
+                    """
+                }
+
+                patchString += """
+                    where {
+                        graph ?__mms_model {
+                            $whereString
+                        }
+                    }
+                """
+            }
+
             log.info("INSERT: $insertBgpString")
             log.info("DELETE: $deleteBgpString")
             log.info("WHERE: $whereString")
@@ -152,12 +196,13 @@ fun Route.commitModel() {
                 } else "")
             )
 
+            val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
             executeSparqlUpdate(commitUpdateString) {
                 prefixes(prefixes)
 
                 iri(
-                    "_interim" to "${prefixes["mor-lock"]}Interim.${transactionId}",
+                    "_interim" to interimIri,
                 )
 
                 datatyped(
@@ -240,6 +285,10 @@ fun Route.commitModel() {
                 copy graph <$stagingGraph> to graph ?_modelGraph ;
                 
                 insert data {
+                    graph m-graph:Graphs {
+                        ?_modelGraph a mms:SnapshotGraph .
+                    }
+
                     graph mor-graph:Metadata {
                         morb: mms:snapshot ?_model .
                         ?_model a mms:Model ;
@@ -260,7 +309,7 @@ fun Route.commitModel() {
 
             // delete transaction
             run {
-                val dropResponseText = executeSparqlUpdate("""
+                val dropTransactionResponseText = executeSparqlUpdate("""
                     delete where {
                         graph m-graph:Transactions {
                             mt: ?p ?o .
@@ -269,7 +318,35 @@ fun Route.commitModel() {
                 """)
 
                 // log response
-                log.info(dropResponseText)
+                log.info(dropTransactionResponseText)
+
+                // delete interim lock
+                val dropInterimResponseText = executeSparqlUpdate("""
+                    delete where {
+                        graph mor-graph:Metadata {
+                            ?_interim ?lock_p ?lock_o ;
+                                mms:snapshot ?snapshot .
+                            
+                            ?snapshot mms:graph ?model ;
+                                ?snapshot_p ?snapshot_o .
+                        }
+                        
+                        graph m-graph:Graphs {
+                            ?model a mms:SnapshotGraph .
+                        }
+                        
+                        graph ?model {
+                            ?model_s ?model_p ?model_o .
+                        }
+                    }
+                """) {
+                    iri(
+                        "_interim" to interimIri,
+                    )
+                }
+
+                // log response
+                log.info(dropInterimResponseText)
             }
         }
     }

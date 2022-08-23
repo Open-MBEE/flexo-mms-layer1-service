@@ -3,9 +3,15 @@ package org.openmbee.mms5.routes
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+
+
+private val ROOT_COMMIT_RESOURCE = ResourceFactory.createResource("urn:mms:rootCommit")
+
+private val IS_PROPERTY = ResourceFactory.createProperty("urn:mms:is")
 
 
 // default starting conditions for any calls to create a branch
@@ -27,6 +33,94 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
         """
     }
 }
+
+private val SPARQL_UPDATE_SEQUENCE = """
+    insert {
+        # copy origin graph
+        graph ?_mdlGraph {
+            ?origin_s ?origin_p ?origin_o .
+        }
+    
+        graph m-graph:Graphs {
+            ?_mdlGraph a mms:SnapshotGraph .
+        }
+    
+        # save state for next queries
+        graph m-graph:Transactions {
+            mt:sequence
+                mms-txn:originCommit ?originCommit ;
+                mms-txn:originSnapshot ?originSnapshot ;
+                mms-txn:originGraph ?originGraph ;
+                .
+        }
+    }
+    where {
+        graph mor-graph:Metadata {
+            # commit's ancestors
+            ?_commitSource a mms:Commit ;
+                mms:parent+ ?originCommit .
+    
+            # pick the closest commit which also has a ref by excluding 'heirs'
+            filter not exists {
+                ?_commitSource mms:parent+ ?heirCommit .
+    
+                ?heirCommit mms:parent+ ?originCommit .
+    
+                ?heirRef mms:commit ?heirCommit .
+            }
+    
+            # traverse to snapshot
+            ?originRef mms:commit ?originCommit ;
+                mms:snapshot ?originSnapshot .
+    
+            # resolve to origin graph
+            ?originSnapshot mms:graph ?originGraph .
+        }
+    
+    
+        # select contents of origin graph
+        optional {
+            graph ?originGraph {
+                ?origin_s ?origin_p ?origin_o .
+            }
+        }
+    }
+""".trimIndent()
+
+private val SPARQL_CONSTRUCT_DELTAS = """
+    construct {
+        ?deltaCommit ?delta_p ?delta_o .
+    
+        ?deltaData ?data_p ?data_o .
+        
+        <${ROOT_COMMIT_RESOURCE.uri}> <${IS_PROPERTY.uri}> ?rootCommit .
+    } where {
+        # restore state from previous transaction
+        graph m-graph:Transactions {
+            mt:sequence
+                mms-txn:originCommit ?originCommit ;
+                mms-txn:originSnapshot ?originSnapshot ;
+                mms-txn:originGraph ?originGraph ;
+                .
+        }
+    
+        graph mor-graph:Metadata {
+            # select all prior delta commits...
+            ?_commitSource mms:parent* ?deltaCommit .
+    
+            # ...that occur after the origin commit
+            ?deltaCommit mms:parent+ ?originCommit ;
+                mms:data ?deltaData ;
+                ?delta_p ?delta_o .
+    
+            # all delta commit data
+            ?deltaData ?data_p ?data_o.
+            
+            # 'root' commit
+            ?rootCommit mms:parent ?originCommit .
+        }
+    }
+""".trimIndent()
 
 
 fun Route.createBranch() {
@@ -157,6 +251,11 @@ fun Route.createBranch() {
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
+            // predetermine snapshot graphs
+            val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
+            val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
+            val modelSnapshot = "${prefixes["mor-snapshot"]}Model.${transactionId}"
+
             // clone graph
             run {
                 // isolate the transaction node
@@ -170,7 +269,7 @@ fun Route.createBranch() {
                         copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
                         
                         insert data {
-                            graph m:Graphs {
+                            graph m-graph:Graphs {
                                 ?_stgGraph a mms:SnapshotGraph .
                             }
                         
@@ -183,7 +282,7 @@ fun Route.createBranch() {
                         }
                     """) {
                         iri(
-                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+                            "_stgGraph" to stagingGraph,
                             "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                         )
                     }
@@ -193,7 +292,7 @@ fun Route.createBranch() {
                         copy silent graph ?_stgGraph to ?_mdlGraph ;
                         
                         insert data {
-                            graph m:Graphs {
+                            graph m-graph:Graphs {
                                 ?_mdlGraph a mms:SnapshotGraph .
                             }
 
@@ -206,15 +305,91 @@ fun Route.createBranch() {
                         }
                     """) {
                         iri(
-                            "_stgGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
-                            "_mdlGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
-                            "_mdlSnapshot" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+                            "_stgGraph" to stagingGraph,
+                            "_mdlGraph" to modelGraph,
+                            "_mdlSnapshot" to modelSnapshot,
                         )
                     }
                 }
                 // no snapshots available, must build for commit
                 else {
-                    TODO("build snapshot")
+                    // select most recent preceding snapshot and copy to new snapshot graph
+                    val sequenceUpdateResponseText = executeSparqlUpdate(SPARQL_UPDATE_SEQUENCE) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_commitSource" to commitSource!!,
+                            "_mdlGraph" to modelGraph,
+                        )
+                    }
+
+                    log.info(sequenceUpdateResponseText)
+
+                    // select all commits between source and target
+                    val deltasResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_DELTAS) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "_commitSource" to commitSource!!,
+                        )
+                    }
+
+                    log.info(deltasResponseText)
+
+                    // build sparql update string
+                    val updates = mutableListOf<String>()
+                    parseConstructResponse(deltasResponseText) {
+                        // find root commit
+                        val rootCommits = model.listObjectsOfProperty(ROOT_COMMIT_RESOURCE, IS_PROPERTY).toList()
+                        if(rootCommits.size != 1) throw Http500Excpetion("Failed to determine commit history")
+
+                        // set initial commit resource
+                        var commit = rootCommits[0].asResource()
+
+                        // iterate thru all commits
+                        while(true) {
+                            // get patch body
+                            val patches = model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
+                            if(patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
+                            val patch = patches[0].asLiteral().string
+
+                            // add to update strings
+                            updates.add(patch)
+
+                            // traverse to child commit
+                            val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
+                            if(children.isEmpty()) break;
+
+                            // repeat
+                            commit = children[0]
+                        }
+                    }
+
+                    // apply all commits in sequence
+                    executeSparqlUpdate(updates.joinToString(" ;\n")) {
+                        prefixes(prefixes)
+
+                        iri(
+                            "__mms_model" to modelGraph
+                        )
+                    }
+
+                    // save new snapshot as branch
+                    executeSparqlUpdate("""
+                        insert data {
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_mdlSnapshot .
+                                ?_mdlSnapshot a mms:Model ;
+                                    mms:graph ?_mdlGraph ;
+                                    .
+                            }
+                        }
+                    """) {
+                        iri(
+                            "_mdlGraph" to modelGraph,
+                            "_mdlSnapshot" to modelSnapshot,
+                        )
+                    }
                 }
             }
 

@@ -141,6 +141,8 @@ fun Route.createRepo() {
                     graph("m-graph:Graphs") {
                         raw("""
                             mor-graph:Metadata a mms:RepoMetadataGraph .
+                            
+                            ?_stagingGraph a mms:SnapshotGraph .
                         """)
                     }
                 }

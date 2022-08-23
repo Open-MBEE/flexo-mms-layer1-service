@@ -46,7 +46,7 @@ object RdfContentTypes {
     }
 }
 
-class KModel(val prefixes: PrefixMapBuilder, setup: (KModel.() -> Unit)?=null): ModelCom(Factory.createGraphMem()) {
+class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.() -> Unit)?=null): ModelCom(Factory.createGraphMem()) {
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
