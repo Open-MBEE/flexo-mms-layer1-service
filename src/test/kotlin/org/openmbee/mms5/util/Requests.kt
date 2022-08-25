@@ -68,7 +68,7 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    if(true == System.getenv("MMS5_TEST_NO_AUTH")?.isNotBlank()) {
+    if("1" != System.getenv("MMS5_TEST_NO_AUTH")) {
         handleRequest(method, uri) {
             addHeader("Authorization", authorization(anonAuth))
             setup()

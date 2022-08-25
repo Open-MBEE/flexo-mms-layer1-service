@@ -170,9 +170,26 @@ fun Route.createBranch() {
                     graph("mor-graph:Metadata") {
                         raw("""
                             $branchTriples
-                            
-                            # reference the commit source
-                            morb: mms:commit ?__mms_commitSource .
+        
+                            # new commit
+                            morc: a mms:Commit ;
+                                mms:etag ?_txnId ;
+                                mms:parent ?__mms_commitSource ;
+                                mms:message ?_commitMessage ;
+                                mms:submitted ?_now ;
+                                mms:data morc-data: ;
+                                .
+                    
+                            # commit data
+                            morc-data: a mms:Update ;
+                                mms:body ""^^<${MMS_DATATYPE.sparql.uri}> ;
+                                mms:patch ""^^<${MMS_DATATYPE.sparql.uri}> ;
+                                mms:where ""^^<${MMS_DATATYPE.sparql.uri}> ;
+                                .
+                    
+                            # update branch pointer and etag
+                            morb: mms:commit morc: ;
+                                mms:etag ?_txnId .
                         """)
                     }
                 }
