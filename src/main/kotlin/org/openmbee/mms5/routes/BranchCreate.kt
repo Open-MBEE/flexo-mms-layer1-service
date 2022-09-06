@@ -182,9 +182,9 @@ fun Route.createBranch() {
                     
                             # commit data
                             morc-data: a mms:Update ;
-                                mms:body ""^^<${MMS_DATATYPE.sparql.uri}> ;
-                                mms:patch ""^^<${MMS_DATATYPE.sparql.uri}> ;
-                                mms:where ""^^<${MMS_DATATYPE.sparql.uri}> ;
+                                mms:body ""^^mms-datatype:sparql ;
+                                mms:patch ""^^mms-datatype:sparql ;
+                                mms:where ""^^mms-datatype:sparql ;
                                 .
                     
                             # update branch pointer and etag
