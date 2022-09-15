@@ -9,7 +9,7 @@ import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.mms5.util.*
 import java.util.*
 
-class BranchCreate : RefAny() {
+class BranchCreateTest : RefAny() {
     init {
         "reject invalid branch id" {
             withTest {

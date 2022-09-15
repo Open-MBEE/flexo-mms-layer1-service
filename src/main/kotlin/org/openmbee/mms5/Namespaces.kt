@@ -2,6 +2,7 @@ package org.openmbee.mms5
 
 import org.apache.jena.datatypes.BaseDatatype
 import org.apache.jena.rdf.model.Property
+import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
 
@@ -77,6 +78,8 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
             "m-user" to "$this/users/",
             "m-group" to "$this/groups/",
             "m-policy" to "$this/policies/",
+
+            "ma" to "$this/graphs/AccessControl.",
         )
     }
 }
@@ -93,6 +96,7 @@ fun prefixesFor(
     lockId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
+    policyId: String?=null,
     source: PrefixMapBuilder?= SPARQL_PREFIXES,
 ): PrefixMapBuilder {
     return PrefixMapBuilder(source) {
@@ -107,8 +111,14 @@ fun prefixesFor(
         if(null != groupId) {
             with("$ROOT_CONTEXT/group/$groupId") {
                 add(
-                    "mag" to this,
+                    "mg" to this,
                 )
+            }
+        }
+
+        if(null != policyId) {
+            with("$ROOT_CONTEXT/policies/$policyId") {
+                add("mp" to this)
             }
         }
 
@@ -191,88 +201,101 @@ fun prefixesFor(
 object MMS {
     private val BASE = SPARQL_PREFIXES["mms"]!!
     val uri = BASE
+    
+    private fun res(id: String): Resource {
+        return ResourceFactory.createResource("${BASE}${id}")
+    }
 
     // classes
-    val Org = ResourceFactory.createResource("${BASE}Org")
-    val Repo = ResourceFactory.createResource("${BASE}Repo")
-    val Collection = ResourceFactory.createResource("${BASE}Collection")
-    val Snapshot = ResourceFactory.createResource("${BASE}Snapshot")
-    val Model = ResourceFactory.createResource("${BASE}Model")
-    val Staging = ResourceFactory.createResource("${BASE}Staging")
-    val Update = ResourceFactory.createResource("${BASE}Update")
-    val Load = ResourceFactory.createResource("${BASE}Load")
-    val Commit = ResourceFactory.createResource("${BASE}Commit")
-    val Branch = ResourceFactory.createResource("${BASE}Branch")
-    val Lock = ResourceFactory.createResource("${BASE}Lock")
-    val Diff = ResourceFactory.createResource("${BASE}Diff")
+    val Org = res("Org")
+    val Repo = res("Repo")
+    val Collection = res("Collection")
+    val Snapshot = res("Snapshot")
+    val Model = res("Model")
+    val Staging = res("Staging")
+    val Update = res("Update")
+    val Load = res("Load")
+    val Commit = res("Commit")
+    val Branch = res("Branch")
+    val Lock = res("Lock")
+    val Diff = res("Diff")
 
-    val User = ResourceFactory.createResource("${BASE}User")
-    val Group = ResourceFactory.createResource("${BASE}Group")
-    val Policy = ResourceFactory.createResource("${BASE}Policy")
+    val User = res("User")
+    val Group = res("Group")
+    val Policy = res("Policy")
 
-    val Transaction = ResourceFactory.createResource("${BASE}Transaction")
+    val Transaction = res("Transaction")
 
 
-    val RepoMetadataGraph = ResourceFactory.createResource("${BASE}RepoMetadataGraph")
-    val SnapshotGraph = ResourceFactory.createResource("${BASE}SnapshotGraph")
-    val CollectionMetadataGraph = ResourceFactory.createResource("${BASE}CollectionMetadataGraph")
+    val RepoMetadataGraph = res("RepoMetadataGraph")
+    val SnapshotGraph = res("SnapshotGraph")
+    val CollectionMetadataGraph = res("CollectionMetadataGraph")
 
     // object properties
     val id  = ResourceFactory.createProperty(BASE, "id")
+    
+    private fun prop(id: String): Property {
+        return ResourceFactory.createProperty(BASE, id)
+    }
 
     // transaction properties
-    val created = ResourceFactory.createProperty(BASE, "created")
-    val createdBy = ResourceFactory.createProperty(BASE, "createdBy")
-    val serviceId = ResourceFactory.createProperty(BASE, "serviceId")
-    val org = ResourceFactory.createProperty(BASE, "org")
-    val repo = ResourceFactory.createProperty(BASE, "repo")
-    val branch = ResourceFactory.createProperty(BASE, "branch")
-    val collection = ResourceFactory.createProperty(BASE, "collection")
-    val user = ResourceFactory.createProperty(BASE, "user")
-    val completed = ResourceFactory.createProperty(BASE, "completed")
-    val requestBody = ResourceFactory.createProperty(BASE, "requestBody")
-    val requestPath = ResourceFactory.createProperty(BASE, "requestPath")
+    val created = prop("created")
+    val createdBy = prop("createdBy")
+    val serviceId = prop("serviceId")
+    val org = prop("org")
+    val repo = prop("repo")
+    val branch = prop("branch")
+    val collection = prop("collection")
+    val user = prop("user")
+    val completed = prop("completed")
+    val requestBody = prop("requestBody")
+    val requestPath = prop("requestPath")
 
-    val commitId = ResourceFactory.createProperty(BASE, "commitId")
-    val submitted = ResourceFactory.createProperty(BASE, "submitted")
+    val commitId = prop("commitId")
+    val submitted = prop("submitted")
     // access control properties
-    val implies = ResourceFactory.createProperty(BASE, "implies")
+    val implies = prop("implies")
 
 
-    val srcRef = ResourceFactory.createProperty(BASE, "srcRef")
-    val dstRef = ResourceFactory.createProperty(BASE, "dstRef")
+    val srcRef = prop("srcRef")
+    val dstRef = prop("dstRef")
 
-    val scope = ResourceFactory.createProperty(BASE, "scope")
-    val role = ResourceFactory.createProperty(BASE, "role")
+    val subject = prop("subject")
+    val scope = prop("scope")
+    val role = prop("role")
 
-    val etag = ResourceFactory.createProperty(BASE, "etag")
-    val ref = ResourceFactory.createProperty(BASE, "ref")
-    val collects = ResourceFactory.createProperty(BASE, "collects")
-    val commit = ResourceFactory.createProperty(BASE, "commit")
-    val graph = ResourceFactory.createProperty(BASE, "graph")
-    val snapshot = ResourceFactory.createProperty(BASE, "snapshot")
-    val parent = ResourceFactory.createProperty(BASE, "parent")
-    val data = ResourceFactory.createProperty(BASE, "data")
-    val body = ResourceFactory.createProperty(BASE, "body")
-    val patch = ResourceFactory.createProperty(BASE, "patch")
-    val delete = ResourceFactory.createProperty(BASE, "delete")
-    val insert = ResourceFactory.createProperty(BASE, "insert")
-    val where = ResourceFactory.createProperty(BASE, "where")
+    val etag = prop("etag")
+    val ref = prop("ref")
+    val collects = prop("collects")
+    val commit = prop("commit")
+    val graph = prop("graph")
+    val snapshot = prop("snapshot")
+    val parent = prop("parent")
+    val data = prop("data")
+    val body = prop("body")
+    val patch = prop("patch")
+    val delete = prop("delete")
+    val insert = prop("insert")
+    val where = prop("where")
 
-    val diffSrc = ResourceFactory.createProperty(BASE, "diffSrc")
-    val diffDst = ResourceFactory.createProperty(BASE, "diffDst")
+    val diffSrc = prop("diffSrc")
+    val diffDst = prop("diffDst")
 
     private val BASE_TXN = "${BASE}txn."
     object TXN {
-        val stagingGraph = ResourceFactory.createProperty(BASE_TXN, "stagingGraph")
-        val baseModel = ResourceFactory.createProperty(BASE_TXN, "baseModel")
-        val baseModelGraph = ResourceFactory.createProperty(BASE_TXN, "baseModelGraph")
-        val sourceGraph = ResourceFactory.createProperty(BASE_TXN, "sourceGraph")
+        private fun prop(id: String): Property {
+            return ResourceFactory.createProperty(BASE_TXN, id)
+        }
 
-        val diff = ResourceFactory.createProperty(BASE_TXN, "diff")
-        val commitSource = ResourceFactory.createProperty(BASE_TXN, "commitSource")
-        val insGraph = ResourceFactory.createProperty(BASE_TXN, "insGraph")
-        val delGraph = ResourceFactory.createProperty(BASE_TXN, "delGraph")
+        val stagingGraph = prop("stagingGraph")
+        val baseModel = prop("baseModel")
+        val baseModelGraph = prop("baseModelGraph")
+        val sourceGraph = prop("sourceGraph")
+
+        val diff = prop("diff")
+        val commitSource = prop("commitSource")
+        val insGraph = prop("insGraph")
+        val delGraph = prop("delGraph")
     }
 }
 
@@ -281,4 +304,34 @@ object MMS_DATATYPE {
 
     val commitMessage = BaseDatatype("${BASE}commitMessage")
     val sparql = BaseDatatype("${BASE}sparql")
+}
+
+object MMS_OBJECT {
+    private val BASE = SPARQL_PREFIXES["mms-object"]
+
+    private val BASE_ROLE = "${BASE}Role."
+    object ROLE {
+        private fun res(id: String): Resource {
+            return ResourceFactory.createResource("${BASE_ROLE}${id}")
+        }
+
+        val AdminOrg = res("AdminOrg")
+        val WriteOrg = res("WriteOrg")
+        val ReadOrg = res("ReadOrg")
+        val AdminRepo = res("AdminRepo")
+        val WriteRepo = res("WriteRepo")
+        val ReadRepo = res("ReadRepo")
+        val AdminModel = res("AdminModel")
+        val WriteModel = res("WriteModel")
+        val ReadModel = res("ReadModel")
+        val AdminMetadata = res("AdminMetadata")
+        val WriteMetadata = res("WriteMetadata")
+        val ReadMetadata = res("ReadMetadata")
+        val AdminCluster = res("AdminCluster")
+        val WriteCluster = res("WriteCluster")
+        val ReadCluster = res("ReadCluster")
+        val AdminAccessControl = res("AdminAccessControl")
+        val WriteAccessControl = res("WriteAccessControl")
+        val ReadAccessControl = res("ReadAccessControl")
+    }
 }

@@ -132,7 +132,7 @@ fun Application.configureRouting() {
             // updateGroup()
             // deleteGroup()
 
-            // createPolicy()
+            createPolicy()
             // updatePolicy()
             // deletePolicy()
         }

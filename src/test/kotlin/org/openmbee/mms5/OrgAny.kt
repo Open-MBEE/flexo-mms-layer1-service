@@ -59,7 +59,7 @@ fun TriplesAsserter.validateCreatedOrgTriples(
 }
 
 open class OrgAny: CommonSpec() {
-    open val logger = LoggerFactory.getLogger(RepoUpdate::class.java)
+    open val logger = LoggerFactory.getLogger(OrgAny::class.java)
 
     val orgId = "open-mbee"
     val orgName = "OpenMBEE"

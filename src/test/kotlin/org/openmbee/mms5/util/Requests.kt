@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.openmbee.mms5.ROOT_CONTEXT
 import java.util.*
 
 
@@ -18,7 +19,7 @@ val anonAuth = AuthStruct("anon")
 
 
 fun localIri(suffix: String): String {
-    return "http://layer1-service$suffix"
+    return "$ROOT_CONTEXT$suffix"
 }
 
 fun userIri(user: String): String {
@@ -68,7 +69,7 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    if("1" != System.getenv("MMS5_TEST_NO_AUTH")) {
+    if("1" != System.getProperty("MMS5_TEST_NO_AUTH")) {
         handleRequest(method, uri) {
             addHeader("Authorization", authorization(anonAuth))
             setup()

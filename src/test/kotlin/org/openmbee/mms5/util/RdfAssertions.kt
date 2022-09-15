@@ -67,6 +67,29 @@ class ExactPairPattern(private val property: Property, private val node: RDFNode
 /**
  * Requires a predicate/object pair match exactly
  */
+class ExactPairSetPattern(private val property: Property, private val nodes: List<RDFNode>): PairPattern() {
+    override fun evaluate(subjectContext: SubjectContext) {
+        val subject = subjectContext.subject
+
+        // first check that the actual size matches the expected size
+        val actual = subjectContext.cardinality(property, nodes.size)
+
+        // assert that the sets are equivalent
+        if(nodes.toSet() != actual.toSet()) {
+            fail("\"${subjectContext.modelName}\" model at <${subject}>/<$property> contains a set of terms that do not match the expected values:\n"
+                    +"expected: "+nodes.joinToString(", ") { "<${it}>" }
+                    +"actual: "+actual.joinToString(",") { "$it" })
+        }
+
+        // remove all statements belonging to this property
+        subject.removeAll(property)
+    }
+}
+
+
+/**
+ * Requires a predicate/object pair match exactly
+ */
 class DatatypePairPattern(private val property: Property, private val datatype: Resource): PairPattern() {
     override fun evaluate(subjectContext: SubjectContext) {
         val subject = subjectContext.subject
@@ -122,6 +145,10 @@ infix fun Property.exactly(node: RDFNode): PairPattern {
 
 infix fun Property.exactly(string: String): PairPattern {
     return ExactPairPattern(this, ResourceFactory.createStringLiteral(string))
+}
+
+infix fun Property.exactly(nodes: List<RDFNode>): PairPattern {
+    return ExactPairSetPattern(this, nodes)
 }
 
 infix fun Property.hasDatatype(datatype: Resource): PairPattern {

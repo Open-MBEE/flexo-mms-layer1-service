@@ -9,7 +9,7 @@ enum class Crud(val id: String) {
     DELETE("Delete"),
 }
 
-enum class Scope(val type: String, val id: String) {
+enum class Scope(val type: String, val id: String, vararg val extras: String) {
     CLUSTER("Cluster", "m"),
     ORG("Org", "mo"),
     COLLECTION("Collection", "moc"),
@@ -18,13 +18,19 @@ enum class Scope(val type: String, val id: String) {
     LOCK("Lock", "morl"),
     DIFF("Diff", "mord"),
 
-    ACCESS_CONTROL("AccessControl", "ma"),
-    GROUP("Group", "mag")
+    ACCESS_CONTROL_ANY("AccessControl", "ma", "ma:Agents", "ma:Policies"),
+    USER("User", "mu"),
+    GROUP("Group", "mg"),
+    POLICY("Policy", "mp"),
 }
 
 fun Scope.values() = sequence<String> {
     for(i in 1..id.length) {
-        yield(id.substring(0, i))
+        yield(id.substring(0, i)+":")
+    }
+
+    for(extra in extras) {
+        yield(extra)
     }
 }
 
@@ -63,7 +69,12 @@ enum class Permission(
     UPDATE_DIFF(Crud.UPDATE, Scope.DIFF),
     DELETE_DIFF(Crud.DELETE, Scope.DIFF),
 
-    CREATE_GROUP(Crud.CREATE, Scope.GROUP)
+    CREATE_GROUP(Crud.CREATE, Scope.GROUP),
+
+    CREATE_POLICY(Crud.CREATE, Scope.POLICY),
+    READ_POLICY(Crud.CREATE, Scope.POLICY),
+    UPDATE_POLICY(Crud.CREATE, Scope.POLICY),
+    DELETE_POLICY(Crud.CREATE, Scope.POLICY),
 }
 
 
@@ -77,6 +88,7 @@ enum class Role(val id: String) {
     ADMIN_BRANCH("AdminBranch"),
     ADMIN_DIFF("AdminDiff"),
     ADMIN_GROUP("AdminGroup"),
+    ADMIN_POLICY("AdminPolicy"),
 }
 
 @JvmOverloads
@@ -126,7 +138,7 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
 
         # intersect scopes relevant to context
         values ?scope {
-            ${scope.values().joinToString(" ") { "$it:".run {
+            ${scope.values().joinToString(" ") { it.run {
                 if(find != null && replace != null) this.replace(find, replace) else this
             } } }
         }

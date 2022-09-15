@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -13,7 +14,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
     // require that the given repo does not exist before attempting to create it
     require("repoNotExists") {
-        handler = { mms -> "The provided repo <${mms.prefixes["mor"]}> already exists." }
+        handler = { mms -> "The provided repo <${mms.prefixes["mor"]}> already exists." to HttpStatusCode.Conflict }
 
         """
             # repo must not yet exist
@@ -27,7 +28,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
     // require that the metadata graph does not exist before attempting to create it
     require("repoMetadataGraphNotExists") {
-        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> already exists." }
+        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> already exists." to HttpStatusCode.Conflict }
 
         """
             # metadata graph must not yet exist
@@ -41,7 +42,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
     // require that there is no pre-existing metadata graph associated with the given repo id
     require("repoMetadataGraphEmpty") {
-        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> is not empty." }
+        handler = { mms -> "The Metadata graph <${mms.prefixes["mor-graph"]}Metadata> is not empty." to HttpStatusCode.Conflict }
 
         """
             # repo metadata graph must be empty

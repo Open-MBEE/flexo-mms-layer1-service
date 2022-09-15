@@ -40,12 +40,12 @@ dependencies {
     val klaxonVersion = "5.6"
     implementation("com.beust:klaxon:$klaxonVersion")
 
-    val jenaVersion = "4.5.0"
+    val jenaVersion = "4.6.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.0.3"
+    val ktorVersion = "2.1.1"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")

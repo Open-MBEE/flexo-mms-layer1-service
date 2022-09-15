@@ -27,8 +27,8 @@ fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngi
         "MMS5_QUERY_URL" to backend.getQueryUrl(),
         "MMS5_UPDATE_URL" to backend.getQueryUrl(),
         "MMS5_GRAPH_STORE_PROTOCOL_URL" to backend.getGspdUrl(),
-        "MMS5_TEST_NO_AUTH" to if(test?.testCase?.config?.tags?.contains(NoAuth) == true) "1" else "",
     )) {
+        System.setProperty("MMS5_TEST_NO_AUTH", if(test?.testCase?.config?.tags?.contains(NoAuth) == true) "1" else "")
         withApplication(testEnv()) {
             engine(testName)
         }

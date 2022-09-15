@@ -8,43 +8,55 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 
-// default starting conditions for any calls to create a group
+// default starting conditions for any calls to create a policy
 private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create groups on an access-control-level scope
-    permit(Permission.CREATE_GROUP, Scope.GROUP)
+    // require that the user has the ability to create policies on an access-control-level scope
+    permit(Permission.CREATE_POLICY, Scope.POLICY)
 
-    // require that the given group does not exist before attempting to create it
-    require("groupNotExists") {
-        handler = { mms -> "The provided group <${mms.prefixes["mg"]}> already exists." to HttpStatusCode.BadRequest }
+    // require that the given policy does not exist before attempting to create it
+    require("policyNotExists") {
+        handler = { mms -> "The provided policy <${mms.prefixes["mp"]}> already exists." to HttpStatusCode.Conflict }
 
         """
-            # group must not yet exist
-            graph m-graph:AccessControl.Agents {
+            # destination policy must not yet exist
+            graph m-graph:AccessControl.Policies {
                 filter not exists {
-                    mg: a mms:Group .
+                    mp: a mms:Policy .
                 }
             }
         """
     }
 }
 
-fun Route.createGroup() {
-    put("/groups/{groupId}") {
-        call.mmsL1(Permission.CREATE_GROUP) {
+fun Route.createPolicy() {
+    put("/policies/{policyId}") {
+        call.mmsL1(Permission.CREATE_POLICY) {
             // parse the path params
             pathParams {
-                group(legal=true)
+                policy(legal=true)
             }
 
-            // process RDF body from user about this new group
-            val groupTriples = filterIncomingStatements("mg") {
-                // relative to this group node
-                groupNode().apply {
+            // process RDF body from user about this new policy
+            val policyTriples = filterIncomingStatements("mp") {
+                // relative to this policy node
+                policyNode().apply {
+                    // expect exactly 1 subject node
+                    val subjectNode = extractExactly1Uri(MMS.subject)
+
+                    // expect exactly 1 scope node
+                    val scopeNode = extractExactly1Uri(MMS.scope)
+
+                    // expect 1 or more roles
+                    val roleNodes = extract1OrMoreUris(MMS.role)
+
                     // sanitize statements
                     sanitizeCrudObject {
-                        setProperty(RDF.type, MMS.Group)
-                        setProperty(MMS.id, groupId!!)
+                        setProperty(RDF.type, MMS.Policy)
+                        setProperty(MMS.id, policyId!!)
                         setProperty(MMS.etag, transactionId)
+                        bypass(MMS.subject)
+                        bypass(MMS.scope)
+                        bypass(MMS.role)
                     }
                 }
             }
@@ -57,13 +69,13 @@ fun Route.createGroup() {
                 insert {
                     // create a new txn object in the transactions graph
                     txn {
-                        // create a new policy that grants this user admin over the new branch
-                        autoPolicy(Scope.GROUP, Role.ADMIN_GROUP)
+                        // // create a new policy that grants this user admin over the new policy
+                        // autoPolicy(Scope.POLICY, Role.ADMIN_POLICY)
                     }
 
-                    // insert the triples about the new group, including arbitrary metadata supplied by user
-                    graph("m-graph:AccessControl.Agents") {
-                        raw(groupTriples)
+                    // insert the triples about the new policy, including arbitrary metadata supplied by user
+                    graph("m-graph:AccessControl.Policies") {
+                        raw(policyTriples)
                     }
                 }
                 where {
@@ -75,25 +87,25 @@ fun Route.createGroup() {
             // execute update
             executeSparqlUpdate(updateString)
 
-            // create construct query to confirm transaction and fetch group details
+            // create construct query to confirm transaction and fetch policy details
             val constructString = buildSparqlQuery {
                 construct {
                     // all the details about this transaction
                     txn()
 
-                    // all the properties about this group
+                    // all the properties about this policy
                     raw("""
-                        mg: ?mg_p ?mg_o .
+                        mp: ?mp_p ?mp_o .
                     """)
                 }
                 where {
                     // first group in a series of unions fetches intended outputs
                     group {
-                        txn(null, "mg")
+                        txn(null, "mp")
 
                         raw("""
-                            graph m-graph:AccessControl.Agents {
-                                mg: ?mg_p ?mg_o .
+                            graph m-graph:AccessControl.Policies {
+                                mp: ?mp_p ?mp_o .
                             }
                         """)
                     }
@@ -109,10 +121,10 @@ fun Route.createGroup() {
             log.info("Triplestore responded with:\n$constructResponseText")
 
             // validate whether the transaction succeeded
-            val model = validateTransaction(constructResponseText, localConditions, null, "mg")
+            val model = validateTransaction(constructResponseText, localConditions, null, "mp")
 
             // check that the user-supplied HTTP preconditions were met
-            handleEtagAndPreconditions(model, prefixes["mg"])
+            handleEtagAndPreconditions(model, prefixes["mp"])
 
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
