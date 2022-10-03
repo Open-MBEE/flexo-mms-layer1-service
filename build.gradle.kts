@@ -66,7 +66,7 @@ dependencies {
     val consulVersion = "1.5.3"
     implementation("com.orbitz.consul:consul-client:$consulVersion")
 
-    val logbackVersion = "1.2.11"
+    val logbackVersion = "1.4.3"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
