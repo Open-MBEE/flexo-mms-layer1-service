@@ -4,7 +4,9 @@ import io.ktor.server.response.*
 import kotlinx.coroutines.selects.select
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
+import org.apache.jena.graph.Node_Variable
 import org.apache.jena.graph.Triple
+import org.apache.jena.iri.IRI
 import org.apache.jena.query.Query
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.PathBlock
@@ -13,6 +15,7 @@ import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
 import org.apache.jena.sparql.expr.E_Exists
 import org.apache.jena.sparql.expr.E_NotExists
+import org.apache.jena.sparql.expr.nodevalue.NodeValueNode
 import org.apache.jena.sparql.expr.nodevalue.NodeValueString
 import org.apache.jena.sparql.path.Path
 import org.apache.jena.sparql.path.PathFactory
@@ -284,18 +287,29 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
         // overwrite the query pattern with a group block
         queryPattern = ElementGroup().apply {
-            // create union between auth failure and user query block
+            // create union between auth failure and user query block as a disjunction
             addElement(ElementUnion().apply {
-                // prevent any bindings to outer scope
-                addElement(ElementFilter(E_Exists(ElementGroup().apply {
-                    // negate authorization query; it must fail in order to produce a binding
-                    addElement(ElementFilter(E_NotExists(ElementGroup().apply {
-                        addElement(patternPlaceholder)
-                    })))
+                // the first union member matches iff auth fails
+                addElement((ElementGroup().apply {
+                    // create service iri binding in same bgp as negation
+                    addElement(ElementGroup().apply {
+                        // negate authorization query; it must fail in order to produce a binding
+                        addElement(ElementFilter(E_NotExists(ElementGroup().apply {
+                            addElement(patternPlaceholder)
+                        })))
 
-                    // throw error
-                    addElement(ElementService("urn:mms:throw", ElementTriplesBlock()))
-                })))
+                        // bind(<urn:mms:throw> as ?__mms_service_iri)
+                        addElement(ElementBind(
+                            Var.alloc( "__mms_service_iri"),
+                            NodeValueNode(NodeFactory.createURI("urn:mms:throw"))
+                        ))
+                    })
+
+                    // throw error using ?__mms_service_iri
+                    addElement(ElementService(
+                        NodeFactory.createVariable("__mms_service_iri"),
+                        ElementTriplesBlock(), false))
+                }))
 
                 // add user query block
                 addElement(ElementGroup().apply {
@@ -398,8 +412,8 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
                 log.debug("Caught non-200 response from quadstore: ${statusCode} \"\"\"${executeError.body}\"\"\"")
 
-                // 4xx error
-                if(statusCode in 400..499) {
+                // 4xx/5xx error
+                if(statusCode in 400..599) {
                     // do access control check
                     val checkQuery = buildSparqlQuery {
                         construct {
@@ -410,7 +424,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                         }
                     }
 
-                    log.debug("Submitting post-400 access-control check query:\n${checkQuery}")
+                    log.debug("Submitting post-4xx/5xx access-control check query:\n${checkQuery}")
 
                     val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
 

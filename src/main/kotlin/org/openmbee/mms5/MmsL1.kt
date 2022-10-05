@@ -790,6 +790,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
+        // empty model; user does not have permissions to enumerate
+        if(model.size() == 0L) {
+            throw Http403Exception()
+        }
+
         // prep map of resources to etags
         val resEtags = mutableListOf<String>()
 

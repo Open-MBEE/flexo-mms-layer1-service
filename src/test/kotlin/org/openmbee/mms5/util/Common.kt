@@ -18,6 +18,8 @@ import java.io.FileOutputStream
 
 val NoAuth = NamedTag("NoAuth")
 
+val Expect404 = NamedTag("Expect404")
+
 val backend = RemoteBackend()
 
 fun escapeFileName(name: String): String {

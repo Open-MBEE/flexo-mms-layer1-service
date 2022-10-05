@@ -29,6 +29,7 @@ fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngi
         "MMS5_GRAPH_STORE_PROTOCOL_URL" to backend.getGspdUrl(),
     )) {
         System.setProperty("MMS5_TEST_NO_AUTH", if(test?.testCase?.config?.tags?.contains(NoAuth) == true) "1" else "")
+        System.setProperty("MMS5_TEST_EXPECT", if(test?.testCase?.config?.tags?.contains(Expect404) == true) "404" else "")
         withApplication(testEnv()) {
             engine(testName)
         }

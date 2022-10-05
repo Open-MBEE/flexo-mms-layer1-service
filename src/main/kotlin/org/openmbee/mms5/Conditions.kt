@@ -81,9 +81,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    permit(Permission.READ_REPO, Scope.REPO)
-
+val SNAPSHOT_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("queryableSnapshotExists") {
         handler = { mms -> "The target model is corrupt. No queryable snapshots found." to HttpStatusCode.InternalServerError }
 
@@ -103,15 +101,19 @@ val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val BRANCH_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val REPO_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+    permit(Permission.READ_REPO, Scope.REPO)
+}
+
+val BRANCH_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_BRANCH, Scope.BRANCH)
 }
 
-val LOCK_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val LOCK_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_LOCK, Scope.LOCK)
 }
 
-val DIFF_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val DIFF_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_DIFF, Scope.DIFF)
 }
 

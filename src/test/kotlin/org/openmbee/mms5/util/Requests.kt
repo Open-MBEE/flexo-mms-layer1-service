@@ -69,16 +69,27 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    if("1" != System.getProperty("MMS5_TEST_NO_AUTH")) {
+    if("1" != System.getProperty("MMS5_TEST_NO_AUTH", "")) {
         handleRequest(method, uri) {
             addHeader("Authorization", authorization(anonAuth))
             setup()
         }.apply {
-            if(method == HttpMethod.Get) {
-                response shouldHaveStatus HttpStatusCode.NotFound
-            } else {
-                response shouldHaveStatus HttpStatusCode.Forbidden
+            if("" != System.getProperty("MMS5_TEST_EXPECT", "")) {
+                response shouldHaveStatus System.getProperty("MMS5_TEST_EXPECT").toInt()
             }
+            else {
+                if(200 === response.status()?.value) {
+                    println("?");
+                }
+
+                response shouldHaveOneOfStatuses setOf(HttpStatusCode.NotFound, HttpStatusCode.Forbidden)
+            }
+
+            // else if(method == HttpMethod.Get) {
+            //
+            // } else {
+            //     response shouldHaveStatus HttpStatusCode.Forbidden
+            // }
         }
     }
 

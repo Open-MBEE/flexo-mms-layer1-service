@@ -28,7 +28,7 @@ class LockCreate : LockAny() {
     }
 
     init {
-        "reject invalid lock id" {
+        "reject invalid lock id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$lockPath with invalid id") {
                     setTurtleBody(fromMaster)

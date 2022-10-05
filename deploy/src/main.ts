@@ -295,9 +295,21 @@ ds_writer.write({
 					implies: 'Project',
 				},
 				Project: {
+					implies: [
+						'Repo',
+						'Collection',
+					],
+				},
+				Repo: {
 					implies: 'Ref',
 				},
-				Ref: {},
+				Collection: {},
+				Ref: {
+					implies: [
+						'Branch',
+						'Lock',
+					],
+				},
 				AccessControlAny: {
 					implies: [
 						'Agent',
