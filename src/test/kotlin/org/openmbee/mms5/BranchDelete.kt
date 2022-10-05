@@ -8,7 +8,7 @@ import org.openmbee.mms5.util.withTest
 import org.openmbee.mms5.util.*
 class BranchDelete : RefAny() {
     init {
-        "delete branch" {
+        "delete branch".config(enabled=false) {
             createBranch(repoPath, "master", branchId, branchName)
 
             withTest {

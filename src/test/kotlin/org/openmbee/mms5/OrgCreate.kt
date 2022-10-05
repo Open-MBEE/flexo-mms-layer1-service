@@ -27,7 +27,7 @@ class OrgCreate : OrgAny() {
             "mms:id" to "\"not-$orgId\"",
             "mms:etag" to "\"${UUID.randomUUID()}\"",
         ).forEach { (pred, obj) ->
-            "reject wrong $pred" {
+            "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
                     httpPut(orgPath) {
                         setTurtleBody("""
