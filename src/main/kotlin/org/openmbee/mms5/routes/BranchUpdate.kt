@@ -22,7 +22,7 @@ fun Route.updateBranch() {
             guardedPatch(
                 objectKey = "morb",
                 graph = "mor-graph:Metadata",
-                conditions = DEFAULT_UPDATE_CONDITIONS,
+                preconditions = DEFAULT_UPDATE_CONDITIONS,
             )
         }
     }

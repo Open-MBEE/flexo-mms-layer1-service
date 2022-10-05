@@ -7,7 +7,7 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
 import org.openmbee.mms5.*
 
-private const val SPARQL_BGP_REPO = """
+private val SPARQL_BGP_REPO = """
     graph m-graph:Cluster {
         ?_repo a mms:Repo ;
             mms:etag ?etagCluster ;
@@ -28,15 +28,17 @@ private const val SPARQL_BGP_REPO = """
     }
     
     bind(concat(?etagCluster, ?etagRepo) as ?__mms_etag)
+    
+    ${permittedActionSparqlBgp(Permission.READ_REPO, Scope.REPO)}
 """
 
-private const val SPARQL_SELECT_REPO = """
+private val SPARQL_SELECT_REPO = """
     select distinct ?__mms_etag {
         $SPARQL_BGP_REPO
     } order by asc(?__mms_etag)
 """
 
-private const val SPARQL_CONSTRUCT_REPO = """
+private val SPARQL_CONSTRUCT_REPO = """
     construct {
         ?_repo ?repo_p ?repo_o .
         

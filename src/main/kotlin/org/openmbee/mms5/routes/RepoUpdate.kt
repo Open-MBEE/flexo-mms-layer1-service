@@ -21,7 +21,7 @@ fun Route.updateRepo() {
             guardedPatch(
                 objectKey = "mor",
                 graph = "m-graph:Cluster",
-                conditions = DEFAULT_UPDATE_CONDITIONS,
+                preconditions = DEFAULT_UPDATE_CONDITIONS,
             )
         }
     }

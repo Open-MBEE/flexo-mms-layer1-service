@@ -873,7 +873,7 @@ fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
     }
 }
 
-suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditions: ConditionsGroup) {
+suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, preconditions: ConditionsGroup) {
     val baseIri = prefixes[objectKey]!!
 
     // parse query
@@ -921,7 +921,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
     log.info("DELETE: $deleteBgpString")
     log.info("WHERE: $whereString")
 
-    conditions.append {
+    val conditions = preconditions.append {
         if(whereString.isNotEmpty()) {
             require("userWhere") {
                 handler = { "User update condition is not satisfiable" to HttpStatusCode.PreconditionFailed }
@@ -938,8 +938,6 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         assertPreconditions(this) {
             """
                 graph $graph {
-                    $objectKey: mms:etag ?__mms_etag .
-                    
                     $it
                 }
             """
@@ -978,15 +976,23 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         where {
             raw(*conditions.requiredPatterns())
 
-            raw("""
-                # match old etag
-                $objectKey: mms:etag ?__mms_etag .
-            """)
+            graph(graph) {
+                raw("""
+                    # bind old etag for deletion
+                    $objectKey: mms:etag ?__mms_etag .
+                """)
+            }
         }
     }
 
 
-    executeSparqlUpdate(updateString)
+    executeSparqlUpdate(updateString) {
+        prefixes(prefixes)
+
+        literal(
+            "_txnId" to transactionId
+        )
+    }
 
 
     // create construct query to confirm transaction and fetch base model details

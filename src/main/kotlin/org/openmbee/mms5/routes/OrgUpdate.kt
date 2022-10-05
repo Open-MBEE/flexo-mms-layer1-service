@@ -20,7 +20,7 @@ fun Route.updateOrg() {
             guardedPatch(
                 objectKey = "mo",
                 graph = "m-graph:Cluster",
-                conditions = DEFAULT_UPDATE_CONDITIONS,
+                preconditions = DEFAULT_UPDATE_CONDITIONS,
             )
         }
     }
