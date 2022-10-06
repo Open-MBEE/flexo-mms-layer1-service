@@ -44,16 +44,8 @@ fun TriplesAsserter.validateCreatedOrgTriples(
         )
     }
 
-    val orgIri = localIri("/orgs/$orgId")
-
     // transaction
-    subjectTerse("mt:") {
-        includes(
-            RDF.type exactly MMS.Transaction,
-            MMS.created hasDatatype XSD.dateTime,
-            MMS.org exactly orgIri.iri,
-        )
-    }
+    validateTransaction(orgPath="/orgs/$orgId")
 
     // inspect
     subject("urn:mms:inspect") { ignoreAll() }

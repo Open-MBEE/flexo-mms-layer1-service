@@ -55,13 +55,7 @@ fun TriplesAsserter.validateCreatedPolicyTriples(
     val policyIri = localIri("/policies/$policyId")
 
     // transaction
-    subjectTerse("mt:") {
-        includes(
-            RDF.type exactly MMS.Transaction,
-            MMS.created hasDatatype XSD.dateTime,
-            // MMS.policy exactly policyIri.iri,
-        )
-    }
+    validateTransaction()
 
     // inspect
     subject("urn:mms:inspect") { ignoreAll() }
@@ -102,11 +96,11 @@ class PolicyCreate : CommonSpec() {
             "rdf:type" to "mms:NotPolicy",
             "mms:id" to "\"not-$policyId\"",
         ).forEach { (pred, obj) ->
-            "reject wrong $pred" {
+            "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
                     httpPut(policyPath) {
                         setTurtleBody("""
-                            ${validPolicyBody}Body
+                            $validPolicyBody
                             <> $pred $obj .
                         """.trimIndent())
                     }.apply {

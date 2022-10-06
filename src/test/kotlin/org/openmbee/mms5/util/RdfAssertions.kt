@@ -259,10 +259,10 @@ class SubjectHandle(modelContext: ModelContext, subject: Resource) {
         subjectContext.assertEmpty()
     }
 
-    fun includes(vararg pattern: PairPattern) {
+    fun includes(vararg pattern: PairPattern?) {
         // assert and remove each statement
         pattern.forEach {
-            it.evaluate(subjectContext)
+            it?.evaluate(subjectContext)
         }
 
         // remove the rest

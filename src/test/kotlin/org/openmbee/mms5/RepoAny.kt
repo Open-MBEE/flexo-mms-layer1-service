@@ -1,7 +1,6 @@
 package org.openmbee.mms5
 
 import io.kotest.core.test.TestCase
-import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
@@ -29,6 +28,20 @@ fun TriplesAsserter.validateRepoTriples(
         )
     }
 
+    // inspect
+    subject("urn:mms:inspect") { ignoreAll() }
+}
+
+fun TriplesAsserter.validateRepoTriplesWithMasterBranch(
+    repoId: String,
+    repoName: String,
+    orgPath: String,
+    extraPatterns: List<PairPattern> = listOf()
+) {
+    validateRepoTriples(repoId, repoName, orgPath, extraPatterns)
+
+    val repoPath = "$orgPath/repos/$repoId"
+
     // master branch triples
     subject(localIri("$repoPath/branches/master")) {
         includes(
@@ -39,9 +52,6 @@ fun TriplesAsserter.validateRepoTriples(
             MMS.commit startsWith "".iri,
         )
     }
-
-    // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
 }
 
 
@@ -54,7 +64,7 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 ) {
     val repoPath = "$orgPath/repos/$repoId"
 
-    validateRepoTriples(repoId, repoName, orgPath, extraPatterns)
+    validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
@@ -64,13 +74,7 @@ fun TriplesAsserter.validateCreatedRepoTriples(
     }
 
     // transaction
-    subjectTerse("mt:") {
-        includes(
-            RDF.type exactly MMS.Transaction,
-            MMS.created hasDatatype XSD.dateTime,
-            MMS.repo exactly localIri(repoPath).iri,
-        )
-    }
+    validateTransaction(orgPath=orgPath, repoPath=repoPath)
 }
 
 open class RepoAny : OrgAny() {

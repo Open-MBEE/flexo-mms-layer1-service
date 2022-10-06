@@ -16,7 +16,8 @@ class BranchUpdate : RefAny() {
                 httpPatch(branchPath) {
                     setSparqlUpdateBody(
                         """
-                        @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        prefix dct: <http://purl.org/dc/terms/>
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
@@ -28,7 +29,7 @@ class BranchUpdate : RefAny() {
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    response exclusivelyHasTriples {
+                    response includesTriples {
                         subject(localIri(branchPath)) {
                             includes(
                                 RDF.type exactly MMS.Branch,
