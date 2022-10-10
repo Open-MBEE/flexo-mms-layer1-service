@@ -72,9 +72,9 @@ enum class Permission(
     CREATE_GROUP(Crud.CREATE, Scope.GROUP),
 
     CREATE_POLICY(Crud.CREATE, Scope.POLICY),
-    READ_POLICY(Crud.CREATE, Scope.POLICY),
-    UPDATE_POLICY(Crud.CREATE, Scope.POLICY),
-    DELETE_POLICY(Crud.CREATE, Scope.POLICY),
+    READ_POLICY(Crud.READ, Scope.POLICY),
+    UPDATE_POLICY(Crud.UPDATE, Scope.POLICY),
+    DELETE_POLICY(Crud.DELETE, Scope.POLICY),
 }
 
 
