@@ -163,7 +163,8 @@ open class ModelAny: RefAny() {
                 MMS.etag exactly etag,
                 MMS.submitted hasDatatype XSD.dateTime,
                 MMS.parent startsWith localIri("$commitsPath/").iri,
-                MMS.data startsWith localIri("$commitsPath/").iri
+                MMS.data startsWith localIri("$commitsPath/").iri,
+                MMS.createdBy exactly localIri("/users/root").iri
             )
         }
         /*

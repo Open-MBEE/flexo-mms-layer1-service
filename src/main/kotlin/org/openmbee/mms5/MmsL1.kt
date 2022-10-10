@@ -1085,6 +1085,7 @@ fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="",
                         mms:message ?_commitMessage ;
                         mms:submitted ?_now ;
                         mms:data morc-data: ;
+                        mms:createdBy mu: ;
                         .
             
                     # commit data

@@ -238,9 +238,11 @@ object MMS {
         return ResourceFactory.createProperty(BASE, id)
     }
 
+    // ref/commit properties
+    val createdBy = prop("createdBy")
+
     // transaction properties
     val created = prop("created")
-    val createdBy = prop("createdBy")
     val serviceId = prop("serviceId")
     val org = prop("org")
     val repo = prop("repo")
