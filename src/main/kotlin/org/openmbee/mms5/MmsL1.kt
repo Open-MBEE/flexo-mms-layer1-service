@@ -80,6 +80,11 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         mms.diffId = call.parameters["diffId"]
     }
 
+    fun policy(legal: Boolean=false) {
+        mms.policyId = call.parameters["policyId"]
+        if(legal) assertLegalId(mms.policyId!!)
+    }
+
     fun inspect() {
         val inspectValue = call.parameters["inspect"]?: ""
         mms.inspectOnly = if(inspectValue.isNotEmpty()) {
@@ -121,7 +126,9 @@ val FORBIDDEN_PREDICATES_REGEX = listOf(
 
 class Sanitizer(val mms: MmsL1Context, val node: Resource) {
     private val explicitUris = hashMapOf<String, Resource>()
+    private val explicitUriSets = hashMapOf<String, List<Resource>>()
     private val explicitLiterals = hashMapOf<String, String>()
+    private val bypassProperties = hashSetOf<String>()
 
     fun setProperty(property: Property, value: Resource, unsettable: Boolean?=false) {
         // user document includes triple(s) about this property; ensure value is acceptable
@@ -157,13 +164,43 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
         explicitLiterals[property.uri] = value
     }
 
+    fun setProperty(property: Property, value: List<Resource>, unsettable: Boolean?=false) {
+        // user document includes triple(s) about this property; ensure value is acceptable
+        node.listProperties(property).forEach { input ->
+            // not acceptable
+            if(value.contains(input.`object`)) {
+                throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${
+                    if(unsettable == true) ""
+                    else " to anything not included in [${value.joinToString(",") { "<${it.uri}>" }}]"
+                }")
+            }
+
+            // verbose
+            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+
+            // remove from model
+            input.remove()
+        }
+
+        // set value
+        explicitUriSets[property.uri] = value
+    }
+
+    fun bypass(property: Property) {
+        bypassProperties.add(property.uri)
+    }
+
     fun finalize() {
         // check each property
         node.listProperties().forEach {
             val predicateUri = it.predicate.uri
 
+            // bypass property
+            if(bypassProperties.contains(predicateUri)) {
+                return@forEach;
+            }
             // sensitive property
-            if(predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)) {
+            else if(predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)) {
                 throw ConstraintViolationException("user not allowed to set <$predicateUri> property because it belongs to a restricted namespace")
             }
         }
@@ -203,7 +240,7 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
     }
 
     fun groupNode(): Resource {
-        return resourceFromParamPrefix("mag")
+        return resourceFromParamPrefix("mg")
     }
 
     fun orgNode(): Resource {
@@ -232,6 +269,10 @@ class RdfModeler(val mms: MmsL1Context, val baseIri: String, val content: String
 
     fun diffNode(): Resource {
         return resourceFromParamPrefix("mord")
+    }
+
+    fun policyNode(): Resource {
+        return resourceFromParamPrefix("mp")
     }
 
     fun transactionNode(subTxnId: String?=null): Resource {
@@ -341,7 +382,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     val groups: List<String>
 
     /**
-     * Identifies the group being CRUD'd -- has nothing to do with which groups the user belongs to
+     * All of the following identify the resource being CRUD'd -- has nothing to do with the current user
      */
     var groupId: String? = null
     var orgId: String? = null
@@ -351,6 +392,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     var lockId: String? = null
     var branchId: String? = null
     var diffId: String? = null
+    var policyId: String? = null
 
     var inspectOnly: Boolean = false
 
@@ -375,6 +417,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             lockId = lockId,
             diffId = diffId,
             transactionId = transactionId,
+            policyId = policyId,
         )
 
     init {
@@ -385,6 +428,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // save
         userId = session.name
+        println("Observed groups: ${session.groups}")
         groups = session.groups
     }
 
@@ -419,7 +463,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
         return append {
             require("validSource") {
-                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" }
+                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" to HttpStatusCode.BadRequest }
 
                 """
                     ${if(refSource != null) """
@@ -444,7 +488,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendSrcRef(): ConditionsGroup {
         return append {
             require("validSourceRef") {
-                handler = { prefixes -> "Invalid source ref" }
+                handler = { prefixes -> "Invalid source ref" to HttpStatusCode.BadRequest }
 
                 """
                     graph m-graph:Schema {
@@ -464,7 +508,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun ConditionsGroup.appendDstRef(): ConditionsGroup {
         return append {
             require("validSourceRef") {
-                handler = { prefixes -> "Invalid destination ref" }
+                handler = { prefixes -> "Invalid destination ref" to HttpStatusCode.BadRequest }
 
                 """
                     graph m-graph:Schema {
@@ -646,7 +690,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             }
 
             builder.require("userPreconditions") {
-                handler = { "User preconditions failed" }
+                handler = { "User preconditions failed" to HttpStatusCode.PreconditionFailed }
 
                 inject(injectPreconditions())
             }
@@ -746,6 +790,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
+        // empty model; user does not have permissions to enumerate
+        if(model.size() == 0L) {
+            throw Http403Exception()
+        }
+
         // prep map of resources to etags
         val resEtags = mutableListOf<String>()
 
@@ -824,7 +873,7 @@ fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
     }
 }
 
-suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditions: ConditionsGroup) {
+suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, preconditions: ConditionsGroup) {
     val baseIri = prefixes[objectKey]!!
 
     // parse query
@@ -872,10 +921,10 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
     log.info("DELETE: $deleteBgpString")
     log.info("WHERE: $whereString")
 
-    conditions.append {
+    val conditions = preconditions.append {
         if(whereString.isNotEmpty()) {
             require("userWhere") {
-                handler = { "User update condition is not satisfiable" }
+                handler = { "User update condition is not satisfiable" to HttpStatusCode.PreconditionFailed }
 
                 """
                     graph $graph {
@@ -889,8 +938,6 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         assertPreconditions(this) {
             """
                 graph $graph {
-                    $objectKey: mms:etag ?__mms_etag .
-                    
                     $it
                 }
             """
@@ -929,15 +976,23 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, conditio
         where {
             raw(*conditions.requiredPatterns())
 
-            raw("""
-                # match old etag
-                $objectKey: mms:etag ?__mms_etag .
-            """)
+            graph(graph) {
+                raw("""
+                    # bind old etag for deletion
+                    $objectKey: mms:etag ?__mms_etag .
+                """)
+            }
         }
     }
 
 
-    executeSparqlUpdate(updateString)
+    executeSparqlUpdate(updateString) {
+        prefixes(prefixes)
+
+        literal(
+            "_txnId" to transactionId
+        )
+    }
 
 
     // create construct query to confirm transaction and fetch base model details
@@ -1030,6 +1085,7 @@ fun MmsL1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="",
                         mms:message ?_commitMessage ;
                         mms:submitted ?_now ;
                         mms:data morc-data: ;
+                        mms:createdBy mu: ;
                         .
             
                     # commit data

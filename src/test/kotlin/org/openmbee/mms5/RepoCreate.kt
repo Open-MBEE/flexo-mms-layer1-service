@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 
 class RepoCreate : RepoAny() {
     init {
-        "reject invalid repo id" {
+        "reject invalid repo id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$repoPath with invalid id") {
                     setTurtleBody(validRepoBody)

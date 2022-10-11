@@ -25,7 +25,7 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    val kotestVersion = "5.4.1"
+    val kotestVersion = "5.4.2"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
@@ -40,12 +40,12 @@ dependencies {
     val klaxonVersion = "5.6"
     implementation("com.beust:klaxon:$klaxonVersion")
 
-    val jenaVersion = "4.5.0"
+    val jenaVersion = "4.6.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.0.3"
+    val ktorVersion = "2.1.1"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")

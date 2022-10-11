@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.openmbee.mms5.ROOT_CONTEXT
 import java.util.*
 
 
@@ -14,9 +15,11 @@ data class AuthStruct (
 
 val rootAuth = AuthStruct("root", listOf("super_admins"))
 
+val anonAuth = AuthStruct("anon")
+
 
 fun localIri(suffix: String): String {
-    return "http://layer1-service$suffix"
+    return "$ROOT_CONTEXT$suffix"
 }
 
 fun userIri(user: String): String {
@@ -66,6 +69,30 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
+    if("1" != System.getProperty("MMS5_TEST_NO_AUTH", "")) {
+        handleRequest(method, uri) {
+            addHeader("Authorization", authorization(anonAuth))
+            setup()
+        }.apply {
+            if("" != System.getProperty("MMS5_TEST_EXPECT", "")) {
+                response shouldHaveStatus System.getProperty("MMS5_TEST_EXPECT").toInt()
+            }
+            else {
+                if(200 === response.status()?.value) {
+                    println("?");
+                }
+
+                response shouldHaveOneOfStatuses setOf(HttpStatusCode.NotFound, HttpStatusCode.Forbidden)
+            }
+
+            // else if(method == HttpMethod.Get) {
+            //
+            // } else {
+            //     response shouldHaveStatus HttpStatusCode.Forbidden
+            // }
+        }
+    }
+
     return handleRequest(method, uri) {
         addHeader("Authorization", authorization(rootAuth))
         setup()

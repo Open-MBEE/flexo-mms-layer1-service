@@ -53,7 +53,7 @@ function properties(h_properties: Hash<PropertyConfig>) {
 }
 
 interface ScopeConfig {
-	implies?: string;
+	implies?: string | string[];
 }
 
 function scopes(h_scopes: Hash<ScopeConfig>) {
@@ -63,7 +63,7 @@ function scopes(h_scopes: Hash<ScopeConfig>) {
 			'rdfs:label': `"${si_scope} level scope`,
 			'rdfs:subClassOf': 'mms:Scope',
 			...gc_scope.implies && {
-				'mms:implies': `mms:${gc_scope.implies}`,
+				'mms:implies': [gc_scope.implies].flat().map(si => `mms:${si}`),
 			},
 		},
 	}));
@@ -156,6 +156,7 @@ const ds_writer = trig_write({
 		mms: 'https://mms.openmbee.org/rdf/ontology/',
 		'mms-object': 'https://mms.openmbee.org/rdf/objects/',
 		m: `${P_PREFIX}/`,
+		ma: `${P_PREFIX}/access-control-scope/`,
 		'm-graph': `${P_PREFIX}/graphs/`,
 		'm-user': `${P_PREFIX}/users/`,
 		'm-group': `${P_PREFIX}/groups/`,
@@ -180,6 +181,11 @@ ds_writer.write({
 				'mms:id': '"root',
 			},
 
+			'm-user:anon': {
+				a: 'mms:User',
+				'mms:id': '"anon',
+			},
+
 			'm-group:SuperAdmins': {
 				a: 'mms:Group',
 				'mms:id': '"super_admins',
@@ -193,12 +199,12 @@ ds_writer.write({
 				'mms:subject': 'm-group:SuperAdmins',
 				'mms:scope': 'm:',
 				'mms:role': [
-					'AdminAccessControl',
 					'AdminCluster',
 					'AdminOrg',
 					'AdminRepo',
 					'AdminMetadata',
 					'AdminModel',
+					'AdminAccessControlAny',
 				].map(s => `mms-object:Role.${s}`),
 			},
 		},
@@ -208,6 +214,10 @@ ds_writer.write({
 			'm:': {
 				a: 'mms:Cluster',
 			},
+
+			'ma:': {
+				a: 'mms:AccessControlAny',
+			},
 		},
 
 		[factory.comment()]: 'copy of static schema inherited from global MMS definitions',
@@ -216,6 +226,14 @@ ds_writer.write({
 			[factory.comment()]: '==            Classes             ==',
 			[factory.comment()]: '====================================',
 			...classes({
+				Project: {},
+				Collection: {
+					super: 'Project',
+				},
+				Repo: {
+					super: 'Project',
+				},
+
 				Ref: {},
 				Branch: {
 					super: 'Ref',
@@ -236,6 +254,16 @@ ds_writer.write({
 				},
 
 				Commit: {},
+
+				Agent: {},
+				User: {
+					super: 'Agent',
+				},
+				Group: {
+					super: 'Agent',
+				},
+
+				Policy: {},
 			}),
 
 			[factory.comment()]: '====================================',
@@ -258,32 +286,65 @@ ds_writer.write({
 			[factory.comment()]: '====================================',
 			...scopes({
 				Cluster: {
-					implies: 'Org',
+					implies: [
+						'Org',
+						'AccessControlAny',
+					],
 				},
 				Org: {
 					implies: 'Project',
 				},
 				Project: {
-					implies: 'Ref',
-				},
-				Ref: {},
-			}),
-
-			...classes({
-				Collection: {
-					super: 'Project',
+					implies: [
+						'Repo',
+						'Collection',
+					],
 				},
 				Repo: {
-					super: 'Project',
+					implies: 'Ref',
 				},
-
-				Branch: {
-					super: 'Ref',
+				Collection: {},
+				Ref: {
+					implies: [
+						'Branch',
+						'Lock',
+					],
 				},
-				Lock: {
-					super: 'Ref',
+				AccessControlAny: {
+					implies: [
+						'Agent',
+						'Policy',
+					],
+				},
+				Agent: {
+					implies: [
+						'User',
+						'Group',
+					],
+				},
+				User: {},
+				Group: {},
+				Policy: {
+					// TODO: add subtype for each type of policy that can be CRUD'd
+					// implies: []
 				},
 			}),
+
+			// ...classes({
+			// 	Collection: {
+			// 		super: 'Project',
+			// 	},
+			// 	Repo: {
+			// 		super: 'Project',
+			// 	},
+
+			// 	Branch: {
+			// 		super: 'Ref',
+			// 	},
+			// 	Lock: {
+			// 		super: 'Ref',
+			// 	},
+			// }),
 
 
 			[factory.comment()]: '====================================',
@@ -297,12 +358,14 @@ ds_writer.write({
 							implies: [
 								'ReadCluster',
 								'CreateOrg',
+								'CreateAccessControlAny'
 							],
 						},
 						Delete: {
 							implies: [
 								'UpdateCluster',
 								'DeleteOrg',
+								'DeleteAccessControlAny',
 							],
 						},
 					},
@@ -379,23 +442,57 @@ ds_writer.write({
 					},
 				},
 
-				// AccessControl: {
-				// 	crud: {
-				// 		Create: {
-				// 			implies: [
-				// 				'ReadAccessControl',
-				// 				'CreatePolicy',
-				// 				'CreateRole',
-				// 				'CreateGroup',
-				// 				'CreateUser',
-				// 			],
-				// 		},
-				// 		Read: {},
-				// 		Update: {
+				AccessControlAny: {
+					crud: {
+						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadAccessControlAny',
+								'CreateAgent',
+								'CreatePolicy',
+							],
+						},
+						Delete: {
+							implies: [
+								'UpdateAccessControlAny',
+								'DeleteAgent',
+								'DeletePolicy',
+							],
+						},
+					},
+				},
 
-				// 		},
-				// 	},
-				// },
+				Agent: {
+					crud: {
+						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadAgent',
+								'CreateUser',
+								'CreateGroup',
+							],
+						},
+						Delete: {
+							implies:[
+								'UpdateAgent',
+								'DeleteUser',
+								'DeleteGroup',
+							],
+						},
+					},
+				},
+
+				User: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Group: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Policy: {
+					crud: H_CRUD_DEFAULT,
+				},
 			}),
 
 			[factory.comment()]: '====================================',
@@ -407,7 +504,7 @@ ds_writer.write({
 				Model: H_ROLE_DEFAULT,
 				Metadata: H_ROLE_DEFAULT,
 				Cluster: H_ROLE_DEFAULT,
-				AccessControl: H_ROLE_DEFAULT,
+				AccessControlAny: H_ROLE_DEFAULT,
 			}),
 		},
 	},

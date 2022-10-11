@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -14,7 +15,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
     // require that the given collection does not exist before attempting to create it
     require("collectionNotExists") {
-        handler = { mms -> "The provided collection <${mms.prefixes["moc"]}> already exists." }
+        handler = { mms -> "The provided collection <${mms.prefixes["moc"]}> already exists." to HttpStatusCode.Conflict }
 
         """
             # repo must not yet exist
@@ -28,7 +29,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 
     // require that there is no pre-existing metadata graph associated with the given collection id
     require("collectionMetadataGraphEmpty") {
-        handler = { mms -> "The Metadata graph <${mms.prefixes["moc-graph"]}Metadata> is not empty." }
+        handler = { mms -> "The Metadata graph <${mms.prefixes["moc-graph"]}Metadata> is not empty." to HttpStatusCode.Conflict }
 
         """
             # repo metadata graph must be empty

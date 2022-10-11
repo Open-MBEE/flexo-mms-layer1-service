@@ -163,7 +163,8 @@ open class ModelAny: RefAny() {
                 MMS.etag exactly etag,
                 MMS.submitted hasDatatype XSD.dateTime,
                 MMS.parent startsWith localIri("$commitsPath/").iri,
-                MMS.data startsWith localIri("$commitsPath/").iri
+                MMS.data startsWith localIri("$commitsPath/").iri,
+                MMS.createdBy exactly localIri("/users/root").iri
             )
         }
         /*
@@ -173,16 +174,9 @@ open class ModelAny: RefAny() {
                 RDF.type exactly MMS.Policy,
             )
         }*/
-        subjectTerse("mt:") {
-            includes(
-                RDF.type exactly MMS.Transaction,
-                MMS.created hasDatatype XSD.dateTime,
-                MMS.org exactly localIri(orgPath).iri,
-                MMS.repo exactly localIri(repoPath).iri,
-                MMS.branch exactly localIri(branchPath).iri,
-                MMS.user exactly userIri("root").iri
-            )
-        }
+
+        // validate transaction
+        validateTransaction(orgPath=orgPath, repoPath=repoPath, branchPath=branchPath, user="root")
 
         // inspect
         subject("urn:mms:inspect") { ignoreAll() }

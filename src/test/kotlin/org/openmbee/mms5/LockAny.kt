@@ -35,13 +35,7 @@ fun TriplesAsserter.validateLockTriples(
     }
 
     // transaction
-    subjectTerse("mt:") {
-        includes(
-            RDF.type exactly MMS.Transaction,
-            MMS.created hasDatatype XSD.dateTime,
-            MMS.org exactly localIri(orgPath).iri,
-        )
-    }
+    validateTransaction(orgPath=orgPath)
 
     // inspect
     subject("urn:mms:inspect") { ignoreAll() }

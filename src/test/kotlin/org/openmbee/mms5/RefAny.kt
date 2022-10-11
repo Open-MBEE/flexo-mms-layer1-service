@@ -58,16 +58,7 @@ open class RefAny : RepoAny() {
                 )
             }
 
-            subjectTerse("mt:") {
-                includes(
-                    RDF.type exactly MMS.Transaction,
-                    MMS.created hasDatatype XSD.dateTime,
-                    MMS.org exactly localIri(orgPath).iri,
-                    MMS.repo exactly localIri(repoPath).iri,
-                    MMS.branch exactly localIri(branchPath).iri,
-                    MMS.user exactly userIri("root").iri
-                )
-            }
+            validateTransaction(orgPath, repoPath, branchPath, "root")
 
             // inspect
             subject("urn:mms:inspect") { ignoreAll() }

@@ -11,7 +11,7 @@ import java.util.*
 
 class BranchCreate : RefAny() {
     init {
-        "reject invalid branch id" {
+        "reject invalid branch id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("/orgs/$orgId/repos/$repoId/branches/bad branch id") {
                     setTurtleBody(validBranchBodyFromMaster)
@@ -27,7 +27,7 @@ class BranchCreate : RefAny() {
             "mms:etag" to "\"${UUID.randomUUID()}\"",
             "mms:ref" to "<./nosuchbranch>"
         ).forEach { (pred, obj) ->
-            "reject wrong $pred" {
+            "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
                     httpPut(branchPath) {
                         var ref = "<> mms:ref <./master> ."

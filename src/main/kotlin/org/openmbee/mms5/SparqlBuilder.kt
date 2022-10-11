@@ -30,6 +30,8 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null, subTxnId: 
                 mms:serviceId ?_serviceId ;
                 mms:requestPath ?_requestPath ;
                 mms:requestMethod ?_requestMethod ;
+                mms:authMethod ?__mms_authMethod ;
+                mms:appliedGroupId ?__mms_groupId ;
                 # mms:requestBody ?_requestBody ;
                 mms:requestBodyContentType ?_requestBodyContentType ;
                 ${pp(customProperties?: "", 4)}

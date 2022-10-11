@@ -30,7 +30,7 @@ class OrgUpdate : OrgAny() {
                     response shouldHaveStatus HttpStatusCode.OK
 
                     response exclusivelyHasTriples {
-                        validateOrgTriples(
+                        validateCreatedOrgTriples(
                             response, orgId, orgName, listOf(
                                 FOAF.homepage exactly "https://www.openmbee.org/".iri
                             )

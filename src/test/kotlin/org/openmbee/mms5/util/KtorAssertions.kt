@@ -62,6 +62,22 @@ fun haveStatus(code: Int) = object : Matcher<TestApplicationResponse> {
     }
 }
 
+@JvmName("shouldHaveOneOfStatusesCodes")
+infix fun TestApplicationResponse.shouldHaveOneOfStatuses(httpStatusCodes: Set<HttpStatusCode>) = this.shouldHaveOneOfStatuses(httpStatusCodes.map { it.value }.toSet())
+@JvmName("shouldHaveOneOfStatusesInts")
+infix fun TestApplicationResponse.shouldHaveOneOfStatuses(codes: Set<Int>) = this should haveOneOfStatuses(codes)
+infix fun TestApplicationResponse.shouldNotHaveStatus(httpStatusCodes: Set<HttpStatusCode>) = this.shouldNotHaveOneOfStatuses(httpStatusCodes.map { it.value }.toSet())
+infix fun TestApplicationResponse.shouldNotHaveOneOfStatuses(codes: Set<Int>) = this shouldNot haveOneOfStatuses(codes)
+fun haveOneOfStatuses(codes: Set<Int>) = object : Matcher<TestApplicationResponse> {
+    override fun test(value: TestApplicationResponse): MatcherResult {
+        return MatcherResult(
+            codes.contains(value.status()?.value),
+            { "Response should have one of the statuses: [${codes.joinToString(", ") { "$it" }}] but had status ${value.status()?.value}. Response body: ${value.content}" },
+            { "Response should not have any of the status [${codes.joinToString(", ") { "$it" }}]. Response body: ${value.content}" }
+        )
+    }
+}
+
 infix fun TestApplicationResponse.shouldHaveContent(content: String) = this should haveContent(content)
 infix fun TestApplicationResponse.shouldNotHaveContent(content: String) = this shouldNot haveContent(content)
 fun haveContent(content: String) = object : Matcher<TestApplicationResponse> {

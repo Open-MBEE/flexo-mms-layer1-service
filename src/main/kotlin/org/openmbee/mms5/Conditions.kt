@@ -1,24 +1,33 @@
 package org.openmbee.mms5
 
+import io.ktor.http.*
 import org.apache.jena.rdf.model.impl.PropertyImpl
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
 
 val GLOBAL_CRUD_CONDITIONS = conditions {
     inspect("agentExists") {
-        handler = { mms -> "User <${mms.prefixes["mu"]}> does not exist or does not belong to any authorized groups." }
+        handler = { mms -> "User <${mms.prefixes["mu"]}> does not exist or does not belong to any authorized groups." to HttpStatusCode.Forbidden }
 
         """
-            graph m-graph:AccessControl.Agents {
-                {
+            {
+                # user exists
+                graph m-graph:AccessControl.Agents {
                     mu: a mms:User .
-                } union {
+                }
+        
+                bind("user" as ?__mms_authMethod)
+            } union {
+                # user belongs to some group
+                graph m-graph:AccessControl.Agents {
                     ?group a mms:Group ;
                         mms:id ?__mms_groupId .
-
+            
                     values ?__mms_groupId {
-                        # @values groupId
+                        # @values groupId                
                     }
                 }
+
+                bind("group" as ?__mms_authMethod)
             }
         """
     }
@@ -30,7 +39,7 @@ val ORG_CRUD_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
 
 val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     require("repoExists") {
-        handler = { mms -> "Repo <${mms.prefixes["mor"]}> does not exist." }
+        handler = { mms -> "Repo <${mms.prefixes["mor"]}> does not exist." to HttpStatusCode.NotFound }
 
         """
             # repo must exist
@@ -45,7 +54,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
     require("stagingExists") {
-        handler = { mms -> "The destination branch <${mms.prefixes["morb"]}> is corrupt. No staging snapshot found." }
+        handler = { mms -> "The destination branch <${mms.prefixes["morb"]}> is corrupt. No staging snapshot found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -72,11 +81,9 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    permit(Permission.READ_REPO, Scope.REPO)
-
+val SNAPSHOT_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("queryableSnapshotExists") {
-        handler = { mms -> "The target model is corrupt. No queryable snapshots found." }
+        handler = { mms -> "The target model is corrupt. No queryable snapshots found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -94,21 +101,25 @@ val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val BRANCH_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val REPO_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+    permit(Permission.READ_REPO, Scope.REPO)
+}
+
+val BRANCH_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_BRANCH, Scope.BRANCH)
 }
 
-val LOCK_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val LOCK_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_LOCK, Scope.LOCK)
 }
 
-val DIFF_QUERY_CONDITIONS = REPO_QUERY_CONDITIONS.append {
+val DIFF_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
     permit(Permission.READ_DIFF, Scope.DIFF)
 }
 
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("commitExists") {
-        handler = { mms -> "Commit <${mms.prefixes["morc"]}> does not exist." }
+        handler = { mms -> "Commit <${mms.prefixes["morc"]}> does not exist." to HttpStatusCode.NotFound }
 
         """
             # commit must exist
@@ -121,7 +132,7 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
 val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("lockExists") {
-        handler = { mms -> "Lock <${mms.prefixes["morl"]}> does not exist." }
+        handler = { mms -> "Lock <${mms.prefixes["morl"]}> does not exist." to HttpStatusCode.NotFound }
 
         """
             # lock must exist
@@ -139,8 +150,8 @@ enum class ConditionType {
 
 class Condition(val type: ConditionType, val key: String) {
     var pattern: String = ""
-    var handler: (mms: MmsL1Context) -> String = {
-        "`$key` condition failed"
+    var handler: (mms: MmsL1Context) -> Pair<String, HttpStatusCode> = {
+        "`$key` condition failed" to HttpStatusCode.BadRequest
     }
 }
 
@@ -151,7 +162,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
      */
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
-            handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" }
+            handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
 
             permittedActionSparqlBgp(permission, scope)
         }
@@ -159,7 +170,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
 
     fun orgExists() {
         require("orgExists") {
-            handler = { mms -> "Org <${mms.prefixes["mo"]}> does not exist." }
+            handler = { mms -> "Org <${mms.prefixes["mo"]}> does not exist." to HttpStatusCode.NotFound }
 
             """
                 # org must exist
@@ -232,19 +243,33 @@ class ConditionsGroup(var conditions: List<Condition>) {
         val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
             .map { it.`object`.asLiteral().string }.toHashSet()
 
-        val failedConditions = mutableListOf<String>()
+        val failedConditions = mutableListOf<Pair<String, HttpStatusCode>>()
 
         // each conditions
         for(condition in conditions) {
             // inspection key is missing from set of passes
             if(!passes.contains(condition.key)) {
+                val (msg, code) = condition.handler(mms)
+
                 // add to possible reasons
-                failedConditions.add(condition.handler(mms))
+                failedConditions.add(msg to code)
+
+                // forbidden; fail right away
+                if(code == HttpStatusCode.Forbidden) {
+                    throw Http403Exception(msg)
+                }
             }
         }
 
         if(failedConditions.isNotEmpty()) {
-            throw RequirementsNotMetException(failedConditions)
+            if(failedConditions.size == 1) {
+                val (msg, code) = failedConditions[0]
+
+                throw HttpException(msg, code)
+            }
+            else {
+                throw RequirementsNotMetException(failedConditions.map { it.first})
+            }
         }
 
         throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")

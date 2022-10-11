@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -18,7 +19,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
     // require that the given lock does not exist before attempting to create it
     require("lockNotExists") {
-        handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." }
+        handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." to HttpStatusCode.Conflict }
 
         """
             # lock must not yet exist

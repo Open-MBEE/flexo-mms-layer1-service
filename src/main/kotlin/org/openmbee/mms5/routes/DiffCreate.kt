@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -14,7 +15,7 @@ private val DEFAULT_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
 
     // require that the given diff does not exist before attempting to create it
     require("diffNotExists") {
-        handler = { mms -> "The provided diff <${mms.prefixes["mord"]}> already exists." }
+        handler = { mms -> "The provided diff <${mms.prefixes["mord"]}> already exists." to HttpStatusCode.BadRequest }
 
         """
             # diff must not yet exist

@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -21,7 +22,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
     // require that the given branch does not exist before attempting to create it
     require("branchNotExists") {
-        handler = { mms -> "The provided branch <${mms.prefixes["morb"]}> already exists." }
+        handler = { mms -> "The provided branch <${mms.prefixes["morb"]}> already exists." to HttpStatusCode.BadRequest }
 
         """
             # branch must not yet exist
@@ -169,8 +170,8 @@ fun Route.createBranch() {
                     graph("mor-graph:Metadata") {
                         raw("""
                             $branchTriples
-                            
-                            # reference the commit source
+
+                            # set branch pointer
                             morb: mms:commit ?__mms_commitSource .
                         """)
                     }

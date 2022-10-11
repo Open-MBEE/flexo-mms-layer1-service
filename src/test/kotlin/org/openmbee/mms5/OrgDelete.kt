@@ -8,7 +8,7 @@ import java.util.*
 
 class OrgDelete : OrgAny() {
     init {
-        "delete org" {
+        "delete org".config(enabled=false) {
             createOrg(orgId, orgName)
 
             withTest {
