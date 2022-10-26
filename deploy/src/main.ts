@@ -177,8 +177,13 @@ ds_writer.write({
 		'm-graph:AccessControl.Agents': {
 			'm-user:root': {
 				a: 'mms:User',
-				'mms:group': 'm-group:SuperAdmins',
 				'mms:id': '"root',
+			},
+
+			'm-user:admin': {
+				a: 'mms:User',
+				'mms:group': 'm-group:SuperAdmins',
+				'mms:id': '"admin',
 			},
 
 			'm-user:anon': {
@@ -196,7 +201,10 @@ ds_writer.write({
 		'm-graph:AccessControl.Policies': {
 			'm-policy:DefaultSuperAdmins': {
 				a: 'mms:Policy',
-				'mms:subject': 'm-group:SuperAdmins',
+				'mms:subject': [
+					'm-user:root',
+					'm-group:SuperAdmins',
+				],
 				'mms:scope': 'm:',
 				'mms:role': [
 					'AdminCluster',
