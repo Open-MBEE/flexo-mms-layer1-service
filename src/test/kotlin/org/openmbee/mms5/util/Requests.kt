@@ -13,7 +13,9 @@ data class AuthStruct (
     val groups: List<String> = listOf("")
 )
 
-val rootAuth = AuthStruct("root", listOf("super_admins"))
+val rootAuth = AuthStruct("root")
+
+val adminAuth = AuthStruct("admin", listOf("super_admins"))
 
 val anonAuth = AuthStruct("anon")
 
@@ -78,7 +80,7 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
                 response shouldHaveStatus System.getProperty("MMS5_TEST_EXPECT").toInt()
             }
             else {
-                if(200 === response.status()?.value) {
+                if(HttpStatusCode.OK === response.status()) {
                     println("?");
                 }
 

@@ -135,7 +135,7 @@ fun Route.loadModel() {
                         """)
                     }
 
-                    log.info(loadUpdateString)
+                    log.info("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
 
                     executeSparqlUpdate(loadUpdateString) {
                         prefixes(prefixes)
@@ -220,17 +220,31 @@ fun Route.loadModel() {
 
             // compute the delta
             run {
+                // NOTE: the query below was intended for 1 model graph per commit max, but has been replaced to allow a snapshot per ref
+                // val updateString = genDiffUpdate("", localConditions, """
+                //     graph mor-graph:Metadata {
+                //         # select the latest commit from the current named ref
+                //         ?srcRef mms:commit ?srcCommit .
+                //
+                //         ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                //
+                //         ?srcSnapshot a mms:Model ;
+                //             mms:graph ?srcGraph  .
+                //     }
+                // """)
+
                 val updateString = genDiffUpdate("", localConditions, """
                     graph mor-graph:Metadata {
                         # select the latest commit from the current named ref
-                        ?srcRef mms:commit ?srcCommit .
-                        
-                        ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                        ?srcRef mms:commit ?srcCommit ;
+                            mms:snapshot ?srcSnapshot .
                         
                         ?srcSnapshot a mms:Model ; 
                             mms:graph ?srcGraph  .
                     }
                 """)
+
+
 
                 executeSparqlUpdate(updateString) {
                     prefixes(prefixes)
@@ -403,6 +417,20 @@ fun Route.loadModel() {
 
                 val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
+                var patchString = """
+                    delete data {
+                        $deleteDataResponseText
+                    } ;
+                    insert data {
+                        $insertDataResponseText
+                    }
+                """.trimIndent()
+
+                // string is larger than 1 MiB
+                if(patchString.length > 1024 * 1024) {
+                    patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
+                }
+
                 executeSparqlUpdate(commitUpdateString) {
                     prefixes(prefixes)
 
@@ -415,14 +443,7 @@ fun Route.loadModel() {
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to ("""
-                            delete data {
-                                $deleteDataResponseText
-                            } ;
-                            insert data {
-                                $insertDataResponseText
-                            }
-                        """.trimIndent() to MMS_DATATYPE.sparql),
+                        "_patchString" to (patchString to MMS_DATATYPE.sparql),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
