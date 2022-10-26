@@ -1183,7 +1183,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                 )
 
 
-                optional {
+                {
                     # delete every triple from the source graph...
                     graph ?srcGraph {
                         ?del_s ?del_p ?del_o .
@@ -1195,8 +1195,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                             ?del_s ?del_p ?del_o .
                         }
                     }
-                }
-                optional {
+                } union {
                     # insert every triple from the destination graph...
                     graph ?dstGraph {
                         ?ins_s ?ins_p ?ins_o .
@@ -1208,7 +1207,7 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
                             ?ins_s ?ins_p ?ins_o .
                         }
                     }
-                }
+                } union {}
             """)
         }
     }
