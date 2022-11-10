@@ -139,7 +139,7 @@ workflows:
             - generate_schema
           filters:
             tags:
-              only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
+              only: /([0-9.]+(-(a|b|rc)[0-9]+)?)|(^wip\/.*)/
           context:
             - DockerHub
       - deploy_snapshot:
@@ -148,14 +148,6 @@ workflows:
           filters:
             branches:
               only: /((release|hotfix|support)/[0-9.]+(-(a|b|rc)[0-9]+)?|develop)/
-          context:
-            - DockerHub
-      - test_nightly:
-          requires:
-            - build_and_test
-          filters:
-            branches:
-              only: /(^wip\/.*)/
           context:
             - DockerHub
       - deploy_nightly:
