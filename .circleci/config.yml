@@ -150,9 +150,15 @@ workflows:
               only: /((release|hotfix|support)/[0-9.]+(-(a|b|rc)[0-9]+)?|develop)/
           context:
             - DockerHub
-      - deploy_nightly:
+      - test_nightly:
           requires:
             - build_and_test
+          filters:
+            branches:
+              only: /(^wip\/.*)/
+          context:
+            - DockerHub
+      - deploy_nightly:
           filters:
             branches:
               only: /(^wip\/.*)/
