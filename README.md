@@ -1,5 +1,7 @@
 # MMS 5 Layer 1
 
+[![CircleCI](https://circleci.com/gh/Open-MBEE/mms5-layer1-service.svg?style=shield)](https://circleci.com/gh/Open-MBEE/mms5-layer1-service)
+
 This project is currently under development. This document describes how to set up a local dev environment.
 
 ## Setting up local dev environment
