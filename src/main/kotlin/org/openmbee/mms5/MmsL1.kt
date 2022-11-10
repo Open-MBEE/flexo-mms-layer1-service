@@ -1238,9 +1238,12 @@ val COMPRESSION_BLOCK_SIZES = listOf(
     2304 * 1024,
 )
 
-fun compressStringLiteral(string: String): String {
+fun compressStringLiteral(string: String): String? {
     // acquire bytes
     val inputBytes = string.toByteArray()
+
+    // don't compress below 1 KiB
+    if(inputBytes.size < 1024) return null
 
     // prep best result from compression trials
     var bestResult = ByteArray(0)

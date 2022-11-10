@@ -425,20 +425,34 @@ fun Route.loadModel() {
                     }
                 """.trimIndent()
 
+                var patchStringDatatype = MMS_DATATYPE.sparql
+
                 val originalMiB = patchString.length / 1024f / 1024f
 
                 // compress string
                 val patchStringCompressed = compressStringLiteral(patchString)
 
-                // verbose
-                log.info("patch string shrunk from ${"%.2f".format(originalMiB)} MiB to ${"%.2f".format(patchString.length / 1024f / 1024f)} MiB")
+                // compression accepted
+                if(patchStringCompressed != null) {
+                    // verbose
+                    log.info(
+                        "patch string shrunk from ${"%.2f".format(originalMiB)} MiB to ${
+                            "%.2f".format(
+                                patchStringCompressed.length / 1024f / 1024f
+                            )
+                        } MiB"
+                    )
 
-                // still greater than safe maximum
-                if(patchString.length > 10 * 1024 * 1024) {
-                    // TODO: store as delete and insert graphs...
+                    // still greater than safe maximum
+                    if(patchStringCompressed.length > 10 * 1024 * 1024) {
+                        // TODO: store as delete and insert graphs...
 
-                    // otherwise, just give up
-                    patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
+                        // otherwise, just give up
+                        patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
+                    }
+
+                    patchString = patchStringCompressed
+                    patchStringDatatype = MMS_DATATYPE.sparqlGz
                 }
 
                 executeSparqlUpdate(commitUpdateString) {
@@ -453,7 +467,7 @@ fun Route.loadModel() {
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to (patchStringCompressed to MMS_DATATYPE.sparqlGz),
+                        "_patchString" to (patchString to patchStringDatatype),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
