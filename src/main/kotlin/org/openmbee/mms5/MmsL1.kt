@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import com.linkedin.migz.MiGzOutputStream
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.client.request.*
@@ -29,6 +30,7 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
 import org.openmbee.mms5.plugins.client
+import java.io.ByteArrayOutputStream
 import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
@@ -39,6 +41,8 @@ private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
 private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 
 private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
+
+private val MIGZ_BLOCK_SIZE = 1536 * 1024
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
@@ -1218,4 +1222,75 @@ suspend fun ApplicationCall.mmsL1(permission: Permission, postponeBody: Boolean?
     val requestBody = if(postponeBody == true) "" else receiveText()
 
     return MmsL1Context(this, requestBody, permission).apply{ setup() }
+}
+
+
+val COMPRESSION_TIME_BUDGET = 3 * 1000L  // algorithm is allowed up to 3 seconds max to further optimize compression
+val COMPRESSION_NO_RETRY_THRESHOLD = 12 * 1024 * 1024  // do not attempt to retry if compressed output is >12 MiB
+// val COMPRESSION_MIN_REDUCTION = 0.05  // each successful trail must improve compression by at least 5%
+
+val COMPRESSION_BLOCK_SIZES = listOf(
+    1536 * 1024,
+    1280 * 1024,
+    1792 * 1024,
+    1024 * 1024,
+    2048 * 1024,
+    2304 * 1024,
+)
+
+fun compressStringLiteral(string: String): String {
+    // acquire bytes
+    val inputBytes = string.toByteArray()
+
+    // prep best result from compression trials
+    var bestResult = ByteArray(0)
+    var bestResultSize = Int.MAX_VALUE
+
+    // initial block size
+    var blockSizeIndex = 0
+    var blockSize = COMPRESSION_BLOCK_SIZES[blockSizeIndex]
+
+    // start timing
+    val start = System.currentTimeMillis()
+
+    do {
+        // prep output stream
+        val stream = ByteArrayOutputStream()
+
+        // instantiate compressor
+        val migz = MiGzOutputStream(stream, Runtime.getRuntime().availableProcessors(), blockSize)
+
+        // write input data and compress
+        migz.write(inputBytes)
+
+        // acquire bytes
+        val outputBytes = stream.toByteArray()
+
+        // stop timing
+        val duration = System.currentTimeMillis() - start
+
+        // better than best result
+        if(outputBytes.size < bestResultSize) {
+            // reduction percentage
+            val reduction = (bestResultSize / outputBytes.size) - 1
+
+            // replace best result
+            bestResult = outputBytes
+            bestResultSize = outputBytes.size
+
+            // size exceeds retry threshold or reduction is only marginally better
+            if(bestResultSize > COMPRESSION_NO_RETRY_THRESHOLD) break
+        }
+
+        // time budget exceeded
+        if(duration > COMPRESSION_TIME_BUDGET) break
+
+        // tested every block size
+        if(++blockSizeIndex >= COMPRESSION_BLOCK_SIZES.size) break
+
+        // adjust block size for next iteration
+        blockSize = COMPRESSION_BLOCK_SIZES[blockSizeIndex]
+    } while(true)
+
+    return String(bestResult)
 }

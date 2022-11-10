@@ -306,6 +306,7 @@ object MMS_DATATYPE {
 
     val commitMessage = BaseDatatype("${BASE}commitMessage")
     val sparql = BaseDatatype("${BASE}sparql")
+    val sparqlGz = BaseDatatype("${BASE}sparqlGz")
 }
 
 object MMS_OBJECT {

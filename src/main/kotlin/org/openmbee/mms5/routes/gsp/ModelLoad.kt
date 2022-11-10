@@ -1,15 +1,14 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.server.application.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -426,8 +425,19 @@ fun Route.loadModel() {
                     }
                 """.trimIndent()
 
-                // string is larger than 1 MiB
-                if(patchString.length > 1024 * 1024) {
+                val originalMiB = patchString.length / 1024f / 1024f
+
+                // compress string
+                val patchStringCompressed = compressStringLiteral(patchString)
+
+                // verbose
+                log.info("patch string shrunk from ${"%.2f".format(originalMiB)} MiB to ${"%.2f".format(patchString.length / 1024f / 1024f)} MiB")
+
+                // still greater than safe maximum
+                if(patchString.length > 10 * 1024 * 1024) {
+                    // TODO: store as delete and insert graphs...
+
+                    // otherwise, just give up
                     patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
                 }
 
@@ -443,7 +453,7 @@ fun Route.loadModel() {
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                        "_patchString" to (patchStringCompressed to MMS_DATATYPE.sparqlGz),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 

@@ -1,10 +1,9 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.server.application.*
 import io.ktor.http.*
+import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.delay
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -96,7 +95,7 @@ fun Route.commitModel() {
                                 $deleteBgpString
                             }
                         }
-                    """)
+                    """.trimIndent())
                 }
 
                 if(insertBgpString.isNotBlank()) {
@@ -106,7 +105,7 @@ fun Route.commitModel() {
                                 $insertBgpString
                             }
                         }
-                    """)
+                    """.trimIndent())
                 }
 
                 patchString = patches.joinToString(" ; ")
@@ -119,7 +118,7 @@ fun Route.commitModel() {
                                 $deleteBgpString
                             }
                         }
-                    """
+                    """.trimIndent()
                 }
 
                 if(insertBgpString.isNotBlank()) {
@@ -129,7 +128,7 @@ fun Route.commitModel() {
                                 $insertBgpString
                             }
                         }
-                    """
+                    """.trimIndent()
                 }
 
                 patchString += """
@@ -138,7 +137,7 @@ fun Route.commitModel() {
                             $whereString
                         }
                     }
-                """
+                """.trimIndent()
             }
 
             log.info("INSERT: $insertBgpString")
@@ -178,25 +177,27 @@ fun Route.commitModel() {
                         graph ?stagingGraph {
                             $deleteBgpString
                         }
-                    """
+                    """.trimIndent()
                 } else "",
                 insert=if(insertBgpString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             $insertBgpString
                         }
-                    """
+                    """.trimIndent()
                 } else "",
                 where=(if(whereString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             $whereString
                         }
-                    """
+                    """.trimIndent()
                 } else "")
             )
 
             val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
+
+            val patchStringCompressed = compressStringLiteral(patchString)
 
             executeSparqlUpdate(commitUpdateString) {
                 prefixes(prefixes)
@@ -207,7 +208,7 @@ fun Route.commitModel() {
 
                 datatyped(
                     "_updateBody" to (requestBody to MMS_DATATYPE.sparql),
-                    "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                    "_patchString" to (patchStringCompressed to MMS_DATATYPE.sparqlGz),
                     "_whereString" to (whereString to MMS_DATATYPE.sparql),
                 )
 
