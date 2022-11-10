@@ -151,6 +151,8 @@ workflows:
           context:
             - DockerHub
       - deploy_nightly:
+          requires:
+            - build_and_test
           filters:
             branches:
               only: /(^wip\/.*)/
