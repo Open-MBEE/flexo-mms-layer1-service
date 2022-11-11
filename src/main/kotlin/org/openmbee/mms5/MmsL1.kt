@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.apache.jena.query.QueryFactory
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.RDFNode
 import org.apache.jena.rdf.model.Resource
@@ -460,6 +461,24 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
 
+    fun checkPrefixConflicts() {
+        // parse query
+        val sparqlQueryAst = try {
+            QueryFactory.create(requestBody)
+        } catch(parse: Exception) {
+            throw QuerySyntaxException(parse)
+        }
+
+        // check each prefix
+        for(entry in sparqlQueryAst.prefixMapping.nsPrefixMap) {
+            // prefix conflict
+            if(prefixes[entry.key] != null) {
+                throw ForbiddenPrefixException(entry.key)
+            }
+        }
+    }
+
+
     /**
      * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
      * a call to [RdfModeler.normalizeRefOrCommit] within a [MmsL1Context.filterIncomingStatements] block.
@@ -539,7 +558,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     @OptIn(InternalAPI::class)
     suspend fun executeSparqlUpdate(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
-        var sparql = Parameterizer(pattern).apply {
+        var sparql = Parameterizer(pattern.trimIndent()).apply {
             if(setup != null) setup()
             prefixes(prefixes)
         }.toString()

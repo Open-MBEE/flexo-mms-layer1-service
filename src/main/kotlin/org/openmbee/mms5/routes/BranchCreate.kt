@@ -267,17 +267,37 @@ fun Route.createBranch() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
+                        # copy existing snapshot graph to new branch's staging graph
                         copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
                         
+                        # save snapshot metadata
                         insert data {
+                            # add snapshot graph to registry
                             graph m-graph:Graphs {
                                 ?_stgGraph a mms:SnapshotGraph .
                             }
                         
+                            # declare snapshot in repository metadata
                             graph mor-graph:Metadata {
                                 morb: mms:snapshot ?_stgSnapshot . 
                                 ?_stgSnapshot a mms:Staging ;
                                     mms:graph ?_stgGraph ;
+                                    .
+                            }
+                        };
+                        
+                        # 
+                        copy silent graph ?_stgGraph to ?_mdlGraph ;
+                        
+                        insert data {
+                            graph m-graph:Graphs {
+                                ?_mdlGraph a mms:SnapshotGraph .
+                            }
+
+                            graph mor-graph:Metadata {
+                                morb: mms:snapshot ?_mdlSnapshot .
+                                ?_mdlSnapshot a mms:Model ;
+                                    mms:graph ?_mdlGraph ;
                                     .
                             }
                         }

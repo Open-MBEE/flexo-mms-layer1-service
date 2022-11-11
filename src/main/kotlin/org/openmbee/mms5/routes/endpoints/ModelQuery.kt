@@ -2,10 +2,8 @@ package org.openmbee.mms5.routes.endpoints
 
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
-import org.openmbee.mms5.BRANCH_QUERY_CONDITIONS
-import org.openmbee.mms5.Permission
-import org.openmbee.mms5.mmsL1
-import org.openmbee.mms5.queryModel
+import org.apache.jena.query.QueryFactory
+import org.openmbee.mms5.*
 
 
 fun Route.queryModel() {
@@ -17,6 +15,8 @@ fun Route.queryModel() {
                 branch()
                 inspect()
             }
+
+            checkPrefixConflicts()
 
             // auto-inject default prefixes
             val inputQueryString = "$prefixes\n$requestBody"

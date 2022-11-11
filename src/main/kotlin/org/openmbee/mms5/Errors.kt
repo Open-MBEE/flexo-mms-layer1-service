@@ -35,6 +35,8 @@ class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The
 
 class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
 
+class ForbiddenPrefixException(prefix: String): Http400Exception("Prefix not allowed here: $prefix")
+
 open class Http403Exception(msg: String="User is not authorized to perform specified action on resource"): HttpException(msg, HttpStatusCode.Forbidden)
 
 open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)

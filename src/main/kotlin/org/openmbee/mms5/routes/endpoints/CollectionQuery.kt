@@ -23,6 +23,8 @@ fun Route.queryCollection() {
                 collection()
             }
 
+            checkPrefixConflicts()
+
             val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
 
             // outputQuery.graphURIs.
