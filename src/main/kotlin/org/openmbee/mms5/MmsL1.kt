@@ -427,7 +427,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     init {
         val groupsSummary = session?.groups?.joinToString(",") { "<$it>" }?: "none"
-        log("${call.request.httpMethod} ${call.request.path()} @${session?.name?: "{anonymous}"} in (${groupsSummary})")
+        log("${call.request.httpMethod.value} ${call.request.path()} @${session?.name?: "{anonymous}"} in (${groupsSummary})")
 
         // missing userId
         if((session == null) || session.name.isBlank()) {
@@ -479,7 +479,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         for(entry in sparqlQueryAst.prefixMapping.nsPrefixMap) {
             // prefix conflict
             if(prefixes[entry.key] != null) {
-                throw ForbiddenPrefixException(entry.key)
+                // different IRI
+                if(prefixes[entry.key] != entry.value) {
+                    throw ForbiddenPrefixException(entry.key)
+                }
             }
         }
     }
