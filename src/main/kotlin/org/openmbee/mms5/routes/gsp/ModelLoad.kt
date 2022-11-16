@@ -134,7 +134,7 @@ fun Route.loadModel() {
                         """)
                     }
 
-                    log.info("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
+                    log("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
 
                     executeSparqlUpdate(loadUpdateString) {
                         prefixes(prefixes)
@@ -282,7 +282,7 @@ fun Route.loadModel() {
 
                 diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
 
-                log.info("RESPONSE TXT: $diffConstructResponseText")
+                log("Diff construct response:\n$diffConstructResponseText")
 
                 validateTransaction(diffConstructResponseText, localConditions, "diff")
             }
@@ -307,7 +307,8 @@ fun Route.loadModel() {
             val changeCount = if(diffInsGraph == null && diffDelGraph == null) {
                 0uL
             } else {
-                log.info("Changes detected.")
+                log("Changes detected between previous commit and uploaded model")
+
                 // count the number of changes in the diff
                 val selectDiffResponseText = executeSparqlSelectOrAsk("""
                     select (count(*) as ?changeCount) {
@@ -330,7 +331,7 @@ fun Route.loadModel() {
                     )
                 }
 
-                log.info("selectDiffResponseText: $selectDiffResponseText")
+                log("Change count select response:\n$selectDiffResponseText")
 
                 // parse the JSON response
                 val bindings = Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
@@ -412,7 +413,7 @@ fun Route.loadModel() {
                     """
                 )
 
-                log.info(commitUpdateString)
+                log("Prepared commit update string:$commitUpdateString")
 
                 val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
@@ -435,16 +436,14 @@ fun Route.loadModel() {
                 // compression accepted
                 if(patchStringCompressed != null) {
                     // verbose
-                    log.info(
-                        "patch string shrunk from ${"%.2f".format(originalMiB)} MiB to ${
-                            "%.2f".format(
-                                patchStringCompressed.length / 1024f / 1024f
-                            )
-                        } MiB"
-                    )
+                    log("Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
+                        "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
+                    } MiB")
 
                     // still greater than safe maximum
                     if(patchStringCompressed.length > 10 * 1024 * 1024) {
+                        log("Compressed patch string still too large")
+
                         // TODO: store as delete and insert graphs...
 
                         // otherwise, just give up
@@ -477,7 +476,7 @@ fun Route.loadModel() {
                 }
 
                 // sanity check
-                log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
+                log("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
                 call.response.header(HttpHeaders.ETag, transactionId)

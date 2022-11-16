@@ -140,10 +140,8 @@ fun Route.commitModel() {
                 """.trimIndent()
             }
 
-            log.info("INSERT: $insertBgpString")
-            log.info("DELETE: $deleteBgpString")
-            log.info("WHERE: $whereString")
 
+            log("Model commit update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
             val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
                 if(whereString.isNotEmpty()) {
@@ -168,7 +166,6 @@ fun Route.commitModel() {
                     """
                 }
             }
-
 
 
             val commitUpdateString = genCommitUpdate(localConditions,
@@ -248,7 +245,7 @@ fun Route.commitModel() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // log
-            log.info("Triplestore responded with \n$constructResponseText")
+            log("Triplestore responded with \n$constructResponseText")
 
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "morc")
 
@@ -256,19 +253,7 @@ fun Route.commitModel() {
 
             // fetch staging graph
             val stagingGraph = transactionNode.iriAt(MMS.TXN.stagingGraph)
-
-            // // fetch base model
-            // val baseModel = transactionNode.iriAt(MMS.baseModel)
-            //
-            // // fetch base model graph
-            // val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
-
-            // something is wrong
-            if(stagingGraph == null) {
-            // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
-                throw ServerBugException("failed to fetch graph/model")
-            }
-
+                ?: throw ServerBugException("Branch is missing staging graph")
 
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
@@ -283,34 +268,34 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
-            application.log.info("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
+            // log("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
 
-            // begin copying staging to model
-            executeSparqlUpdate("""
-                copy graph <$stagingGraph> to graph ?_modelGraph ;
-                
-                insert data {
-                    graph m-graph:Graphs {
-                        ?_modelGraph a mms:SnapshotGraph .
-                    }
-
-                    graph mor-graph:Metadata {
-                        morb: mms:snapshot ?_model .
-                        ?_model a mms:Model ;
-                            mms:graph ?_modelGraph ;
-                            .
-                    }
-                }
-            """) {
-                prefixes(prefixes)
-
-                iri(
-                    "_stagingGraph" to stagingGraph,
-                    "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
-                    "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
-                )
-            }
-
+            // // begin copying staging to model
+            // executeSparqlUpdate("""
+            //     copy graph <$stagingGraph> to graph ?_modelGraph ;
+            //
+            //     insert data {
+            //         graph m-graph:Graphs {
+            //             ?_modelGraph a mms:SnapshotGraph .
+            //         }
+            //
+            //         graph mor-graph:Metadata {
+            //             morb: mms:snapshot ?_model .
+            //             ?_model a mms:Model ;
+            //                 mms:graph ?_modelGraph ;
+            //                 .
+            //         }
+            //     }
+            // """) {
+            //     prefixes(prefixes)
+            //
+            //     iri(
+            //         "_stagingGraph" to stagingGraph,
+            //         "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
+            //         "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
+            //     )
+            // }
+            //
 
             // delete transaction
             run {
@@ -323,35 +308,35 @@ fun Route.commitModel() {
                 """)
 
                 // log response
-                log.info(dropTransactionResponseText)
+                log("Transaction drop response: $dropTransactionResponseText")
 
-                // delete interim lock
-                val dropInterimResponseText = executeSparqlUpdate("""
-                    delete where {
-                        graph mor-graph:Metadata {
-                            ?_interim ?lock_p ?lock_o ;
-                                mms:snapshot ?snapshot .
-                            
-                            ?snapshot mms:graph ?model ;
-                                ?snapshot_p ?snapshot_o .
-                        }
-                        
-                        graph m-graph:Graphs {
-                            ?model a mms:SnapshotGraph .
-                        }
-                        
-                        graph ?model {
-                            ?model_s ?model_p ?model_o .
-                        }
-                    }
-                """) {
-                    iri(
-                        "_interim" to interimIri,
-                    )
-                }
-
-                // log response
-                log.info(dropInterimResponseText)
+                // // delete interim lock
+                // val dropInterimResponseText = executeSparqlUpdate("""
+                //     delete where {
+                //         graph mor-graph:Metadata {
+                //             ?_interim ?lock_p ?lock_o ;
+                //                 mms:snapshot ?snapshot .
+                //
+                //             ?snapshot mms:graph ?model ;
+                //                 ?snapshot_p ?snapshot_o .
+                //         }
+                //
+                //         graph m-graph:Graphs {
+                //             ?model a mms:SnapshotGraph .
+                //         }
+                //
+                //         graph ?model {
+                //             ?model_s ?model_p ?model_o .
+                //         }
+                //     }
+                // """) {
+                //     iri(
+                //         "_interim" to interimIri,
+                //     )
+                // }
+                //
+                // // log response
+                // log.info(dropInterimResponseText)
             }
         }
     }

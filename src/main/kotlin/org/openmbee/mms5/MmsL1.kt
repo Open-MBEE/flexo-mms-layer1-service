@@ -142,7 +142,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -159,7 +159,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -181,7 +181,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             }
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -426,6 +426,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         )
 
     init {
+        val groupsSummary = session?.groups?.joinToString(",") { "<$it>" }?: "none"
+        log("${call.request.httpMethod} ${call.request.path()} @${session?.name?: "{anonymous}"} in (${groupsSummary})")
+
         // missing userId
         if((session == null) || session.name.isBlank()) {
             throw AuthorizationRequiredException("User not authenticated")
@@ -433,8 +436,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // save
         userId = session.name
-        println("Observed groups: ${session.groups}")
         groups = session.groups
+    }
+
+    fun log(message: String) {
+        log.debug("txn/${transactionId}: $message")
     }
 
     fun pathParams(setup: ParamNormalizer.()->Unit): ParamNormalizer {
@@ -567,7 +573,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             "groupId" to groups,
         )
 
-        call.application.log.info("SPARQL Update:\n$sparql")
+        log("Executing SPARQL Update:\n$sparql")
 
         return handleSparqlResponse(client.post(call.application.quadStoreUpdateUrl) {
             headers {
@@ -589,7 +595,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             "groupId" to groups,
         )
 
-        call.application.log.info("SPARQL Query:\n$sparql")
+        log("Executing SPARQL Query:\n$sparql")
 
         return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
             headers {
@@ -613,9 +619,6 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-                // debug
-                log.warn("Transaction failed.\n${results}")
-
                 runBlocking {
                     val constructQuery = buildSparqlQuery {
                         construct {
@@ -675,7 +678,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                         }
                     }
 
-                    log.info("Union inspect: ${executeSparqlConstructOrDescribe(constructQuery)}")
+                    val described = executeSparqlConstructOrDescribe(constructQuery)
+                    log("Transaction failed.\n\n\tInpsect: ${described}\n\n\tResults: \n${results}")
                 }
 
                 // use response to diagnose cause
@@ -687,8 +691,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun injectPreconditions(): String {
-        log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
-        log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
+        // log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
+        // log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
 
         return """
             ${if(ifMatch?.isStar == false) """
@@ -940,9 +944,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
         }
     }
 
-    log.info("INSERT: $insertBgpString")
-    log.info("DELETE: $deleteBgpString")
-    log.info("WHERE: $whereString")
+    log("Guarded patch update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
     val conditions = preconditions.append {
         if(whereString.isNotEmpty()) {
@@ -1043,8 +1045,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
 
     val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-    // log
-    log.info("Triplestore responded with \n$constructResponseText")
+    log.info("Post-update construct response:\n$constructResponseText")
 
     val constructModel = validateTransaction(constructResponseText, conditions)
 
@@ -1067,8 +1068,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
             }
         """)
 
-        // log response
-        log.info(dropResponseText)
+        log("Transaction delete response:\n$dropResponseText")
     }
 }
 
