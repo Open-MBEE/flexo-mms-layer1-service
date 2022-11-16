@@ -1,5 +1,6 @@
 package org.openmbee.mms5.routes
 
+import com.linkedin.migz.MiGzInputStream
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -8,6 +9,7 @@ import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+import java.io.ByteArrayInputStream
 
 
 private val ROOT_COMMIT_RESOURCE = ResourceFactory.createResource("urn:mms:rootCommit")
@@ -372,10 +374,31 @@ fun Route.createBranch() {
                             // get patch body
                             val patches = model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
                             if(patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
-                            val patch = patches[0].asLiteral().string
+
+                            // ref literal
+                            val patchLiteral = patches[0].asLiteral()
+
+                            // compressed sparql gz
+                            val patchString = if(patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
+                                val bytes = patchLiteral.string.toByteArray()
+
+                                // prep input stream
+                                val stream = ByteArrayInputStream(bytes)
+
+                                // instantiate decompressor
+                                val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
+
+                                // read decompressed data and create string
+                                String(migz.readAllBytes())
+
+                            }
+                            // uncompressed sparql
+                            else {
+                                patchLiteral.string
+                            }
 
                             // add to update strings
-                            updates.add(patch)
+                            updates.add(patchString)
 
                             // traverse to child commit
                             val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()

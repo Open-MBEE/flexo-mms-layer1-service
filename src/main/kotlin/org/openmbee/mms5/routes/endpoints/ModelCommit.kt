@@ -197,7 +197,11 @@ fun Route.commitModel() {
 
             val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
-            // val patchStringCompressed = compressStringLiteral(patchString)
+            var patchStringDatatype = MMS_DATATYPE.sparql
+            compressStringLiteral(patchString)?.let {
+                patchString = it
+                patchStringDatatype = MMS_DATATYPE.sparqlGz
+            }
 
             executeSparqlUpdate(commitUpdateString) {
                 prefixes(prefixes)
@@ -208,8 +212,7 @@ fun Route.commitModel() {
 
                 datatyped(
                     "_updateBody" to (requestBody to MMS_DATATYPE.sparql),
-                    // "_patchString" to (patchStringCompressed to MMS_DATATYPE.sparqlGz),
-                    "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                    "_patchString" to (patchString to patchStringDatatype),
                     "_whereString" to (whereString to MMS_DATATYPE.sparql),
                 )
 
