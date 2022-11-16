@@ -1293,9 +1293,6 @@ fun compressStringLiteral(string: String): String? {
 
         // better than best result
         if(outputBytes.size < bestResultSize) {
-            // reduction percentage
-            val reduction = (bestResultSize / outputBytes.size) - 1
-
             // replace best result
             bestResult = outputBytes
             bestResultSize = outputBytes.size
