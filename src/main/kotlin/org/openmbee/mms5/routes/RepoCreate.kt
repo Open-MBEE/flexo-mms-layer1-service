@@ -122,8 +122,14 @@ fun Route.createRepo() {
                                 mms:id ?_branchId ;
                                 mms:etag ?_branchEtag ;
                                 mms:commit morc: ;
-                                mms:snapshot ?_model, ?_staging ;
+                                mms:snapshot ?_staging ;
                                 dct:title "Master"@en ;
+                                .
+                                
+                            # model snapshot
+                            mor-lock:Commit.root a mms:Lock ;
+                                mms:commit morc: ;
+                                mms:snapshot ?_model ;
                                 .
                             
                             # initial model graph
@@ -138,12 +144,14 @@ fun Route.createRepo() {
                         """)
                     }
 
-                    // declare new graph
+                    // declare new graphs
                     graph("m-graph:Graphs") {
                         raw("""
                             mor-graph:Metadata a mms:RepoMetadataGraph .
                             
                             ?_stagingGraph a mms:SnapshotGraph .
+                            
+                            ?_modelGraph a mms:SnapshotGraph .
                         """)
                     }
                 }

@@ -254,6 +254,12 @@ fun Route.createBranch() {
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
+
+            //
+            // ==== Response closed ====
+            //
+
+
             // predetermine snapshot graphs
             val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
             val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
@@ -286,51 +292,11 @@ fun Route.createBranch() {
                                     mms:graph ?_stgGraph ;
                                     .
                             }
-                        };
-                        
-                        # 
-                        copy silent graph ?_stgGraph to ?_mdlGraph ;
-                        
-                        insert data {
-                            graph m-graph:Graphs {
-                                ?_mdlGraph a mms:SnapshotGraph .
-                            }
-
-                            graph mor-graph:Metadata {
-                                morb: mms:snapshot ?_mdlSnapshot .
-                                ?_mdlSnapshot a mms:Model ;
-                                    mms:graph ?_mdlGraph ;
-                                    .
-                            }
                         }
                     """) {
                         iri(
                             "_stgGraph" to stagingGraph,
                             "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                        )
-                    }
-
-                    // copy staging => model
-                    executeSparqlUpdate("""
-                        copy silent graph ?_stgGraph to ?_mdlGraph ;
-                        
-                        insert data {
-                            graph m-graph:Graphs {
-                                ?_mdlGraph a mms:SnapshotGraph .
-                            }
-
-                            graph mor-graph:Metadata {
-                                morb: mms:snapshot ?_mdlSnapshot .
-                                ?_mdlSnapshot a mms:Model ;
-                                    mms:graph ?_mdlGraph ;
-                                    .
-                            }
-                        }
-                    """) {
-                        iri(
-                            "_stgGraph" to stagingGraph,
-                            "_mdlGraph" to modelGraph,
-                            "_mdlSnapshot" to modelSnapshot,
                         )
                     }
                 }
@@ -418,11 +384,15 @@ fun Route.createBranch() {
                         )
                     }
 
-                    // save new snapshot as branch
+                    // save new snapshot
                     executeSparqlUpdate("""
                         insert data {
                             graph mor-graph:Metadata {
-                                morb: mms:snapshot ?_mdlSnapshot .
+                                mor-lock:Commit.${transactionId} a mms:Lock ;
+                                    mms:commit morc: ;
+                                    mms:snapshot ?_mdlSnapshot ;
+                                    .
+
                                 ?_mdlSnapshot a mms:Model ;
                                     mms:graph ?_mdlGraph ;
                                     .

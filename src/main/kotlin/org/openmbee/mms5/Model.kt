@@ -346,8 +346,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                                 // ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
                                 addTriplePattern(Triple.create(snapshotVar, MMS.graph.asNode(), modelGraphNode))
 
-                                // model graph selection
+                                // snapshot graph selection
                                 addElement(ElementUnion().apply {
+                                    // TODO: select model snapshot from commit lock
                                     // prefer the model snapshot
                                     addElement(ElementTriplesBlock().apply {
                                         // ?__mms_snapshot a mms:Model .

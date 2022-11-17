@@ -482,17 +482,23 @@ fun Route.loadModel() {
                 call.response.header(HttpHeaders.ETag, transactionId)
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
+                //
+                // ==== Response closed ====
+                //
+
                 // start copying staging to new model
                 executeSparqlUpdate("""
                     copy graph ?_stagingGraph to graph ?_modelGraph ;
-                    
+
                     insert data {
                         graph m-graph:Graphs {
                             ?_modelGraph a mms:SnapshotGraph .
                         }
 
                         graph mor-graph:Metadata {
-                            morb: mms:snapshot ?_model .
+                            mor-lock:Commit.${transactionId} mms:snapshot ?_model ;
+                                mms:commit morc: ;
+                                .
                             ?_model a mms:Model ;
                                 mms:graph ?_modelGraph ;
                                 .

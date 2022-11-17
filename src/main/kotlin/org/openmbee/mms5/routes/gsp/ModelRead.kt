@@ -30,7 +30,12 @@ fun Route.readModel() {
 
                     raw("""
                         graph mor-graph:Metadata {
-                            morb: mms:snapshot/mms:graph ?modelGraph .
+                            morb: mms:commit/^mms:commit ?ref .
+                            
+                            ?ref mms:snapshot ?modelSnapshot .
+                            
+                            ?modelSnapshot a mms:Model ;
+                                mms:graph ?modelGraph .
                         }
 
                         graph ?modelGraph {

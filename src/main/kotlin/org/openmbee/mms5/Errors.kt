@@ -37,6 +37,8 @@ class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 
 
 class ForbiddenPrefixException(prefix: String): Http400Exception("Prefix not allowed here: $prefix")
 
+class ForbiddenPrefixRemapException(prefix: String, iri: String): Http400Exception("Prefix \"$prefix\" not allowed to be set to anything other than <$iri>")
+
 open class Http403Exception(msg: String="User is not authorized to perform specified action on resource"): HttpException(msg, HttpStatusCode.Forbidden)
 
 open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)

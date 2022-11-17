@@ -475,14 +475,18 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             throw QuerySyntaxException(parse)
         }
 
-        // check each prefix
-        for(entry in sparqlQueryAst.prefixMapping.nsPrefixMap) {
-            // prefix conflict
-            if(prefixes[entry.key] != null) {
-                // different IRI
-                if(prefixes[entry.key] != entry.value) {
-                    throw ForbiddenPrefixException(entry.key)
+        // ref query prefixes
+        val queryPrefixes = sparqlQueryAst.prefixMapping.nsPrefixMap
+
+        // each mms prefix
+        for((id, iri) in prefixes.map) {
+            // user query includes this prefix id
+            if(queryPrefixes[id] != null) {
+                // user wants to use a different IRI for this prefix
+                if(queryPrefixes[id] != iri) {
+                    throw ForbiddenPrefixRemapException(id, iri)
                 }
+                // otherwise, allow redundant prefix declaration
             }
         }
     }
@@ -558,7 +562,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
-        return UpdateBuilder(this,).apply { setup() }.toString()
+        return UpdateBuilder(this).apply { setup() }.toString()
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
