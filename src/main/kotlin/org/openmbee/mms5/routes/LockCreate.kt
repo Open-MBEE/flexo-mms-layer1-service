@@ -293,14 +293,16 @@ fun Route.createLock() {
                     
                         graph mor-graph:Metadata {         
                             ?_refSource a ?__mms_refSourceClass ;
-                                mms:commit ?__mms_commitSource ;
-                                mms:snapshot ?baseSnapshot .
+                                mms:commit ?__mms_commitSource .
+
+                            # traverse to all snapshots pointing at commit
+                            ?__mms_commitSource ^mms:commit/mms:snapshot ?baseSnapshot .
+
+                            # only use the model snapshot
+                            ?baseSnapshot a mms:Model .
 
                             # and that snapshot's graph
                             ?baseSnapshot mms:graph ?baseGraph .
-                
-                            # only use the model snapshot
-                            ?baseSnapshot a mms:Model .
                         }
                         
                         optional {
