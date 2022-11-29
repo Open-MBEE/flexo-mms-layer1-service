@@ -15,6 +15,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.query.QueryParseException
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.RDFNode
 import org.apache.jena.rdf.model.Resource
@@ -472,7 +473,18 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         val sparqlQueryAst = try {
             QueryFactory.create(requestBody)
         } catch(parse: Exception) {
-            throw QuerySyntaxException(parse)
+            // on prefix error, retry with default prefixes
+            if(parse is QueryParseException && "Unresolved prefixed name".toRegex().containsMatchIn(parse.message?: "")) {
+                try {
+                    QueryFactory.create("$prefixes\n$requestBody")
+                }
+                catch(parseAgain: Exception) {
+                    throw QuerySyntaxException(parseAgain)
+                }
+            }
+            else {
+                throw QuerySyntaxException(parse)
+            }
         }
 
         // ref query prefixes
