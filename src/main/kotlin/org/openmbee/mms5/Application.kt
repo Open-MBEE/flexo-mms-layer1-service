@@ -26,5 +26,13 @@ val Application.quadStoreGraphStoreProtocolUrl: String?
 val Application.loadServiceUrl: String?
     get() = environment.config.propertyOrNull("mms.load-service.url")?.getString()?.ifEmpty { null }
 
+val Application.glomarResponse: Boolean
+    get() = "true" == environment.config.propertyOrNull("mms.application.glomar-response")?.getString()
+
+val Application.maximumLiteralSizeKib: Long?
+    get() = environment.config.propertyOrNull("mms.application.maximum-literal-size-kib")?.getString()?.toLongOrNull()
+
+val Application.gzipLiteralsLargerThanKib: Long?
+    get() = environment.config.propertyOrNull("mms.application.gzip-literals-larger-than")?.getString()?.toLongOrNull()
 
 class AuthorizationRequiredException(message: String): Exception(message) {}

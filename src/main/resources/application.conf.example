@@ -1,4 +1,15 @@
 mms {
+    application {
+        # if true, respond with 404 to unauthorized requests, even when a resource exists (neither confirming nor denying its existence)
+        glomar-response = true
+
+        # large patch strings above this threshold size will not be stored in the triplestore. if unset, no limit on literal size enforced
+        maximum-literal-size-kib = 61440
+
+        # patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings (effectively disabling the feature)
+        gzip-literals-larger-than-kib = 512
+    }
+
     load-service {
         url = ""
         url = ${?MMS5_LOAD_SERVICE_URL}

@@ -1,6 +1,7 @@
 package org.openmbee.mms5.routes.gsp
 
 import io.ktor.server.application.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.openmbee.mms5.*
@@ -48,7 +49,14 @@ fun Route.readModel() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             if(!constructResponseText.contains(authorizedIri)) {
-                throw Http404Exception()
+                log("Rejecting unauthorized request with 404\n${constructResponseText}")
+
+                if(application.glomarResponse) {
+                    throw Http404Exception(call.request.path())
+                }
+                else {
+                    throw Http403Exception(this, call.request.path())
+                }
             }
             else {
                 // try to avoid parsing model for performance reasons

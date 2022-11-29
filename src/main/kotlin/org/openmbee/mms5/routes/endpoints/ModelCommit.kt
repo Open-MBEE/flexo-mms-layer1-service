@@ -195,9 +195,13 @@ fun Route.commitModel() {
             val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
             var patchStringDatatype = MMS_DATATYPE.sparql
-            compressStringLiteral(patchString)?.let {
-                patchString = it
-                patchStringDatatype = MMS_DATATYPE.sparqlGz
+
+            // approximate patch string size in bytes by assuming each character is 1 byte
+            if(application.gzipLiteralsLargerThanKib?.let { patchString.length > it } == true) {
+                compressStringLiteral(patchString)?.let {
+                    patchString = it
+                    patchStringDatatype = MMS_DATATYPE.sparqlGz
+                }
             }
 
             executeSparqlUpdate(commitUpdateString) {
@@ -276,17 +280,25 @@ fun Route.commitModel() {
 
             // begin copying staging to model
             executeSparqlUpdate("""
+                # copy the modified staging graph to become the new model graph
                 copy graph <$stagingGraph> to graph ?_modelGraph ;
 
                 insert data {
+                    # save new model graph to registry
                     graph m-graph:Graphs {
-                        ?_modelGraph a mms:SnapshotGraph .
+                        ?_modelGraph a mms:ModelGraph .
                     }
 
                     graph mor-graph:Metadata {
-                        mor-lock:Commit.${transactionId} mms:snapshot ?_model .
+                        # create model snapshot object in repo's metadata
                         ?_model a mms:Model ;
                             mms:graph ?_modelGraph ;
+                            .
+
+                        # assign lock to associate commit with model snapshot
+                        mor-lock:Commit.${transactionId}
+                            mms:commit morc: ;
+                            mms:snapshot ?_model ;
                             .
                     }
                 }

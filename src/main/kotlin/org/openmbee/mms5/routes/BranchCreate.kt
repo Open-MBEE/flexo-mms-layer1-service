@@ -6,7 +6,6 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.ResourceFactory
-import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 import java.io.ByteArrayInputStream
@@ -368,7 +367,7 @@ fun Route.createBranch() {
 
                             // traverse to child commit
                             val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
-                            if(children.isEmpty()) break;
+                            if(children.isEmpty()) break
 
                             // repeat
                             commit = children[0]

@@ -94,7 +94,7 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         val inspectValue = call.parameters["inspect"]?: ""
         mms.inspectOnly = if(inspectValue.isNotEmpty()) {
             if(inspectValue != "inspect") {
-                throw Http404Exception()
+                throw Http404Exception(call.request.path())
             } else true
         } else false
     }
@@ -777,7 +777,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // resource does not exist
         if(0 == bindings.size) {
-            throw Http404Exception()
+            throw Http404Exception(call.request.path())
         }
 
         // compose etag
@@ -803,7 +803,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
             // resource not exists; 404
             if(!resourceNode.listProperties().hasNext()) {
-                throw Http404Exception()
+                throw Http404Exception(call.request.path())
             }
 
             // etags
@@ -826,7 +826,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
         // empty model; user does not have permissions to enumerate
         if(model.size() == 0L) {
-            throw Http403Exception()
+            throw Http403Exception(this)
         }
 
         // prep map of resources to etags

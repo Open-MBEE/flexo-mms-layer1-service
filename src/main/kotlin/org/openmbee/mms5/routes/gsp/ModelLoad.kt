@@ -219,27 +219,27 @@ fun Route.loadModel() {
 
             // compute the delta
             run {
-                // NOTE: the query below was intended for 1 model graph per commit max, but has been replaced to allow a snapshot per ref
-                // val updateString = genDiffUpdate("", localConditions, """
-                //     graph mor-graph:Metadata {
-                //         # select the latest commit from the current named ref
-                //         ?srcRef mms:commit ?srcCommit .
-                //
-                //         ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                //
-                //         ?srcSnapshot a mms:Model ;
-                //             mms:graph ?srcGraph  .
-                //     }
-                // """)
-
                 val updateString = genDiffUpdate("", localConditions, """
                     graph mor-graph:Metadata {
                         # select the latest commit from the current named ref
-                        ?srcRef mms:commit ?srcCommit ;
-                            mms:snapshot ?srcSnapshot .
+                        ?srcRef mms:commit ?srcCommit .
                         
-                        ?srcSnapshot a mms:Model ; 
-                            mms:graph ?srcGraph  .
+                        # get the latest snapshot associated with the source commit
+                        ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                        {
+                            # prefer the model snapshot
+                            ?srcSnapshot a mms:Model ;
+                                mms:graph ?srcGraph  .
+                        } union {
+                            # settle for staging...
+                            ?srcSnapshot a mms:Staging ;
+                                mms:graph ?srcGraph .
+                            
+                            # ...if model is not available
+                            filter not exists {
+                                ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
+                            }
+                        }
                     }
                 """)
 
@@ -428,30 +428,35 @@ fun Route.loadModel() {
 
                 var patchStringDatatype = MMS_DATATYPE.sparql
 
-                val originalMiB = patchString.length / 1024f / 1024f
+                val originalKiB = patchString.length / 1024f;
+                if(application.gzipLiteralsLargerThanKib?.let { originalKiB > it } == true) {
+                    val originalMiB = originalKiB / 1024f
 
-                // compress string
-                val patchStringCompressed = compressStringLiteral(patchString)
+                    // compress string
+                    val patchStringCompressed = compressStringLiteral(patchString)
 
-                // compression accepted
-                if(patchStringCompressed != null) {
-                    // verbose
-                    log("Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
-                        "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
-                    } MiB")
+                    // compression accepted
+                    if(patchStringCompressed != null) {
+                        // verbose
+                        log(
+                            "Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
+                                "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
+                            } MiB"
+                        )
 
-                    // still greater than safe maximum
-                    if(patchStringCompressed.length > 10 * 1024 * 1024) {
-                        log("Compressed patch string still too large")
-
-                        // TODO: store as delete and insert graphs...
-
-                        // otherwise, just give up
-                        patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
+                        patchString = patchStringCompressed
+                        patchStringDatatype = MMS_DATATYPE.sparqlGz
                     }
+                }
 
-                    patchString = patchStringCompressed
-                    patchStringDatatype = MMS_DATATYPE.sparqlGz
+                // still greater than safe maximum
+                if(application.maximumLiteralSizeKib?.let { patchString.length > it } == true) {
+                    log("Compressed patch string still too large")
+
+                    // TODO: store as delete and insert graphs...
+
+                    // otherwise, just give up
+                    patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
                 }
 
                 executeSparqlUpdate(commitUpdateString) {
