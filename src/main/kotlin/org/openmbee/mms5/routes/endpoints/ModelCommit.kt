@@ -296,7 +296,7 @@ fun Route.commitModel() {
                             .
 
                         # assign lock to associate commit with model snapshot
-                        mor-lock:Commit.${transactionId}
+                        mor-lock:Commit.${transactionId} a mms:Lock ;
                             mms:commit morc: ;
                             mms:snapshot ?_model ;
                             .

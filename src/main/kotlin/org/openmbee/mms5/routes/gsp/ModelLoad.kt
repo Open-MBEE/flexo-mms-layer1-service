@@ -501,7 +501,8 @@ fun Route.loadModel() {
                         }
 
                         graph mor-graph:Metadata {
-                            mor-lock:Commit.${transactionId} mms:snapshot ?_model ;
+                            mor-lock:Commit.${transactionId} a mms:Lock ;
+                                mms:snapshot ?_model ;
                                 mms:commit morc: ;
                                 .
                             ?_model a mms:Model ;
