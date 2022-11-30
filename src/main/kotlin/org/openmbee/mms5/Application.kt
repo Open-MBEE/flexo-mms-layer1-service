@@ -33,6 +33,6 @@ val Application.maximumLiteralSizeKib: Long?
     get() = environment.config.propertyOrNull("mms.application.maximum-literal-size-kib")?.getString()?.toLongOrNull()
 
 val Application.gzipLiteralsLargerThanKib: Long?
-    get() = environment.config.propertyOrNull("mms.application.gzip-literals-larger-than")?.getString()?.toLongOrNull()
+    get() = environment.config.propertyOrNull("mms.application.gzip-literals-larger-than-kib")?.getString()?.toLongOrNull()
 
 class AuthorizationRequiredException(message: String): Exception(message) {}
