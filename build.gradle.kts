@@ -1,3 +1,4 @@
+import java.net.URI
 
 plugins {
     application
@@ -75,6 +76,17 @@ dependencies {
     val junitVersion = "5.9.0"
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 
+    val migzVersion = "2.0.beta-1"
+    implementation("com.linkedin.migz:migz:$migzVersion")
+
+    // if/when needed, uncomment the block below to install dependencies from github repos
+    // repositories {
+    //     maven {
+    //         url = URI("https://jitpack.io")
+    //     }
+    // }
+
+    // implementation("com.github.$USER:$REPO:master-SNAPSHOT")
 }
 
 tasks {

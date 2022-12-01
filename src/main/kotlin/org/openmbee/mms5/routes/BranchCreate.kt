@@ -1,13 +1,14 @@
 package org.openmbee.mms5.routes
 
+import com.linkedin.migz.MiGzInputStream
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.ResourceFactory
-import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
+import java.io.ByteArrayInputStream
 
 
 private val ROOT_COMMIT_RESOURCE = ResourceFactory.createResource("urn:mms:rootCommit")
@@ -252,6 +253,12 @@ fun Route.createBranch() {
             // respond
             call.respondText(constructResponseText, RdfContentTypes.Turtle)
 
+
+            //
+            // ==== Response closed ====
+            //
+
+
             // predetermine snapshot graphs
             val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
             val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
@@ -267,13 +274,17 @@ fun Route.createBranch() {
                 if(sourceGraphs.size >= 1) {
                     // copy graph
                     executeSparqlUpdate("""
+                        # copy existing snapshot graph to new branch's staging graph
                         copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
                         
+                        # save snapshot metadata
                         insert data {
+                            # add snapshot graph to registry
                             graph m-graph:Graphs {
                                 ?_stgGraph a mms:SnapshotGraph .
                             }
                         
+                            # declare snapshot in repository metadata
                             graph mor-graph:Metadata {
                                 morb: mms:snapshot ?_stgSnapshot . 
                                 ?_stgSnapshot a mms:Staging ;
@@ -285,30 +296,6 @@ fun Route.createBranch() {
                         iri(
                             "_stgGraph" to stagingGraph,
                             "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                        )
-                    }
-
-                    // copy staging => model
-                    executeSparqlUpdate("""
-                        copy silent graph ?_stgGraph to ?_mdlGraph ;
-                        
-                        insert data {
-                            graph m-graph:Graphs {
-                                ?_mdlGraph a mms:SnapshotGraph .
-                            }
-
-                            graph mor-graph:Metadata {
-                                morb: mms:snapshot ?_mdlSnapshot .
-                                ?_mdlSnapshot a mms:Model ;
-                                    mms:graph ?_mdlGraph ;
-                                    .
-                            }
-                        }
-                    """) {
-                        iri(
-                            "_stgGraph" to stagingGraph,
-                            "_mdlGraph" to modelGraph,
-                            "_mdlSnapshot" to modelSnapshot,
                         )
                     }
                 }
@@ -352,14 +339,35 @@ fun Route.createBranch() {
                             // get patch body
                             val patches = model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
                             if(patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
-                            val patch = patches[0].asLiteral().string
+
+                            // ref literal
+                            val patchLiteral = patches[0].asLiteral()
+
+                            // compressed sparql gz
+                            val patchString = if(patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
+                                val bytes = patchLiteral.string.toByteArray()
+
+                                // prep input stream
+                                val stream = ByteArrayInputStream(bytes)
+
+                                // instantiate decompressor
+                                val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
+
+                                // read decompressed data and create string
+                                String(migz.readAllBytes())
+
+                            }
+                            // uncompressed sparql
+                            else {
+                                patchLiteral.string
+                            }
 
                             // add to update strings
-                            updates.add(patch)
+                            updates.add(patchString)
 
                             // traverse to child commit
                             val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
-                            if(children.isEmpty()) break;
+                            if(children.isEmpty()) break
 
                             // repeat
                             commit = children[0]
@@ -375,11 +383,15 @@ fun Route.createBranch() {
                         )
                     }
 
-                    // save new snapshot as branch
+                    // save new snapshot
                     executeSparqlUpdate("""
                         insert data {
                             graph mor-graph:Metadata {
-                                morb: mms:snapshot ?_mdlSnapshot .
+                                mor-lock:Commit.${transactionId} a mms:Lock ;
+                                    mms:commit morc: ;
+                                    mms:snapshot ?_mdlSnapshot ;
+                                    .
+
                                 ?_mdlSnapshot a mms:Model ;
                                     mms:graph ?_mdlGraph ;
                                     .

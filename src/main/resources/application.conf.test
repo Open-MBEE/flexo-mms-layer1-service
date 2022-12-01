@@ -1,4 +1,13 @@
 mms {
+    application {
+        glomar-response = false
+        glomar-response = ${?MMS5_GLOMAR_RESPONSE}
+        maximum-literal-size-kib = 61440
+        maximum-literal-size-kib = ${?MMS5_MAXIMUM_LITERAL_SIZE_KIB}
+        gzip-literals-larger-than-kib = 512
+        gzip-literals-larger-than-kib = ${?MMS5_GZIP_LITERALS_LARGER_THAN_KIB}
+    }
+
     load-service {
         url = ""
         url = ${?MMS5_LOAD_SERVICE_URL}

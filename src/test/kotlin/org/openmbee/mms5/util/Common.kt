@@ -28,7 +28,7 @@ fun escapeFileName(name: String): String {
 }
 
 open class CommonSpec : StringSpec() {
-    val clusterFilePath = File(javaClass.classLoader.getResource("cluster.trig")!!.file).absolutePath
+    val clusterFilePath: String = File(javaClass.classLoader.getResource("cluster.trig")!!.file).absolutePath
 
     override suspend fun beforeSpec(spec: Spec) {
         super.beforeSpec(spec)

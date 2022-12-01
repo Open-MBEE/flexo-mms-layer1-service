@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import io.ktor.http.*
 import org.openmbee.mms5.util.*
 
 class ModelQuery : ModelAny() {
@@ -67,6 +68,25 @@ class ModelQuery : ModelAny() {
                 }.apply {
                     // the load overwrites, so only bob exists
                     validateModelQueryResponse(sparqlQueryNamesResultBob)
+                }
+            }
+        }
+
+        "subquery" {
+            loadModel(masterPath, loadTurtle)
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        SELECT * {
+                            {
+                                SELECT * WHERE {
+                                    ?s ?p ?o
+                                }
+                            }
+                        }
+                    """.trimIndent())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }

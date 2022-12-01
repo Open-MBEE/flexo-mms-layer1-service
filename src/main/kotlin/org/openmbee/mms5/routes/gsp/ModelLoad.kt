@@ -1,15 +1,14 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.server.application.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -135,7 +134,7 @@ fun Route.loadModel() {
                         """)
                     }
 
-                    log.info("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
+                    log("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
 
                     executeSparqlUpdate(loadUpdateString) {
                         prefixes(prefixes)
@@ -220,27 +219,27 @@ fun Route.loadModel() {
 
             // compute the delta
             run {
-                // NOTE: the query below was intended for 1 model graph per commit max, but has been replaced to allow a snapshot per ref
-                // val updateString = genDiffUpdate("", localConditions, """
-                //     graph mor-graph:Metadata {
-                //         # select the latest commit from the current named ref
-                //         ?srcRef mms:commit ?srcCommit .
-                //
-                //         ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                //
-                //         ?srcSnapshot a mms:Model ;
-                //             mms:graph ?srcGraph  .
-                //     }
-                // """)
-
                 val updateString = genDiffUpdate("", localConditions, """
                     graph mor-graph:Metadata {
                         # select the latest commit from the current named ref
-                        ?srcRef mms:commit ?srcCommit ;
-                            mms:snapshot ?srcSnapshot .
+                        ?srcRef mms:commit ?srcCommit .
                         
-                        ?srcSnapshot a mms:Model ; 
-                            mms:graph ?srcGraph  .
+                        # get the latest snapshot associated with the source commit
+                        ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                        {
+                            # prefer the model snapshot
+                            ?srcSnapshot a mms:Model ;
+                                mms:graph ?srcGraph  .
+                        } union {
+                            # settle for staging...
+                            ?srcSnapshot a mms:Staging ;
+                                mms:graph ?srcGraph .
+                            
+                            # ...if model is not available
+                            filter not exists {
+                                ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
+                            }
+                        }
                     }
                 """)
 
@@ -283,7 +282,7 @@ fun Route.loadModel() {
 
                 diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
 
-                log.info("RESPONSE TXT: $diffConstructResponseText")
+                log("Diff construct response:\n$diffConstructResponseText")
 
                 validateTransaction(diffConstructResponseText, localConditions, "diff")
             }
@@ -308,7 +307,8 @@ fun Route.loadModel() {
             val changeCount = if(diffInsGraph == null && diffDelGraph == null) {
                 0uL
             } else {
-                log.info("Changes detected.")
+                log("Changes detected between previous commit and uploaded model")
+
                 // count the number of changes in the diff
                 val selectDiffResponseText = executeSparqlSelectOrAsk("""
                     select (count(*) as ?changeCount) {
@@ -331,7 +331,7 @@ fun Route.loadModel() {
                     )
                 }
 
-                log.info("selectDiffResponseText: $selectDiffResponseText")
+                log("Change count select response:\n$selectDiffResponseText")
 
                 // parse the JSON response
                 val bindings = Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
@@ -413,7 +413,7 @@ fun Route.loadModel() {
                     """
                 )
 
-                log.info(commitUpdateString)
+                log("Prepared commit update string:$commitUpdateString")
 
                 val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
@@ -426,9 +426,37 @@ fun Route.loadModel() {
                     }
                 """.trimIndent()
 
-                // string is larger than 1 MiB
-                if(patchString.length > 1024 * 1024) {
-                    patchString = "<urn:mms:omitted> <urn:too-large> <urn:to-handle> ."
+                var patchStringDatatype = MMS_DATATYPE.sparql
+
+                val originalKiB = patchString.length / 1024f;
+                if(application.gzipLiteralsLargerThanKib?.let { originalKiB > it } == true) {
+                    val originalMiB = originalKiB / 1024f
+
+                    // compress string
+                    val patchStringCompressed = compressStringLiteral(patchString)
+
+                    // compression accepted
+                    if(patchStringCompressed != null) {
+                        // verbose
+                        log(
+                            "Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
+                                "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
+                            } MiB"
+                        )
+
+                        patchString = patchStringCompressed
+                        patchStringDatatype = MMS_DATATYPE.sparqlGz
+                    }
+                }
+
+                // still greater than safe maximum
+                if(application.maximumLiteralSizeKib?.let { patchString.length > it } == true) {
+                    log("Compressed patch string still too large")
+
+                    // TODO: store as delete and insert graphs...
+
+                    // otherwise, just give up
+                    patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
                 }
 
                 executeSparqlUpdate(commitUpdateString) {
@@ -443,7 +471,7 @@ fun Route.loadModel() {
 
                     datatyped(
                         "_updateBody" to ("" to MMS_DATATYPE.sparql),
-                        "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                        "_patchString" to (patchString to patchStringDatatype),
                         "_whereString" to ("" to MMS_DATATYPE.sparql),
                     )
 
@@ -453,23 +481,30 @@ fun Route.loadModel() {
                 }
 
                 // sanity check
-                log.info("Sending diff construct response text to client: \n$diffConstructResponseText")
+                log("Sending diff construct response text to client: \n$diffConstructResponseText")
 
                 // response
                 call.response.header(HttpHeaders.ETag, transactionId)
                 call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
 
+                //
+                // ==== Response closed ====
+                //
+
                 // start copying staging to new model
                 executeSparqlUpdate("""
                     copy graph ?_stagingGraph to graph ?_modelGraph ;
-                    
+
                     insert data {
                         graph m-graph:Graphs {
                             ?_modelGraph a mms:SnapshotGraph .
                         }
 
                         graph mor-graph:Metadata {
-                            morb: mms:snapshot ?_model .
+                            mor-lock:Commit.${transactionId} a mms:Lock ;
+                                mms:snapshot ?_model ;
+                                mms:commit morc: ;
+                                .
                             ?_model a mms:Model ;
                                 mms:graph ?_modelGraph ;
                                 .

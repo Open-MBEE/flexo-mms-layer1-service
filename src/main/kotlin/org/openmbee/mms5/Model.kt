@@ -175,6 +175,13 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
 
     return rewriter to QueryTransformOps.transform(inputQuery, object: ElementTransformCopyBase() {
         fun transform(el: Element): Element {
+            if(el is ElementSubQuery) {
+                val subquery = el.query
+                val transformedQuery = subquery.cloneQuery()
+                transformedQuery.queryPattern = ElementTransformer.transform(subquery.queryPattern, this)
+                return ElementSubQuery(transformedQuery)
+            }
+
             return ElementTransformer.transform(el, this)
         }
 
@@ -346,8 +353,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                                 // ?__mms_snapshot mms:graph ?__mms_modelGraphNode .
                                 addTriplePattern(Triple.create(snapshotVar, MMS.graph.asNode(), modelGraphNode))
 
-                                // model graph selection
+                                // snapshot graph selection
                                 addElement(ElementUnion().apply {
+                                    // TODO: select model snapshot from commit lock
                                     // prefer the model snapshot
                                     addElement(ElementTriplesBlock().apply {
                                         // ?__mms_snapshot a mms:Model .

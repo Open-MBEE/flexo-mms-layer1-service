@@ -18,6 +18,8 @@ fun Route.queryDiff() {
                 inspect()
             }
 
+            checkPrefixConflicts()
+
             // auto-inject default prefixes
             val inputQueryString = "$prefixes\n$requestBody"
 

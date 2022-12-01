@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import com.linkedin.migz.MiGzOutputStream
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.client.request.*
@@ -13,6 +14,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.apache.jena.query.QueryFactory
+import org.apache.jena.query.QueryParseException
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.RDFNode
 import org.apache.jena.rdf.model.Resource
@@ -29,6 +32,7 @@ import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
 import org.openmbee.mms5.plugins.client
+import java.io.ByteArrayOutputStream
 import java.util.*
 
 class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
@@ -39,6 +43,8 @@ private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
 private val COMMA_SEPARATED = """\s*,\s*""".toRegex()
 
 private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
+
+private val MIGZ_BLOCK_SIZE = 1536 * 1024
 
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
@@ -89,7 +95,7 @@ class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call
         val inspectValue = call.parameters["inspect"]?: ""
         mms.inspectOnly = if(inspectValue.isNotEmpty()) {
             if(inspectValue != "inspect") {
-                throw Http404Exception()
+                throw Http404Exception(call.request.path())
             } else true
         } else false
     }
@@ -137,7 +143,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             if(input.`object` != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than <${node.uri}>"}")
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -154,7 +160,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             if(!input.`object`.isLiteral || input.`object`.asLiteral().string != value) throw ConstraintViolationException("user not allowed to set `${mms.prefixes.terse(property)}` property${if(unsettable == true) "" else " to anything other than \"${value}\"`"}")
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -176,7 +182,7 @@ class Sanitizer(val mms: MmsL1Context, val node: Resource) {
             }
 
             // verbose
-            mms.log.debug("Removing statement from user input: ${input.asTriple()}")
+            mms.log("Removing statement from user input: ${input.asTriple()}")
 
             // remove from model
             input.remove()
@@ -421,6 +427,9 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         )
 
     init {
+        val groupsSummary = session?.groups?.joinToString(",") { "<$it>" }?: "none"
+        log("${call.request.httpMethod.value} ${call.request.path()} @${session?.name?: "{anonymous}"} in (${groupsSummary})")
+
         // missing userId
         if((session == null) || session.name.isBlank()) {
             throw AuthorizationRequiredException("User not authenticated")
@@ -428,8 +437,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // save
         userId = session.name
-        println("Observed groups: ${session.groups}")
         groups = session.groups
+    }
+
+    fun log(message: String) {
+        log.debug("txn/${transactionId}: $message")
     }
 
     fun pathParams(setup: ParamNormalizer.()->Unit): ParamNormalizer {
@@ -453,6 +465,42 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     fun parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {
         return RdfModeler(this, prefixes["m"]!!, responseText).apply(setup).model
+    }
+
+
+    fun checkPrefixConflicts() {
+        // parse query
+        val sparqlQueryAst = try {
+            QueryFactory.create(requestBody)
+        } catch(parse: Exception) {
+            // on prefix error, retry with default prefixes
+            if(parse is QueryParseException && "Unresolved prefixed name".toRegex().containsMatchIn(parse.message?: "")) {
+                try {
+                    QueryFactory.create("$prefixes\n$requestBody")
+                }
+                catch(parseAgain: Exception) {
+                    throw QuerySyntaxException(parseAgain)
+                }
+            }
+            else {
+                throw QuerySyntaxException(parse)
+            }
+        }
+
+        // ref query prefixes
+        val queryPrefixes = sparqlQueryAst.prefixMapping.nsPrefixMap
+
+        // each mms prefix
+        for((id, iri) in prefixes.map) {
+            // user query includes this prefix id
+            if(queryPrefixes[id] != null) {
+                // user wants to use a different IRI for this prefix
+                if(queryPrefixes[id] != iri) {
+                    throw ForbiddenPrefixRemapException(id, iri)
+                }
+                // otherwise, allow redundant prefix declaration
+            }
+        }
     }
 
 
@@ -526,7 +574,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun buildSparqlUpdate(setup: UpdateBuilder.() -> Unit): String {
-        return UpdateBuilder(this,).apply { setup() }.toString()
+        return UpdateBuilder(this).apply { setup() }.toString()
     }
 
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
@@ -535,7 +583,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     @OptIn(InternalAPI::class)
     suspend fun executeSparqlUpdate(pattern: String, setup: (Parameterizer.() -> Parameterizer)?=null): String {
-        var sparql = Parameterizer(pattern).apply {
+        var sparql = Parameterizer(pattern.trimIndent()).apply {
             if(setup != null) setup()
             prefixes(prefixes)
         }.toString()
@@ -544,7 +592,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             "groupId" to groups,
         )
 
-        call.application.log.info("SPARQL Update:\n$sparql")
+        log("Executing SPARQL Update:\n$sparql")
 
         return handleSparqlResponse(client.post(call.application.quadStoreUpdateUrl) {
             headers {
@@ -566,7 +614,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             "groupId" to groups,
         )
 
-        call.application.log.info("SPARQL Query:\n$sparql")
+        log("Executing SPARQL Query:\n$sparql")
 
         return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
             headers {
@@ -590,9 +638,6 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-                // debug
-                log.warn("Transaction failed.\n${results}")
-
                 runBlocking {
                     val constructQuery = buildSparqlQuery {
                         construct {
@@ -652,7 +697,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                         }
                     }
 
-                    log.info("Union inspect: ${executeSparqlConstructOrDescribe(constructQuery)}")
+                    val described = executeSparqlConstructOrDescribe(constructQuery)
+                    log("Transaction failed.\n\n\tInpsect: ${described}\n\n\tResults: \n${results}")
                 }
 
                 // use response to diagnose cause
@@ -664,8 +710,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     fun injectPreconditions(): String {
-        log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
-        log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
+        // log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
+        // log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
 
         return """
             ${if(ifMatch?.isStar == false) """
@@ -743,7 +789,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         // resource does not exist
         if(0 == bindings.size) {
-            throw Http404Exception()
+            throw Http404Exception(call.request.path())
         }
 
         // compose etag
@@ -769,7 +815,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
             // resource not exists; 404
             if(!resourceNode.listProperties().hasNext()) {
-                throw Http404Exception()
+                throw Http404Exception(call.request.path())
             }
 
             // etags
@@ -792,7 +838,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     fun handleEtagAndPreconditions(model: KModel, resourceType: Resource) {
         // empty model; user does not have permissions to enumerate
         if(model.size() == 0L) {
-            throw Http403Exception()
+            throw Http403Exception(this)
         }
 
         // prep map of resources to etags
@@ -917,9 +963,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
         }
     }
 
-    log.info("INSERT: $insertBgpString")
-    log.info("DELETE: $deleteBgpString")
-    log.info("WHERE: $whereString")
+    log("Guarded patch update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
     val conditions = preconditions.append {
         if(whereString.isNotEmpty()) {
@@ -1020,8 +1064,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
 
     val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-    // log
-    log.info("Triplestore responded with \n$constructResponseText")
+    log.info("Post-update construct response:\n$constructResponseText")
 
     val constructModel = validateTransaction(constructResponseText, conditions)
 
@@ -1044,8 +1087,7 @@ suspend fun MmsL1Context.guardedPatch(objectKey: String, graph: String, precondi
             }
         """)
 
-        // log response
-        log.info(dropResponseText)
+        log("Transaction delete response:\n$dropResponseText")
     }
 }
 
@@ -1218,4 +1260,75 @@ suspend fun ApplicationCall.mmsL1(permission: Permission, postponeBody: Boolean?
     val requestBody = if(postponeBody == true) "" else receiveText()
 
     return MmsL1Context(this, requestBody, permission).apply{ setup() }
+}
+
+
+val COMPRESSION_TIME_BUDGET = 3 * 1000L  // algorithm is allowed up to 3 seconds max to further optimize compression
+val COMPRESSION_NO_RETRY_THRESHOLD = 12 * 1024 * 1024  // do not attempt to retry if compressed output is >12 MiB
+// val COMPRESSION_MIN_REDUCTION = 0.05  // each successful trail must improve compression by at least 5%
+
+val COMPRESSION_BLOCK_SIZES = listOf(
+    1536 * 1024,
+    1280 * 1024,
+    1792 * 1024,
+    1024 * 1024,
+    2048 * 1024,
+    2304 * 1024,
+)
+
+fun compressStringLiteral(string: String): String? {
+    // acquire bytes
+    val inputBytes = string.toByteArray()
+
+    // don't compress below 1 KiB
+    if(inputBytes.size < 1024) return null
+
+    // prep best result from compression trials
+    var bestResult = ByteArray(0)
+    var bestResultSize = Int.MAX_VALUE
+
+    // initial block size
+    var blockSizeIndex = 0
+    var blockSize = COMPRESSION_BLOCK_SIZES[blockSizeIndex]
+
+    // start timing
+    val start = System.currentTimeMillis()
+
+    do {
+        // prep output stream
+        val stream = ByteArrayOutputStream()
+
+        // instantiate compressor
+        val migz = MiGzOutputStream(stream, Runtime.getRuntime().availableProcessors(), blockSize)
+
+        // write input data and compress
+        migz.write(inputBytes)
+
+        // acquire bytes
+        val outputBytes = stream.toByteArray()
+
+        // stop timing
+        val duration = System.currentTimeMillis() - start
+
+        // better than best result
+        if(outputBytes.size < bestResultSize) {
+            // replace best result
+            bestResult = outputBytes
+            bestResultSize = outputBytes.size
+
+            // size exceeds retry threshold or reduction is only marginally better
+            if(bestResultSize > COMPRESSION_NO_RETRY_THRESHOLD) break
+        }
+
+        // time budget exceeded
+        if(duration > COMPRESSION_TIME_BUDGET) break
+
+        // tested every block size
+        if(++blockSizeIndex >= COMPRESSION_BLOCK_SIZES.size) break
+
+        // adjust block size for next iteration
+        blockSize = COMPRESSION_BLOCK_SIZES[blockSizeIndex]
+    } while(true)
+
+    return String(bestResult)
 }

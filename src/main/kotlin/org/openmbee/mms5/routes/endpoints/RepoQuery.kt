@@ -21,6 +21,8 @@ fun Route.queryRepo() {
                 inspect()
             }
 
+            checkPrefixConflicts()
+
             // auto-inject default prefixes
             val inputQueryString = "$prefixes\n$requestBody"
 

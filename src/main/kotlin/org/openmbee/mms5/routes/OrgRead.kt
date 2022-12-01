@@ -1,15 +1,11 @@
 package org.openmbee.mms5.routes
 
 import io.ktor.server.application.*
-import io.ktor.http.HttpHeaders.ETag
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
-import java.net.http.HttpHeaders
 
 private val SPARQL_BGP_ORG = """
     graph m-graph:Cluster {

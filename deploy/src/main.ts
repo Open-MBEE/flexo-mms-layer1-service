@@ -285,6 +285,10 @@ ds_writer.write({
 				commit: {
 					range: 'Commit',
 				},
+
+				snapshot: {
+					range: 'Snapshot',
+				},
 			}),
 		},
 

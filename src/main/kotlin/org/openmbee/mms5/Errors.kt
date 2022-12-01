@@ -35,9 +35,13 @@ class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The
 
 class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
 
-open class Http403Exception(msg: String="User is not authorized to perform specified action on resource"): HttpException(msg, HttpStatusCode.Forbidden)
+class ForbiddenPrefixException(prefix: String): Http400Exception("Prefix not allowed here: $prefix")
 
-open class Http404Exception(msg: String="The requested resource does not exist"): HttpException(msg, HttpStatusCode.NotFound)
+class ForbiddenPrefixRemapException(prefix: String, iri: String): Http400Exception("Prefix \"$prefix\" not allowed to be set to anything other than <$iri>")
+
+open class Http403Exception(mmsL1Context: MmsL1Context, resource: String="(unspecified)"): HttpException("User ${mmsL1Context.userId} (${mmsL1Context.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
+
+open class Http404Exception(resource: String): HttpException("The requested resource does not exist: $resource", HttpStatusCode.NotFound)
 
 
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)

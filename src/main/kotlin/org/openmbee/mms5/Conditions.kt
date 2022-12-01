@@ -66,15 +66,13 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 # and its staging snapshot
                 morb: mms:snapshot ?staging .
                 ?staging a mms:Staging ;
-                    mms:graph ?stagingGraph ;
-                    .
+                    mms:graph ?stagingGraph .
             
                 optional {
                     # optionally, its model snapshot
-                    morb: mms:snapshot ?model .
+                    morc: ^mms:commit/mms:snapshot ?model .
                     ?model a mms:Model ;
-                        mms:graph ?modelGraph ;
-                        .
+                        mms:graph ?modelGraph .
                 }
             }
         """
@@ -256,7 +254,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
 
                 // forbidden; fail right away
                 if(code == HttpStatusCode.Forbidden) {
-                    throw Http403Exception(msg)
+                    throw Http403Exception(mms, msg)
                 }
             }
         }

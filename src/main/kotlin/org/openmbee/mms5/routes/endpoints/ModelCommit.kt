@@ -1,10 +1,9 @@
 package org.openmbee.mms5.routes.endpoints
 
-import io.ktor.server.application.*
 import io.ktor.http.*
+import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.delay
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -96,7 +95,7 @@ fun Route.commitModel() {
                                 $deleteBgpString
                             }
                         }
-                    """)
+                    """.trimIndent())
                 }
 
                 if(insertBgpString.isNotBlank()) {
@@ -106,7 +105,7 @@ fun Route.commitModel() {
                                 $insertBgpString
                             }
                         }
-                    """)
+                    """.trimIndent())
                 }
 
                 patchString = patches.joinToString(" ; ")
@@ -119,7 +118,7 @@ fun Route.commitModel() {
                                 $deleteBgpString
                             }
                         }
-                    """
+                    """.trimIndent()
                 }
 
                 if(insertBgpString.isNotBlank()) {
@@ -129,7 +128,7 @@ fun Route.commitModel() {
                                 $insertBgpString
                             }
                         }
-                    """
+                    """.trimIndent()
                 }
 
                 patchString += """
@@ -138,13 +137,11 @@ fun Route.commitModel() {
                             $whereString
                         }
                     }
-                """
+                """.trimIndent()
             }
 
-            log.info("INSERT: $insertBgpString")
-            log.info("DELETE: $deleteBgpString")
-            log.info("WHERE: $whereString")
 
+            log("Model commit update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
             val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
                 if(whereString.isNotEmpty()) {
@@ -171,32 +168,41 @@ fun Route.commitModel() {
             }
 
 
-
             val commitUpdateString = genCommitUpdate(localConditions,
                 delete=if(deleteBgpString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             $deleteBgpString
                         }
-                    """
+                    """.trimIndent()
                 } else "",
                 insert=if(insertBgpString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             $insertBgpString
                         }
-                    """
+                    """.trimIndent()
                 } else "",
                 where=(if(whereString.isNotEmpty()) {
                     """
                         graph ?stagingGraph {
                             $whereString
                         }
-                    """
+                    """.trimIndent()
                 } else "")
             )
 
             val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
+
+            var patchStringDatatype = MMS_DATATYPE.sparql
+
+            // approximate patch string size in bytes by assuming each character is 1 byte
+            if(application.gzipLiteralsLargerThanKib?.let { patchString.length > it } == true) {
+                compressStringLiteral(patchString)?.let {
+                    patchString = it
+                    patchStringDatatype = MMS_DATATYPE.sparqlGz
+                }
+            }
 
             executeSparqlUpdate(commitUpdateString) {
                 prefixes(prefixes)
@@ -207,7 +213,7 @@ fun Route.commitModel() {
 
                 datatyped(
                     "_updateBody" to (requestBody to MMS_DATATYPE.sparql),
-                    "_patchString" to (patchString to MMS_DATATYPE.sparql),
+                    "_patchString" to (patchString to patchStringDatatype),
                     "_whereString" to (whereString to MMS_DATATYPE.sparql),
                 )
 
@@ -243,7 +249,7 @@ fun Route.commitModel() {
             val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
             // log
-            log.info("Triplestore responded with \n$constructResponseText")
+            log("Triplestore responded with \n$constructResponseText")
 
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "morc")
 
@@ -251,19 +257,7 @@ fun Route.commitModel() {
 
             // fetch staging graph
             val stagingGraph = transactionNode.iriAt(MMS.TXN.stagingGraph)
-
-            // // fetch base model
-            // val baseModel = transactionNode.iriAt(MMS.baseModel)
-            //
-            // // fetch base model graph
-            // val baseModelGraph = transactionNode.iriAt(MMS.baseModelGraph)
-
-            // something is wrong
-            if(stagingGraph == null) {
-            // if(stagingGraph == null || baseModel == null || baseModelGraph == null) {
-                throw ServerBugException("failed to fetch graph/model")
-            }
-
+                ?: throw ServerBugException("Branch is missing staging graph")
 
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
@@ -278,21 +272,33 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
-            application.log.info("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
+            //
+            // ==== Response closed ====
+            //
+
+            log("copy graph <$stagingGraph> to graph ${prefixes["mor-graph"]}Model.${transactionId} ; insert data { graph <${prefixes["mor-graph"]}Metadata> { <urn:a> <urn:b> <urn:c> } }")
 
             // begin copying staging to model
             executeSparqlUpdate("""
+                # copy the modified staging graph to become the new model graph
                 copy graph <$stagingGraph> to graph ?_modelGraph ;
-                
+
                 insert data {
+                    # save new model graph to registry
                     graph m-graph:Graphs {
-                        ?_modelGraph a mms:SnapshotGraph .
+                        ?_modelGraph a mms:ModelGraph .
                     }
 
                     graph mor-graph:Metadata {
-                        morb: mms:snapshot ?_model .
+                        # create model snapshot object in repo's metadata
                         ?_model a mms:Model ;
                             mms:graph ?_modelGraph ;
+                            .
+
+                        # assign lock to associate commit with model snapshot
+                        mor-lock:Commit.${transactionId} a mms:Lock ;
+                            mms:commit morc: ;
+                            mms:snapshot ?_model ;
                             .
                     }
                 }
@@ -318,7 +324,7 @@ fun Route.commitModel() {
                 """)
 
                 // log response
-                log.info(dropTransactionResponseText)
+                log("Transaction drop response: $dropTransactionResponseText")
 
                 // delete interim lock
                 val dropInterimResponseText = executeSparqlUpdate("""
@@ -326,15 +332,15 @@ fun Route.commitModel() {
                         graph mor-graph:Metadata {
                             ?_interim ?lock_p ?lock_o ;
                                 mms:snapshot ?snapshot .
-                            
+
                             ?snapshot mms:graph ?model ;
                                 ?snapshot_p ?snapshot_o .
                         }
-                        
+
                         graph m-graph:Graphs {
                             ?model a mms:SnapshotGraph .
                         }
-                        
+
                         graph ?model {
                             ?model_s ?model_p ?model_o .
                         }
@@ -345,8 +351,8 @@ fun Route.commitModel() {
                     )
                 }
 
-                // log response
-                log.info(dropInterimResponseText)
+                // // log response
+                // log.info(dropInterimResponseText)
             }
         }
     }

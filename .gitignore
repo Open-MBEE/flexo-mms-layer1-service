@@ -81,3 +81,8 @@ cluster.trig
 application.conf
 results/*
 *-logback.xml
+
+# test data
+*.test.ttl
+*.test.trig
+*.test.rw
