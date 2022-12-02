@@ -147,15 +147,10 @@ workflows:
             - DockerHub
       - deploy_snapshot:
           requires:
-            - generate_schema
             - build_and_test
           filters:
             branches:
-              only: 
-                - release
-                - hotfix
-                - support
-                - develop
+              only: develop
           context:
             - DockerHub
       - deploy_nightly:
