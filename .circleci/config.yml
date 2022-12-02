@@ -150,7 +150,7 @@ workflows:
             - build_and_test
           filters:
             branches:
-              only: /((release|hotfix|support)/[0-9.]+(-(a|b|rc)[0-9]+)?|develop)/
+              only: /(release|hotfix|support|develop)/
           context:
             - DockerHub
       - deploy_nightly:
