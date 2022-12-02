@@ -142,7 +142,7 @@ workflows:
             tags:
               only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
             branches:
-              only: /(^wip\/.*)/
+              ignore: /(^wip\/.*)/
           context:
             - DockerHub
       - deploy_snapshot:
