@@ -150,7 +150,11 @@ workflows:
             - build_and_test
           filters:
             branches:
-              only: develop
+              only: 
+                - release
+                - develop
+                - hotfix
+                - support
           context:
             - DockerHub
       - deploy_nightly:
