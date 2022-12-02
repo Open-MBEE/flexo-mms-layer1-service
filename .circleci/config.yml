@@ -147,6 +147,7 @@ workflows:
             - DockerHub
       - deploy_snapshot:
           requires:
+            - generate_schema
             - build_and_test
           filters:
             branches:
