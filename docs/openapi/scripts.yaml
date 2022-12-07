@@ -1,0 +1,6 @@
+scripts:
+  build:json: deno run def.ts --format=json > build/spec.json
+  build:yaml: deno run def.ts --format=yaml > build/spec.yaml
+  build:
+    - vr build:json
+    - vr build:yaml
