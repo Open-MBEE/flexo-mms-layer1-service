@@ -46,6 +46,7 @@ open class Http404Exception(resource: String): HttpException("The requested reso
 
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
 
+
 class PreconditionFailedException(type: String): Http412Exception("$type precondition failed")
 
 

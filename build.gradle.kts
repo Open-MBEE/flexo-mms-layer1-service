@@ -26,7 +26,7 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    val kotestVersion = "5.4.2"
+    val kotestVersion = "5.5.3"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
@@ -43,10 +43,10 @@ dependencies {
 
     val jenaVersion = "4.6.1"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
-    testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
+    testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}")
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.1.2"
+    val ktorVersion = "2.1.3"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
@@ -67,13 +67,13 @@ dependencies {
     val consulVersion = "1.5.3"
     implementation("com.orbitz.consul:consul-client:$consulVersion")
 
-    val logbackVersion = "1.2.11"
+    val logbackVersion = "1.4.5"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
     testImplementation("com.github.stefanbirkner:system-lambda:$systemLambdaVersion")
 
-    val junitVersion = "5.9.0"
+    val junitVersion = "5.9.1"
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 
     val migzVersion = "2.0.beta-1"

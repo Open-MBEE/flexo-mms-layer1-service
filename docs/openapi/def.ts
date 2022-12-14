@@ -10,32 +10,52 @@ const h_flags = parse(Deno.args, {
 
 const si_format = h_flags.format;
 
-const head_get = (si_operation: string) => ({
-	head: {
-		responses: {
-			$ref: '#/components/responses/Head',
-		},
-	},
-	get: {
-		operationId: si_operation,
-		responses: {
-			$ref: '#/components/responses/Get',
-		},
-	},
-});
 
-const g_sparql_query = {
-	requestBody: {
-		description: '',
-		content: {
-			'application/sparql-query': {},
+
+const H_RESPONSE_CODES = {
+	400: {
+		description: 'Invalid input',
+	},
+	403: {
+		description: 'User not authorized',
+	},
+	404: {
+		description: 'Resource not found',
+	},
+	412: {
+		description: 'Precondition failed',
+	},
+};
+
+
+const H_CONTENT_TURTLE = {
+	'text/turtle': {
+		schema: {
+			type: 'string',
+			example: '<https://example.org/#subject> <https://example.org/#predicate> <https://example.org/#object> .',
 		},
 	},
+};
 
-	responses: {
-		200: {
-			'$ref': '#/components/responses/Turtle'
+const H_CONTENT_SPARQL_QUERY = {
+	'application/sparql-query': {
+		schema: {
+			type: 'string',
 		},
+	},
+};
+
+const H_CONTENT_SPARQL_UPDATE = {
+	'application/sparql-update': {
+		schema: {
+			type: 'string',
+		},
+	},
+};
+
+const G_RESPONSE_GRAPH = {
+	content: {
+		...H_CONTENT_TURTLE,
 	},
 };
 
@@ -48,29 +68,72 @@ const g_components = {
 		},
 	},
 	responses: {
-		Head: {
+		HeadResource: {
 			200: {},
+			...H_RESPONSE_CODES,
 		},
-		Get: {
-			200: {
-				content: {
-					'text/turtle': {
-						schema: {
-							type: 'string',
-						},
-					},
-				},
-			},
+		GetResource: {
+			200: G_RESPONSE_GRAPH,
+			...H_RESPONSE_CODES,
 		},
-		Turtle: {
-			content: {
-				'text/turtle': {
-					schema: {
-						type: 'string',
-					},
-				},
-			},
+		Turtle: G_RESPONSE_GRAPH,
+	},
+};
+
+
+const head_get = (si_operation: string) => ({
+	head: {
+		responses: {
+			$ref: '#/components/responses/HeadResource',
 		},
+	},
+	get: {
+		operationId: si_operation,
+		responses: {
+			$ref: '#/components/responses/GetResource',
+		},
+	},
+});
+
+const g_sparql_query = {
+	requestBody: {
+		description: 'SPARQL 1.1 query string',
+		required: true,
+		content: {
+			'application/sparql-query': {},
+		},
+	},
+
+	responses: {
+		$ref: '#/components/responses/GetResource',
+	},
+};
+
+const g_sparql_update = {
+	requestBody: {
+		description: 'SPARQL 1.1 update string',
+		required: true,
+		content: {
+			'application/sparql-update': {},
+		},
+	},
+
+	responses: {
+		$ref: '#/components/responses/GetResource',
+	},
+};
+
+const g_rdf_turtle = {
+	requestBody: {
+		description: 'RDF graph content as Turtle',
+		required: true,
+		content: {
+			...H_CONTENT_TURTLE,
+		},
+	},
+
+	responses: {
+		$ref: '#/components/responses/GetResource',
 	},
 };
 
@@ -98,20 +161,11 @@ const h_paths = {
 							},
 
 							'/graph': {
-								get: {
-									operationId: 'readModel',
-									responses: {
-										200: {
-										},
-									},
-								},
+								...head_get('readModel'),
 
 								post: {
 									operationId: 'loadModel',
-									responses: {
-										200: {
-										},
-									},
+									...g_sparql_query,
 								},
 							},
 
@@ -126,6 +180,7 @@ const h_paths = {
 							'/update': {
 								post: {
 									operationId: 'commitModel',
+									...g_sparql_update,
 								},
 							},
 						},
@@ -139,6 +194,7 @@ const h_paths = {
 
 							put: {
 								operationId: 'createLock',
+								...g_sparql_update,
 							},
 
 							'/query': {
@@ -154,6 +210,7 @@ const h_paths = {
 					'/diff': {
 						post: {
 							operationId: 'createDiff',
+							...g_sparql_query,
 						},
 
 						'/query': {
@@ -179,6 +236,7 @@ const h_paths = {
 				'/{collectionId}': {
 					put: {
 						operationId: 'createCollection',
+						...g_rdf_turtle,
 					},
 				},
 			},
@@ -189,6 +247,7 @@ const h_paths = {
 		'/{policyId}': {
 			put: {
 				operationId: 'createPolicy',
+				...g_rdf_turtle,
 			},
 		},
 	},
@@ -197,6 +256,7 @@ const h_paths = {
 		'/{groupId}': {
 			put: {
 				operationId: 'createGroup',
+				...g_rdf_turtle,
 			},
 		},
 	},
