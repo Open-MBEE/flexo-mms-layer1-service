@@ -32,7 +32,7 @@ const H_CONTENT_TURTLE = {
 	'text/turtle': {
 		schema: {
 			type: 'string',
-			example: '<https://example.org/#subject> <https://example.org/#predicate> <https://example.org/#object> .',
+			example: '@prefix : <https://ex.org/#> . :subject :predicate :object .',
 		},
 	},
 };
@@ -41,6 +41,7 @@ const H_CONTENT_SPARQL_QUERY = {
 	'application/sparql-query': {
 		schema: {
 			type: 'string',
+			example: 'select * { ?s ?p ?o } limit 10',
 		},
 	},
 };
@@ -49,6 +50,7 @@ const H_CONTENT_SPARQL_UPDATE = {
 	'application/sparql-update': {
 		schema: {
 			type: 'string',
+			example: 'prefix : <https://ex.org/#> insert data { :subject :predicate :object }',
 		},
 	},
 };
@@ -61,6 +63,10 @@ const G_RESPONSE_GRAPH = {
 
 const g_components = {
 	securitySchemas: {
+		basic: {
+			type: 'http',
+			scheme: 'basic',
+		},
 		bearerAuth: {
 			type: 'http',
 			scheme: 'bearer',
@@ -80,15 +86,21 @@ const g_components = {
 	},
 };
 
+const naturally = (si_operation: string) => ({
+	operationId: si_operation,
+	summary: si_operation.split(/(?=[A-Z])/g).map(s => s[0].toUpperCase()+s.slice(1)).join(' '),
+});
 
 const head_get = (si_operation: string) => ({
 	head: {
+		operationId: `${si_operation}Etag`,
+		summary: `${naturally(si_operation).summary}: Headers Only`,
 		responses: {
 			$ref: '#/components/responses/HeadResource',
 		},
 	},
 	get: {
-		operationId: si_operation,
+		...naturally(si_operation),
 		responses: {
 			$ref: '#/components/responses/GetResource',
 		},
@@ -138,6 +150,20 @@ const g_rdf_turtle = {
 };
 
 const h_paths = {
+	// '/login': {
+	// 	post: {
+	// 		operationId: 'login',
+	// 		security: [
+	// 			{
+	// 				basic: [],
+	// 			},
+	// 		],
+	// 		responses: {
+	// 			200: {},
+	// 		},
+	// 	},
+	// },
+
 	'/orgs': {
 		...head_get('readAllOrgs'),
 
@@ -157,29 +183,29 @@ const h_paths = {
 							...head_get('readBranch'),
 
 							patch: {
-								operationId: 'updateBranch',
+								...naturally('updateBranch'),
 							},
 
 							'/graph': {
 								...head_get('readModel'),
 
 								post: {
-									operationId: 'loadModel',
+									...naturally('loadModel'),
 									...g_sparql_query,
 								},
 							},
 
 							'/query': {
 								post: {
-									operationId: 'queryModel',
-									summary: 'Query the model at the HEAD of a branch',
+									...naturally('queryModel'),
+									description: 'Query the model at the HEAD of a branch',
 									...g_sparql_query,
 								},
 							},
 
 							'/update': {
 								post: {
-									operationId: 'commitModel',
+									...naturally('commitModel'),
 									...g_sparql_update,
 								},
 							},
@@ -193,14 +219,14 @@ const h_paths = {
 							...head_get('readLock'),
 
 							put: {
-								operationId: 'createLock',
+								...naturally('createLock'),
 								...g_sparql_update,
 							},
 
 							'/query': {
 								post: {
-									operationId: 'queryLock',
-									summary: 'Query the model under the commit pointed to by the given lock',
+									...naturally('queryLock'),
+									description: 'Query the model under the commit pointed to by the given lock',
 									...g_sparql_query,
 								},
 							},
@@ -209,14 +235,14 @@ const h_paths = {
 
 					'/diff': {
 						post: {
-							operationId: 'createDiff',
+							...naturally('createDiff'),
 							...g_sparql_query,
 						},
 
 						'/query': {
 							post: {
-								operationId: 'queryDiff',
-								summary: 'Query the given diff',
+								...naturally('queryDiff'),
+								description: 'Query the given diff',
 								...g_sparql_query,
 							},
 						},
@@ -224,8 +250,8 @@ const h_paths = {
 
 					'/query': {
 						post: {
-							operationId: 'queryRepo',
-							summary: 'Query the metadata graph for the given repository',
+							...naturally('queryRepo'),
+							description: 'Query the metadata graph for the given repository',
 							...g_sparql_query,
 						},
 					},
@@ -235,7 +261,7 @@ const h_paths = {
 			'/collections': {
 				'/{collectionId}': {
 					put: {
-						operationId: 'createCollection',
+						...naturally('createColection'),
 						...g_rdf_turtle,
 					},
 				},
@@ -246,7 +272,7 @@ const h_paths = {
 	'/policies': {
 		'/{policyId}': {
 			put: {
-				operationId: 'createPolicy',
+				...naturally('createPolicy'),
 				...g_rdf_turtle,
 			},
 		},
@@ -255,7 +281,7 @@ const h_paths = {
 	'/groups': {
 		'/{groupId}': {
 			put: {
-				operationId: 'createGroup',
+				...naturally('createGroup'),
 				...g_rdf_turtle,
 			},
 		},
