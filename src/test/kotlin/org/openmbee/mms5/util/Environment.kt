@@ -22,7 +22,7 @@ fun testEnv(): ApplicationEngineEnvironment {
 }
 
 
-fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngine.(String) -> R) : R {
+fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngine.(String) -> R) : R{
     return withSystemProperties(mapOf(
         "MMS5_QUERY_URL" to backend.getQueryUrl(),
         "MMS5_UPDATE_URL" to backend.getQueryUrl(),
@@ -36,11 +36,11 @@ fun <R> withTest(testName: String, test: TestScope?, engine: TestApplicationEngi
     }
 }
 
-fun <R> withTest(test: TestApplicationEngine.(String) -> R) : R {
+fun <R> withTest(test: TestApplicationEngine.(String) -> R) : R{
     return withTest("(unnamed)", null, test)
 }
 
 
-fun <R> TestScope.withTest(test: TestApplicationEngine.(String) -> R) : R {
+fun <R> TestScope.withTest(test: TestApplicationEngine.(String) -> R) : R{
     return withTest(this.testCase.name.testName, this, test)
 }
