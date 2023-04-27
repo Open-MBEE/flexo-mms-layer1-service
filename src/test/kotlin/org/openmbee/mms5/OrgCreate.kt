@@ -37,11 +37,11 @@ class OrgCreate : OrgAny() {
         "reject invalid org id".config(tags=setOf(NoAuth)) {
         testApplication {
             val feedback = client.put("$orgPath with invalid id") {
-               // header("Authorization", authorization(anonAuth))
+                header("Authorization", authorization(anonAuth))
                 header("Content-Type", "text/turtle")
                 setBody(validOrgBody)
             }
-            assertEquals(feedback.status, HttpStatusCode.BadRequest)
+            assertEquals(HttpStatusCode.BadRequest,feedback.status)
 
         }
         /*withTest {
@@ -61,16 +61,16 @@ class OrgCreate : OrgAny() {
             "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 testApplication {
                     val feedback = client.put(orgPath){
+                        header("Authorization", authorization(anonAuth))
                         header("Content-Type", "text/turtle")
                         setBody("""
                             $validOrgBody
                             <> $pred $obj .
                         """.trimIndent())
                     }
-                    assertEquals(feedback.status, HttpStatusCode.BadRequest)
-                    //need to find equivalent for checking TestApplicationResponse.shouldHaveStatus
+                    assertEquals(HttpStatusCode.BadRequest,feedback.status)
                 }
-                /*withTest {
+                withTest {
                     httpPut(orgPath) {
                         setTurtleBody("""
                             $validOrgBody
@@ -79,21 +79,28 @@ class OrgCreate : OrgAny() {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.BadRequest
                     }
-                }*/
+                }
             }
         }
 
         "create valid org" {
             testApplication {
                 val feedback = client.put(orgPath){
+                    header("Authorization", authorization(rootAuth))
                     header("Content-Type", "text/turtle")
                     setBody(validOrgBody)
                 }
-                assertEquals(feedback.status,HttpStatusCode.OK)
+                assertEquals(HttpStatusCode.OK,feedback.status)
                 assertNotNull(feedback.headers[HttpHeaders.ETag])
                 assertEquals(feedback.headers[HttpHeaders.ContentType],"${RdfContentTypes.Turtle}; charset=UTF-8")
+                /*response exclusivelyHasTriples {
+                    modelName = it
+
+                    validateCreatedOrgTriples(orgId, orgName)
+                }*/
                 val model = ModelFactory.createDefaultModel()
-                parseTurtle(feedback.headers[HttpHeaders.ContentType].toString(), model, feedback.request.url.toString())
+                parseTurtle(feedback.bodyAsText(), model, feedback.request.url.toString())
+                //TriplesAsserter(model).apply(feedback.bodyAsText() as Unit).assertEmpty();
                 //parseTurtle(this.content.toString(), model, this.call.request.uri)
             }
             /*withTest {
@@ -106,7 +113,7 @@ class OrgCreate : OrgAny() {
                     response exclusivelyHasTriples {
                         modelName = it
 
-                        validateCreatedOrgTriples(response, orgId, orgName)
+                        validateCreatedOrgTriples(orgId, orgName)
                     }
                 }
             }*/

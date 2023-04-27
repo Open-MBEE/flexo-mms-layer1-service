@@ -3,6 +3,7 @@ package org.openmbee.mms5.util
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.*
+import io.ktor.server.request.*
 import io.ktor.server.testing.*
 import org.openmbee.mms5.ROOT_CONTEXT
 import java.util.*
@@ -44,6 +45,10 @@ private fun authorization(auth: AuthStruct): String {
         .withClaim("groups", auth.groups)
         .withExpiresAt(expires)
         .sign(Algorithm.HMAC256(secret))
+}
+
+fun ApplicationTestBuilder.authorization(auth: AuthStruct): String{
+    return authorization(auth)
 }
 
 
