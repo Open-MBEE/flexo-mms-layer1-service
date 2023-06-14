@@ -5,6 +5,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 private val SPARQL_BGP_ORG = """
@@ -69,17 +70,16 @@ fun Route.readOrg() {
 
                 // cache whether this request is asking for all orgs
                 val allOrgs = orgId?.isBlank() ?: true
+                val orgIri = if(allOrgs) RDF.nil.uri else prefixes["mo"]!!
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(!allOrgs) {
-                        iri(
-                            "_org" to prefixes["mo"]!!,
-                        )
-                    }
+                    iri(
+                        "_org" to orgIri,
+                    )
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",
@@ -106,17 +106,16 @@ fun Route.readOrg() {
 
                 // cache whether this request is asking for all orgs
                 val allOrgs = orgId?.isBlank() ?: true
+                val orgIri = if(allOrgs) RDF.nil.uri else prefixes["mo"]!!
 
                 // fetch all org details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(!allOrgs) {
-                        iri(
-                            "_org" to prefixes["mo"]!!,
-                        )
-                    }
+                    iri(
+                        "_org" to orgIri,
+                    )
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",
@@ -131,7 +130,7 @@ fun Route.readOrg() {
                     }
                     // just the individual org
                     else {
-                        handleEtagAndPreconditions(model, prefixes["mo"])
+                        handleEtagAndPreconditions(model, orgIri)
                     }
                 }
 

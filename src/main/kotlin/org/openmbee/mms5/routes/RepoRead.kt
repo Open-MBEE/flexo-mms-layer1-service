@@ -5,6 +5,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
+import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 private val SPARQL_BGP_REPO = """
@@ -76,11 +77,9 @@ fun Route.readRepo() {
                     )
 
                     // get by repoId
-                    if(!allRepos) {
-                        iri(
-                            "_repo" to prefixes["mor"]!!,
-                        )
-                    }
+                    iri(
+                        "_repo" to if(allRepos) "rdf:nil" else prefixes["mor"]!!,
+                    )
                 }
 
                 // parse the results
@@ -104,6 +103,7 @@ fun Route.readRepo() {
 
                 // cache whether this request is asking for all repos
                 val allRepos = repoId?.isBlank() ?: true
+                val repoIri = if(allRepos) RDF.nil.uri else prefixes["mor"]!!
 
                 // fetch all repo details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
@@ -115,11 +115,9 @@ fun Route.readRepo() {
                     )
 
                     // get by repoId
-                    if(!allRepos) {
-                        iri(
-                            "_repo" to prefixes["mor"]!!,
-                        )
-                    }
+                    iri(
+                        "_repo" to repoIri,
+                    )
                 }
 
                 // parse the response
@@ -130,7 +128,7 @@ fun Route.readRepo() {
                     }
                     // just the individual repo
                     else {
-                        handleEtagAndPreconditions(model, prefixes["mor"])
+                        handleEtagAndPreconditions(model, repoIri)
                     }
                 }
 
