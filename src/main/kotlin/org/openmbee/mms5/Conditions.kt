@@ -61,7 +61,7 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 # select the latest commit from the current named ref
                 morb: mms:commit ?baseCommit ;
                     # and its etag value
-                    mms:etag ?branchEtag ;
+                    mms:etag ?branchEtag .
             
                 # and its staging snapshot
                 morb: mms:snapshot ?staging .
