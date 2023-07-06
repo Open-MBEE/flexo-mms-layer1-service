@@ -3,7 +3,7 @@ MMS 5 Layer 1 Service
 
 This service provides the main api for MMS 5. It will need a SPARQL 1.1 compliant quadstore as a backend.
 
-Other supporting MMS 5 services such as the Auth and Store service can be used to provide authentication and large model loads. Please see their respective documentation on matching configurations.
+Other supporting MMS 5 services such as the Auth and Load service can be used to provide authentication and large model loads. Please see their respective documentation on matching configurations.
 
 Quadstore Configs
 --------------------------
@@ -32,7 +32,7 @@ MMS 5 Services Configs
 -----------------------
 
   MMS5_LOAD_SERVICE_URL
-    Optional, If using the load service give url here (if not given, load operations will use quadstore GSP)
+    Optional, If using the load service give url here (if not given, load operations will use quadstore GSP). Url should be in the form <Load service domain and port>/store
 
   JWT_DOMAIN
     This should be the same as what's configured for MMS5 Auth Service
