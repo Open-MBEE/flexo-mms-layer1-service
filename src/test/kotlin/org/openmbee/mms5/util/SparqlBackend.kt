@@ -28,5 +28,5 @@ interface SparqlBackend {
     /**
      * Get the URL to the graph store protocol endpoint
      */
-    fun getGspdUrl(): String
+    fun getGspUrl(): String
 }

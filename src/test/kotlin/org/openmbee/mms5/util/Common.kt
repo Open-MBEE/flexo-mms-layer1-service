@@ -10,9 +10,7 @@ import kotlinx.coroutines.withContext
 import org.apache.jena.rdfconnection.RDFConnection
 import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.riot.RDFFormat
-import org.apache.jena.sparql.core.mem.PMapQuadTable
 import org.apache.jena.sparql.exec.http.UpdateExecutionHTTP
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileOutputStream
 
@@ -42,7 +40,7 @@ open class CommonSpec : StringSpec() {
         UpdateExecutionHTTP.service(backend.getUpdateUrl()).update("drop all").execute()
 
         // reinitialized with cluster.trig
-        RDFConnection.connect(backend.getGspdUrl()).use {
+        RDFConnection.connect(backend.getGspUrl()).use {
             it.putDataset(clusterFilePath)
         }
     }
@@ -66,7 +64,7 @@ open class CommonSpec : StringSpec() {
         }
 
         // dump all graphs
-        RDFConnection.connect(backend.getGspdUrl()).use {
+        RDFConnection.connect(backend.getGspUrl()).use {
             RDFDataMgr.write(out, it.fetchDataset(), RDFFormat.TRIG)
         }
     }

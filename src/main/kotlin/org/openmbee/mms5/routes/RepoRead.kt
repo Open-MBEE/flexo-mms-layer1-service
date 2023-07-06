@@ -103,7 +103,7 @@ fun Route.readRepo() {
 
                 // cache whether this request is asking for all repos
                 val allRepos = repoId?.isBlank() ?: true
-                val repoIri = if(allRepos) RDF.nil.uri else prefixes["mor"]!!
+                val repoIri = if(allRepos) null else prefixes["mor"]!!
 
                 // fetch all repo details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO) {
@@ -115,9 +115,11 @@ fun Route.readRepo() {
                     )
 
                     // get by repoId
-                    iri(
-                        "_repo" to repoIri,
-                    )
+                    repoIri?.let {
+                        iri(
+                            "_repo" to it,
+                        )
+                    }
                 }
 
                 // parse the response

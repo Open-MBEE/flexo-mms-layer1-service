@@ -106,16 +106,18 @@ fun Route.readOrg() {
 
                 // cache whether this request is asking for all orgs
                 val allOrgs = orgId?.isBlank() ?: true
-                val orgIri = if(allOrgs) RDF.nil.uri else prefixes["mo"]!!
+                val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
                 // fetch all org details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    iri(
-                        "_org" to orgIri,
-                    )
+                    orgIri?.let {
+                        iri(
+                            "_org" to it,
+                        )
+                    }
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",

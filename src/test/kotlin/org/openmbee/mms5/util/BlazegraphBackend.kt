@@ -71,7 +71,7 @@ class BlazegraphBackend : SparqlBackend {
         return getQueryUrl();
     }
 
-    override fun getGspdUrl(): String {
+    override fun getGspUrl(): String {
         return getQueryUrl();
     }
 }
