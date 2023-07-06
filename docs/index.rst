@@ -1,6 +1,10 @@
 MMS 5 Layer 1 Service
 =====================
 
+This service provides the main api for MMS 5. It will need a SPARQL 1.1 compliant quadstore as a backend.
+
+Other supporting MMS 5 services such as the Auth and Store service can be used to provide authentication and large model loads. Please see their respective documentation on matching configurations.
+
 Quadstore Configs
 --------------------------
 
