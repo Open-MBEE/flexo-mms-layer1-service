@@ -1,91 +1,102 @@
-MMS 5 Layer 1
-=============
+MMS 5 Layer 1 Service
+=====================
 
-Setting up local dev environment
---------------------------------
+Quadstore Configs
+--------------------------
 
-You will need to run a local quadstore. There are a few other
-complementary services that help with authentication and uploading RDF
-data, but they are not strictly required (i.e., the stack *can* operate
-without them, but may require special configuration or in some cases may
-impact performance).
+  PORT
+    Port to run on
 
-Run the service set
-~~~~~~~~~~~~~~~~~~~
+    | `Default: 8080`
 
-Therefore, the simplest way to get started is to stand up the prescribed
-service set:
+  MMS5_QUERY_URL
+    Quadstore sparql endpoint for read queries
 
-Checkout https://github.com/Open-MBEE/mms5-layer1-service
+    | `Default: https://quad-store-domain-ro/sparql`
 
-.. code:: bash
+  MMS5_UPDATE_URL
+    Quadstore sparql endpoint for updates
 
-   docker-compose -f src/test/resources/docker-compose.yml up -d
+    | `Default: https://quad-store-domain/sparql`
 
-Apache Jena’s Fuseki quadstore will bind locally on port 3030. Should
-you want to issue SPARQL queries directly against the quadstore itself,
-Fuseki exposes the following HTTP APIs by default:
+  MMS5_GRAPH_STORE_PROTOCOL_URL
+    Quadstore GSP endpoint
 
-+-------------------+--------------------------------------------------+
-| Endpoint          | Purpose                                          |
-+===================+==================================================+
-| `                 | `SPARQL 1.1                                      |
-| `http://localhost | Query <https://www.w3.org/TR/sparql11-query/>`__ |
-| :3030/ds/sparql`` |                                                  |
-+-------------------+--------------------------------------------------+
-| `                 | `SPARQL 1.1                                      |
-| `http://localhost | Up                                               |
-| :3030/ds/update`` | date <https://www.w3.org/TR/sparql11-update/>`__ |
-+-------------------+--------------------------------------------------+
-| ``http://localho  | `SPARQL 1.1 Graph Store                          |
-| st:3030/ds/data`` | Protocol <htt                                    |
-|                   | ps://www.w3.org/TR/sparql11-http-rdf-update/>`__ |
-+-------------------+--------------------------------------------------+
+    | `Default: https://quad-store-domain/sparql/gsp`
+
+MMS 5 Services Configs
+-----------------------
+
+  MMS5_LOAD_SERVICE_URL
+    Optional, If using the load service give url here (if not given, load operations will use quadstore GSP)
+
+  JWT_DOMAIN
+    This should be the same as what's configured for MMS5 Auth Service
+
+    | `Default: https://jwt-provider-domain/`
+
+  JWT_AUDIENCE
+    This should be the same as what's configured for MMS5 Auth Service
+
+    | `Default: jwt-audience`
+
+  JWT_REALM
+    This should be the same as what's configured for MMS5 Auth Service
+
+    | `Default: MMS5 Microservices`
+
+  JWT_SECRET
+    This should be the same as what's configured for MMS5 Auth Service
+
+    | `Default: test1234`
+
+Other Configs
+---------------------
+
+  MMS5_ROOT_CONTEXT
+    This should be the same context url as given to the initialization script.
+
+    | `Default: http://layer1-service`
+
+  MMS5_GLOMAR_RESPONSE
+    If true, respond with 404 to unauthorized requests, even when a resource exists (neither confirming nor denying its existence)
+
+    | `Default: true`
+
+  MMS5_MAXIMUM_LITERAL_SIZE_KIB
+    Large patch strings above this threshold size will not be stored in the triplestore. if unset, no limit on literal size enforced
+
+    | `Default: 61440`
+
+  MMS5_GZIP_LITERALS_LARGER_THAN_KIB
+    Patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings
+
+    | `Default: 512`
 
 Generate the initialization file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
-The next step is to populate the quadstore with configuration data since
-MMS5 stores all of its state information in the quadstore alongside user
-data.
+The quadstore needs to be initialized with configuration data before it can be used. This data is unique to a deployment and needs a context.
 
-This configuration data is unique to your deployment.
-
-To generate a new deployment configuration:
+To generate the init file, checkout https://github.com/Open-MBEE/mms5-layer1-service and do the following:
 
 .. code:: bash
 
    cd deploy
-   npx ts-node src/main.ts $APP_URL > ../src/test/resources/cluster.trig
+   npx ts-node src/main.ts $APP_URL > cluster.trig
 
-Where ``$APP_URL`` is the root URL for where the MMS5 Layer 1 instance
-is deployed, e.g., ``https://mms5.openmbee.org/``. For local
-development, we simply use the stand-in ``http://layer1-service``.
+Where ``$APP_URL`` is the root URL for where the MMS5 Layer 1 instance is deployed, e.g., ``https://mms5.openmbee.org``. For local development, we simply use the stand-in ``http://layer1-service``.
+
+This context is also important in the configuration of other MMS5 services like the Auth service - the context needs to match.
+
+If there is a specific user or group that should be the cluster admin, edit the trig file so their iri is part of the super admins policy. See MMS5 Auth Service documentation for more details.
 
 Apply the initialization file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
-Once the initialization file has been generated at
-``src/test/resources/cluster.trig``, this file will automatically be
-used when running tests. Otherwise, make sure to apply this file to your
-empty quadstore (for example, by using its Graph Store Protocol API)
-before using MMS5.
+Once the initialization file has been generated at ``cluster.trig``, apply this file to your empty quadstore (for example, by using its Graph Store Protocol API to insert the data) before using MMS5.
 
-Deploy the MMS5 Layer 1 Application
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MMS 5 API
+---------
 
-Make sure the following environment variables are set when running the
-application. If running tests, make sure these variables are set in the
-test configuration. These will be picked up by
-``src/main/resources/application.conf.*`` which you can also configure
-for further customization.
-
-.. code:: shell
-
-   MMS5_ROOT_CONTEXT=http://layer1-service
-   MMS5_QUERY_URL=http://localhost:3030/ds/sparql
-   MMS5_UPDATE_URL=http://localhost:3030/ds/update
-   MMS5_GRAPH_STORE_PROTOCOL_URL=http://localhost:3030/ds/data
-
-.. |CircleCI| image:: https://circleci.com/gh/Open-MBEE/mms5-layer1-service.svg?style=shield
-   :target: https://circleci.com/gh/Open-MBEE/mms5-layer1-service
+See API documentation at https://www.openmbee.org/mms5-layer1-openapi/, generated from https://github.com/Open-MBEE/mms5-layer1-openapi

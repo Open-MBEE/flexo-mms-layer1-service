@@ -5,7 +5,7 @@ import io.ktor.http.*
 import java.security.MessageDigest
 
 
-val ROOT_CONTEXT = (System.getenv("MMS5_ROOT_CONTEXT")?: "https://mms.openmbee.org/demo").replace("/+$".toRegex(), "")
+val ROOT_CONTEXT = (System.getenv("MMS5_ROOT_CONTEXT")?: "http://layer1-service").replace("/+$".toRegex(), "")
 val SERVICE_ID = System.getenv("MMS5_SERVICE_ID")?: "local-dev-0"
 
 suspend fun handleSparqlResponse(response: HttpResponse): String {
