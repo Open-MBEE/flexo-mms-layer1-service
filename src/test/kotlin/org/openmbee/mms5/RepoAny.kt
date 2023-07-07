@@ -88,6 +88,14 @@ open class RepoAny : OrgAny() {
         <> dct:title "$repoName"@en .
     """.trimIndent()
 
+    val repoFooId = "foo-repo"
+    val repoFooName = "foo-repo"
+    val repoFooPath = "$orgPath/repos/$repoFooId"
+
+    val repoBarId = "bar-repo"
+    val repoBarName = "bar-repo"
+    val repoBarPath = "$orgPath/repos/$repoBarId"
+
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
