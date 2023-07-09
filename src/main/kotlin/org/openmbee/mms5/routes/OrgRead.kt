@@ -41,14 +41,14 @@ private val SPARQL_CONSTRUCT_ORG = """
             mms:policy ?policy ;
             .
         
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
         ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
     } where {
         $SPARQL_BGP_ORG
         
         graph m-graph:AccessControl.Policies {
-            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+            #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
                 ?orgPolicy a mms:Policy ;
