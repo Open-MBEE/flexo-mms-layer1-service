@@ -5,6 +5,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import org.apache.jena.vocabulary.RDF
 import org.openmbee.mms5.*
 
 private val SPARQL_BGP_ORG = """
@@ -40,14 +41,14 @@ private val SPARQL_CONSTRUCT_ORG = """
             mms:policy ?policy ;
             .
         
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
         ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
     } where {
         $SPARQL_BGP_ORG
         
         graph m-graph:AccessControl.Policies {
-            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+            #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
                 ?orgPolicy a mms:Policy ;
@@ -69,15 +70,16 @@ fun Route.readOrg() {
 
                 // cache whether this request is asking for all orgs
                 val allOrgs = orgId?.isBlank() ?: true
+                val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(!allOrgs) {
+                    orgIri?.let {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_org" to it,
                         )
                     }
 
@@ -106,15 +108,16 @@ fun Route.readOrg() {
 
                 // cache whether this request is asking for all orgs
                 val allOrgs = orgId?.isBlank() ?: true
+                val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
                 // fetch all org details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
                     prefixes(prefixes)
 
                     // get by orgId
-                    if(!allOrgs) {
+                    orgIri?.let {
                         iri(
-                            "_org" to prefixes["mo"]!!,
+                            "_org" to it,
                         )
                     }
 
@@ -131,7 +134,7 @@ fun Route.readOrg() {
                     }
                     // just the individual org
                     else {
-                        handleEtagAndPreconditions(model, prefixes["mo"])
+                        handleEtagAndPreconditions(model, orgIri)
                     }
                 }
 

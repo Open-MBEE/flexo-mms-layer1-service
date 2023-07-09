@@ -1166,7 +1166,8 @@ fun MmsL1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGro
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(
-                "mms-txn:stagingGraph" to "?stagingGraph",
+//                TODO: delete-below; redundant with ?srcGraph ?
+//                "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:srcGraph" to "?srcGraph",
                 "mms-txn:dstGraph" to "?dstGraph",
                 "mms-txn:insGraph" to "?insGraph",

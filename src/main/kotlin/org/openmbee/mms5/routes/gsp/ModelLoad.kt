@@ -36,9 +36,6 @@ fun Route.loadModel() {
             // set diff id
             diffId = "Load.$transactionId"
 
-            // prepare IRI for named graph to hold loaded model
-            val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
-
             // prep conditions
             val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
                 // assert HTTP preconditions
@@ -84,6 +81,9 @@ fun Route.loadModel() {
 
                 validateTransaction(txnConstructResponseText, localConditions, "load")
             }
+
+            // prepare IRI for named graph to hold loaded model
+            val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
             // now load triples into designated load graph
             run {
@@ -242,8 +242,6 @@ fun Route.loadModel() {
                         }
                     }
                 """)
-
-
 
                 executeSparqlUpdate(updateString) {
                     prefixes(prefixes)

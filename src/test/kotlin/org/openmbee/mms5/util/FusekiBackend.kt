@@ -60,7 +60,7 @@ class FusekiBackend : SparqlBackend {
         return "http://localhost:${fusekiPort}/ds/update"
     }
 
-    override fun getGspdUrl(): String {
+    override fun getGspUrl(): String {
         return "http://localhost:${fusekiPort}/ds/data"
     }
 

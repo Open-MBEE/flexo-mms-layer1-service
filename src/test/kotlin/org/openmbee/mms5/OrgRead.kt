@@ -107,8 +107,6 @@ class OrgRead : OrgAny() {
                 httpGet("/orgs") {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    logger.info(response.content)
-
                     response.includesTriples {
                         modelName = it
 
