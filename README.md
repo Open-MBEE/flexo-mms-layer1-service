@@ -4,6 +4,10 @@
 
 This project is currently under development. This document describes how to set up a local dev environment.
 
+## Quickstart
+
+See https://mms5-deployment-guide.readthedocs.io/en/latest/
+
 ## Setting up local dev environment
 
 You will need to run a local quadstore. There are a few other complementary services that help with authentication and uploading RDF data, but they are not strictly required (i.e., the stack _can_ operate without them, but may require special configuration or in some cases may impact performance).
