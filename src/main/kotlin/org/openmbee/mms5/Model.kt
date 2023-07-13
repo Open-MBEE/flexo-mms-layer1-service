@@ -428,7 +428,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                             auth()
                         }
                         where {
-                            raw(*conditions.requiredPatterns())
+                            raw(conditions.unionInspectPatterns())
                         }
                     }
 
