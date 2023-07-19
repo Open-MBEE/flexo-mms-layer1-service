@@ -15,6 +15,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and branch" {
             commitModel(masterPath, sparqlUpdate)
             createBranch(repoPath, "master", branchId, branchName)
@@ -34,6 +35,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and lock" {
             commitModel(masterPath, sparqlUpdate)
             createLock(repoPath, masterPath, lockId)
@@ -53,6 +55,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and lock from model loads" {
             loadModel(masterPath, loadTurtle)
             createLock(repoPath, masterPath, lockId)
@@ -87,6 +90,16 @@ class ModelQuery : ModelAny() {
                     """.trimIndent())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
+
+        "nothing exists" {
+            withTest {
+                httpPost("/orgs/not-exists/repos/not-exists/branches/not-exists/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }

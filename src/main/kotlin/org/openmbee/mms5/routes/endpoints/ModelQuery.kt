@@ -25,6 +25,5 @@ fun Route.queryModel() {
                 assertPreconditions(this) { "" }
             })
         }
-
     }
 }
