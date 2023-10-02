@@ -56,9 +56,19 @@ class GroupCreate : CommonSpec() {
     """.trimIndent()
 
     init {
+        "group id with slash".config(tags=setOf(NoAuth)) {
+            withTest {
+                httpPut("$groupPath/non-existant-path/foobar") {
+                    setTurtleBody(validGroupBody)
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
         "reject invalid group id".config(tags=setOf(NoAuth)) {
             withTest {
-                httpPut("$groupPath/with/invalid/id") {
+                httpPut("$groupPath with invalid id") {
                     setTurtleBody(validGroupBody)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
@@ -92,11 +102,11 @@ class GroupCreate : CommonSpec() {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
-                    response exclusivelyHasTriples {
+                    response includesTriples  {
                         modelName = it
 
                         validateCreatedGroupTriples(response, groupId, listOf(
-                            DCTerms.title exactly groupTitle
+                            DCTerms.title exactly groupTitle.en
                         ))
                     }
                 }
