@@ -49,7 +49,7 @@ private val MIGZ_BLOCK_SIZE = 1536 * 1024
 class ParamNormalizer(val mms: MmsL1Context, val call: ApplicationCall =mms.call) {
     fun group(legal: Boolean=false) {
         mms.groupId = call.parameters["groupId"]?: throw Http400Exception("Requisite {groupId} parameter was null")
-        if(legal) assertLegalId(mms.groupId!!, """[/?&=._\pL-]{3,256}""".toRegex())
+        if(legal) assertLegalId(mms.groupId!!, """[/?&=.,_\pL-]{3,256}""".toRegex())
     }
 
     fun org(legal: Boolean=false) {

@@ -109,7 +109,7 @@ fun prefixesFor(
         }
 
         if(null != groupId) {
-            with("$ROOT_CONTEXT/group/$groupId") {
+            with("$ROOT_CONTEXT/groups/$groupId") {
                 add(
                     "mg" to this,
                 )
