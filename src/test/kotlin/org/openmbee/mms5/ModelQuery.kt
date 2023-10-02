@@ -1,5 +1,6 @@
 package org.openmbee.mms5
 
+import io.kotest.assertions.json.shouldMatchJson
 import io.ktor.http.*
 import org.openmbee.mms5.util.*
 
@@ -15,6 +16,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and branch" {
             commitModel(masterPath, sparqlUpdate)
             createBranch(repoPath, "master", branchId, branchName)
@@ -34,6 +36,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and lock" {
             commitModel(masterPath, sparqlUpdate)
             createLock(repoPath, masterPath, lockId)
@@ -53,6 +56,7 @@ class ModelQuery : ModelAny() {
                 }
             }
         }
+
         "query result is different between master and lock from model loads" {
             loadModel(masterPath, loadTurtle)
             createLock(repoPath, masterPath, lockId)
@@ -87,6 +91,41 @@ class ModelQuery : ModelAny() {
                     """.trimIndent())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
+
+        "concat" {
+            loadModel(masterPath, loadTurtle)
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        prefix : <https://mms.openmbee.org/demos/people/>
+                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        select ?concat {
+                            :Alice foaf:name ?name .
+                        
+                            bind(concat(str("test:"), ?name) as ?concat)
+                        }
+                    """.trimIndent())
+                }.apply {
+                    response.content shouldMatchJson """
+                        {
+                            "head": {
+                                "vars": ["concat"]
+                            },
+                            "results": {
+                                "bindings": [
+                                    {
+                                        "concat": {
+                                            "type": "literal",
+                                            "value": "test:Alice"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    """.trimIndent()
                 }
             }
         }
