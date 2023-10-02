@@ -46,5 +46,19 @@ class LockQuery : LockAny() {
                 }
             }
         }
+
+        "nothing exists" {
+            withTest {
+                httpPost("/orgs/not-exists/repos/not-exists/locks/not-exists/query") {
+                    setSparqlQueryBody("""
+                        select ?o {
+                            <urn:s> <urn:p> ?o .
+                        }
+                    """)
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
     }
 }

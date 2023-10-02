@@ -261,12 +261,20 @@ class ConditionsGroup(var conditions: List<Condition>) {
         }
 
         if(failedConditions.isNotEmpty()) {
+            // a single condition was not met
             if(failedConditions.size == 1) {
                 val (msg, code) = failedConditions[0]
 
                 throw HttpException(msg, code)
             }
+            // multiple conditions failed
             else {
+                // give precedence to 404
+                failedConditions.find { it.second === HttpStatusCode.NotFound }?.let {
+                    throw HttpException(it.first, it.second)
+                }
+
+                // bundle
                 throw RequirementsNotMetException(failedConditions.map { it.first})
             }
         }

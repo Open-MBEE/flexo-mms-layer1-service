@@ -95,6 +95,16 @@ class ModelQuery : ModelAny() {
             }
         }
 
+        "nothing exists" {
+            withTest {
+                httpPost("/orgs/not-exists/repos/not-exists/branches/not-exists/query") {
+                    setSparqlQueryBody(sparqlQueryNames)
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
         "concat" {
             loadModel(masterPath, loadTurtle)
             withTest {

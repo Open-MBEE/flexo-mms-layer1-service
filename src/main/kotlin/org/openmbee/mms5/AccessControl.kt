@@ -102,12 +102,7 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
                 .
         }
 
-        {
-            # user exists
-            graph m-graph:AccessControl.Agents {
-                mu: a mms:User .
-            }
-    
+        {   
             # the policy applies to this user within an appropriate scope
             graph m-graph:AccessControl.Policies {
                 # policy about user
