@@ -35,6 +35,7 @@ fun Application.configureHTTP() {
         allowMethod(HttpMethod.Post)
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        allowCredentials = true
         anyHost() // @TODO: make configuration
     }
 
