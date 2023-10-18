@@ -397,7 +397,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         }
 
         // debug select variables
-        log.debug("Variables being selected: "+resultVars)
+        //log.debug("Variables being selected: "+resultVars)
     }
 
 
@@ -409,9 +409,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     if(inspectOnly) {
         call.respondText(graphQueryString)
         return
-    }
-    else {
-        log.info(graphQueryString)
     }
     val defaultGraph: String
     try {
