@@ -1,7 +1,7 @@
 package org.openmbee.mms5
 
 import io.ktor.server.response.*
-import kotlinx.coroutines.selects.select
+import org.apache.jena.atlas.json.JSON
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Node_Variable
@@ -284,9 +284,14 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     if(!outputQuery.isSelectType) {
         throw ServerBugException("Query type not yet supported")
     }
+    val graphQuery = QueryFactory.create("""
+        $prefixes
+
+        select ?${MMS_VARIABLE_PREFIX}modelGraph where {}
+    """.trimIndent())
 
     // transform the user query
-    outputQuery.apply {
+    graphQuery.apply {
         // unset query result star; jena will convert all top-scoped variables in user's original query to explicit select variables
         if(isQueryResultStar) {
             isQueryResultStar = false
@@ -383,7 +388,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     rewriter.prepend.forEach { addElement(it) }
 
                     // inline arbitrary user query
-                    addElement(ElementNamedGraph(modelGraphNode, queryPattern))
+                    //addElement(ElementNamedGraph(modelGraphNode, queryPattern))
 
                     // anything the rewriter wants to append
                     rewriter.append.forEach { addElement(it) }
@@ -397,58 +402,76 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
 
     // serialize the query and replace the substitution pattern with conditions
-    val outputQueryString = outputQuery.serialize().replace(
+    val graphQueryString = graphQuery.serialize().replace(
         """[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s+[?$]${substituteVar.name}\s*\.?""".toRegex(),
         conditions.requiredPatterns().joinToString("\n"))
 
     if(inspectOnly) {
-        call.respondText(outputQueryString)
+        call.respondText(graphQueryString)
         return
     }
     else {
-        log.info(outputQueryString)
+        log.info(graphQueryString)
+    }
+    val defaultGraph: String
+    try {
+        when(refIri) {
+            prefixes["mor"] -> {
+                defaultGraph = "${prefixes["mor-graph"]}Metadata"
+                executeSparqlSelectOrAsk(graphQueryString) {}
+            }
+            else -> {
+                val graphQueryResponseText = executeSparqlSelectOrAsk(graphQueryString) {}
+                val result = JSON.parse(graphQueryResponseText)
+                defaultGraph = result.getObj("results").getArray("bindings").findFirst().get().asObject
+                    .getObj("${MMS_VARIABLE_PREFIX}modelGraph").getString("value")
+            }
+        }
+    } catch(executeError: Exception) {
+        if(executeError is Non200Response) {
+            val statusCode = executeError.status.value
+
+            log.debug("Caught non-200 response from quadstore: ${statusCode} \"\"\"${executeError.body}\"\"\"")
+
+            // 4xx/5xx error
+            if(statusCode in 400..599) {
+                // do access control check
+                val checkQuery = buildSparqlQuery {
+                    construct {
+                        auth()
+                    }
+                    where {
+                        raw(conditions.unionInspectPatterns())
+                    }
+                }
+
+                log.debug("Submitting post-4xx/5xx access-control check query:\n${checkQuery}")
+
+                val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
+
+                parseConstructResponse(checkResponseText) {
+                    conditions.handle(model, mms)
+                }
+            }
+        }
+
+        throw executeError
     }
 
+    val outputQueryString = outputQuery.serialize()
     if(outputQuery.isSelectType || outputQuery.isAskType) {
         val queryResponseText: String
         try {
-            queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {}
+            queryResponseText = executeSparqlSelectOrAsk(outputQueryString, defaultGraph) {}
         }
         catch(executeError: Exception) {
-            if(executeError is Non200Response) {
-                val statusCode = executeError.status.value
-
-                log.debug("Caught non-200 response from quadstore: ${statusCode} \"\"\"${executeError.body}\"\"\"")
-
-                // 4xx/5xx error
-                if(statusCode in 400..599) {
-                    // do access control check
-                    val checkQuery = buildSparqlQuery {
-                        construct {
-                            auth()
-                        }
-                        where {
-                            raw(conditions.unionInspectPatterns())
-                        }
-                    }
-
-                    log.debug("Submitting post-4xx/5xx access-control check query:\n${checkQuery}")
-
-                    val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
-
-                    parseConstructResponse(checkResponseText) {
-                        conditions.handle(model, mms)
-                    }
-                }
-            }
-
             throw executeError
         }
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
-        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString) {}
+        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString, defaultGraph) {}
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
