@@ -29,7 +29,7 @@ val client = HttpClient(CIO) {
     }
 
     engine {
-        requestTimeout = 15 * 60 * 1000 // timeout after 15 minutes
+        requestTimeout = 30 * 60 * 1000 // timeout after 30 minutes
     }
 }
 
