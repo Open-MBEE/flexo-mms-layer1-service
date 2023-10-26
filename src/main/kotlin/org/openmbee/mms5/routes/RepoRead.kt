@@ -72,6 +72,8 @@ fun Route.readRepo() {
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO(allRepos)) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // always belongs to some org
@@ -112,6 +114,8 @@ fun Route.readRepo() {
 
                 // fetch all repo details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO(allRepos)) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // get by repoId

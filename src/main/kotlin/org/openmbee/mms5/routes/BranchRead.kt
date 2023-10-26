@@ -78,6 +78,8 @@ fun Route.readBranch() {
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(sparqlSelect) {
+                    acceptReplicaLag = true
+
                     // get by branchId
                     if(!allBranches) {
                         iri(
@@ -121,6 +123,8 @@ fun Route.readBranch() {
 
                 // fetch all branch details
                 val constructResponseText = executeSparqlConstructOrDescribe(sparqlConstruct) {
+                    acceptReplicaLag = true
+
                     // get by branchId
                     if(!allBranches) {
                         iri(

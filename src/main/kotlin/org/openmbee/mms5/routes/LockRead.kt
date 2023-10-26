@@ -73,6 +73,8 @@ fun Route.readLock() {
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_LOCK) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // get by lockId
@@ -112,6 +114,8 @@ fun Route.readLock() {
 
                 // fetch all lock details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_LOCK) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // get by lockId

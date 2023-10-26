@@ -46,7 +46,9 @@ fun Route.readModel() {
                 }
             }
 
-            val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+            val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+                acceptReplicaLag = true
+            }
 
             if(!constructResponseText.contains(authorizedIri)) {
                 log("Rejecting unauthorized request with 404\n${constructResponseText}")
