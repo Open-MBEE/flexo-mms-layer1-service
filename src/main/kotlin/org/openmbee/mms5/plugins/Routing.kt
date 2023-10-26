@@ -24,7 +24,7 @@ import org.openmbee.mms5.routes.endpoints.*
 import org.openmbee.mms5.routes.gsp.readModel
 
 
-fun ApplicationCall.httpClient(timeoutOverride: Long? = null): HttpClient {
+fun ApplicationCall.httpClient(timeoutOverrideMs: Long? = null): HttpClient {
     return HttpClient(CIO) {
         install(ContentNegotiation) {
             register(RdfContentTypes.Turtle, TextConverter())
@@ -32,7 +32,7 @@ fun ApplicationCall.httpClient(timeoutOverride: Long? = null): HttpClient {
         }
 
         engine {
-            requestTimeout = timeoutOverride
+            requestTimeout = timeoutOverrideMs
                 ?: this@httpClient.application.requestTimeout
                 ?: (30 * 60 * 1000) // default timeout of 30 minutes
         }

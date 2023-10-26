@@ -61,5 +61,6 @@ val Application.gzipLiteralsLargerThanKib: Long?
  */
 val Application.requestTimeout: Long?
     get() = environment.config.propertyOrNull("mms.application.request-timeout")?.getString()?.toLongOrNull()
+        ?.let { it * 1000 }
 
 class AuthorizationRequiredException(message: String): Exception(message) {}
