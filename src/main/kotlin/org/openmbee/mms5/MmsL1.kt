@@ -1,6 +1,9 @@
 package org.openmbee.mms5
 
 import com.linkedin.migz.MiGzOutputStream
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.client.request.*
@@ -31,7 +34,7 @@ import org.apache.jena.vocabulary.OWL
 import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.RDFS
 import org.openmbee.mms5.plugins.UserDetailsPrincipal
-import org.openmbee.mms5.plugins.client
+import org.openmbee.mms5.plugins.httpClient
 import java.io.ByteArrayOutputStream
 import java.util.*
 
@@ -411,6 +414,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     val requestMethod = call.request.httpMethod.value
     val requestBodyContentType = call.request.contentType().toString()
 
+    val defaultHttpClient = call.httpClient()
+
     val prefixes: PrefixMapBuilder
         get() = prefixesFor(
             userId = userId,
@@ -594,7 +599,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         log("Executing SPARQL Update:\n$sparql")
 
-        return handleSparqlResponse(client.post(call.application.quadStoreUpdateUrl) {
+        return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
             headers {
                 append(HttpHeaders.Accept, ContentType.Application.Json)
             }
@@ -616,7 +621,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         log("Executing SPARQL Query:\n$sparql")
 
-        return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
+        return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreQueryUrl) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }

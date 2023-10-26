@@ -3,6 +3,7 @@ package org.openmbee.mms5.plugins
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.client.*
+import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
@@ -17,19 +18,24 @@ import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.jvm.javaio.*
 import org.openmbee.mms5.RdfContentTypes
+import org.openmbee.mms5.requestTimeout
 import org.openmbee.mms5.routes.*
 import org.openmbee.mms5.routes.endpoints.*
 import org.openmbee.mms5.routes.gsp.readModel
 
 
-val client = HttpClient(CIO) {
-    install(ContentNegotiation) {
-        register(RdfContentTypes.Turtle, TextConverter())
-        register(RdfContentTypes.JsonLd, TextConverter())
-    }
+fun ApplicationCall.httpClient(timeoutOverride: Long? = null): HttpClient {
+    return HttpClient(CIO) {
+        install(ContentNegotiation) {
+            register(RdfContentTypes.Turtle, TextConverter())
+            register(RdfContentTypes.JsonLd, TextConverter())
+        }
 
-    engine {
-        requestTimeout = 30 * 60 * 1000 // timeout after 30 minutes
+        engine {
+            requestTimeout = timeoutOverride
+                ?: this@httpClient.application.requestTimeout
+                ?: (30 * 60 * 1000) // default timeout of 30 minutes
+        }
     }
 }
 
