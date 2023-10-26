@@ -605,10 +605,12 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     @OptIn(InternalAPI::class)
     suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (Parameterizer.() -> Unit)?=null): String {
-        var sparql = Parameterizer(pattern).apply {
+        val params = Parameterizer(pattern).apply {
             if(setup != null) setup()
             else prefixes(prefixes)
-        }.toString()
+        }
+
+        var sparql = params.toString()
 
         sparql = replaceValuesDirectives(sparql,
             "groupId" to groups,
@@ -616,7 +618,10 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
         log("Executing SPARQL Query:\n$sparql")
 
-        return handleSparqlResponse(client.post(call.application.quadStoreQueryUrl) {
+        val endpoint = if(params.acceptReplicaLag) call.application.quadStoreQueryUrl
+            else call.application.quadStoreMasterQueryUrl
+
+        return handleSparqlResponse(client.post(endpoint) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }
