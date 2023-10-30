@@ -26,12 +26,14 @@ interface SparqlBackend {
     fun getUpdateUrl(): String
 
     /**
-     * Get the URL to run SPARQL queries on during write operations
-     */
-    fun getMasterQueryUrl(): String
-
-    /**
      * Get the URL to the graph store protocol endpoint
      */
     fun getGspUrl(): String
+
+    /**
+     * Get the URL to run SPARQL queries on during write operations
+     */
+    fun getMasterQueryUrl(): String {
+        return this.getQueryUrl()
+    }
 }
