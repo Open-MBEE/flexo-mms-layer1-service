@@ -631,7 +631,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             else call.application.quadStoreMasterQueryUrl
 
         // submit the query to the appropriate endpoint and handle the response
-        return handleSparqlResponse(client.post(endpoint) {
+        return handleSparqlResponse(defaultHttpClient.post(endpoint) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }
