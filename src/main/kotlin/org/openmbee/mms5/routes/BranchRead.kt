@@ -80,14 +80,14 @@ fun Route.readBranch() {
                 val selectResponseText = executeSparqlSelectOrAsk(sparqlSelect) {
                     acceptReplicaLag = true
 
+                    prefixes(prefixes)
+
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
-
-                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",
@@ -125,14 +125,14 @@ fun Route.readBranch() {
                 val constructResponseText = executeSparqlConstructOrDescribe(sparqlConstruct) {
                     acceptReplicaLag = true
 
+                    prefixes(prefixes)
+
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
-
-                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",

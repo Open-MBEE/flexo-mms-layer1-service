@@ -80,7 +80,7 @@ class BranchCreate : RefAny() {
         "insert, replace x 4, branch on 2nd" {
             val init = commitModel(masterPath, """
                 insert data {
-                    <urn:s> <urn:p> 1 . 
+                    <urn:mms:s> <urn:mms:p> 1 . 
                 }
             """.trimIndent())
 
@@ -92,10 +92,10 @@ class BranchCreate : RefAny() {
             suspend fun replaceCounterValue(value: Int): String {
                 val update = commitModel(masterPath, """
                     delete where {
-                        <urn:s> <urn:p> ?previous .
+                        <urn:mms:s> <urn:mms:p> ?previous .
                     } ;
                     insert data {
-                        <urn:s> <urn:p> $value . 
+                        <urn:mms:s> <urn:mms:p> $value . 
                     }
                 """.trimIndent()
                 )
@@ -138,8 +138,8 @@ class BranchCreate : RefAny() {
                     val model = KModel()
                     parseTurtle(response.content!!, model, branchPath)
 
-                    val s = ResourceFactory.createResource("urn:s")
-                    val p = ResourceFactory.createProperty("urn:p")
+                    val s = ResourceFactory.createResource("urn:mms:s")
+                    val p = ResourceFactory.createProperty("urn:mms:p")
                     val values = model.listObjectsOfProperty(s, p).toList()
 
                     values shouldHaveSize 1
@@ -150,13 +150,13 @@ class BranchCreate : RefAny() {
 
         "model load x 3, branch on 2" {
             val load1 = loadModel(masterPath, """
-                <urn:s> <urn:p> 1 .
+                <urn:mms:s> <urn:mms:p> 1 .
             """.trimIndent())
 
             delay(500L)
 
             val load2 = loadModel(masterPath, """
-                <urn:s> <urn:p> 2 .
+                <urn:mms:s> <urn:mms:p> 2 .
             """.trimIndent())
 
             val commitId2 = load2.response.headers[HttpHeaders.ETag]!!
@@ -164,7 +164,7 @@ class BranchCreate : RefAny() {
             delay(500L)
 
             val load3 = loadModel(masterPath, """
-                <urn:s> <urn:p> 3 .
+                <urn:mms:s> <urn:mms:p> 3 .
             """.trimIndent())
 
             delay(500L)
@@ -188,8 +188,8 @@ class BranchCreate : RefAny() {
                     val model = KModel()
                     parseTurtle(response.content!!, model, branchPath)
 
-                    val s = ResourceFactory.createResource("urn:s")
-                    val p = ResourceFactory.createProperty("urn:p")
+                    val s = ResourceFactory.createResource("urn:mms:s")
+                    val p = ResourceFactory.createProperty("urn:mms:p")
                     val values = model.listObjectsOfProperty(s, p).toList()
 
                     values shouldHaveSize 1

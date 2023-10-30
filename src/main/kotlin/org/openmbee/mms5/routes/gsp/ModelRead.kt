@@ -48,6 +48,8 @@ fun Route.readModel() {
 
             val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
                 acceptReplicaLag = true
+
+                prefixes(prefixes)
             }
 
             if(!constructResponseText.contains(authorizedIri)) {

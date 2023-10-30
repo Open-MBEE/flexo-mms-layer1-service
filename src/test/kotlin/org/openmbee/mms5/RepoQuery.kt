@@ -41,7 +41,7 @@ class RepoQuery : ModelAny() {
                 httpPost("/orgs/not-exists/repos/not-exists/query") {
                     setSparqlQueryBody("""
                         select ?o {
-                            <urn:s> <urn:p> ?o .
+                            <urn:mms:s> <urn:mms:p> ?o .
                         }
                     """)
                 }.apply {
