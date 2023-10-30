@@ -412,7 +412,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     if(outputQuery.isSelectType || outputQuery.isAskType) {
         val queryResponseText: String
         try {
-            queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {}
+            queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {
+                acceptReplicaLag = true
+            }
         }
         catch(executeError: Exception) {
             if(executeError is Non200Response) {
@@ -434,7 +436,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
                     log.debug("Submitting post-4xx/5xx access-control check query:\n${checkQuery}")
 
-                    val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
+                    val checkResponseText = executeSparqlConstructOrDescribe(checkQuery) {
+                        acceptReplicaLag = true
+                    }
 
                     parseConstructResponse(checkResponseText) {
                         conditions.handle(model, mms)
@@ -448,7 +452,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
-        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString) {}
+        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString) {
+            acceptReplicaLag = true
+        }
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }
