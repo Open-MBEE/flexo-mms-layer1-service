@@ -442,7 +442,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     }
                 }
 
-                log.debug("Submitting post-4xx/5xx access-control check query:\n${checkQuery}")
+                log.debug("Submitting post-4xx/5xx access-control check query:\n")
 
                 val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
 
