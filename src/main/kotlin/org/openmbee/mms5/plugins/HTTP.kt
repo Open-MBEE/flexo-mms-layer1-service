@@ -2,6 +2,7 @@ package org.openmbee.mms5.plugins
 
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.plugins.callloging.*
 import io.ktor.server.plugins.conditionalheaders.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.defaultheaders.*
@@ -22,10 +23,11 @@ fun Application.configureHTTP() {
             cause.handle(call)
         }
         exception<Throwable> { call, cause ->
+            call.application.log.error("internal error", cause)
             call.respondText(cause.stackTraceToString(), status=HttpStatusCode.InternalServerError)
         }
     }
-
+    install(CallLogging)
     install(CORS) {
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Put)

@@ -77,6 +77,11 @@ Other Configs
 
     | `Default: 512`
 
+  MMS5_SPARQL_REQUEST_TIMEOUT
+    Timeout per request sent to the triplestore, in seconds.
+
+    | `Default: 1800`
+
 Generate the initialization file
 --------------------------------
 
