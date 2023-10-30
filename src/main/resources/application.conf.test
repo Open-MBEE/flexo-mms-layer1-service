@@ -6,6 +6,8 @@ mms {
         maximum-literal-size-kib = ${?MMS5_MAXIMUM_LITERAL_SIZE_KIB}
         gzip-literals-larger-than-kib = 512
         gzip-literals-larger-than-kib = ${?MMS5_GZIP_LITERALS_LARGER_THAN_KIB}
+        request-timeout = 1800
+        request-timeout = ${?MMS5_SPARQL_REQUEST_TIMEOUT}
     }
 
     load-service {

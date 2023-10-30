@@ -16,7 +16,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.mms5.*
-import org.openmbee.mms5.plugins.client
 
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
@@ -25,7 +24,6 @@ private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 fun Route.loadModel() {
     post("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         call.mmsL1(Permission.UPDATE_BRANCH, true) {
-
             // check path parameters
             pathParams {
                 org()
@@ -94,7 +92,7 @@ fun Route.loadModel() {
                 // client did not explicitly provide a URL and the load service is configured
                 if(loadUrl == null && loadServiceUrl != null) {
                     // submit a POST request to the load service endpoint
-                    val response: HttpResponse = client.post("$loadServiceUrl/$diffId") {
+                    val response: HttpResponse = defaultHttpClient.post("$loadServiceUrl/$diffId") {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
@@ -158,7 +156,7 @@ fun Route.loadModel() {
                     if(!RdfContentTypes.isTriples(modelContentType)) throw InvalidTriplesDocumentTypeException(modelContentType.toString())
 
                     // submit a PUT request to the quad-store's GSP endpoint
-                    val response: HttpResponse = client.put(application.quadStoreGraphStoreProtocolUrl!!) {
+                    val response: HttpResponse = defaultHttpClient.put(application.quadStoreGraphStoreProtocolUrl!!) {
                         // add the graph query parameter per the GSP specification
                         parameter("graph", loadGraphUri)
 
