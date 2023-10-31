@@ -11,6 +11,10 @@ mms {
         # patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings (effectively disabling the feature)
         gzip-literals-larger-than-kib = 512
         gzip-literals-larger-than-kib = ${?MMS5_GZIP_LITERALS_LARGER_THAN_KIB}
+
+        # request timeout in seconds for requests to backend quadstore (default 30 min)
+        request-timeout = 1800
+        request-timeout = ${?MMS5_SPARQL_REQUEST_TIMEOUT}
     }
 
     load-service {
@@ -23,6 +27,8 @@ mms {
         query-url = ${?MMS5_QUERY_URL}
         update-url = "https://quad-store-domain/sparql"
         update-url = ${?MMS5_UPDATE_URL}
+        master-query-url = ""
+        master-query-url = ${?MMS5_MASTER_QUERY_URL}
         graph-store-protocol-url = "https://quad-store-domain/sparql/gsp"
         graph-store-protocol-url = ${?MMS5_GRAPH_STORE_PROTOCOL_URL}
     }

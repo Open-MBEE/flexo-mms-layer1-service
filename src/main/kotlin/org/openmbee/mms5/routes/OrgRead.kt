@@ -74,6 +74,8 @@ fun Route.readOrg() {
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // get by orgId
@@ -112,6 +114,8 @@ fun Route.readOrg() {
 
                 // fetch all org details
                 val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+                    acceptReplicaLag = true
+
                     prefixes(prefixes)
 
                     // get by orgId

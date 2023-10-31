@@ -14,6 +14,10 @@ class RemoteBackend : SparqlBackend {
         return System.getenv("MMS5_UPDATE_URL")
     }
 
+    override fun getMasterQueryUrl(): String {
+        return System.getenv("MMS5_MASTER_QUERY_URL")
+    }
+
     override fun getGspUrl(): String {
         return System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL")
     }

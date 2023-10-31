@@ -415,10 +415,16 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         when(refIri) {
             prefixes["mor"] -> {
                 defaultGraph = "${prefixes["mor-graph"]}Metadata"
-                executeSparqlSelectOrAsk(graphQueryString) {}
+                executeSparqlSelectOrAsk(graphQueryString) {
+                    acceptReplicaLag = true
+                    prefixes(prefixes)
+                }
             }
             else -> {
-                val graphQueryResponseText = executeSparqlSelectOrAsk(graphQueryString) {}
+                val graphQueryResponseText = executeSparqlSelectOrAsk(graphQueryString) {
+                    acceptReplicaLag = true
+                    prefixes(prefixes)
+                }
                 val result = JSON.parse(graphQueryResponseText)
                 defaultGraph = result.getObj("results").getArray("bindings").findFirst().get().asObject
                     .getObj("${MMS_VARIABLE_PREFIX}modelGraph").getString("value")
@@ -444,7 +450,10 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
 
                 log.debug("Submitting post-4xx/5xx access-control check query:\n")
 
-                val checkResponseText = executeSparqlConstructOrDescribe(checkQuery)
+                val checkResponseText = executeSparqlConstructOrDescribe(checkQuery) {
+                    acceptReplicaLag = true
+                    prefixes(prefixes)
+                }
 
                 parseConstructResponse(checkResponseText) {
                     conditions.handle(model, mms)
@@ -459,7 +468,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     if(outputQuery.isSelectType || outputQuery.isAskType) {
         val queryResponseText: String
         try {
-            queryResponseText = executeSparqlSelectOrAsk(outputQueryString, defaultGraph) {}
+            queryResponseText = executeSparqlSelectOrAsk(outputQueryString, defaultGraph) {
+                acceptReplicaLag = true
+            }
         }
         catch(executeError: Exception) {
             throw executeError
@@ -468,7 +479,9 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
-        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString, defaultGraph) {}
+        val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString, defaultGraph) {
+            acceptReplicaLag = true
+        }
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
     }

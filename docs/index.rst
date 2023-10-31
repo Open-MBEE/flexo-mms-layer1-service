@@ -14,17 +14,23 @@ Quadstore Configs
     | `Default: 8080`
 
   MMS5_QUERY_URL
-    Quadstore sparql endpoint for read queries
+    SPARQL endpoint URL for read queries
 
     | `Default: https://quad-store-domain-ro/sparql`
 
+  MMS5_MASTER_QUERY_URL
+    Optional SPARQL endpoint URL to use when querying for latest data (only needed when backend has separate reader/writer instances).1
+    If omitted, application will default to using the configured SPARQL endpoint for queries.
+
+    | `Default: (empty)`
+
   MMS5_UPDATE_URL
-    Quadstore sparql endpoint for updates
+    SPARQL endpoint URL for updates
 
     | `Default: https://quad-store-domain/sparql`
 
   MMS5_GRAPH_STORE_PROTOCOL_URL
-    Quadstore GSP endpoint
+    SPARQL Graph Store Protocol (GSP) endpoint URL
 
     | `Default: https://quad-store-domain/sparql/gsp`
 
@@ -32,7 +38,7 @@ MMS 5 Services Configs
 -----------------------
 
   MMS5_LOAD_SERVICE_URL
-    Optional, If using the load service give url here (if not given, load operations will use quadstore GSP). Url should be in the form <Load service domain and port>/store
+    Optional. If using the load service, provide its URL here (if not given, load operations will use the GSP endpoint). URL should be in the form <Load service domain and port>/store
 
   JWT_DOMAIN
     This should be the same as what's configured for MMS5 Auth Service
@@ -76,6 +82,11 @@ Other Configs
     Patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings
 
     | `Default: 512`
+
+  MMS5_SPARQL_REQUEST_TIMEOUT
+    Timeout per request sent to the triplestore, in seconds.
+
+    | `Default: 1800`
 
 Generate the initialization file
 --------------------------------
