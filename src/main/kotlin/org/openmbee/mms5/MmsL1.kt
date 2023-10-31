@@ -624,12 +624,11 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
             "groupId" to groups,
         )
 
-        log("Executing SPARQL Query:\n$sparql")
-
         // if the query caller accepts replica lag, use the more optimal query URL; otherwise use master
         val endpoint = if(params.acceptReplicaLag) call.application.quadStoreQueryUrl
             else call.application.quadStoreMasterQueryUrl
 
+        log("Executing SPARQL Query to $endpoint:\n$sparql")
         // submit the query to the appropriate endpoint and handle the response
         return handleSparqlResponse(defaultHttpClient.post(endpoint) {
             headers {
