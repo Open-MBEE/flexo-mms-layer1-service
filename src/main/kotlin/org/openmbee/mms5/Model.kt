@@ -415,7 +415,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
             queryResponseText = executeSparqlSelectOrAsk(outputQueryString) {
                 acceptReplicaLag = true
 
-                prefixes(prefixes)
             }
         }
         catch(executeError: Exception) {
@@ -459,7 +458,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString) {
             acceptReplicaLag = true
 
-            prefixes(prefixes)
         }
 
         call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
