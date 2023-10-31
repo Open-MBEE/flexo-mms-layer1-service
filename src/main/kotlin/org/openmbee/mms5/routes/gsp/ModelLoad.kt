@@ -409,8 +409,6 @@ fun Route.loadModel() {
                     """
                 )
 
-                log("Prepared commit update string:$commitUpdateString")
-
                 val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
                 var patchString = """
@@ -454,7 +452,7 @@ fun Route.loadModel() {
                     // otherwise, just give up
                     patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
                 }
-
+                log("Prepared commit update string:")
                 executeSparqlUpdate(commitUpdateString) {
                     prefixes(prefixes)
 
