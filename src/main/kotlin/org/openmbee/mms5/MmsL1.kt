@@ -610,7 +610,8 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     @OptIn(InternalAPI::class)
     suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, defaultGraph: String?=null, setup: (Parameterizer.() -> Unit)?=null): String {
-        var params = Parameterizer(pattern).apply {
+        // apply the optional parameterizer setup, default to using the built-in prefixes
+        val params = Parameterizer(pattern).apply {
             if(setup != null) setup()
             else prefixes(prefixes)
         }
