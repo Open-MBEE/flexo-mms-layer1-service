@@ -610,18 +610,27 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
 
     @OptIn(InternalAPI::class)
     suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (Parameterizer.() -> Unit)?=null): String {
-        var sparql = Parameterizer(pattern).apply {
+        // apply the optional parameterizer setup, default to using the built-in prefixes
+        val params = Parameterizer(pattern).apply {
             if(setup != null) setup()
             else prefixes(prefixes)
-        }.toString()
+        }
 
+        // stringify the SPARQL query
+        var sparql = params.toString()
+
+        // apply global replacement rules
         sparql = replaceValuesDirectives(sparql,
             "groupId" to groups,
         )
 
-        log("Executing SPARQL Query:\n$sparql")
+        // if the query caller accepts replica lag, use the more optimal query URL; otherwise use master
+        val endpoint = if(params.acceptReplicaLag) call.application.quadStoreQueryUrl
+            else call.application.quadStoreMasterQueryUrl
 
-        return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreQueryUrl) {
+        log("Executing SPARQL Query to $endpoint:\n$sparql")
+        // submit the query to the appropriate endpoint and handle the response
+        return handleSparqlResponse(defaultHttpClient.post(endpoint) {
             headers {
                 append(HttpHeaders.Accept, acceptType)
             }

@@ -45,7 +45,7 @@ class LockCreate : LockAny() {
         "create lock on committed master" {
             commitModel(masterPath, """
                 insert data {
-                    <urn:s> <urn:p> <urn:o> .
+                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
                 }
             """.trimIndent())
 
@@ -55,7 +55,7 @@ class LockCreate : LockAny() {
         "create lock on existing lock" {
             commitModel(masterPath, """
                 insert data {
-                    <urn:s> <urn:p> <urn:o> .
+                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
                 }
             """.trimIndent())
 

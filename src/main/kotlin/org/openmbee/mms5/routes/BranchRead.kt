@@ -78,14 +78,16 @@ fun Route.readBranch() {
 
                 // use quicker select query to fetch etags
                 val selectResponseText = executeSparqlSelectOrAsk(sparqlSelect) {
+                    acceptReplicaLag = true
+
+                    prefixes(prefixes)
+
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
-
-                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",
@@ -121,14 +123,16 @@ fun Route.readBranch() {
 
                 // fetch all branch details
                 val constructResponseText = executeSparqlConstructOrDescribe(sparqlConstruct) {
+                    acceptReplicaLag = true
+
+                    prefixes(prefixes)
+
                     // get by branchId
                     if(!allBranches) {
                         iri(
                             "_branch" to prefixes["morb"]!!,
                         )
                     }
-
-                    prefixes(prefixes)
 
                     iri(
                         "_context" to "urn:mms:context:$transactionId",

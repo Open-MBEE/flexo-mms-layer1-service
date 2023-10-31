@@ -10,7 +10,7 @@ class LockQuery : LockAny() {
         "query lock" {
             commitModel(masterPath, """
                 insert data {
-                    <urn:s> <urn:p> <urn:o> .
+                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
                 }
             """.trimIndent())
 
@@ -20,7 +20,7 @@ class LockQuery : LockAny() {
                 httpPost("$lockPath/query") {
                     setSparqlQueryBody("""
                         select ?o {
-                            <urn:s> <urn:p> ?o .
+                            <urn:mms:s> <urn:mms:p> ?o .
                         }
                     """.trimIndent())
                 }.apply {
@@ -36,7 +36,7 @@ class LockQuery : LockAny() {
                                     {
                                         "o": {
                                             "type": "uri",
-                                            "value": "urn:o"
+                                            "value": "urn:mms:o"
                                         }
                                     }
                                 ]
@@ -52,7 +52,7 @@ class LockQuery : LockAny() {
                 httpPost("/orgs/not-exists/repos/not-exists/locks/not-exists/query") {
                     setSparqlQueryBody("""
                         select ?o {
-                            <urn:s> <urn:p> ?o .
+                            <urn:mms:s> <urn:mms:p> ?o .
                         }
                     """)
                 }.apply {

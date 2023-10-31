@@ -27,6 +27,16 @@ val Application.quadStoreUpdateUrl: String
     get() = environment.config.property("mms.quad-store.update-url").getString()
 
 /**
+ * URL to submit SPARQL queries when application is performing write operation. Useful for deployments that have
+ * separate reader and writer instances, for which there may be some replica lag that would otherwise cause issues
+ * during MMS-5's calls to verify a write operation succeeded.
+ */
+val Application.quadStoreMasterQueryUrl: String
+    get() = environment.config.propertyOrNull("mms.quad-store.master-query-url")?.getString()
+        ?.ifEmpty { this.quadStoreQueryUrl }
+        ?: this.quadStoreQueryUrl
+
+/**
  * URL to submit [Graph Store Protocol](https://www.w3.org/TR/sparql11-http-rdf-update/) requests.
  */
 val Application.quadStoreGraphStoreProtocolUrl: String?
