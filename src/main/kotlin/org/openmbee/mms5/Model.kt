@@ -417,13 +417,11 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                 defaultGraph = "${prefixes["mor-graph"]}Metadata"
                 executeSparqlSelectOrAsk(graphQueryString) {
                     acceptReplicaLag = true
-                    prefixes(prefixes)
                 }
             }
             else -> {
                 val graphQueryResponseText = executeSparqlSelectOrAsk(graphQueryString) {
                     acceptReplicaLag = true
-                    prefixes(prefixes)
                 }
                 val result = JSON.parse(graphQueryResponseText)
                 defaultGraph = result.getObj("results").getArray("bindings").findFirst().get().asObject
