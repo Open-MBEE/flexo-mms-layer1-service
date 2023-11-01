@@ -1,7 +1,11 @@
 package org.openmbee.mms5
 
 import io.ktor.server.response.*
-import org.apache.jena.atlas.json.JSON
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Node_Variable
@@ -423,9 +427,17 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     prefixes(prefixes)
                     acceptReplicaLag = true
                 }
-                val result = JSON.parse(graphQueryResponseText)
-                defaultGraph = result.getObj("results").getArray("bindings").findFirst().get().asObject
-                    .getObj("${MMS_VARIABLE_PREFIX}modelGraph").getString("value")
+
+                // parse the JSON response
+                val bindings = Json.parseToJsonElement(graphQueryResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
+
+                // query error
+                if(0 == bindings.size) {
+                    throw ServerBugException("Query fetch the query graph failed to return any results")
+                }
+
+                // bind result to outer assignment
+                defaultGraph = bindings[0].jsonObject["${MMS_VARIABLE_PREFIX}modelGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
             }
         }
     } catch(executeError: Exception) {
