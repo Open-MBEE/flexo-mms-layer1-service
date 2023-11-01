@@ -9,7 +9,7 @@ import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 
 open class ModelAny: RefAny() {
-    val sparqlUpdate = """
+    val insertAliceRex = """
         prefix : <https://mms.openmbee.org/demos/people/>
         prefix foaf: <http://xmlns.com/foaf/0.1/>
         insert data {
@@ -25,7 +25,7 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
-    val sparqlUpdate2 = """
+    val insertBobFluffy = """
         prefix : <https://mms.openmbee.org/demos/people/>
         prefix foaf: <http://xmlns.com/foaf/0.1/>
         insert data {
@@ -47,7 +47,7 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
-    val sparqlQueryNames = """
+    val queryNames = """
         prefix : <https://mms.openmbee.org/demos/people/>
         prefix foaf: <http://xmlns.com/foaf/0.1/>
         select ?name where {
@@ -56,7 +56,7 @@ open class ModelAny: RefAny() {
         } order by asc(?name)
     """.trimIndent()
 
-    val sparqlQueryNamesResult = """
+    val queryNamesAliceResult = """
         {
             "head": {
                 "vars": [
@@ -75,7 +75,8 @@ open class ModelAny: RefAny() {
             }
         }
     """.trimIndent()
-    val sparqlQueryNamesResult2 = """
+
+    val queryNamesAliceBobResult = """
         {
             "head": {
                 "vars": [
@@ -101,7 +102,7 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
-    val sparqlQueryNamesResultBob = """
+    val queryNamesBobResult = """
         {
             "head": {
                 "vars": [
@@ -120,7 +121,8 @@ open class ModelAny: RefAny() {
             }
         }
     """.trimIndent()
-    val loadTurtle = """
+
+    val loadAliceRex = """
         @prefix : <https://mms.openmbee.org/demos/people/>
         @prefix foaf: <http://xmlns.com/foaf/0.1/>
 
@@ -132,7 +134,7 @@ open class ModelAny: RefAny() {
             foaf:name "Rex" .
     """.trimIndent()
 
-    val loadTurtle2 = """
+    val loadBobFluffy = """
         @prefix : <https://mms.openmbee.org/demos/people/>
         @prefix foaf: <http://xmlns.com/foaf/0.1/>
 

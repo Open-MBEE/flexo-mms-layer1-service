@@ -243,6 +243,16 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
     fun removeRest() {
         model.removeAll(subject, null, null)
     }
+
+    /**
+     * Asserts the subject exists (i.e., that is has at least one statement)
+     */
+    fun assertExists() {
+        val others = subject.listProperties()
+        if(!others.hasNext()) {
+            fail("\"$modelName\" model is missing triples for subject $subject:")
+        }
+    }
 }
 
 
@@ -271,6 +281,10 @@ class SubjectHandle(modelContext: ModelContext, subject: Resource) {
 
     fun ignoreAll() {
         subjectContext.removeRest()
+    }
+
+    fun exists() {
+        subjectContext.assertExists()
     }
 }
 
@@ -349,8 +363,8 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
 }
 
 infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
-    // assert content-type header
-    this.shouldHaveHeader(HttpHeaders.ContentType, "${RdfContentTypes.Turtle}; charset=UTF-8")
+    // assert content-type header (ignore charset if present)
+    this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
 
     // parse turtle into model
     val model = ModelFactory.createDefaultModel()

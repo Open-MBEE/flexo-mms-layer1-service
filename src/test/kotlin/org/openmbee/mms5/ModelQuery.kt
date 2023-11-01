@@ -7,77 +7,77 @@ import org.openmbee.mms5.util.*
 class ModelQuery : ModelAny() {
     init {
         "query data from model" {
-            val update = commitModel(masterPath, sparqlUpdate)
+            val update = commitModel(masterPath, insertAliceRex)
             withTest {
                 httpPost("$masterPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult)
+                    validateModelQueryResponse(queryNamesAliceResult)
                 }
             }
         }
 
         "query result is different between master and branch" {
-            commitModel(masterPath, sparqlUpdate)
+            commitModel(masterPath, insertAliceRex)
             createBranch(repoPath, "master", branchId, branchName)
-            commitModel(masterPath, sparqlUpdate2)
+            commitModel(masterPath, insertBobFluffy)
             withTest {
                 //branch model does not have second updates
                 httpPost("$branchPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult)
+                    validateModelQueryResponse(queryNamesAliceResult)
                 }
                 //master model is updated
                 httpPost("$masterPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult2)
+                    validateModelQueryResponse(queryNamesAliceBobResult)
                 }
             }
         }
 
         "query result is different between master and lock" {
-            commitModel(masterPath, sparqlUpdate)
+            commitModel(masterPath, insertAliceRex)
             createLock(repoPath, masterPath, lockId)
-            commitModel(masterPath, sparqlUpdate2)
+            commitModel(masterPath, insertBobFluffy)
             withTest {
                 //branch model does not have second updates
                 httpPost("$lockPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult)
+                    validateModelQueryResponse(queryNamesAliceResult)
                 }
                 //master model is updated
                 httpPost("$masterPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult2)
+                    validateModelQueryResponse(queryNamesAliceBobResult)
                 }
             }
         }
 
         "query result is different between master and lock from model loads" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
             createLock(repoPath, masterPath, lockId)
-            loadModel(masterPath, loadTurtle2)
+            loadModel(masterPath, loadBobFluffy)
             withTest {
                 httpPost("$lockPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(sparqlQueryNamesResult)
+                    validateModelQueryResponse(queryNamesAliceResult)
                 }
                 httpPost("$masterPath/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
                     // the load overwrites, so only bob exists
-                    validateModelQueryResponse(sparqlQueryNamesResultBob)
+                    validateModelQueryResponse(queryNamesBobResult)
                 }
             }
         }
 
         "subquery" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
             withTest {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody("""
@@ -98,7 +98,7 @@ class ModelQuery : ModelAny() {
         "nothing exists" {
             withTest {
                 httpPost("/orgs/not-exists/repos/not-exists/branches/not-exists/query") {
-                    setSparqlQueryBody(sparqlQueryNames)
+                    setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
                 }
@@ -106,7 +106,7 @@ class ModelQuery : ModelAny() {
         }
 
         "concat" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
             withTest {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody("""

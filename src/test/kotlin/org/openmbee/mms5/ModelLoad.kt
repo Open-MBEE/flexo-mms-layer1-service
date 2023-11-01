@@ -2,14 +2,13 @@ package org.openmbee.mms5
 
 import io.ktor.http.*
 import org.openmbee.mms5.util.*
-import java.io.File
 
 class ModelLoad : ModelAny() {
     init {
         "load all inserts on empty model" {
             withTest {
                 httpPost("$masterPath/graph") {
-                    setTurtleBody(loadTurtle)
+                    setTurtleBody(loadAliceRex)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                 }
@@ -29,12 +28,12 @@ class ModelLoad : ModelAny() {
         }
 
         "load all inserts on non-empty model" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
 
             withTest {
                 httpPost("$masterPath/graph") {
                     setTurtleBody("""
-                        $loadTurtle
+                        $loadAliceRex
 
                         :Xavier a :Person ;
                             foaf:name "Xavier" .
@@ -46,7 +45,7 @@ class ModelLoad : ModelAny() {
         }
 
         "load all deletes on non-empty model" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
 
             withTest {
                 httpPost("$masterPath/graph") {
@@ -58,11 +57,11 @@ class ModelLoad : ModelAny() {
         }
 
         "load no change on non-empty model" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
 
             withTest {
                 httpPost("$masterPath/graph") {
-                    setTurtleBody(loadTurtle)
+                    setTurtleBody(loadAliceRex)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                 }
@@ -70,7 +69,7 @@ class ModelLoad : ModelAny() {
         }
 
         "load both inserts and deletes on non-empty model" {
-            loadModel(masterPath, loadTurtle)
+            loadModel(masterPath, loadAliceRex)
 
             withTest {
                 httpPost("$masterPath/graph") {

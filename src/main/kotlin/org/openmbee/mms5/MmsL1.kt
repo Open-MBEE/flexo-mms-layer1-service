@@ -609,7 +609,7 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
     }
 
     @OptIn(InternalAPI::class)
-    suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, defaultGraph: String?=null, setup: (Parameterizer.() -> Unit)?=null): String {
+    suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (Parameterizer.() -> Unit)?=null): String {
         // apply the optional parameterizer setup, default to using the built-in prefixes
         val params = Parameterizer(pattern).apply {
             if(setup != null) setup()
@@ -635,20 +635,17 @@ class MmsL1Context(val call: ApplicationCall, val requestBody: String, val permi
                 append(HttpHeaders.Accept, acceptType)
             }
             contentType(RdfContentTypes.SparqlQuery)
-            if (defaultGraph != null) {
-                parameter("default-graph-uri", defaultGraph)
-            }
             body=sparql
         })
     }
 
 
-    suspend fun executeSparqlConstructOrDescribe(pattern: String, defaultGraph: String?=null, setup: (Parameterizer.() -> Unit)?=null): String {
-        return executeSparqlQuery(pattern, RdfContentTypes.Turtle, defaultGraph, setup)
+    suspend fun executeSparqlConstructOrDescribe(pattern: String, setup: (Parameterizer.() -> Unit)?=null): String {
+        return executeSparqlQuery(pattern, RdfContentTypes.Turtle, setup)
     }
 
-    suspend fun executeSparqlSelectOrAsk(pattern: String, defaultGraph: String?=null, setup: (Parameterizer.() -> Unit)?=null): String {
-        return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, defaultGraph, setup)
+    suspend fun executeSparqlSelectOrAsk(pattern: String, setup: (Parameterizer.() -> Unit)?=null): String {
+        return executeSparqlQuery(pattern, RdfContentTypes.SparqlResultsJson, setup)
     }
 
     fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {

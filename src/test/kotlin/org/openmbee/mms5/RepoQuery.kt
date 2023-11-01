@@ -19,7 +19,7 @@ class RepoQuery : ModelAny() {
 
     init {
         "query time of commit of lock" {
-            val update = commitModel(masterPath, sparqlUpdate)
+            val update = commitModel(masterPath, insertAliceRex)
             val etag = update.response.headers[HttpHeaders.ETag]!!
             createLock(repoPath, masterPath, lockId)
             // lock should be pointing to the commit from update

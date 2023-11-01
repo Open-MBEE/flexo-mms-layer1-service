@@ -7,7 +7,7 @@ import org.openmbee.mms5.util.*
 fun ModelCommit.commitAndValidateModel(branchPath: String) {
     withTest {
         httpPost("$branchPath/update") {
-            setSparqlUpdateBody(sparqlUpdate)
+            setSparqlUpdateBody(insertAliceRex)
         }.apply {
             response shouldHaveStatus HttpStatusCode.Created
 
@@ -34,7 +34,7 @@ class ModelCommit: ModelAny() {
         }
 
         "commit model on non-empty master" {
-            commitModel(masterPath, sparqlUpdate)
+            commitModel(masterPath, insertAliceRex)
 
             val branch = createBranch(repoPath, "master", branchId, branchName)
 

@@ -196,7 +196,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
      */
     fun require(key: String, setup: Condition.()->String): ConditionsBuilder {
         conditions.add(Condition(ConditionType.REQUIRE, key).apply {
-            pattern = setup()
+            pattern = setup().trimIndent()
         })
 
         return this
@@ -220,11 +220,11 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return conditions.map {
             """
                 {
-                    ${it.pattern}
+                    ${it.pattern.reindent(5)}
                     
                     bind("${it.key}" as ?$varName)
                 }
-            """
+            """.trimIndent()
         }
     }
 

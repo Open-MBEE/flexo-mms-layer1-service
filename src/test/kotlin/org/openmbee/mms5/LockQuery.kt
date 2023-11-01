@@ -8,12 +8,7 @@ import org.openmbee.mms5.util.*
 class LockQuery : LockAny() {
     init {
         "query lock" {
-            commitModel(masterPath, """
-                insert data {
-                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
-                }
-            """.trimIndent())
-
+            commitModel(masterPath, insertLock)
             createLock(repoPath, masterPath, lockId)
 
             withTest {
