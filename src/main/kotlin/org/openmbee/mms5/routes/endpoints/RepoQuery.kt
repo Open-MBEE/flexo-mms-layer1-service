@@ -28,7 +28,7 @@ fun Route.queryRepo() {
 
             queryModel(inputQueryString, prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
-            }, prefixes["mor"])
+            }, true, prefixes["mor"])
         }
     }
 }

@@ -266,7 +266,7 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
  * }
  *
  */
-suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup, baseIri: String?=null) {
+suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
     val (rewriter, outputQuery) = sanitizeUserQuery(inputQueryString, baseIri)
 
     // generate a unique substitute variable
@@ -285,8 +285,6 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         throw ServerBugException("Query type not yet supported")
     }
     val graphQuery = QueryFactory.create("""
-        $prefixes
-
         select ?${MMS_VARIABLE_PREFIX}modelGraph where {}
     """.trimIndent())
 
@@ -385,13 +383,13 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
                     }
 
                     // anything the rewriter wants to prepend
-                    rewriter.prepend.forEach { addElement(it) }
+                    //rewriter.prepend.forEach { addElement(it) }
 
                     // inline arbitrary user query
                     //addElement(ElementNamedGraph(modelGraphNode, queryPattern))
 
                     // anything the rewriter wants to append
-                    rewriter.append.forEach { addElement(it) }
+                    //rewriter.append.forEach { addElement(it) }
                 })
             })
         }
@@ -416,11 +414,13 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
             prefixes["mor"] -> {
                 defaultGraph = "${prefixes["mor-graph"]}Metadata"
                 executeSparqlSelectOrAsk(graphQueryString) {
+                    prefixes(prefixes)
                     acceptReplicaLag = true
                 }
             }
             else -> {
                 val graphQueryResponseText = executeSparqlSelectOrAsk(graphQueryString) {
+                    prefixes(prefixes)
                     acceptReplicaLag = true
                 }
                 val result = JSON.parse(graphQueryResponseText)
@@ -467,6 +467,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
         val queryResponseText: String
         try {
             queryResponseText = executeSparqlSelectOrAsk(outputQueryString, defaultGraph) {
+                if (addPrefix) prefixes(prefixes)
                 acceptReplicaLag = true
             }
         }
@@ -478,6 +479,7 @@ suspend fun MmsL1Context.queryModel(inputQueryString: String, refIri: String, co
     }
     else if(outputQuery.isConstructType || outputQuery.isDescribeType) {
         val queryResponseText = executeSparqlConstructOrDescribe(outputQueryString, defaultGraph) {
+            if (addPrefix) prefixes(prefixes)
             acceptReplicaLag = true
         }
 
