@@ -9,8 +9,6 @@ import org.openmbee.mms5.util.*
 class RepoQuery : ModelAny() {
 
     val lockCommitQuery = """
-        ${includePrefixes("mms")}
-
         select ?etag ?time where {
             ?lock mms:id "$lockId" .
             ?lock mms:commit ?commit .
