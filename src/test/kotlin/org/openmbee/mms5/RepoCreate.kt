@@ -16,7 +16,7 @@ class RepoCreate : RepoAny() {
         "reject invalid repo id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$repoPath with invalid id") {
-                    setTurtleBody(validRepoBody)
+                    setTurtleBody(withAllTestPrefixes(validRepoBody))
                 }.apply {
                     response shouldHaveStatus 400
                 }
@@ -26,10 +26,10 @@ class RepoCreate : RepoAny() {
         "create valid repo" {
             withTest {
                 httpPut(repoPath) {
-                    setTurtleBody("""
+                    setTurtleBody(withAllTestPrefixes("""
                         $validRepoBody
                         <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
-                    """.trimIndent())
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()

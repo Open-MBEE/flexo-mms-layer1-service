@@ -39,7 +39,7 @@ class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.(
 
     override fun toString(): String {
         return map.entries.fold("") {
-            out, (key, value) -> out + "prefix $key: <$value>\n"
+            out, (key, value) -> out + "PREFIX $key: <$value>\n"
         }
     }
 

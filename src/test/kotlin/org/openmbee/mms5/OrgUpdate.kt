@@ -14,18 +14,14 @@ class OrgUpdate : OrgAny() {
 
             withTest {
                 httpPatch(orgPath) {
-                    setSparqlUpdateBody("""
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
-                        prefix dct: <http://purl.org/dc/terms/>
-
+                    setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "$orgName"@en .
                         }
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
@@ -45,18 +41,14 @@ class OrgUpdate : OrgAny() {
 
             withTest {
                 httpPatch(orgPath) {
-                    setSparqlUpdateBody("""                        
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
-                        prefix dct: <http://purl.org/dc/terms/>
-
+                    setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "Not $orgName"@en .
                         }
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }

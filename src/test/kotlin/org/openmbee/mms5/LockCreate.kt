@@ -12,7 +12,7 @@ class LockCreate : LockAny() {
     fun createAndValidateLock(_lockId: String=lockId, lockBody: String=fromMaster) {
         withTest {
             httpPut("$repoPath/locks/$_lockId") {
-                setTurtleBody(lockBody)
+                setTurtleBody(withAllTestPrefixes(lockBody))
             }.apply {
                 response shouldHaveStatus HttpStatusCode.OK
 
@@ -31,7 +31,7 @@ class LockCreate : LockAny() {
         "reject invalid lock id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$lockPath with invalid id") {
-                    setTurtleBody(fromMaster)
+                    setTurtleBody(withAllTestPrefixes(fromMaster))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }

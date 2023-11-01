@@ -15,7 +15,7 @@ class OrgCreate : OrgAny() {
         "reject invalid org id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$orgPath with invalid id") {
-                    setTurtleBody(validOrgBody)
+                    setTurtleBody(withAllTestPrefixes(validOrgBody))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -30,10 +30,10 @@ class OrgCreate : OrgAny() {
             "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
                     httpPut(orgPath) {
-                        setTurtleBody("""
+                        setTurtleBody(withAllTestPrefixes("""
                             $validOrgBody
                             <> $pred $obj .
-                        """.trimIndent())
+                        """.trimIndent()))
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.BadRequest
                     }
@@ -44,7 +44,7 @@ class OrgCreate : OrgAny() {
         "create valid org" {
             withTest {
                 httpPut(orgPath) {
-                    setTurtleBody(validOrgBody)
+                    setTurtleBody(withAllTestPrefixes(validOrgBody))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
