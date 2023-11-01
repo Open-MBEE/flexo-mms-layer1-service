@@ -24,11 +24,11 @@ fun Route.queryRepo() {
             checkPrefixConflicts()
 
             // use request body for SPARQL query
-            val inputQueryString = requestBody
+            val inputQueryString = "$prefixes\n$requestBody"
 
             queryModel(inputQueryString, prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
-            }, true, prefixes["mor"])
+            }, false, prefixes["mor"])
         }
     }
 }
