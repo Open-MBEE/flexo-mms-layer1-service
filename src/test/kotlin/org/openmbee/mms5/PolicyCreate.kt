@@ -85,7 +85,7 @@ class PolicyCreate : CommonSpec() {
         "reject invalid policy id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("$policyPath with invalid id") {
-                    setTurtleBody(validPolicyBody)
+                    setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -99,10 +99,10 @@ class PolicyCreate : CommonSpec() {
             "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
                     httpPut(policyPath) {
-                        setTurtleBody("""
+                        setTurtleBody(withAllTestPrefixes("""
                             $validPolicyBody
                             <> $pred $obj .
-                        """.trimIndent())
+                        """.trimIndent()))
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.BadRequest
                     }
@@ -113,7 +113,7 @@ class PolicyCreate : CommonSpec() {
         "create valid policy".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut(policyPath) {
-                    setTurtleBody(validPolicyBody)
+                    setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()

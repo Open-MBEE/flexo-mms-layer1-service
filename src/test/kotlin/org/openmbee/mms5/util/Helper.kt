@@ -1,12 +1,8 @@
 package org.openmbee.mms5.util
 
 import io.ktor.http.*
-import io.ktor.server.request.*
 import io.ktor.server.testing.*
-import org.apache.jena.rdf.model.Model
-import org.openmbee.mms5.KModel
-import org.openmbee.mms5.RdfContentTypes
-import org.openmbee.mms5.parseTurtle
+import org.openmbee.mms5.*
 
 
 fun createOrg(orgId: String, orgName: String): TestApplicationCall {
@@ -82,3 +78,30 @@ fun loadModel(refPath: String, turtle: String): TestApplicationCall {
     }
 }
 
+fun includePrefixes(vararg prefixKeys: String, extraSetup: (PrefixMapBuilder.() -> Unit)?=null): String {
+    return PrefixMapBuilder().apply {
+        add(*SPARQL_PREFIXES.map.filterKeys {
+            it in prefixKeys
+        }.toList().toTypedArray())
+
+        extraSetup?.invoke(this)
+    }.toString()
+}
+
+fun includeAllTestPrefixes(extraSetup: (PrefixMapBuilder.() -> Unit)?=null): String {
+    return includePrefixes("rdf", "rdfs", "dct", "xsd", "mms") {
+        add(
+            "foaf" to "http://xmlns.com/foaf/0.1/"
+        )
+
+        extraSetup?.invoke(this)
+    }
+}
+
+fun withAllTestPrefixes(body: String): String {
+    return """
+        ${includeAllTestPrefixes()}
+        
+        $body
+    """.trimIndent()
+}

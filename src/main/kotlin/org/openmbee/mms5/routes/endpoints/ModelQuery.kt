@@ -18,8 +18,8 @@ fun Route.queryModel() {
 
             checkPrefixConflicts()
 
-            // auto-inject default prefixes
-            val inputQueryString = "$prefixes\n$requestBody"
+            // use request body for SPARQL query
+            val inputQueryString = requestBody
 
             queryModel(inputQueryString, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }

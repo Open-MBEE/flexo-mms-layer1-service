@@ -14,18 +14,14 @@ class RepoUpdate : RepoAny() {
 
             withTest {
                 httpPatch(repoPath) {
-                    setSparqlUpdateBody("""
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
-                        prefix dct: <http://purl.org/dc/terms/>
-
+                    setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "$repoName"@en .
                         }
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
@@ -48,18 +44,14 @@ class RepoUpdate : RepoAny() {
 
             withTest {
                 httpPatch(repoPath) {
-                    setSparqlUpdateBody("""
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
-                        prefix dct: <http://purl.org/dc/terms/>
-
+                    setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "Not $repoName"@en .
                         }
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }

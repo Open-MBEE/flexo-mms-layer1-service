@@ -25,7 +25,7 @@ class RepoQuery : ModelAny() {
             // lock should be pointing to the commit from update
             withTest {
                 httpPost("$repoPath/query") {
-                    setSparqlQueryBody(lockCommitQuery)
+                    setSparqlQueryBody(withAllTestPrefixes(lockCommitQuery))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")

@@ -49,11 +49,11 @@ class GroupCreate : CommonSpec() {
     val groupPath = "/groups/${URLEncoder.encode(groupId, "UTF-8")}"
 
     val groupTitle = "Test Group"
-    val validGroupBody = """
+    val validGroupBody = withAllTestPrefixes("""
         <>
             dct:title "${groupTitle}"@en ;
             .
-    """.trimIndent()
+    """.trimIndent())
 
     init {
         "group id with slash".config(tags=setOf(NoAuth)) {
