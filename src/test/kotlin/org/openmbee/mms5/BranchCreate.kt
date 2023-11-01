@@ -1,6 +1,5 @@
 package org.openmbee.mms5
 
-import io.kotest.core.spec.style.describeSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.ktor.http.*
@@ -14,7 +13,7 @@ class BranchCreate : RefAny() {
         "reject invalid branch id".config(tags=setOf(NoAuth)) {
             withTest {
                 httpPut("/orgs/$orgId/repos/$repoId/branches/bad branch id") {
-                    setTurtleBody(validBranchBodyFromMaster)
+                    setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -33,11 +32,11 @@ class BranchCreate : RefAny() {
                         var ref = "<> mms:ref <./master> ."
                         if (pred == "mms:ref")
                             ref = ""
-                        setTurtleBody("""
+                        setTurtleBody(withAllTestPrefixes("""
                             <> dct:title "$branchName"@en .
                             <> $pred $obj .
                             $ref
-                        """.trimIndent())
+                        """.trimIndent()))
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.BadRequest
                     }
@@ -48,7 +47,7 @@ class BranchCreate : RefAny() {
         "create branch from master after a commit to master" {
             val update = commitModel(masterPath, """
                 insert data {
-                    <http://somesub.com> <http://somepred.com> 5 . 
+                    <mms:urn:s> <mms:urn:p> 5 . 
                 }
             """.trimIndent())
 
@@ -56,9 +55,7 @@ class BranchCreate : RefAny() {
 
             withTest {
                 httpPut(branchPath) {
-                    setTurtleBody("""
-                        $validBranchBodyFromMaster
-                    """.trimIndent())
+                    setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     validateCreateBranchResponse(commit!!)
                 }
@@ -68,9 +65,7 @@ class BranchCreate : RefAny() {
         "create branch from empty master" {
             withTest {
                 httpPut(branchPath) {
-                    setTurtleBody("""
-                        $validBranchBodyFromMaster
-                    """.trimIndent())
+                    setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     validateCreateBranchResponse(repoEtag)
                 }
@@ -120,11 +115,10 @@ class BranchCreate : RefAny() {
             withTest {
                 // create branch and validate
                 httpPut(branchPath) {
-                    setTurtleBody("""
+                    setTurtleBody(withAllTestPrefixes("""
                         ${title(branchName)}
                         <> mms:commit mor-commit:$restoreCommitId .
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     validateCreateBranchResponse(restoreCommitId)
                 }
@@ -171,10 +165,10 @@ class BranchCreate : RefAny() {
 
             withTest {
                 httpPut(branchPath) {
-                    setTurtleBody("""
+                    setTurtleBody(withAllTestPrefixes("""
                         ${title(branchName)}
                         <> mms:commit mor-commit:${commitId2} .
-                    """.trimIndent())
+                    """.trimIndent()))
                 }.apply {
                     validateCreateBranchResponse(commitId2)
                 }

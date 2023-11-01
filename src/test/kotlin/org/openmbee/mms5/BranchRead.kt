@@ -59,7 +59,7 @@ class BranchRead : RefAny() {
         "create from committed master then get all branches" {
             val update = commitModel(masterPath, """
                 insert data { 
-                    <http://somesub> <http://somepred> 5 .
+                    <urn:mms:s> <urn:mms:p> 5 .
                 }
             """.trimIndent())
 

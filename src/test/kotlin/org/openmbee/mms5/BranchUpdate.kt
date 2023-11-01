@@ -14,18 +14,14 @@ class BranchUpdate : RefAny() {
 
             withTest {
                 httpPatch(branchPath) {
-                    setSparqlUpdateBody(
-                        """
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
-                        prefix dct: <http://purl.org/dc/terms/>
+                    setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "$branchName"@en .
                         }
-                    """.trimIndent()
-                    )
+                    """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 

@@ -9,6 +9,8 @@ import org.openmbee.mms5.util.*
 class RepoQuery : ModelAny() {
 
     val lockCommitQuery = """
+        ${includePrefixes("mms")}
+
         select ?etag ?time where {
             ?lock mms:id "$lockId" .
             ?lock mms:commit ?commit .
@@ -25,7 +27,7 @@ class RepoQuery : ModelAny() {
             // lock should be pointing to the commit from update
             withTest {
                 httpPost("$repoPath/query") {
-                    setSparqlQueryBody(lockCommitQuery)
+                    setSparqlQueryBody(withAllTestPrefixes(lockCommitQuery))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")
