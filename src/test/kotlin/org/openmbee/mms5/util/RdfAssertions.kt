@@ -243,16 +243,6 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
     fun removeRest() {
         model.removeAll(subject, null, null)
     }
-
-    /**
-     * Asserts the subject exists (i.e., that is has at least one statement)
-     */
-    fun assertExists() {
-        val others = subject.listProperties()
-        if(!others.hasNext()) {
-            fail("\"$modelName\" model is missing triples for subject $subject:")
-        }
-    }
 }
 
 
@@ -281,10 +271,6 @@ class SubjectHandle(modelContext: ModelContext, subject: Resource) {
 
     fun ignoreAll() {
         subjectContext.removeRest()
-    }
-
-    fun exists() {
-        subjectContext.assertExists()
     }
 }
 

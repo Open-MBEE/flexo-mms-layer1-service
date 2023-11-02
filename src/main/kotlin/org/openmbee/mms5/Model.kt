@@ -9,6 +9,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
+import org.apache.jena.graph.Triple
 import org.apache.jena.query.Query
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
@@ -30,20 +31,6 @@ const val MMS_VARIABLE_PREFIX = "__mms_"
 val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
 
 val MMS_SNAPSHOT_PROPERTY_NODE = MMS.snapshot.asNode()
-
-val REF_GRAPH_PATH: Path = PathFactory.pathSeq(
-    PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE),
-    PathFactory.pathLink(MMS.graph.asNode())
-)
-
-// ^mms:snapshot/mms:snapshot/a
-val SNAPSHOT_SIBLINGS_PATH: Path = PathFactory.pathSeq(
-    PathFactory.pathSeq(
-        PathFactory.pathInverse(PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE)),
-        PathFactory.pathLink(MMS_SNAPSHOT_PROPERTY_NODE),
-    ),
-    PathFactory.pathLink(RDF.type.asNode())
-)
 
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
@@ -97,7 +84,7 @@ class VariableAccumulator(private val variables: MutableCollection<Var>): Patter
 
 
 
-class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
+class GraphNodeRewriter(val prefixes: PrefixMapBuilder, val targetGraphIri: String) {
     private val limiters = hashSetOf<String>()
 
     val prepend = mutableListOf<Element>()
@@ -118,7 +105,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
                 // append values block
                 val graphVar = Var.alloc(node)
                 append.add(ElementData(arrayListOf(graphVar), arrayListOf(
-                    BindingBuilder.create().add(graphVar, NodeFactory.createURI(prefixes["mor-graph"])).build()
+                    BindingBuilder.create().add(graphVar, NodeFactory.createURI(targetGraphIri)).build()
                 )))
             }
 
@@ -136,7 +123,7 @@ class GraphNodeRewriter(val prefixes: PrefixMapBuilder) {
     }
 }
 
-fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=null): Pair<GraphNodeRewriter, Query> {
+fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, targetGraphIri: String, baseIri: String?=null): Pair<GraphNodeRewriter, Query> {
     // parse query
     val inputQuery = try {
         if(baseIri != null) {
@@ -166,7 +153,7 @@ fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, baseIri: String?=nu
         }
     }
 
-    val rewriter = GraphNodeRewriter(prefixes)
+    val rewriter = GraphNodeRewriter(prefixes, targetGraphIri)
 
     return rewriter to QueryTransformOps.transform(inputQuery, object: ElementTransformCopyBase() {
         fun transform(el: Element): Element {
@@ -249,7 +236,7 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
                 bind(<$targetGraphIri> as ?targetGraph)
             """.reindent(3) else """
                 # select the model graph to query
-                graph mor-graph:Metadata {            
+                graph mor-graph:Metadata {
                     <$refIri> mms:snapshot ?snapshot .
                     ?snapshot mms:graph ?targetGraph .
                     
@@ -330,18 +317,60 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
     }
 
     // sanitize the input query string
-    val (rewriter, userQuery) = sanitizeUserQuery(inputQueryString, baseIri)
-
-    // not yet supported
-    if(!userQuery.isSelectType) {
-        throw Http400Exception("Query type not supported")
-    }
+    val (rewriter, userQuery) = sanitizeUserQuery(inputQueryString, targetGraphIri, baseIri)
 
     // transform the user query
     userQuery.apply {
         // unset query result star; jena will convert all top-scoped variables in user's original query to explicit select variables
         if(isQueryResultStar) {
             isQueryResultStar = false
+        }
+
+        // no pattern
+        if(queryPattern == null) {
+            // describe type with explicit iri
+            if(isDescribeType && resultURIs.isNotEmpty()) {
+                // target node
+                val targetNode = resultURIs.first()
+
+                // target var
+                val targetVar = Var.alloc("target")
+
+                // set pattern to: { { ?target ?out ?object } union { ?subject ?in ?target } values ?target { <$IRI> } }
+                queryPattern = ElementGroup().apply {
+                    // union block
+                    addElement(ElementUnion().apply {
+                        // { ?target ?out ?object }
+                        addElement(ElementGroup().apply {
+                            addElement(ElementTriplesBlock().apply {
+                                addTriple(Triple.create(targetVar, Var.alloc("out"), Var.alloc("object")))
+                            })
+                        })
+
+                        // { ?subject ?in ?target }
+                        addElement(ElementUnion().apply {
+                            addElement(ElementTriplesBlock().apply {
+                                addTriple(Triple.create(Var.alloc("subject"), Var.alloc("in"), targetVar))
+                            })
+                        })
+                    })
+
+                    // values ?target { <$IRI> }
+                    addElement(ElementData(arrayListOf(targetVar), arrayListOf(
+                        BindingBuilder.create().add(targetVar, targetNode).build()
+                    )))
+                }
+
+                // overwrite describe target
+                userQuery.resultURIs.apply {
+                    clear()
+                    add(targetVar)
+                }
+            }
+            // not handled
+            else {
+                throw Http400Exception("Query type not supported")
+            }
         }
 
         // overwrite the query pattern with a group block
