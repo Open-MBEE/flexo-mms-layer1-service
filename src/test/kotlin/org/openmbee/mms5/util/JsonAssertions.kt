@@ -37,7 +37,7 @@ class JsonAsserter(json: JsonElement, var resultsName: String="Unnamed") {
     private val bindingsActual = json.jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray.toTypedArray()
         .toCollection(ArrayList())
 
-    private val varsExpect = hashSetOf<String>()
+    val varsExpect = hashSetOf<String>()
     private val bindings = arrayListOf<JsonObject>()
 
     /**

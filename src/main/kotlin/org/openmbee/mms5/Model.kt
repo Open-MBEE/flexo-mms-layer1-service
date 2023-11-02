@@ -83,136 +83,6 @@ class VariableAccumulator(private val variables: MutableCollection<Var>): Patter
 }
 
 
-
-class GraphNodeRewriter(val prefixes: PrefixMapBuilder, val targetGraphIri: String) {
-    private val limiters = hashSetOf<String>()
-
-    val prepend = mutableListOf<Element>()
-    val append = mutableListOf<Element>()
-
-    fun rewrite(uri: String): String {
-        return "urn:mms:error/access-denied?to=${URLEncoder.encode(uri, UTF8Name)}"
-    }
-
-    fun rewrite(node: Node): Node {
-        // graph variable
-        if(node.isVariable) {
-            // first encounter
-            if(!limiters.contains(node.name)) {
-                // add to set
-                limiters.add(node.name)
-
-                // append values block
-                val graphVar = Var.alloc(node)
-                append.add(ElementData(arrayListOf(graphVar), arrayListOf(
-                    BindingBuilder.create().add(graphVar, NodeFactory.createURI(targetGraphIri)).build()
-                )))
-            }
-
-            // identity
-            return node
-        }
-        // graph IRI
-        else if(node.isURI) {
-            // rewrite
-            return NodeFactory.createURI(this.rewrite(node.uri))
-        }
-
-        // unhandled node type
-        return NodeFactory.createURI("urn:mms:error/unhandled-node-type")
-    }
-}
-
-fun MmsL1Context.sanitizeUserQuery(inputQueryString: String, targetGraphIri: String, baseIri: String?=null): Pair<GraphNodeRewriter, Query> {
-    // parse query
-    val inputQuery = try {
-        if(baseIri != null) {
-            QueryFactory.create(inputQueryString, baseIri)
-        }
-        else {
-            QueryFactory.create(inputQueryString)
-        }
-    } catch(parse: Exception) {
-        throw QuerySyntaxException(parse)
-    }
-
-    if(inputQueryString.contains(NEFARIOUS_VARIABLE_REGEX)) {
-        // look in select vars
-        for(resultVar in inputQuery.resultVars) {
-            if(resultVar.startsWith(MMS_VARIABLE_PREFIX)) {
-                throw NefariousVariableNameException(resultVar)
-            }
-        }
-
-        val variables = mutableListOf<Var>()
-        ElementWalker.walk(inputQuery.queryPattern, VariableAccumulator(variables))
-        for(variable in variables) {
-            if(variable.varName.startsWith(MMS_VARIABLE_PREFIX)) {
-                throw NefariousVariableNameException(variable.varName)
-            }
-        }
-    }
-
-    val rewriter = GraphNodeRewriter(prefixes, targetGraphIri)
-
-    return rewriter to QueryTransformOps.transform(inputQuery, object: ElementTransformCopyBase() {
-        fun transform(el: Element): Element {
-            if(el is ElementSubQuery) {
-                val subquery = el.query
-                val transformedQuery = subquery.cloneQuery()
-                transformedQuery.queryPattern = ElementTransformer.transform(subquery.queryPattern, this)
-                return ElementSubQuery(transformedQuery)
-            }
-
-            return ElementTransformer.transform(el, this)
-        }
-
-        override fun transform(group: ElementGroup, members: MutableList<Element>): Element {
-            return ElementGroup().apply {
-                elements.addAll(members.map { transform(it) })
-            }
-        }
-
-        override fun transform(exists: ElementExists, el: Element): Element {
-            return ElementExists(transform(el))
-        }
-
-        override fun transform(exists: ElementNotExists, el: Element): Element {
-            return ElementNotExists(transform(el))
-        }
-
-        override fun transform(exists: ElementOptional, el: Element): Element {
-            return ElementOptional(transform(el))
-        }
-
-        override fun transform(union: ElementUnion, members: MutableList<Element>): Element {
-            return ElementUnion().apply {
-                elements.addAll(members.map { transform(it) })
-            }
-        }
-
-        override fun transform(minus: ElementMinus, el: Element): Element {
-            return ElementMinus(transform(el))
-        }
-
-        override fun transform(subq: ElementSubQuery, query: Query): Element {
-            return ElementSubQuery(query.apply { queryPattern = transform(queryPattern) })
-        }
-
-        override fun transform(el: ElementService?, service: Node?, elt1: Element?): Element {
-            throw ServiceNotAllowedException()
-        }
-
-        override fun transform(graph: ElementNamedGraph, gn: Node, subElt: Element): Element {
-            return ElementNamedGraph(rewriter.rewrite(gn), subElt)
-        }
-    }).apply {
-        // rewrite from and from named
-        graphURIs.replaceAll { rewriter.rewrite(it) }
-        namedGraphURIs.replaceAll { rewriter.rewrite(it) }
-    }
-}
-
 /**
  * Checks that all necessary conditions are met (i.e., branch state, access control, etc.) before parsing and transforming
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
@@ -317,16 +187,20 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
         targetGraphIri = bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
     }
 
-    // sanitize the input query string
-    val (rewriter, userQuery) = sanitizeUserQuery(inputQueryString, targetGraphIri, baseIri)
+    // parse user query
+    val userQuery = try {
+        if(baseIri != null) {
+            QueryFactory.create(inputQueryString, baseIri)
+        }
+        else {
+            QueryFactory.create(inputQueryString)
+        }
+    } catch(parse: Exception) {
+        throw QuerySyntaxException(parse)
+    }
 
     // transform the user query
     userQuery.apply {
-        // unset query result star; jena will convert all top-scoped variables in user's original query to explicit select variables
-        if(isQueryResultStar) {
-            isQueryResultStar = false
-        }
-
         // no pattern
         if(queryPattern == null) {
             // describe type with explicit iri
@@ -374,17 +248,16 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
             }
         }
 
-        // overwrite the query pattern with a group block
-        queryPattern = ElementGroup().apply {
-            // anything the rewriter wants to prepend
-            rewriter.prepend.forEach { addElement(it) }
-
-            // inline arbitrary user query
-            addElement(ElementNamedGraph(NodeFactory.createURI(targetGraphIri), queryPattern))
-
-            // anything the rewriter wants to append
-            rewriter.append.forEach { addElement(it) }
+        // reject any from or from named
+        if(graphURIs.isNotEmpty() || namedGraphURIs.isNotEmpty()) {
+            throw Http403Exception(this@processAndSubmitUserQuery, "FROM target")
         }
+
+        // set default graph
+        graphURIs.add(targetGraphIri)
+
+        // set named graph(s)
+        namedGraphURIs.add(targetGraphIri)
     }
 
     // serialize user query

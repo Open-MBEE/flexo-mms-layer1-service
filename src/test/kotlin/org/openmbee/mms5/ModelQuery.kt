@@ -50,6 +50,69 @@ class ModelQuery : ModelAny() {
             }
         }
 
+        "query model with from default not authorized" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                // master model is updated
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(withAllTestPrefixes("""
+                        select *
+                            from m-graph:AccessControl.Policies
+                        {
+                            ?s ?p ?o
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.Forbidden
+                }
+            }
+        }
+
+        "query model with from named not authorized" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                // master model is updated
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(withAllTestPrefixes("""
+                        select *
+                            from named m-graph:AccessControl.Policies
+                        {
+                            graph ?g {
+                                ?s ?p ?o
+                            }
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.Forbidden
+                }
+            }
+        }
+
+        "query model graph not there" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                // master model is updated
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody(withAllTestPrefixes("""
+                        select * {
+                            graph m-graph:AccessControl.Policies {
+                                ?s ?p ?o
+                            }
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    response equalsSparqlResults {
+                        varsExpect.addAll(listOf(
+                            "s", "p", "o"
+                        ))
+                    }
+                }
+            }
+        }
+
         "ask model: true" {
             commitModel(masterPath, insertAliceRex)
 
