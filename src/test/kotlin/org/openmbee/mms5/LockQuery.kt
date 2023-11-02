@@ -8,12 +8,7 @@ import org.openmbee.mms5.util.*
 class LockQuery : LockAny() {
     init {
         "query lock" {
-            commitModel(masterPath, """
-                insert data {
-                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
-                }
-            """.trimIndent())
-
+            commitModel(masterPath, insertLock)
             createLock(repoPath, masterPath, lockId)
 
             withTest {
@@ -24,9 +19,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response.content!!.shouldEqualJson("""
+                    response shouldEqualSparqlResultsJson """
                         {
                             "head": {
                                 "vars": ["o"]
@@ -42,7 +35,7 @@ class LockQuery : LockAny() {
                                 ]
                             }
                         }
-                    """.trimIndent())
+                    """.trimIndent()
                 }
             }
         }

@@ -14,12 +14,12 @@ fun Route.queryLock() {
                 inspect()
             }
 
-            checkPrefixConflicts()
+            //checkPrefixConflicts()
 
             // use request body for SPARQL query
             val inputQueryString = requestBody
 
-            queryModel(inputQueryString, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+            processAndSubmitUserQuery(inputQueryString, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }

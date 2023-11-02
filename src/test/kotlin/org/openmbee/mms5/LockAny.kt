@@ -43,5 +43,9 @@ fun TriplesAsserter.validateLockTriples(
 
 
 open class LockAny : RefAny() {
-
+    val insertLock = """
+        insert data {
+            <urn:mms:s> <urn:mms:p> <urn:mms:o> .
+        }
+    """.trimIndent()
 }

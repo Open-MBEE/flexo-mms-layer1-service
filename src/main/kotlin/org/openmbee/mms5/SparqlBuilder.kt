@@ -450,3 +450,7 @@ class UpdateBuilder(
         }
     }
 }
+
+fun String.reindent(width: Int): String {
+    return "\n"+this.trimIndent().prependIndent("    ".repeat(width))
+}

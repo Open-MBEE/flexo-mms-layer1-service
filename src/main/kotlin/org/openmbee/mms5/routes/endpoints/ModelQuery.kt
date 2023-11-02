@@ -2,7 +2,6 @@ package org.openmbee.mms5.routes.endpoints
 
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
-import org.apache.jena.query.QueryFactory
 import org.openmbee.mms5.*
 
 
@@ -16,12 +15,12 @@ fun Route.queryModel() {
                 inspect()
             }
 
-            checkPrefixConflicts()
+            //checkPrefixConflicts()
 
             // use request body for SPARQL query
             val inputQueryString = requestBody
 
-            queryModel(inputQueryString, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+            processAndSubmitUserQuery(inputQueryString, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }

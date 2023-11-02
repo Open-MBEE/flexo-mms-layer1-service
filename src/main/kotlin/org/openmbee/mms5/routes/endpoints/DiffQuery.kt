@@ -5,7 +5,7 @@ import io.ktor.server.routing.*
 import org.openmbee.mms5.DIFF_QUERY_CONDITIONS
 import org.openmbee.mms5.Permission
 import org.openmbee.mms5.mmsL1
-import org.openmbee.mms5.queryModel
+import org.openmbee.mms5.processAndSubmitUserQuery
 
 
 fun Route.queryDiff() {
@@ -23,7 +23,7 @@ fun Route.queryDiff() {
             // use request body for SPARQL query
             val inputQueryString = requestBody
 
-            queryModel(inputQueryString, prefixes["mord"]!!, DIFF_QUERY_CONDITIONS.append {
+            processAndSubmitUserQuery(inputQueryString, prefixes["mord"]!!, DIFF_QUERY_CONDITIONS.append {
                 assertPreconditions(this) { "" }
             })
         }
