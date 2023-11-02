@@ -1,7 +1,11 @@
 package org.openmbee.mms5
 
-import io.kotest.assertions.json.shouldMatchJson
+import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.openmbee.mms5.util.*
 
 class ModelQuery : ModelAny() {
@@ -12,7 +16,50 @@ class ModelQuery : ModelAny() {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                }
+            }
+        }
+
+        "query selects model graph" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                // master model is updated
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        select ?g {
+                            graph ?g {
+                                ?s ?p ?o
+                            }
+                        }
+                    """.trimIndent())
+                }.apply {
+//                    val modelGraphIri = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
+//                        .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
+//                        .jsonPrimitive.content
+//
+//                    modelGraphIri shouldContain "/Model."
+//
+//                    response shouldEqualSparqlResultsJson """
+//                        {
+//                            "head": {
+//                                "vars": [
+//                                    "g"
+//                                ]
+//                            },
+//                            "results": {
+//                                "bindings": [
+//                                    {
+//                                        "g": {
+//                                            "type": "uri",
+//                                            "value": "$modelGraphIri"
+//                                        }
+//                                    }
+//                                ]
+//                            }
+//                        }
+//                    """.trimIndent()
                 }
             }
         }
@@ -26,13 +73,13 @@ class ModelQuery : ModelAny() {
                 httpPost("$branchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 //master model is updated
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceBobResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
         }
@@ -46,13 +93,13 @@ class ModelQuery : ModelAny() {
                 httpPost("$lockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 //master model is updated
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceBobResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
         }
@@ -65,13 +112,13 @@ class ModelQuery : ModelAny() {
                 httpPost("$lockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    validateModelQueryResponse(queryNamesAliceResult)
+                    response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     // the load overwrites, so only bob exists
-                    validateModelQueryResponse(queryNamesBobResult)
+                    response shouldEqualSparqlResultsJson queryNamesBobResult
                 }
             }
         }
@@ -119,7 +166,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response.content shouldMatchJson """
+                    response shouldEqualSparqlResultsJson """
                         {
                             "head": {
                                 "vars": ["concat"]

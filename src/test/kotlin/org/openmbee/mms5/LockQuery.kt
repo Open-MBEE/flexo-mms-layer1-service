@@ -24,9 +24,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response.content!!.shouldEqualJson("""
+                    response shouldEqualSparqlResultsJson """
                         {
                             "head": {
                                 "vars": ["o"]
@@ -42,7 +40,7 @@ class LockQuery : LockAny() {
                                 ]
                             }
                         }
-                    """.trimIndent())
+                    """.trimIndent()
                 }
             }
         }

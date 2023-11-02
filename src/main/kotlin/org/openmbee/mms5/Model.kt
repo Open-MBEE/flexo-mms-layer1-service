@@ -236,8 +236,9 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
                 bind(<$targetGraphIri> as ?targetGraph)
             """.reindent(3) else """
                 # select the model graph to query
-                graph mor-graph:Metadata {
-                    <$refIri> mms:snapshot ?snapshot .
+                graph mor-graph:Metadata {            
+                    <$refIri> mms:commit ?commit .
+                    ?commit ^mms:commit/mms:snapshot ?snapshot .
                     ?snapshot mms:graph ?targetGraph .
                     
                     # prefer the model snapshot
@@ -248,7 +249,7 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
                     union {
                         ?snapshot a mms:Staging .
                         filter not exists {
-                            ?snapshot ^mms:snapshot/mms:snapshot/a mms:Model .
+                            ?commit ^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
                 }
