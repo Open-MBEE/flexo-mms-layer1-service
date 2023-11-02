@@ -2,6 +2,8 @@ package org.openmbee.mms5.util
 
 
 import io.kotest.assertions.fail
+import io.kotest.assertions.json.shouldBeJsonObject
+import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
@@ -378,3 +380,16 @@ infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsser
     includesTriples(assertions).assertEmpty()
 }
 
+infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
+    // 200
+    this shouldHaveStatus HttpStatusCode.OK
+
+    // assert content-type header (ignore charset if present)
+    this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
+
+    // json object
+    this.content!!.shouldBeJsonObject()
+
+    // assert equal
+    this.content!!.shouldEqualJson(expectedJson)
+}

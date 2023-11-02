@@ -2,6 +2,7 @@ package org.openmbee.mms5
 
 import io.kotest.assertions.json.shouldBeJsonObject
 import io.kotest.assertions.json.shouldEqualJson
+import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.RDF
@@ -145,15 +146,6 @@ open class ModelAny: RefAny() {
             :likes :Jelly ;
             foaf:name "Fluffy" .
     """.trimIndent()
-
-    fun TestApplicationCall.validateModelQueryResponse(
-        expectedJson: String
-    ) {
-        response shouldHaveStatus HttpStatusCode.OK
-        response.shouldHaveHeader("Content-Type", "application/sparql-results+json; charset=UTF-8")
-        response.content!!.shouldBeJsonObject()
-        response.content!!.shouldEqualJson(expectedJson)
-    }
 
     fun TriplesAsserter.validateModelCommitResponse(
         branchPath: String,
