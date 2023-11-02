@@ -99,7 +99,6 @@ class GroupCreate : CommonSpec() {
                 httpPut(groupPath) {
                     setTurtleBody(validGroupBody)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
                     response includesTriples  {

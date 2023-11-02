@@ -231,7 +231,7 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
 
     // prepare a query to check required conditions and select the appropriate target graph if necessary
     val serviceQuery = """
-        select * where {
+        select ?targetGraph ?satisfied where {
             ${if(targetGraphIri != null) """
                 bind(<$targetGraphIri> as ?targetGraph)
             """.reindent(3) else """

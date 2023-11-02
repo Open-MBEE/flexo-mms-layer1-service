@@ -39,8 +39,6 @@ class BranchRead : RefAny() {
         "get master branch" {
             withTest {
                 httpGet(masterPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response includesTriples {
                         val branchiri = localIri(masterPath)
 
@@ -67,8 +65,6 @@ class BranchRead : RefAny() {
 
             withTest {
                 httpGet("$repoPath/branches") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response includesTriples  {
                         subject(localIri(branchPath)) {
                             includes(

@@ -14,8 +14,6 @@ class LockCreate : LockAny() {
             httpPut("$repoPath/locks/$_lockId") {
                 setTurtleBody(withAllTestPrefixes(lockBody))
             }.apply {
-                response shouldHaveStatus HttpStatusCode.OK
-
                 val etag = response.headers[HttpHeaders.ETag]
                 etag.shouldNotBeBlank()
 

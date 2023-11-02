@@ -21,45 +21,119 @@ class ModelQuery : ModelAny() {
             }
         }
 
-        "query selects model graph" {
+        "query model with graph var" {
             commitModel(masterPath, insertAliceRex)
 
             withTest {
                 // master model is updated
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody("""
-                        select ?g {
+                        select distinct ?g {
                             graph ?g {
                                 ?s ?p ?o
                             }
                         }
                     """.trimIndent())
                 }.apply {
-//                    val modelGraphIri = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
-//                        .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
-//                        .jsonPrimitive.content
-//
-//                    modelGraphIri shouldContain "/Model."
-//
-//                    response shouldEqualSparqlResultsJson """
-//                        {
-//                            "head": {
-//                                "vars": [
-//                                    "g"
-//                                ]
-//                            },
-//                            "results": {
-//                                "bindings": [
-//                                    {
-//                                        "g": {
-//                                            "type": "uri",
-//                                            "value": "$modelGraphIri"
-//                                        }
-//                                    }
-//                                ]
-//                            }
-//                        }
-//                    """.trimIndent()
+                    val graphVal = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
+                        .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
+                        .jsonPrimitive.content
+
+                    graphVal shouldContain "/graphs/Model."
+
+                    response equalsSparqlResults {
+                        binding(
+                            "g" to graphVal.bindingUri
+                        )
+                    }
+                }
+            }
+        }
+
+        "ask model: true" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        $demoPrefixesStr
+                        
+                        ask {
+                            :Rex :owner ?who .
+                        }
+                    """.trimIndent())
+                }.apply {
+                    response shouldEqualSparqlResultsJson """
+                        {
+                            "head": {},
+                            "boolean": true
+                        }
+                    """.trimIndent()
+                }
+            }
+        }
+
+        "ask model: false" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        $demoPrefixesStr
+                        
+                        ask {
+                            :Rex :owner :Bob .
+                        }
+                    """.trimIndent())
+                }.apply {
+                    response shouldEqualSparqlResultsJson """
+                        {
+                            "head": {},
+                            "boolean": false
+                        }
+                    """.trimIndent()
+                }
+            }
+        }
+
+        "describe model explicit" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        $demoPrefixesStr
+                        
+                        describe :Alice
+                    """.trimIndent())
+                }.apply {
+                    response includesTriples  {
+                        subjectTerse(":Alice") {
+                            ignoreAll()
+                        }
+                    }
+                }
+            }
+        }
+
+        "describe model where" {
+            commitModel(masterPath, insertAliceRex)
+
+            withTest {
+                httpPost("$masterPath/query") {
+                    setSparqlQueryBody("""
+                        $demoPrefixesStr
+                        
+                        describe ?pet {
+                            ?pet :owner :Alice .
+                        }
+                    """.trimIndent())
+                }.apply {
+                    response includesTriples {
+                        subjectTerse(":Rex") {
+                            ignoreAll()
+                        }
+                    }
                 }
             }
         }
@@ -68,14 +142,15 @@ class ModelQuery : ModelAny() {
             commitModel(masterPath, insertAliceRex)
             createBranch(repoPath, "master", branchId, branchName)
             commitModel(masterPath, insertBobFluffy)
+
             withTest {
-                //branch model does not have second updates
+                // branch model does not have second updates
                 httpPost("$branchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
-                //master model is updated
+                // master model is updated
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
@@ -88,14 +163,16 @@ class ModelQuery : ModelAny() {
             commitModel(masterPath, insertAliceRex)
             createLock(repoPath, masterPath, lockId)
             commitModel(masterPath, insertBobFluffy)
+
             withTest {
-                //branch model does not have second updates
+                // branch model does not have second updates
                 httpPost("$lockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
-                //master model is updated
+
+                // master model is updated
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
@@ -108,36 +185,53 @@ class ModelQuery : ModelAny() {
             loadModel(masterPath, loadAliceRex)
             createLock(repoPath, masterPath, lockId)
             loadModel(masterPath, loadBobFluffy)
+
             withTest {
                 httpPost("$lockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
+
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     // the load overwrites, so only bob exists
-                    response shouldEqualSparqlResultsJson queryNamesBobResult
+                    response equalsSparqlResults {
+                        binding(
+                            "name" to "Bob".bindingLit
+                        )
+                    }
                 }
             }
         }
 
         "subquery" {
             loadModel(masterPath, loadAliceRex)
+            loadModel(masterPath, loadBobFluffy)
+
             withTest {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody("""
-                        SELECT * {
+                        $demoPrefixesStr
+                        
+                        select ?personName {
+                            ?person foaf:name ?personName .
+                        
                             {
-                                SELECT * WHERE {
-                                    ?s ?p ?o
+                                select * {
+                                    ?pet :owner ?person ;
+                                        :likes :Jelly .
                                 }
                             }
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response equalsSparqlResults {
+                        binding(
+                            "personName" to "Bob".bindingLit
+                        )
+                    }
                 }
             }
         }
@@ -154,11 +248,12 @@ class ModelQuery : ModelAny() {
 
         "concat" {
             loadModel(masterPath, loadAliceRex)
+
             withTest {
                 httpPost("$masterPath/query") {
                     setSparqlQueryBody("""
-                        prefix : <https://mms.openmbee.org/demos/people/>
-                        prefix foaf: <http://xmlns.com/foaf/0.1/>
+                        $demoPrefixesStr
+
                         select ?concat {
                             :Alice foaf:name ?name .
                         
@@ -166,23 +261,11 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldEqualSparqlResultsJson """
-                        {
-                            "head": {
-                                "vars": ["concat"]
-                            },
-                            "results": {
-                                "bindings": [
-                                    {
-                                        "concat": {
-                                            "type": "literal",
-                                            "value": "test:Alice"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    """.trimIndent()
+                    response equalsSparqlResults {
+                        binding(
+                            "concat" to "test:Alice".bindingLit
+                        )
+                    }
                 }
             }
         }

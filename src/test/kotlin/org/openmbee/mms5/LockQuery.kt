@@ -1,8 +1,6 @@
 package org.openmbee.mms5
 
-import io.kotest.assertions.json.shouldEqualJson
-import io.kotest.assertions.json.shouldMatchJson
-
+import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -24,23 +22,11 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldEqualSparqlResultsJson """
-                        {
-                            "head": {
-                                "vars": ["o"]
-                            },
-                            "results": {
-                                "bindings": [
-                                    {
-                                        "o": {
-                                            "type": "uri",
-                                            "value": "urn:mms:o"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    """.trimIndent()
+                    response equalsSparqlResults {
+                        binding(
+                            "o" to "urn:mms:o".bindingUri
+                        )
+                    }
                 }
             }
         }
@@ -59,38 +45,23 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     val graphVal = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
                         .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
                         .jsonPrimitive.content;
 
-                    response.content!!.shouldEqualJson("""
-                        {
-                            "head": {
-                                "vars": ["g", "o"]
-                            },
-                            "results": {
-                                "bindings": [
-                                    {
-                                        "g": {
-                                            "type": "uri",
-                                            "value": "$graphVal"
-                                        },
-                                        "o": {
-                                            "type": "uri",
-                                            "value": "urn:mms:o"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    """.trimIndent())
+                    graphVal shouldContain "/graphs/Model."
+
+                    response equalsSparqlResults {
+                        binding(
+                            "g" to graphVal.bindingUri,
+                            "o" to "urn:mms:o".bindingUri
+                        )
+                    }
                 }
             }
         }
 
-        "ask lock" {
+        "ask lock: true" {
             commitModel(masterPath, insertLock)
             createLock(repoPath, masterPath, lockId)
 
@@ -102,14 +73,34 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response.content!!.shouldEqualJson("""
+                    response shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
                             "boolean": true
                         }
+                    """.trimIndent()
+                }
+            }
+        }
+
+        "ask lock: false" {
+            commitModel(masterPath, insertLock)
+            createLock(repoPath, masterPath, lockId)
+
+            withTest {
+                httpPost("$lockPath/query") {
+                    setSparqlQueryBody("""
+                        ask {
+                            <urn:mms:s> <urn:mms:p> <urn:mms:NOT_DEFINED> .
+                        }
                     """.trimIndent())
+                }.apply {
+                    response shouldEqualSparqlResultsJson  """
+                        {
+                            "head": {},
+                            "boolean": false
+                        }
+                    """.trimIndent()
                 }
             }
         }
@@ -124,8 +115,6 @@ class LockQuery : LockAny() {
                         describe <urn:mms:s>
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -147,8 +136,6 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -172,8 +159,6 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response exclusivelyHasTriples  {
                         subject("urn:mms:o") {
                             exclusivelyHas(

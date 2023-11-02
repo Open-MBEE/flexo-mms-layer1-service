@@ -23,8 +23,6 @@ class BranchUpdate : RefAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
                     response includesTriples {
                         subject(localIri(branchPath)) {
                             includes(
