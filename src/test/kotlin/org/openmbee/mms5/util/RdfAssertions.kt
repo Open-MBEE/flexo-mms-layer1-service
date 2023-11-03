@@ -245,16 +245,6 @@ class SubjectContext(modelContext: ModelContext, val subject: Resource) {
     fun removeRest() {
         model.removeAll(subject, null, null)
     }
-
-    /**
-     * Asserts the subject exists (i.e., that is has at least one statement)
-     */
-    fun assertExists() {
-        val others = subject.listProperties()
-        if(!others.hasNext()) {
-            fail("\"$modelName\" model is missing triples for subject $subject:")
-        }
-    }
 }
 
 
@@ -283,10 +273,6 @@ class SubjectHandle(modelContext: ModelContext, subject: Resource) {
 
     fun ignoreAll() {
         subjectContext.removeRest()
-    }
-
-    fun exists() {
-        subjectContext.assertExists()
     }
 }
 
@@ -364,7 +350,9 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     }
 }
 
-infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+    this shouldHaveStatus statusCode
+
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
 
@@ -376,8 +364,16 @@ infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.()
     return TriplesAsserter(model).apply { assertions() }
 }
 
+infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+    return includesTriples(HttpStatusCode.OK, assertions)
+}
+
+fun TestApplicationResponse.exclusivelyHasTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit) {
+    includesTriples(statusCode, assertions).assertEmpty()
+}
+
 infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
-    includesTriples(assertions).assertEmpty()
+    exclusivelyHasTriples(HttpStatusCode.OK, assertions)
 }
 
 infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
@@ -385,7 +381,7 @@ infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: Str
     this shouldHaveStatus HttpStatusCode.OK
 
     // assert content-type header (ignore charset if present)
-    this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
+    this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.SparqlResultsJson.contentType)
 
     // json object
     this.content!!.shouldBeJsonObject()

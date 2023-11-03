@@ -9,12 +9,10 @@ fun ModelCommit.commitAndValidateModel(branchPath: String) {
         httpPost("$branchPath/update") {
             setSparqlUpdateBody(insertAliceRex)
         }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-
             val etag = response.headers[HttpHeaders.ETag]
             etag.shouldNotBeBlank()
 
-            response exclusivelyHasTriples {
+            response.exclusivelyHasTriples(HttpStatusCode.Created) {
                 validateModelCommitResponse(branchPath, etag!!)
             }
         }

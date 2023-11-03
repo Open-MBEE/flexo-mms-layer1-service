@@ -35,7 +35,6 @@ open class RefAny : RepoAny() {
     }
 
     fun TestApplicationCall.validateCreateBranchResponse(fromCommit: String) {
-        response shouldHaveStatus HttpStatusCode.OK
         response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
         response exclusivelyHasTriples {

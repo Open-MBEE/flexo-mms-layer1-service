@@ -1,18 +1,22 @@
 package org.openmbee.mms5
 
-import io.kotest.assertions.json.shouldBeJsonObject
-import io.kotest.assertions.json.shouldEqualJson
-import io.kotest.matchers.string.shouldStartWith
-import io.ktor.http.*
-import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.RDF
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.mms5.util.*
 
 open class ModelAny: RefAny() {
+    val demoPrefixes = PrefixMapBuilder().apply {
+        add(
+            "" to "https://mms.openmbee.org/demos/people/",
+            "foaf" to "http://xmlns.com/foaf/0.1/",
+        )
+    }
+
+    val demoPrefixesStr = demoPrefixes.toString()
+
     val insertAliceRex = """
-        prefix : <https://mms.openmbee.org/demos/people/>
-        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        $demoPrefixesStr
+
         insert data {
             :Alice a :Person ;
                 foaf:name "Alice" ;
@@ -27,8 +31,8 @@ open class ModelAny: RefAny() {
     """.trimIndent()
 
     val insertBobFluffy = """
-        prefix : <https://mms.openmbee.org/demos/people/>
-        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        $demoPrefixesStr
+
         insert data {
             :Bob a :Person ;
                 foaf:name "Bob" ;
@@ -42,15 +46,9 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
-    val sparqlQueryAll = """
-        select * where {
-            ?s ?p ?o
-        }
-    """.trimIndent()
-
     val queryNames = """
-        prefix : <https://mms.openmbee.org/demos/people/>
-        prefix foaf: <http://xmlns.com/foaf/0.1/>
+        $demoPrefixesStr
+
         select ?name where {
             ?s a :Person .
             ?s foaf:name ?name .
@@ -103,29 +101,8 @@ open class ModelAny: RefAny() {
         }
     """.trimIndent()
 
-    val queryNamesBobResult = """
-        {
-            "head": {
-                "vars": [
-                    "name"
-                ]
-            },
-            "results": {
-                "bindings": [
-                    {
-                        "name": {
-                            "type": "literal",
-                            "value": "Bob"
-                        }
-                    }
-                ]
-            }
-        }
-    """.trimIndent()
-
     val loadAliceRex = """
-        @prefix : <https://mms.openmbee.org/demos/people/>
-        @prefix foaf: <http://xmlns.com/foaf/0.1/>
+        $demoPrefixesStr
 
         :Alice a :Person ;
             foaf:name "Alice" .
@@ -136,8 +113,7 @@ open class ModelAny: RefAny() {
     """.trimIndent()
 
     val loadBobFluffy = """
-        @prefix : <https://mms.openmbee.org/demos/people/>
-        @prefix foaf: <http://xmlns.com/foaf/0.1/>
+        $demoPrefixesStr
 
         :Bob a :Person ;
             foaf:name "Bob" .

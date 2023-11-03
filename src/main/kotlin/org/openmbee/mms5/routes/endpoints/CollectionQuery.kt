@@ -25,16 +25,16 @@ fun Route.queryCollection() {
 
             checkPrefixConflicts()
 
-            val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
-
-            // outputQuery.graphURIs.
-
-            // TODO construct query that joins
-            outputQuery.apply {
-                // set default graph
-                graphURIs.clear()
-                // graphURIs.addAll()
-            }.queryPattern.toString()
+//            val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
+//
+//            // outputQuery.graphURIs.
+//
+//            // TODO construct query that joins
+//            outputQuery.apply {
+//                // set default graph
+//                graphURIs.clear()
+//                // graphURIs.addAll()
+//            }.queryPattern.toString()
         }
 
     }

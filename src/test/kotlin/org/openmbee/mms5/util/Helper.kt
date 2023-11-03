@@ -89,7 +89,15 @@ fun includePrefixes(vararg prefixKeys: String, extraSetup: (PrefixMapBuilder.() 
 }
 
 fun includeAllTestPrefixes(extraSetup: (PrefixMapBuilder.() -> Unit)?=null): String {
-    return includePrefixes("rdf", "rdfs", "dct", "xsd", "mms") {
+    return includePrefixes(
+        "rdf",
+        "rdfs",
+        "dct",
+        "xsd",
+        "mms",
+        "m",
+        "m-graph",
+    ) {
         add(
             "foaf" to "http://xmlns.com/foaf/0.1/"
         )
