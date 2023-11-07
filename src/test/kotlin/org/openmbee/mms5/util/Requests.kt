@@ -71,13 +71,13 @@ fun TestApplicationRequest.setSparqlQueryBody(body: String) {
 }
 
 fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    if("1" != System.getProperty("MMS5_TEST_NO_AUTH", "")) {
+    if("1" != System.getProperty("FLEXO_MMS_TEST_NO_AUTH", "")) {
         handleRequest(method, uri) {
             addHeader("Authorization", authorization(anonAuth))
             setup()
         }.apply {
-            if("" != System.getProperty("MMS5_TEST_EXPECT", "")) {
-                response shouldHaveStatus System.getProperty("MMS5_TEST_EXPECT").toInt()
+            if("" != System.getProperty("FLEXO_MMS_TEST_EXPECT", "")) {
+                response shouldHaveStatus System.getProperty("FLEXO_MMS_TEST_EXPECT").toInt()
             }
             else {
                 if(HttpStatusCode.OK === response.status()) {

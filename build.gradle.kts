@@ -91,12 +91,12 @@ tasks {
         this.testLogging {
             this.showStandardStreams = true
         }
-        environment("MMS5_ROOT_CONTEXT", System.getenv("MMS5_ROOT_CONTEXT"))
-        environment("MMS5_QUERY_URL", System.getenv("MMS5_QUERY_URL"))
-        environment("MMS5_UPDATE_URL", System.getenv("MMS5_UPDATE_URL"))
-        environment("MMS5_GRAPH_STORE_PROTOCOL_URL", System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL"))
-        if (System.getenv("MMS5_STORE_SERVICE_URL") != null)
-            environment("MMS5_STORE_SERVICE_URL", System.getenv("MMS5_STORE_SERVICE_URL"))
+        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT"))
+        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL"))
+        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL"))
+        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
+        if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
+            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
     }
     register<Copy>("copy-test-fuseki-server") {
         // Copy fuseki-server jar to known location (build/test-fuseki-server)

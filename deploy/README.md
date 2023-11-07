@@ -1,6 +1,6 @@
 # MMS-5 Layer 0: Database Initialization Generator
 
-Generates a TriG file with necessary object and access control definitions for a new MMS5 deployment.
+Generates a TriG file with necessary object and access control definitions for a new Flexo MMS deployment.
 
 ### Setup
 
@@ -10,7 +10,7 @@ yarn install
 
 ### Build
 
-Determine the URL that MMS5 will be served from. This gets used when building the vocabulary in order to produce dereferenceable IRIs.
+Determine the URL that Flexo MMS will be served from. This gets used when building the vocabulary in order to produce dereferenceable IRIs.
 
 Assign this URL to the `ROOT_CONTEXT` environment variable. For local testing, you can use the following placeholder:
 ```sh

@@ -1,10 +1,10 @@
 FROM openjdk:17.0.2-jdk-slim as build
 WORKDIR application
-ENV MMS5_ROOT_CONTEXT http://layer1-service
-ENV MMS5_QUERY_URL http://quad-server:3030/ds/sparql
-ENV MMS5_UPDATE_URL http://quad-server:3030/ds/update
-ENV MMS5_GRAPH_STORE_PROTOCOL_URL http://quad-server:3030/ds/data
-#ENV MMS5_STORE_SERVICE_URL http://store-service:8081/store
+ENV FLEXO_MMS_ROOT_CONTEXT http://layer1-service
+ENV FLEXO_MMS_QUERY_URL http://quad-server:3030/ds/sparql
+ENV FLEXO_MMS_UPDATE_URL http://quad-server:3030/ds/update
+ENV FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL http://quad-server:3030/ds/data
+#ENV FLEXO_MMS_STORE_SERVICE_URL http://store-service:8081/store
 COPY . .
 RUN apt-get update && apt-get install -y procps
 ENTRYPOINT ["/application/gradlew", "test"]

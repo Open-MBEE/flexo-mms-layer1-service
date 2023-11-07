@@ -93,14 +93,14 @@ fun Route.loadModel() {
                 if(loadUrl == null && storeServiceUrl != null) {
                     // submit a POST request to the store service endpoint
                     val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
-                        // TODO: verify load service request is correct and complete
+                        // TODO: verify store service request is correct and complete
                         // Pass received authorization to internal service
                         headers {
                             call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
                                 append(HttpHeaders.Authorization, auth)
                             }
                         }
-                        // stream request body from client to load service
+                        // stream request body from client to store service
                         // TODO: Handle exceptions
                         setBody(object: OutgoingContent.WriteChannelContent() {
                             override val contentType = ContentType.parse(call.request.header(HttpHeaders.ContentType)!!)

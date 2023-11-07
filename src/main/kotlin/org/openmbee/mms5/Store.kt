@@ -5,8 +5,8 @@ import io.ktor.http.*
 import java.security.MessageDigest
 
 
-val ROOT_CONTEXT = (System.getenv("MMS5_ROOT_CONTEXT")?: "http://layer1-service").replace("/+$".toRegex(), "")
-val SERVICE_ID = System.getenv("MMS5_SERVICE_ID")?: "local-dev-0"
+val ROOT_CONTEXT = (System.getenv("FLEXO_MMS_ROOT_CONTEXT")?: "http://layer1-service").replace("/+$".toRegex(), "")
+val SERVICE_ID = System.getenv("FLEXO_MMS_SERVICE_ID")?: "local-dev-0"
 
 suspend fun handleSparqlResponse(response: HttpResponse): String {
     // read response body

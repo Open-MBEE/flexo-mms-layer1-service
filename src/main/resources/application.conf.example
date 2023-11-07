@@ -2,35 +2,35 @@ mms {
     application {
         # if true, respond with 404 to unauthorized requests, even when a resource exists (neither confirming nor denying its existence)
         glomar-response = true
-        glomar-response = ${?MMS5_GLOMAR_RESPONSE}
+        glomar-response = ${?FLEXO_MMS_GLOMAR_RESPONSE}
 
         # large patch strings above this threshold size will not be stored in the triplestore. if unset, no limit on literal size enforced
         maximum-literal-size-kib = 61440
-        maximum-literal-size-kib = ${?MMS5_MAXIMUM_LITERAL_SIZE_KIB}
+        maximum-literal-size-kib = ${?FLEXO_MMS_MAXIMUM_LITERAL_SIZE_KIB}
 
         # patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings (effectively disabling the feature)
         gzip-literals-larger-than-kib = 512
-        gzip-literals-larger-than-kib = ${?MMS5_GZIP_LITERALS_LARGER_THAN_KIB}
+        gzip-literals-larger-than-kib = ${?FLEXO_MMS_GZIP_LITERALS_LARGER_THAN_KIB}
 
         # request timeout in seconds for requests to backend quadstore (default 30 min)
         request-timeout = 1800
-        request-timeout = ${?MMS5_SPARQL_REQUEST_TIMEOUT}
+        request-timeout = ${?FLEXO_MMS_SPARQL_REQUEST_TIMEOUT}
     }
 
     store-service {
         url = ""
-        url = ${?MMS5_STORE_SERVICE_URL}
+        url = ${?FLEXO_MMS_STORE_SERVICE_URL}
     }
 
     quad-store {
         query-url = "https://quad-store-domain-ro/sparql"
-        query-url = ${?MMS5_QUERY_URL}
+        query-url = ${?FLEXO_MMS_QUERY_URL}
         update-url = "https://quad-store-domain/sparql"
-        update-url = ${?MMS5_UPDATE_URL}
+        update-url = ${?FLEXO_MMS_UPDATE_URL}
         master-query-url = ""
-        master-query-url = ${?MMS5_MASTER_QUERY_URL}
+        master-query-url = ${?FLEXO_MMS_MASTER_QUERY_URL}
         graph-store-protocol-url = "https://quad-store-domain/sparql/gsp"
-        graph-store-protocol-url = ${?MMS5_GRAPH_STORE_PROTOCOL_URL}
+        graph-store-protocol-url = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL}
     }
 }
 
@@ -52,7 +52,7 @@ jwt {
     domain = ${?JWT_DOMAIN}
     audience = "jwt-audience"
     audience = ${?JWT_AUDIENCE}
-    realm = "MMS5 Microservices"
+    realm = "Flexo MMS Microservices"
     realm = ${?JWT_REALM}
     secret = "test1234"
     secret = ${?JWT_SECRET}

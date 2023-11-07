@@ -1,7 +1,7 @@
 cat \
 	<<- EOF
 	namespace=mms5
-	propertyFile=/$MMS5_BLAZEGRAPH_PROPERTIES_FILE
+	propertyFile=/$FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE
 	fileOrDirs=/data
 	-format=turtle
 	quiet=false

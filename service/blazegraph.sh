@@ -1,8 +1,8 @@
 #!/bin/bash
-N_MMS5_BG_PORT=8081
-S_MMS5_BG_HOST=localhost
-P_MMS5_BG_REST="http://$S_MMS5_BG_HOST:$N_MMS5_BG_PORT/bigdata"
-P_MMS5_BLAZEGRAPH_PROPERTIES_FILE="mms5-blazegraph.properties"
+N_FLEXO_MMS_BG_PORT=8081
+S_FLEXO_MMS_BG_HOST=localhost
+P_FLEXO_MMS_BG_REST="http://$S_FLEXO_MMS_BG_HOST:$N_FLEXO_MMS_BG_PORT/bigdata"
+P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE="mms5-blazegraph.properties"
 
 XTL_TIMEOUT=15
 
@@ -38,24 +38,24 @@ function wait_for() {
 
 # launch blazegraph store
 docker run --name mms5-store -d \
-	-p "$N_MMS5_BG_PORT:8080" \
-	-v "$PWD/$P_MMS5_BLAZEGRAPH_PROPERTIES_FILE:/$P_MMS5_BLAZEGRAPH_PROPERTIES_FILE" \
+	-p "$N_FLEXO_MMS_BG_PORT:8080" \
+	-v "$PWD/$P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE:/$P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE" \
 	-v "$PWD/data:/data" \
 	lyrasis/blazegraph:2.1.5
 
 # wait
-wait_for "$P_MMS5_BG_REST"
+wait_for "$P_FLEXO_MMS_BG_REST"
 echo "Success. Blazegraph is online."
 sleep 2
 
 echo "Loading quads..."
 
 # make request to dataloader
-curl -X POST "$P_MMS5_BG_REST/dataloader" \
+curl -X POST "$P_FLEXO_MMS_BG_REST/dataloader" \
 	-H 'Content-Type: text/plain' \
 	--data-binary @- <<- EOF
 		namespace=kb
-		propertyFile=/$P_MMS5_BLAZEGRAPH_PROPERTIES_FILE
+		propertyFile=/$P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE
 		fileOrDirs=/data/clean
 		defaultGraph=https://demo.openmbee.org/mms/projects/Demo/snapshots/Model.e4a1c
 		-format=trig
@@ -84,7 +84,7 @@ pushd ./data/clean/
 popd
 
 # query for number of triples
-S_RESPONSE=$(curl "$P_MMS5_BG_REST/namespace/kb/sparql" \
+S_RESPONSE=$(curl "$P_FLEXO_MMS_BG_REST/namespace/kb/sparql" \
 	-H 'Accept: application/sparql-results+json' \
 	-H 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8' \
 	--data-raw 'query=select+(count(*)+as+%3Fcount)+from+%3Chttps%3A%2F%2Fdemo.openmbee.org%2Fmms%2Fprojects%2FDemo%2Fsnapshots%2FModel.e4a1c%3E+%7B+%3Fs+%3Fp+%3Fo+%7D')
