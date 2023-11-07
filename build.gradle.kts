@@ -62,9 +62,6 @@ dependencies {
     // implementation("io.ktor:ktor-server-:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
-    val consulVersion = "1.5.3"
-    implementation("com.orbitz.consul:consul-client:$consulVersion")
-
     val logbackVersion = "1.4.11"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
