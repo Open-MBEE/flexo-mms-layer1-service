@@ -43,7 +43,7 @@ dependencies {
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.3.5"
+    val ktorVersion = "2.3.4"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
