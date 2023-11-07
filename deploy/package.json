@@ -1,5 +1,5 @@
 {
-  "name": "mms5-deploy",
+  "name": "flexo-mms-deploy",
   "version": "0.0.1",
   "main": "src/main.ts",
   "license": "MIT",

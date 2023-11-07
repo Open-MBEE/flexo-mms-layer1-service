@@ -93,14 +93,14 @@ Generate the initialization file
 
 The quadstore needs to be initialized with configuration data before it can be used. This data is unique to a deployment and needs a context.
 
-To generate the init file, checkout https://github.com/Open-MBEE/mms5-layer1-service and do the following:
+To generate the init file, checkout https://github.com/Open-MBEE/flexo-mms-layer1-service and do the following:
 
 .. code:: bash
 
    cd deploy
    npx ts-node src/main.ts $APP_URL > cluster.trig
 
-Where ``$APP_URL`` is the root URL for where the Flexo MMS Layer 1 instance is deployed, e.g., ``https://mms5.openmbee.org``. For local development, we simply use the stand-in ``http://layer1-service``.
+Where ``$APP_URL`` is the root URL for where the Flexo MMS Layer 1 instance is deployed, e.g., ``https://mms.openmbee.org``. For local development, we simply use the stand-in ``http://layer1-service``.
 
 This context is also important in the configuration of other Flexo MMS services like the Auth service - the context needs to match.
 
@@ -114,4 +114,4 @@ Once the initialization file has been generated at ``cluster.trig``, apply this 
 MMS 5 API
 ---------
 
-See API documentation at https://www.openmbee.org/mms5-layer1-openapi/, generated from https://github.com/Open-MBEE/mms5-layer1-openapi
+See API documentation at https://www.openmbee.org/flexo-mms-layer1-openapi/, generated from https://github.com/Open-MBEE/flexo-mms-layer1-openapi

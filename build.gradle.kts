@@ -7,7 +7,7 @@ plugins {
     jacoco
 }
 
-group = "org.openmbee.mms5"
+group = "org.openmbee.flexo.mms"
 version = "0.1.0-ALPHA"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")

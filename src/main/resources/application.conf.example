@@ -41,7 +41,7 @@ ktor {
     }
 
     application {
-        modules = [ org.openmbee.mms5.ApplicationKt.module ]
+        modules = [ org.openmbee.flexo.mms.ApplicationKt.module ]
     }
 
     development = true

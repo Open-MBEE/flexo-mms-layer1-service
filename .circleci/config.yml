@@ -7,7 +7,7 @@ jobs:
   generate_schema:
     executor:
       name: node/default
-    working_directory: /home/circleci/mms5-layer1-service
+    working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - checkout
       - restore_cache:
@@ -25,11 +25,11 @@ jobs:
       - persist_to_workspace:
           root: /home/circleci/
           paths:
-            - mms5-layer1-service/*
+            - flexo-mms-layer1-service/*
   build_and_test:
     machine:
       image: ubuntu-2204:2022.04.1
-    working_directory: /home/circleci/mms5-layer1-service
+    working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - attach_workspace:
           at: ~/
@@ -42,22 +42,22 @@ jobs:
           shell: /bin/bash
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d
-            docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
-            docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest
+            docker build --network=flexo-mms-test-network -t flexo-mms-test:latest -f Dockerfile-Test .
+            docker run --network=flexo-mms-test-network --name flexo-mms-test-container flexo-mms-test:latest
             SIG_INT=$?
-            docker cp mms5-test-container:/application/build/reports/tests /home/circleci/results
+            docker cp flexo-mms-test-container:/application/build/reports/tests /home/circleci/results
             exit "$SIG_INT"
       - store_artifacts:
           path: /home/circleci/results
       - persist_to_workspace:
           root: /home/circleci/
           paths:
-            - mms5-layer1-service/*
+            - flexo-mms-layer1-service/*
 
   deploy_snapshot:
     executor:
       name: docker/docker
-    working_directory: /home/circleci/mms5-layer1-service
+    working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
@@ -70,17 +70,17 @@ jobs:
           name: Build docker image
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
-            docker build -t openmbee/mms5-layer1-service:latest .
+            docker build -t openmbee/flexo-mms-layer1-service:latest .
       - run:
           name: Tag docker image
-          command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
+          command: docker tag openmbee/flexo-mms-layer1-service:latest openmbee/flexo-mms-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
       - run:
           name: Deploy snapshot to Dockerhub
-          command: docker push openmbee/mms5-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
+          command: docker push openmbee/flexo-mms-layer1-service:${CIRCLE_BRANCH#*/}-SNAPSHOT
   deploy_nightly:
     executor:
       name: docker/docker
-    working_directory: /home/circleci/mms5-layer1-service
+    working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
@@ -94,17 +94,17 @@ jobs:
           name: Build docker image
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
-            docker build -t openmbee/mms5-layer1-service:latest .
+            docker build -t openmbee/flexo-mms-layer1-service:latest .
       - run:
           name: Tag docker image
-          command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:NIGHTLY-SNAPSHOT
+          command: docker tag openmbee/flexo-mms-layer1-service:latest openmbee/flexo-mms-layer1-service:NIGHTLY-SNAPSHOT
       - run:
           name: Deploy snapshot to Dockerhub
-          command: docker push openmbee/mms5-layer1-service:NIGHTLY-SNAPSHOT
+          command: docker push openmbee/flexo-mms-layer1-service:NIGHTLY-SNAPSHOT
   deploy_release:
     executor:
       name: docker/docker
-    working_directory: /home/circleci/mms5-layer1-service
+    working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - setup_remote_docker:
           docker_layer_caching: true
@@ -117,16 +117,16 @@ jobs:
           name: Build docker image
           command: |
             cp src/main/resources/application.conf.example ./src/main/resources/application.conf
-            docker build -t openmbee/mms5-layer1-service:latest .
+            docker build -t openmbee/flexo-mms-layer1-service:latest .
       - run:
           name: Tag docker image
-          command: docker tag openmbee/mms5-layer1-service:latest openmbee/mms5-layer1-service:${CIRCLE_TAG}
+          command: docker tag openmbee/flexo-mms-layer1-service:latest openmbee/flexo-mms-layer1-service:${CIRCLE_TAG}
       - run:
           name: Deploy release to dockerhub
-          command: docker push openmbee/mms5-layer1-service:${CIRCLE_TAG}
+          command: docker push openmbee/flexo-mms-layer1-service:${CIRCLE_TAG}
       - run:
           name: Deploy release as latest to dockerhub
-          command: docker push openmbee/mms5-layer1-service:latest
+          command: docker push openmbee/flexo-mms-layer1-service:latest
 
 workflows:
   version: 2
