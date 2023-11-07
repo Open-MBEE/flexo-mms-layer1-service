@@ -2,7 +2,7 @@
 N_FLEXO_MMS_BG_PORT=8080
 S_FLEXO_MMS_BG_HOST=localhost
 P_FLEXO_MMS_BG_REST="http://$S_FLEXO_MMS_BG_HOST:$N_FLEXO_MMS_BG_PORT/bigdata"
-P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE="mms5-blazegraph.properties"
+P_FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE="flexo-mms-blazegraph.properties"
 curl -X POST "$P_FLEXO_MMS_BG_REST/dataloader" \
 	-H 'Content-Type: text/plain' \
 	--data-binary @- <<- EOF

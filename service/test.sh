@@ -1,6 +1,6 @@
 cat \
 	<<- EOF
-	namespace=mms5
+	namespace=flexo-mms
 	propertyFile=/$FLEXO_MMS_BLAZEGRAPH_PROPERTIES_FILE
 	fileOrDirs=/data
 	-format=turtle
