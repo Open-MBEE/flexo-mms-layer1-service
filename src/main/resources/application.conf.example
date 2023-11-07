@@ -17,9 +17,9 @@ mms {
         request-timeout = ${?MMS5_SPARQL_REQUEST_TIMEOUT}
     }
 
-    load-service {
+    store-service {
         url = ""
-        url = ${?MMS5_LOAD_SERVICE_URL}
+        url = ${?MMS5_STORE_SERVICE_URL}
     }
 
     quad-store {

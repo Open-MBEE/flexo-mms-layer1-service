@@ -87,12 +87,12 @@ fun Route.loadModel() {
             run {
                 // allow client to manually pass in URL to remote file
                 var loadUrl: String? = call.request.queryParameters["url"]
-                var loadServiceUrl: String? = call.application.loadServiceUrl
+                var storeServiceUrl: String? = call.application.storeServiceUrl
 
-                // client did not explicitly provide a URL and the load service is configured
-                if(loadUrl == null && loadServiceUrl != null) {
-                    // submit a POST request to the load service endpoint
-                    val response: HttpResponse = defaultHttpClient.post("$loadServiceUrl/$diffId") {
+                // client did not explicitly provide a URL and the store service is configured
+                if(loadUrl == null && storeServiceUrl != null) {
+                    // submit a POST request to the store service endpoint
+                    val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
                         // TODO: verify load service request is correct and complete
                         // Pass received authorization to internal service
                         headers {

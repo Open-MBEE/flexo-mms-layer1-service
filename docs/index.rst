@@ -37,7 +37,7 @@ Quadstore Configs
 MMS 5 Services Configs
 -----------------------
 
-  MMS5_LOAD_SERVICE_URL
+  MMS5_STORE_SERVICE_URL
     Optional. If using the load service, provide its URL here (if not given, load operations will use the GSP endpoint). URL should be in the form <Load service domain and port>/store
 
   JWT_DOMAIN

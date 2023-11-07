@@ -43,10 +43,10 @@ val Application.quadStoreGraphStoreProtocolUrl: String?
     get() = environment.config.propertyOrNull("mms.quad-store.graph-store-protocol-url")?.getString()?.ifEmpty { null }
 
 /**
- * Optional URL to a compatible MMS-5 load service.
+ * Optional URL to a compatible MMS-5 store service.
  */
-val Application.loadServiceUrl: String?
-    get() = environment.config.propertyOrNull("mms.load-service.url")?.getString()?.ifEmpty { null }
+val Application.storeServiceUrl: String?
+    get() = environment.config.propertyOrNull("mms.store-service.url")?.getString()?.ifEmpty { null }
 
 /**
  * If set to `true`, responds with 404 to users who are not authorized to view a resource even if it exists.
