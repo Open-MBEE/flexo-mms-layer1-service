@@ -13,6 +13,8 @@ class QuadsNotAllowedException(graph: String): Exception("Quads not allowed here
 
 class ServiceNotAllowedException(): Exception("SERVICE blocks not allowed in MMS 5 SPARQL Update") {}
 
+class SparqlFeatureNotSupportedException(val info: String): Exception("SPARQL feature not supported: $info") {}
+
 class UpdateOperationNotAllowedException(operation: String): Exception(operation) {}
 
 class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToString())
@@ -75,6 +77,10 @@ object NoQuadsElementVisitor: ElementVisitor {
     override fun visit(el: ElementSubQuery?) {
         // sub selects do not have a dataset clause, just focus on query pattern
         el?.query?.queryPattern?.visit(NoQuadsElementVisitor)
+    }
+
+    override fun visit(el: ElementLateral?) {
+        throw SparqlFeatureNotSupportedException("LATERAL keyword not standardized")
     }
 }
 
