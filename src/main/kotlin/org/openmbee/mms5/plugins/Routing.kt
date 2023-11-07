@@ -50,12 +50,12 @@ class TextConverter: ContentConverter {
         return content.toInputStream().bufferedReader().use { it.readText() }
     }
 
-    override suspend fun serialize(
+    override suspend fun serializeNullable(
         contentType: ContentType,
         charset: Charset,
         typeInfo: TypeInfo,
-        value: Any
-    ): OutgoingContent? {
+        value: Any?
+    ): OutgoingContent {
         return TextContent(this.stringify(value), contentType)
     }
 

@@ -2,8 +2,8 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.7.10"
-    kotlin("plugin.serialization") version "1.7.10"
+    kotlin("jvm") version "1.7.20"
+    kotlin("plugin.serialization") version "1.9.20"
     jacoco
 }
 
@@ -26,27 +26,24 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    val kotestVersion = "5.4.2"
+    val kotestVersion = "5.8.0"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
 
-    val commonsCliVersion = "1.5.0"
+    val commonsCliVersion = "1.6.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
-    val kotlinxJsonVersion = "1.4.1"
+    val kotlinxJsonVersion = "1.6.0"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
-    val klaxonVersion = "5.6"
-    implementation("com.beust:klaxon:$klaxonVersion")
-
-    val jenaVersion = "4.6.1"
+    val jenaVersion = "4.10.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.1.2"
+    val ktorVersion = "2.3.4"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
@@ -65,16 +62,13 @@ dependencies {
     // implementation("io.ktor:ktor-server-:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
-    val consulVersion = "1.5.3"
-    implementation("com.orbitz.consul:consul-client:$consulVersion")
-
-    val logbackVersion = "1.2.11"
+    val logbackVersion = "1.4.11"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
     testImplementation("com.github.stefanbirkner:system-lambda:$systemLambdaVersion")
 
-    val junitVersion = "5.9.0"
+    val junitVersion = "5.10.1"
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 
     val migzVersion = "2.0.beta-1"
