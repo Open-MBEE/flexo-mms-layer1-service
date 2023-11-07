@@ -41,6 +41,7 @@ jobs:
           name: Build stack and run tests
           shell: /bin/bash
           command: |
+            cp src/main/resources/application.conf.test ./src/main/resources/application.conf
             docker-compose -f src/test/resources/docker-compose.yml up -d
             docker build --network=mms5-test-network -t mms5-test:latest -f Dockerfile-Test .
             docker run --network=mms5-test-network --name mms5-test-container mms5-test:latest

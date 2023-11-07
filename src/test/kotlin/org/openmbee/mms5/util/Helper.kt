@@ -1,10 +1,21 @@
 package org.openmbee.mms5.util
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.mms5.*
 
-
+suspend fun ApplicationTestBuilder.createOrg(orgId: String, orgName: String): HttpResponse {
+    val response = put("/orgs/$orgId") {
+        setTurtleBody("""
+            <> dct:title "$orgName"@en .
+        """.trimIndent())
+    }
+    response shouldHaveStatus HttpStatusCode.OK
+    return response
+}
 fun createOrg(orgId: String, orgName: String): TestApplicationCall {
     return withTest {
         httpPut("/orgs/$orgId") {

@@ -2,6 +2,8 @@ package org.openmbee.mms5.util
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.mms5.ROOT_CONTEXT
@@ -123,4 +125,22 @@ fun TestApplicationEngine.httpPatch(uri: String, setup: TestApplicationRequest.(
 
 fun TestApplicationEngine.httpDelete(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
     return this.httpRequest(HttpMethod.Delete, uri, setup)
+}
+
+//ktor2
+fun HttpRequestBuilder.setTurtleBody(body: String) {
+    header("Content-Type", "text/turtle")
+    setBody(body)
+}
+suspend fun ApplicationTestBuilder.put(uri:  String, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return client.put(uri) {
+        header("Authorization", authorization(rootAuth))
+        setup()
+    }
+}
+suspend fun ApplicationTestBuilder.get(uri:  String, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return client.get(uri) {
+        header("Authorization", authorization(rootAuth))
+        setup()
+    }
 }

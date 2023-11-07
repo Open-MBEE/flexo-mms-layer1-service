@@ -4,9 +4,11 @@ package org.openmbee.mms5.util
 import io.kotest.assertions.fail
 import io.kotest.assertions.json.shouldBeJsonObject
 import io.kotest.assertions.json.shouldEqualJson
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.testing.*
@@ -365,6 +367,22 @@ fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertio
 }
 
 infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+    return includesTriples(HttpStatusCode.OK, assertions)
+}
+suspend fun HttpResponse.includesTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+    this.shouldHaveStatus(statusCode)
+
+    // assert content-type header (ignore charset if present)
+    this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
+
+    // parse turtle into model
+    val model = ModelFactory.createDefaultModel()
+    parseTurtle(this.bodyAsText(), model, this.call.request.url.toString())
+
+    // make triple assertions and then assert the model is empty
+    return TriplesAsserter(model).apply { assertions() }
+}
+suspend infix fun HttpResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
     return includesTriples(HttpStatusCode.OK, assertions)
 }
 

@@ -9,7 +9,6 @@ import org.openmbee.mms5.util.*
 import org.slf4j.LoggerFactory
 
 fun TriplesAsserter.validateOrgTriples(
-    createResponse: TestApplicationResponse,
     orgId: String,
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()
@@ -35,7 +34,7 @@ fun TriplesAsserter.validateCreatedOrgTriples(
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    validateOrgTriples(createResponse, orgId, orgName, extraPatterns)
+    validateOrgTriples(orgId, orgName, extraPatterns)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {

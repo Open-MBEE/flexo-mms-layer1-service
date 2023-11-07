@@ -1,6 +1,9 @@
 package org.openmbee.mms5
 
+import io.kotest.assertions.ktor.client.shouldHaveETag
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.mms5.util.*
 import java.util.*
 
@@ -34,16 +37,13 @@ class OrgRead : OrgAny() {
         }
 
         "get org" {
-            val create = createOrg(orgId, orgName)
-
-            withTest {
-                httpGet(orgPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
-
-                    response includesTriples  {
-                        validateOrgTriples(response, orgId, orgName)
-                    }
+            testApplication {
+                val created = createOrg(orgId, orgName)
+                val response = get(orgPath){}
+                response shouldHaveStatus HttpStatusCode.OK
+                response shouldHaveETag created.headers[HttpHeaders.ETag]!!
+                response includesTriples {
+                    validateOrgTriples(orgId, orgName)
                 }
             }
         }
@@ -110,9 +110,9 @@ class OrgRead : OrgAny() {
                     response.includesTriples {
                         modelName = it
 
-                        validateOrgTriples(createBase.response, orgId, orgName)
-                        validateOrgTriples(createFoo.response, orgFooId, orgFooName)
-                        validateOrgTriples(createBar.response, orgBarId, orgBarName)
+                        validateOrgTriples(orgId, orgName)
+                        validateOrgTriples(orgFooId, orgFooName)
+                        validateOrgTriples(orgBarId, orgBarName)
                     }
                 }
             }
