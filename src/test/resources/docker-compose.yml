@@ -24,7 +24,7 @@ services:
       - 9000:9000
 
   store-service:
-    image: openmbee/mms5-store-service:latest
+    image: openmbee/flexo-mms-store-service:latest
     hostname: store-service
     container_name: store-service
     env_file:
@@ -41,5 +41,5 @@ services:
 
 networks:
   default:
-    name: mms5-test-network
+    name: flexo-mms-test-network
     driver: bridge

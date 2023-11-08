@@ -2,12 +2,12 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.7.20"
+    kotlin("jvm") version "1.9.20"
     kotlin("plugin.serialization") version "1.9.20"
     jacoco
 }
 
-group = "org.openmbee.mms5"
+group = "org.openmbee.flexo.mms"
 version = "0.1.0-ALPHA"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
@@ -45,21 +45,20 @@ dependencies {
 
     val ktorVersion = "2.3.4"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
-    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
+    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
-    implementation("io.ktor:ktor-server-locations:$ktorVersion")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
+    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
     implementation("io.ktor:ktor-server-cors:$ktorVersion")
     implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
     implementation("io.ktor:ktor-server-forwarded-header:$ktorVersion")
-    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
-    // implementation("io.ktor:ktor-server-:$ktorVersion")
+    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
+    implementation("io.ktor:ktor-server-locations:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
     val logbackVersion = "1.4.11"
@@ -91,12 +90,12 @@ tasks {
         this.testLogging {
             this.showStandardStreams = true
         }
-        environment("MMS5_ROOT_CONTEXT", System.getenv("MMS5_ROOT_CONTEXT"))
-        environment("MMS5_QUERY_URL", System.getenv("MMS5_QUERY_URL"))
-        environment("MMS5_UPDATE_URL", System.getenv("MMS5_UPDATE_URL"))
-        environment("MMS5_GRAPH_STORE_PROTOCOL_URL", System.getenv("MMS5_GRAPH_STORE_PROTOCOL_URL"))
-        if (System.getenv("MMS5_LOAD_SERVICE_URL") != null)
-            environment("MMS5_LOAD_SERVICE_URL", System.getenv("MMS5_LOAD_SERVICE_URL"))
+        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT"))
+        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL"))
+        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL"))
+        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
+        if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
+            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
     }
     register<Copy>("copy-test-fuseki-server") {
         // Copy fuseki-server jar to known location (build/test-fuseki-server)

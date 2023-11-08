@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker rm -f mms5-store
+docker rm -f flexo-mms-store

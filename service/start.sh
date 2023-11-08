@@ -42,7 +42,7 @@ if [[ $B_TTLS -eq 0 ]]; then
 		EOF
 
 		# download dataset from dbpedia
-		docker run --name mms5-download \
+		docker run --name flexo-mms-download \
 			--rm \
 			-e FORMAT="ttl" \
 			-v "$PWD/data/query.sparql:/opt/databus-client/query.sparql" \

@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "3f7ddd04-65ba-47a4-9848-b63c5d401a47",
-		"name": "MMS5 CRUD",
+		"name": "Flexo MMS CRUD",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "19024498"
 	},
@@ -126,7 +126,7 @@
 						"method": "GET",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text",
 								"disabled": true
@@ -163,7 +163,7 @@
 						"method": "GET",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -198,7 +198,7 @@
 						"method": "HEAD",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -228,7 +228,7 @@
 						"method": "HEAD",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -268,7 +268,7 @@
 								"type": "text"
 							},
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -307,7 +307,7 @@
 								"type": "text"
 							},
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -350,7 +350,7 @@
 										"type": "text"
 									},
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "text"
 									}
@@ -385,7 +385,7 @@
 										"type": "text"
 									},
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "blake",
 										"type": "text"
 									}
@@ -516,7 +516,7 @@
 								"type": "text"
 							},
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -555,7 +555,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -607,7 +607,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -659,7 +659,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -711,7 +711,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -763,7 +763,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -815,7 +815,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -872,7 +872,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -924,7 +924,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -989,7 +989,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1042,7 +1042,7 @@
 										"method": "POST",
 										"header": [
 											{
-												"key": "MMS5-User",
+												"key": "Flexo MMS-User",
 												"value": "root",
 												"type": "default"
 											},
@@ -1095,7 +1095,7 @@
 										"method": "POST",
 										"header": [
 											{
-												"key": "MMS5-User",
+												"key": "Flexo MMS-User",
 												"value": "root",
 												"type": "default"
 											},
@@ -1150,7 +1150,7 @@
 								"method": "POST",
 								"header": [
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "default"
 									},
@@ -1202,7 +1202,7 @@
 								"method": "POST",
 								"header": [
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "default"
 									},
@@ -1313,7 +1313,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1361,7 +1361,7 @@
 						"method": "DELETE",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1414,7 +1414,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1507,7 +1507,7 @@
 				"type": "text/javascript",
 				"exec": [
 					"pm.request.headers.add({",
-					"    key: 'MMS5-User',",
+					"    key: 'Flexo MMS-User',",
 					"    value: pm.environment.get('Username'),",
 					"});",
 					"",
