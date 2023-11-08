@@ -5,7 +5,7 @@ build/
 scrap/
 
 *.env
-src/test/kotlin/org.openmbee.flexo.mms/resources/.env.tests
+src/test/kotlin/org/openmbee/flexo/mms/resources/.env.tests
 *.ignore
 .git-*
 
