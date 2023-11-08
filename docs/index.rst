@@ -34,7 +34,7 @@ Quadstore Configs
 
     | `Default: https://quad-store-domain/sparql/gsp`
 
-MMS 5 Services Configs
+Services Configs
 -----------------------
 
   FLEXO_MMS_STORE_SERVICE_URL
@@ -111,7 +111,7 @@ Apply the initialization file
 
 Once the initialization file has been generated at ``cluster.trig``, apply this file to your empty quadstore (for example, by using its Graph Store Protocol API to insert the data) before using Flexo MMS.
 
-MMS 5 API
+API
 ---------
 
 See API documentation at https://www.openmbee.org/flexo-mms-layer1-openapi/, generated from https://github.com/Open-MBEE/flexo-mms-layer1-openapi
