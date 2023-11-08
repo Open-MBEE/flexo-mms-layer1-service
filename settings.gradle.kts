@@ -1,1 +1,1 @@
-rootProject.name = "org.openmbee.mms.layer1"
+rootProject.name = "org.openmbee.flexo.mms.layer1"
