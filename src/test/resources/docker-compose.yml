@@ -15,7 +15,7 @@ services:
     hostname: minio-server
     container_name: minio-server
     env_file:
-      - ${PWD}/src/test/resources/test.env
+      - ./test.env
     environment:
       - MINIO_ACCESS_KEY=admintest
       - MINIO_SECRET_KEY=admintest
@@ -28,7 +28,7 @@ services:
     hostname: store-service
     container_name: store-service
     env_file:
-      - ${PWD}/src/test/resources/test.env
+      - ./test.env
     environment:
       - S3_ENDPOINT=http://minio-server:9000
       - S3_REGION=somewhere
