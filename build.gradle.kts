@@ -2,7 +2,7 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.7.20"
+    kotlin("jvm") version "1.9.20"
     kotlin("plugin.serialization") version "1.9.20"
     jacoco
 }
@@ -45,21 +45,20 @@ dependencies {
 
     val ktorVersion = "2.3.4"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
-    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
+    implementation("io.ktor:ktor-client-cio:${ktorVersion}")
     implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
-    implementation("io.ktor:ktor-server-locations:$ktorVersion")
     implementation("io.ktor:ktor-server-auth:$ktorVersion")
     implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
+    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
     implementation("io.ktor:ktor-server-cors:$ktorVersion")
     implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
     implementation("io.ktor:ktor-server-forwarded-header:$ktorVersion")
-    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
-    // implementation("io.ktor:ktor-server-:$ktorVersion")
+    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
+    implementation("io.ktor:ktor-server-locations:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
     val logbackVersion = "1.4.11"
