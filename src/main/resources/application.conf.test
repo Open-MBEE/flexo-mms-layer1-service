@@ -28,10 +28,22 @@ mms {
 ktor {
     deployment {
         port = 8080
+        sslPort = 8443
     }
 
     application {
         modules = [ org.openmbee.flexo.mms.ApplicationKt.module ]
+    }
+
+    security {
+        ssl {
+            keyStore = /application/keystore.jks
+            keyStore = ${?KEYSTORE}
+            keyAlias = mms.openmbee.org
+            keyAlias = ${?KEYALIAS}
+            keyStorePassword = changeit
+            privateKeyPassword = changeit
+        }
     }
 
     development = true
