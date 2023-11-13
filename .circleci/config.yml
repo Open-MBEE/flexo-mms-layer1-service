@@ -140,7 +140,7 @@ workflows:
             - generate_schema
           filters:
             tags:
-              only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
+              only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
             branches:
               ignore: /(^wip\/.*)/
           context:
@@ -150,11 +150,7 @@ workflows:
             - build_and_test
           filters:
             branches:
-              only: 
-                - release
-                - develop
-                - hotfix
-                - support
+              only: /((release|hotfix|support)/[0-9.]+(-[\w-]+(\.[0-9]+)?)?|develop)/
           context:
             - DockerHub
       - deploy_nightly:
@@ -168,7 +164,7 @@ workflows:
             - build_and_test
           filters:
             tags:
-              only: /[0-9.]+(-(a|b|rc)[0-9]+)?/
+              only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
             branches:
               ignore: /.*/
           context:
