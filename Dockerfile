@@ -13,6 +13,6 @@ WORKDIR application
 RUN apt-get update && apt-get install -y procps
 COPY --from=build application/build/install/org.openmbee.flexo.mms.layer1/ .
 COPY --from=build application/src/main/resources/keystore.jks /application/keystore.jks
-COPY --from=build application/src/main/resources/cacerts /application/cacerts
+COPY --from=build application/src/main/resources/cacerts $JAVA_HOME/lib/security/cacerts
 ENTRYPOINT ["./bin/org.openmbee.flexo.mms.layer1"]
-EXPOSE 8080
+EXPOSE 8080 8443
