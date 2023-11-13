@@ -1,10 +1,10 @@
 {
-  "name": "mms5-deploy",
+  "name": "flexo-mms-deploy",
   "version": "0.0.1",
   "main": "src/main.ts",
   "license": "MIT",
   "scripts": {
-    "build": "yarn mkdirp build/ && ts-node src/main.ts $1 > build/cluster.trig"
+    "build": "yarn mkdirp build/ && ts-node src/main.ts ${1:-'http://layer1-service'} > build/cluster.trig"
   },
   "dependencies": {
     "@graphy/content.trig.write": "^4.3.4",

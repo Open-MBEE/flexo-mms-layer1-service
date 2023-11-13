@@ -5,7 +5,7 @@ build/
 scrap/
 
 *.env
-src/test/kotlin/org/openmbee/mms5/resources/.env.tests
+src/test/kotlin/org/openmbee/flexo/mms/resources/.env.tests
 *.ignore
 .git-*
 
@@ -81,3 +81,8 @@ cluster.trig
 application.conf
 results/*
 *-logback.xml
+
+# test data
+*.test.ttl
+*.test.trig
+*.test.rw

@@ -1,6 +1,12 @@
-# MMS 5 Layer 1
+# Flexo MMS Layer 1
+
+[![CircleCI](https://circleci.com/gh/Open-MBEE/flexo-mms-layer1-service.svg?style=shield)](https://circleci.com/gh/Open-MBEE/flexo-mms-layer1-service)
 
 This project is currently under development. This document describes how to set up a local dev environment.
+
+## Quickstart
+
+See https://flexo-mms-deployment-guide.readthedocs.io/en/latest/
 
 ## Setting up local dev environment
 
@@ -26,7 +32,7 @@ Apache Jena's Fuseki quadstore will bind locally on port 3030. Should you want t
 
 ### Generate the initialization file
 
-The next step is to populate the quadstore with configuration data since MMS5 stores all of its state information in the quadstore alongside user data.
+The next step is to populate the quadstore with configuration data since Flexo MMS stores all of its state information in the quadstore alongside user data.
 
 This configuration data is unique to your deployment.
 
@@ -38,23 +44,23 @@ cd deploy
 npx ts-node src/main.ts $APP_URL > ../src/test/resources/cluster.trig
 ```
 
-Where `$APP_URL` is the root URL for where the MMS5 Layer 1 instance is deployed, e.g., `https://mms5.openmbee.org/`. For local development, we simply use the stand-in `http://layer1-service`.
+Where `$APP_URL` is the root URL for where the Flexo MMS Layer 1 instance is deployed, e.g., `https://mms.openmbee.org/`. For local development, we simply use the stand-in `http://layer1-service`.
 
 
 ### Apply the initialization file
 
-Once the initialization file has been generated at `src/test/resources/cluster.trig`, this file will automatically be used when running tests. Otherwise, make sure to apply this file to your empty quadstore (for example, by using its Graph Store Protocol API) before using MMS5.
+Once the initialization file has been generated at `src/test/resources/cluster.trig`, this file will automatically be used when running tests. Otherwise, make sure to apply this file to your empty quadstore (for example, by using its Graph Store Protocol API) before using Flexo MMS.
 
 
-### Deploy the MMS5 Layer 1 Application
+### Deploy the Flexo MMS Layer 1 Application
 
 Make sure the following environment variables are set when running the application. If running tests, make sure these variables are set in the test configuration. These will be picked up by `src/main/resources/application.conf.*` which you can also configure for further customization. 
 
 ```shell
-MMS5_ROOT_CONTEXT=http://layer1-service
-MMS5_QUERY_URL=http://localhost:3030/ds/sparql
-MMS5_UPDATE_URL=http://localhost:3030/ds/update
-MMS5_GRAPH_STORE_PROTOCOL_URL=http://localhost:3030/ds/data
+FLEXO_MMS_ROOT_CONTEXT=http://layer1-service
+FLEXO_MMS_QUERY_URL=http://localhost:3030/ds/sparql
+FLEXO_MMS_UPDATE_URL=http://localhost:3030/ds/update
+FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL=http://localhost:3030/ds/data
 ```
 
 [comment]: <> (This repo provides some scripts under [`service/`]&#40;./service&#41; that will setup a Blazegraph docker container for you and preload it with an initialization graph.)
@@ -81,9 +87,9 @@ MMS5_GRAPH_STORE_PROTOCOL_URL=http://localhost:3030/ds/data
 
 [comment]: <> (# if using the default blazegraph docker container scripts in `service/`:)
 
-[comment]: <> (MMS5_STORE_QUERY=http://localhost:8081/bigdata/namespace/kb/sparql)
+[comment]: <> (FLEXO_MMS_STORE_QUERY=http://localhost:8081/bigdata/namespace/kb/sparql)
 
-[comment]: <> (MMS5_STORE_UPDATE=http://localhost:8081/bigdata/namespace/kb/sparql)
+[comment]: <> (FLEXO_MMS_STORE_UPDATE=http://localhost:8081/bigdata/namespace/kb/sparql)
 
 [comment]: <> (```)
 

@@ -1,10 +1,66 @@
 {
 	"info": {
 		"_postman_id": "3f7ddd04-65ba-47a4-9848-b63c5d401a47",
-		"name": "MMS5 CRUD",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"name": "Flexo MMS CRUD",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19024498"
 	},
 	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const responseBodyJson = pm.response.json();",
+									"pm.environment.set(\"bearerToken\", responseBodyJson.token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{username}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{password}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{app_url}}/login",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
 		{
 			"name": "Orgs",
 			"item": [
@@ -39,11 +95,6 @@
 								"key": "Content-Type",
 								"value": "text/turtle",
 								"type": "text"
-							},
-							{
-								"key": "MMS5-User",
-								"value": "root",
-								"type": "text"
 							}
 						],
 						"body": {
@@ -75,9 +126,10 @@
 						"method": "GET",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
-								"type": "text"
+								"type": "text",
+								"disabled": true
 							},
 							{
 								"key": "If-Match",
@@ -111,7 +163,7 @@
 						"method": "GET",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -146,7 +198,7 @@
 						"method": "HEAD",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -176,7 +228,7 @@
 						"method": "HEAD",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -216,7 +268,7 @@
 								"type": "text"
 							},
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -255,7 +307,7 @@
 								"type": "text"
 							},
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -298,7 +350,7 @@
 										"type": "text"
 									},
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "text"
 									}
@@ -333,7 +385,7 @@
 										"type": "text"
 									},
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "blake",
 										"type": "text"
 									}
@@ -368,12 +420,10 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "http://localhost:8080/orgs/:ORG_ID/repos",
-									"protocol": "http",
+									"raw": "{{app_url}}/orgs/:ORG_ID/repos",
 									"host": [
-										"localhost"
+										"{{app_url}}"
 									],
-									"port": "8080",
 									"path": [
 										"orgs",
 										":ORG_ID",
@@ -395,13 +445,7 @@
 					"name": "Create Repo",
 					"request": {
 						"method": "PUT",
-						"header": [
-							{
-								"key": "MMS5-User",
-								"value": "root",
-								"type": "text"
-							}
-						],
+						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "<>\n    dct:title \"{{demo_project_title}}\"@en ;\n    .\n"
@@ -435,13 +479,7 @@
 					"name": "Read Repo",
 					"request": {
 						"method": "GET",
-						"header": [
-							{
-								"key": "MMS5-User",
-								"value": "root",
-								"type": "default"
-							}
-						],
+						"header": [],
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID",
 							"host": [
@@ -466,6 +504,45 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Update Repo",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/sparql-update",
+								"type": "text"
+							},
+							{
+								"key": "Flexo MMS-User",
+								"value": "root",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "prefix foaf: <http://xmlns.com/foaf/0.1/>\nprefix custom: <https://custom.example/ontology/>\nprefix mms: <https://mms.openmbee.org/rdf/ontology/>\n\ndelete {\n    <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n}\ninsert {\n    <> foaf:homepage <https://www.openmbee.org/> ;\n        foaf:mbox <mailto:openmbee@gmail.com> ;\n        .\n}\nwhere {\n    optional {\n        <> foaf:homepage ?homepage ;\n        foaf:mbox ?mbox ;\n        .\n    }\n}\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "{{demo_org_id}}"
+								}
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -478,7 +555,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -530,7 +607,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -582,7 +659,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -634,7 +711,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -686,7 +763,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -738,7 +815,7 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "default"
 							},
@@ -792,10 +869,10 @@
 				{
 					"name": "Load Model",
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							},
@@ -807,7 +884,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "prefix : <https://mms.openmbee.org/demos/people/>\nprefix foaf: <http://xmlns.com/foaf/0.1/>\n\n\n:Alice a :Person ;\n    foaf:name \"Alice\" ;\n    .\n\n:Rex a :Dog ;\n    :owner :Alice ;\n    :likes :PeanutButter ;\n    foaf:name \"Rex\" ;\n    .\n\n"
+							"raw": ""
 						},
 						"url": {
 							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/graph",
@@ -840,6 +917,66 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Load Model From File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Flexo MMS-User",
+								"value": "root",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "text/turtle",
+								"type": "text"
+							},
+							{
+								"warning": "This is a duplicate header and will be overridden by the Authorization header generated by Postman.",
+								"key": "Authorization",
+								"value": "Bearer {{bearerToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {
+								"src": "/Users/bregalia/mms5/scrap/neptune/Load.51b7b3a7-0c1a-48a6-9597-08d8a45791d1.ttl"
+							}
+						},
+						"url": {
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/graph",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"graph"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "open-mbee"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "new-repo"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "master"
+								}
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -852,7 +989,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -905,7 +1042,7 @@
 										"method": "POST",
 										"header": [
 											{
-												"key": "MMS5-User",
+												"key": "Flexo MMS-User",
 												"value": "root",
 												"type": "default"
 											},
@@ -958,7 +1095,7 @@
 										"method": "POST",
 										"header": [
 											{
-												"key": "MMS5-User",
+												"key": "Flexo MMS-User",
 												"value": "root",
 												"type": "default"
 											},
@@ -1013,7 +1150,7 @@
 								"method": "POST",
 								"header": [
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "default"
 									},
@@ -1065,7 +1202,7 @@
 								"method": "POST",
 								"header": [
 									{
-										"key": "MMS5-User",
+										"key": "Flexo MMS-User",
 										"value": "root",
 										"type": "default"
 									},
@@ -1134,17 +1271,32 @@
 							"raw": "prefix mms: <https://mms.openmbee.org/rdf/ontology/>\nprefix mor-graph: <{{root_context}}/orgs/{{demo_org_id}}/repos/{{demo_repo_id}}/graphs/>\n\nconstruct {\n    ?s ?p ?o\n} where {\n    graph mor-graph:Metadata {\n        {\n            ?s ?p ?o ;\n                a mms:Commit .\n        } union {\n            \n        }\n    }\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8081/bigdata/namespace/kb/sparql",
-							"protocol": "http",
+							"raw": "{{app_url}}/orgs/:ORG_ID/repos/:REPO_ID/branches/:BRANCH_ID/graph",
 							"host": [
-								"localhost"
+								"{{app_url}}"
 							],
-							"port": "8081",
 							"path": [
-								"bigdata",
-								"namespace",
-								"kb",
-								"sparql"
+								"orgs",
+								":ORG_ID",
+								"repos",
+								":REPO_ID",
+								"branches",
+								":BRANCH_ID",
+								"graph"
+							],
+							"variable": [
+								{
+									"key": "ORG_ID",
+									"value": "dngmdk"
+								},
+								{
+									"key": "REPO_ID",
+									"value": "msr3"
+								},
+								{
+									"key": "BRANCH_ID",
+									"value": "main"
+								}
 							]
 						}
 					},
@@ -1161,7 +1313,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1209,7 +1361,7 @@
 						"method": "DELETE",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1262,7 +1414,7 @@
 						"method": "PUT",
 						"header": [
 							{
-								"key": "MMS5-User",
+								"key": "Flexo MMS-User",
 								"value": "root",
 								"type": "text"
 							}
@@ -1301,8 +1453,53 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Groups",
+			"item": [
+				{
+					"name": "Create LDAP Group",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "",
+								"value": "root",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "<> dct:title \"All users\"@en ;\n    .\n"
+						},
+						"url": {
+							"raw": "{{app_url}}/groups/ldap/cn=all.personnel,ou=personnel,dc=dir,dc=jpl,dc=nasa,dc=gov",
+							"host": [
+								"{{app_url}}"
+							],
+							"path": [
+								"groups",
+								"ldap",
+								"cn=all.personnel,ou=personnel,dc=dir,dc=jpl,dc=nasa,dc=gov"
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{bearerToken}}",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -1310,7 +1507,7 @@
 				"type": "text/javascript",
 				"exec": [
 					"pm.request.headers.add({",
-					"    key: 'MMS5-User',",
+					"    key: 'Flexo MMS-User',",
 					"    value: pm.environment.get('Username'),",
 					"});",
 					"",
@@ -1337,7 +1534,7 @@
 	"variable": [
 		{
 			"key": "demo_org_id",
-			"value": "openmbee"
+			"value": "open-mbee"
 		},
 		{
 			"key": "demo_org_title",
@@ -1345,7 +1542,7 @@
 		},
 		{
 			"key": "demo_repo_id",
-			"value": "demo"
+			"value": "new-repo"
 		},
 		{
 			"key": "demo_repo_title",
@@ -1358,6 +1555,20 @@
 		{
 			"key": "root_context",
 			"value": "https://mms.openmbee.org/demo",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "root"
+		},
+		{
+			"key": "password",
+			"value": "thisissomethingsecret123",
+			"type": "string"
+		},
+		{
+			"key": "bearerToken",
+			"value": "",
 			"type": "string"
 		}
 	]
