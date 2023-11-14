@@ -133,6 +133,9 @@ workflows:
   build-test-deploy:
     jobs:
       - generate_schema:
+          filters:
+            tags:
+              only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
           context:
             - DockerHub
       - build_and_test:
@@ -141,8 +144,6 @@ workflows:
           filters:
             tags:
               only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
-            branches:
-              ignore: /(^wip\/.*)/
           context:
             - DockerHub
       - deploy_snapshot:
@@ -161,11 +162,5 @@ workflows:
               only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
             branches:
               ignore: /.*/
-          context:
-            - DockerHub
-      - deploy_nightly:
-          filters:
-            branches:
-              only: /(^wip\/.*)/
           context:
             - DockerHub
