@@ -153,12 +153,6 @@ workflows:
               only: /((release|hotfix|support)/[0-9.]+(-[\w-]+(\.[0-9]+)?)?|develop)/
           context:
             - DockerHub
-      - deploy_nightly:
-          filters:
-            branches:
-              only: /(^wip\/.*)/
-          context:
-            - DockerHub
       - deploy_release:
           requires:
             - build_and_test
@@ -167,5 +161,11 @@ workflows:
               only: /v[0-9.]+(-[\w-]+(\.[0-9]+)?)?/
             branches:
               ignore: /.*/
+          context:
+            - DockerHub
+      - deploy_nightly:
+          filters:
+            branches:
+              only: /(^wip\/.*)/
           context:
             - DockerHub
