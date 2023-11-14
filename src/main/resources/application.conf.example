@@ -50,7 +50,7 @@ ktor {
         ssl {
             keyStore = /application/keystore.jks
             keyStore = ${?KEYSTORE}
-            keyAlias = mms.openmbee.org
+            keyAlias = flexo-mms-layer-1-service
             keyAlias = ${?KEYALIAS}
             keyStorePassword = changeit
             keyStorePassword = ${?KEYSTOREPASSWORD}
