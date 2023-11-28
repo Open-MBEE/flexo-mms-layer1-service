@@ -56,11 +56,11 @@ jobs:
   scan:
     executor:
       name: docker/docker
-      steps:
-        - checkout
-        - attach_workspace:
-            at: ~/
-        - sonarcloud/scan
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/
+      - sonarcloud/scan
 
   deploy_snapshot:
     executor:
