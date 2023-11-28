@@ -5,10 +5,21 @@ plugins {
     kotlin("jvm") version "1.9.20"
     kotlin("plugin.serialization") version "1.9.20"
     jacoco
+    id("org.sonarqube") version "4.4.1.3373"
 }
 
 group = "org.openmbee.flexo.mms"
 version = "0.1.0-ALPHA"
+
+sonar {
+    properties {
+        property("sonar.projectKey", "Open-MBEE_flexo-mms-layer1-service")
+        property("sonar.organization", "openmbee")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+    }
+}
+
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 }
@@ -108,4 +119,7 @@ tasks.test {
 }
 tasks.jacocoTestReport {
     dependsOn(tasks.test) // tests are required to run before generating the report
+    reports {
+        xml.required.set(true)
+    }
 }
