@@ -2,7 +2,7 @@ version: 2.1
 orbs:
   docker: circleci/docker@2.1.1
   node: circleci/node@5.0.2
-
+  sonarcloud: sonarsource/sonarcloud@2.0.0
 jobs:
   generate_schema:
     executor:
@@ -45,14 +45,23 @@ jobs:
             docker build --network=flexo-mms-test-network -t flexo-mms-test:latest -f Dockerfile-Test .
             docker run --network=flexo-mms-test-network --name flexo-mms-test-container flexo-mms-test:latest
             SIG_INT=$?
-            docker cp flexo-mms-test-container:/application/build/reports/tests /home/circleci/results
+            docker cp flexo-mms-test-container:/application/build /home/circleci/flexo-mms-layer1-service/build
             exit "$SIG_INT"
       - store_artifacts:
-          path: /home/circleci/results
+          path: /home/circleci/flexo-mms-layer1-service/build
       - persist_to_workspace:
           root: /home/circleci/
           paths:
             - flexo-mms-layer1-service/*
+  scan:
+    executor:
+      name: docker/docker
+    working_directory: /home/circleci/flexo-mms-layer1-service
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /home/circleci/flexo-mms-layer1-service
+      - sonarcloud/scan
 
   deploy_snapshot:
     executor:
@@ -132,6 +141,11 @@ workflows:
   version: 2
   build-test-deploy:
     jobs:
+      - scan:
+          requires:
+            - build_and_test
+          context:
+            - SonarCloud
       - generate_schema:
           filters:
             tags:
@@ -139,6 +153,11 @@ workflows:
           context:
             - DockerHub
       - build_and_test:
+          post-steps:
+            - persist_to_workspace:
+                root: /home/circleci/flexo-mms-layer1-service
+                paths:
+                  - build/*
           requires:
             - generate_schema
           filters:
