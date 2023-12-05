@@ -14,6 +14,9 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.plugins.*
 import java.util.*
 
+val DEFAULT_BRANCH_ID = "master"
+
+
 /**
  * In some of the hardcoded SPARQL strings, a directive following the form `# @values {PARAM_ID}` is used to indicate
  * a part of the SPARQL that must be replaced by a whitespace-delimited list of resources inside a VALUES block.
@@ -28,14 +31,26 @@ private fun replaceValuesDirectives(sparql: String, vararg pairs: Pair<String, L
     return replaced
 }
 
+/**
+ * Convenience type for any context
+ */
 typealias AnyLayer1Context = Layer1Context<*, *>
 
+/**
+ * Encapsulates both the request and response contexts, providing properties and methods relevant to any route handler
+ */
 class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericResponse>(
     val requestContext: TRequestContext,
     val responseContext: TResponseContext,
 ) {
+    // effectively creates an overloaded constructor that allows TResponseContext to be inferred from the default value `GenericResponse(requestContext)`
+    companion object {
+        operator fun <TRequestContext: GenericRequest> invoke(requestContext: TRequestContext) = Layer1Context(requestContext, GenericResponse(requestContext))
+    }
+
+    // get the call value from the request context
     val call
-        get() = responseContext.call
+        get() = requestContext.call
 
     // logger
     val log = call.application.log
@@ -476,4 +491,33 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
     }
 
 
+
+    /**
+     * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
+     * a call to [RdfModeler.normalizeRefOrCommit] within a [Layer1Context.filterIncomingStatements] block.
+     */
+    fun ConditionsGroup.appendRefOrCommit(): ConditionsGroup {
+        return append {
+            require("validSource") {
+                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" to HttpStatusCode.BadRequest }
+
+                """
+                    ${if(refSource != null) """
+                        graph m-graph:Schema {
+                            ?__mms_refSourceClass rdfs:subClassOf* mms:Ref .
+                        }
+               
+                        graph mor-graph:Metadata {         
+                            ?_refSource a ?__mms_refSourceClass ;
+                                mms:commit ?__mms_commitSource ;
+                                .
+                        }
+                    """ else ""} 
+                    graph mor-graph:Metadata {
+                       ?__mms_commitSource a mms:Commit .
+                    }
+                """
+            }
+        }
+    }
 }

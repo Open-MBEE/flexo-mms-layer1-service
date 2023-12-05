@@ -20,15 +20,17 @@ import io.ktor.utils.io.jvm.javaio.*
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.requestTimeout
-import org.openmbee.flexo.mms.routes.*
 import org.openmbee.flexo.mms.routes.endpoints.*
-import org.openmbee.flexo.mms.routes.ldp.CrudBranches
-import org.openmbee.flexo.mms.routes.ldp.CrudOrgs
-import org.openmbee.flexo.mms.routes.ldp.CrudRepos
+import org.openmbee.flexo.mms.routes.ldp.*
 
 typealias CustomRouteHandler<TRequest> = suspend PipelineContext<Unit, ApplicationCall>.(TRequest) -> Unit
 
-typealias Layer1Handler<TRequest> = suspend Layer1Context<TRequest>.() -> Unit
+// helper type for the body callback arguments to the verb methods in route handling implementor
+typealias Layer1Handler<TRequestContext, TResponseContext> = suspend Layer1Context<TRequestContext, TResponseContext>.() -> Unit
+
+// same as above but with default generic response
+typealias Layer1HandlerGeneric<TRequestContext> = suspend Layer1Context<TRequestContext, GenericResponse>.() -> Unit
+
 
 fun ApplicationCall.httpClient(timeoutOverrideMs: Long? = null): HttpClient {
     return HttpClient(CIO) {
@@ -108,10 +110,11 @@ fun Application.configureRouting() {
             CrudRepos()
             CrudBranches()
 
-            createCollection()
-            // readCollection()
-            // updateCollection()
-            // deleteCollection()
+            CrudModel()
+
+            CrudCollections()
+            CrudLocks()
+            CrudDiffs()
 
             queryCollection()
 
@@ -119,28 +122,17 @@ fun Application.configureRouting() {
 
             // deleteBranch()
 
-            modelGsp()
-
             queryModel()
             commitModel()
 
-            createLock()
-            readLock()
-            deleteLock()
 
             queryLock()
 
-            createDiff()
             queryDiff()
             // deleteDiff()
 
-            createGroup()
-            // updateGroup()
-            // deleteGroup()
-
-            createPolicy()
-            // updatePolicy()
-            // deletePolicy()
+            CrudGroups()
+            CrudPolicies()
         }
     }
 }

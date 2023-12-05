@@ -6,21 +6,22 @@ import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
 
 const val SPARQL_VAR_NAME_ORG = "_org"
 
+private const val ORGS_PATH = "/orgs"
 
 /**
  * Org CRUD routing
  */
 fun Route.CrudOrgs() {
     // all orgs
-    linkedDataPlatformDirectContainer("/orgs") {
+    linkedDataPlatformDirectContainer(ORGS_PATH) {
         // state of all orgs
         head {
-            headOrgs()
+            headOrgs(true)
         }
 
         // read all orgs
         get {
-            getOrgs()
+            getOrgs(true)
         }
 
         // create a new org
@@ -37,7 +38,7 @@ fun Route.CrudOrgs() {
     }
 
     // specific org
-    linkedDataPlatformDirectContainer("/orgs/{orgId}") {
+    linkedDataPlatformDirectContainer("$ORGS_PATH/{orgId}") {
         beforeEach = {
             parsePathParams {
                 org()
@@ -46,12 +47,12 @@ fun Route.CrudOrgs() {
 
         // state of an org
         head {
-            headOrgs(orgId)
+            headOrgs()
         }
 
         // read an org
         get {
-            getOrgs(orgId)
+            getOrgs()
         }
 
         // create or replace org
@@ -63,14 +64,14 @@ fun Route.CrudOrgs() {
             createOrReplaceOrg()
         }
 
-        // modify existing org
-        patch {
-//            guardedPatch(
-//                updateRequest = it,
-//                objectKey = "mo",
-//                graph = "m-graph:Cluster",
-//                preconditions = UPDATE_ORG_CONDITIONS,
-//            )
-        }
+//        // modify existing org
+//        patch {
+////            guardedPatch(
+////                updateRequest = it,
+////                objectKey = "mo",
+////                graph = "m-graph:Cluster",
+////                preconditions = UPDATE_ORG_CONDITIONS,
+////            )
+//        }
     }
 }

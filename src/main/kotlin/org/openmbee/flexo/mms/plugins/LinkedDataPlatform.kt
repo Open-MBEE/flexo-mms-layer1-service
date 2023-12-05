@@ -42,7 +42,7 @@ open class LdpResponse(requestContext: GenericRequest): GenericResponse(requestC
     protected fun stringifyModel(model: KModel): String {
         // determine output format; not supported (should have already rejected)
         val language = contentTypeToLanguage[responseType]
-            ?: throw UnsupportedMediaType(responseType.toString())
+            ?: throw NotAcceptableException(responseType, "Not acceptable RDF format")
 
         // serialize to destination format
         return model.stringify(language.name)
@@ -134,7 +134,7 @@ class LdpPutResponse(requestContext: GenericRequest): LdpWriteResponse(requestCo
 /**
  * Response context for PATCH to LDP resource
  */
-class LdpPatchResponse(requestContext: GenericRequest): LdpResponse(requestContext)
+class LdpPatchResponse(requestContext: GenericRequest): LdpWriteResponse(requestContext)
 
 /**
  * Response context for DELETE to LDP resource
@@ -210,9 +210,6 @@ fun Route.linkedDataPlatformDirectContainer(
         body(route)
     }
 }
-
-// helper type for the body callback arguments to the verb methods in LinkedDataPlatformRoute
-typealias LdpBody<TRequestContext, TResponseContext> = suspend Layer1Context<TRequestContext, TResponseContext>.() -> Unit
 
 /**
  * Route builder for LDP resources
@@ -300,7 +297,7 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
     }
 
     // HEAD
-    fun head(body: LdpBody<TRequestContext, LdpHeadResponse>) {
+    fun head(body: Layer1Handler<TRequestContext, LdpHeadResponse>) {
         // add to allowed methods
         allowedMethods.add("HEAD")
 
@@ -315,7 +312,7 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
     }
 
     // GET
-    fun get(body: LdpBody<TRequestContext, LdpGetResponse>) {
+    fun get(body: Layer1Handler<TRequestContext, LdpGetResponse>) {
         // add to allowed methods
         allowedMethods.add("GET")
 
@@ -355,7 +352,7 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
     }
 
     // PUT
-    fun put(body: LdpBody<TRequestContext, LdpPutResponse>) {
+    fun put(body: Layer1Handler<TRequestContext, LdpPutResponse>) {
         // add to allowed methods
         allowedMethods.add("PUT")
 
@@ -389,8 +386,7 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
             var updateString = ""
 
             // depending on content-type
-            val contentType = call.request.contentType().withoutParameters()
-            when(contentType) {
+            when(val contentType = call.request.contentType().withoutParameters()) {
                 // SPARQL Update
                 RdfContentTypes.SparqlUpdate -> {
                     updateString = call.receiveText()
@@ -402,44 +398,47 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
 //
 //                }
 
-                // Triples document; treat all as INSERT
-                RdfContentTypes.Turtle,
-                RdfContentTypes.NTriples,
-                RdfContentTypes.RdfXml,
-                RdfContentTypes.JsonLd,
-                -> {
-                    // prepare model
-                    val model = KModel()
-
-                    // attempt to parse triples
-                    try {
-                        parseRdfByContentType(
-                            contentType,
-                            call.receiveText(),
-                            model,
-                            ROOT_CONTEXT + call.request.path()
-                        )
-                    }
-                    catch(parseError: Exception) {
-                        throw Http400Exception("Failed to parse triples document: $parseError")
-                    }
-
-                    // stringify and inject into INSERT block of SPARQL Update string
-                    updateString = """
-                        insert {
-                            ${model.stringify()}
-                        }
-                    """.trimIndent()
-                }
-
                 // other
                 else -> {
-                    throw UnsupportedMediaType(contentType.toString())
+                    // Triples document; treat all as INSERT
+                    if(contentType in triplesContentTypes) {
+                        // prepare model
+                        val model = KModel()
+
+                        // attempt to parse triples
+                        try {
+                            parseRdfByContentType(
+                                contentType,
+                                call.receiveText(),
+                                model,
+                                ROOT_CONTEXT + call.request.path()
+                            )
+                        }
+                        catch(parseError: Exception) {
+                            throw Http400Exception("Failed to parse triples document: $parseError")
+                        }
+
+                        // stringify and inject into INSERT block of SPARQL Update string
+                        updateString = """
+                            insert {
+                                ${model.stringify()}
+                            }
+                        """.trimIndent()
+                    }
+                    // other
+                    else {
+                        throw UnsupportedMediaType(
+                            listOf(
+                                RdfContentTypes.SparqlUpdate,
+                                *triplesContentTypes,
+                            )
+                        )
+                    }
                 }
             }
 
             // create update request data instance
-            val updateRequest = SparqlUpdateRequest(updateString)
+            val updateRequest = SparqlUpdateRequest(call, updateString)
 
             // forward update request to body
             body(layer1, updateRequest)
@@ -447,7 +446,7 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
     }
 
     // DELETE
-    fun delete(body: LdpBody<TRequestContext, LdpDeleteResponse>) {
+    fun delete(body: Layer1Handler<TRequestContext, LdpDeleteResponse>) {
         // add to allowed methods
         allowedMethods.add("DELETE")
 
@@ -470,3 +469,4 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
  * Layer1Context for any LDP-DC route handler
  */
 typealias LdpDcLayer1Context<TResponseContext> = Layer1Context<LdpDirectContainerRequest, TResponseContext>
+

@@ -4,7 +4,19 @@ import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.DCTerms
 
-class RdfModeler(val layer1: Layer1Context<*, *>, val baseIri: String, val content: String) {
+
+class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
+
+
+fun Resource.removeNonLiterals(property: Property) {
+    listProperties(property).forEach {
+        if(!it.`object`.isLiteral) {
+            it.remove()
+        }
+    }
+}
+
+class RdfModeler(val layer1: AnyLayer1Context, val baseIri: String, val content: String) {
     val model = KModel(layer1.prefixes) {
         parseTurtle(content, this, baseIri)
     }

@@ -2,14 +2,13 @@ package org.openmbee.flexo.mms.plugins
 
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
 
 /**
  * Encapsulates a canonical Graph Store Protocol request
  */
-class GraphStoreRequest(
+class GspRequest(
     call: ApplicationCall,
 
     // override request content type (default to plain type)
@@ -22,8 +21,15 @@ class GraphStoreRequest(
      * An optional target graph IRI specified in query parameters via `graph`
      */
     val graphIri: String?,
-
 ): GenericRequest(call)
+
+/**
+ * Encapsulates a canonical Graph Store Protocol response
+ */
+class GspResponse(
+    requestContext: GspRequest,
+): GenericResponse(requestContext)
+
 
 // parse the query parameters
 fun parseGspParams(call: ApplicationCall): String? {
@@ -38,9 +44,9 @@ fun parseGspParams(call: ApplicationCall): String? {
 }
 
 // handling common to GET and HEAD
-private fun gspReadLike(call: ApplicationCall): GraphStoreRequest {
+private fun gspReadLike(call: ApplicationCall): GspRequest {
     // create data instance
-    return GraphStoreRequest(call,
+    return GspRequest(call,
         graphIri = parseGspParams(call),
         responseContentType = call.negotiateRdfResponseContentType(),
     )
@@ -48,74 +54,66 @@ private fun gspReadLike(call: ApplicationCall): GraphStoreRequest {
 
 
 // handling common to PUT and POST
-private fun gspLoadLike(call: ApplicationCall): GraphStoreRequest {
+private fun gspLoadLike(call: ApplicationCall): GspRequest {
     // create data instance
-    return GraphStoreRequest(call,
+    return GspRequest(call,
         graphIri = parseGspParams(call),
         requestContentType = call.expectTriplesRequestContentType()  // TODO: consider accepting multipart/form-data
     )
 }
 
+suspend fun handleGraphStore(
+    body: Layer1Handler<GspRequest, GspResponse>,
+    requestContext: GspRequest,
+    responseContext: GspResponse= GspResponse(requestContext)
+) {
+    // create layer1 context
+    val layer1 = Layer1Context(requestContext, responseContext)
 
+    // invoke
+    body(layer1)
+}
 
-fun Route.graphStore(path: String, body: CustomRouteHandler<GraphStoreRequest>): Route {
+fun Route.graphStoreProtocol(path: String, body: Layer1Handler<GspRequest, GspResponse>): Route {
     return route(path) {
         // 4.5 HEAD
         head {
-            val graphStoreRequest = gspReadLike(call)
-
-            // invoke
-            body(graphStoreRequest)
+            handleGraphStore(body, gspReadLike(call))
         }
 
         // 5.2 GET
         get {
-            val graphStoreRequest = gspReadLike(call)
-
-            // invoke
-            body(graphStoreRequest)
+            handleGraphStore(body, gspReadLike(call))
         }
 
         // 4.3 PUT
         put {
-            val graphStoreRequest = gspLoadLike(call)
-
-            // invoke
-            body(graphStoreRequest)
+            handleGraphStore(body, gspLoadLike(call))
         }
 
         // 5.5 POST
         post {
-            val graphStoreRequest = gspLoadLike(call)
-
-            // invoke
-            body(graphStoreRequest)
+            handleGraphStore(body, gspLoadLike(call))
         }
 
         // 5.7 PATCH
         patch {
-            // create data instance
-            val graphStoreRequest = GraphStoreRequest(call,
+            handleGraphStore(body, GspRequest(call,
                 graphIri = parseGspParams(call),
                 requestContentType = call.expectContentTypes(mapOf(
                     RdfContentTypes.SparqlUpdate to RdfContentTypes.SparqlUpdate,
                 ))
-            )
-
-            // invoke
-            body(graphStoreRequest)
+            ))
         }
 
         // 5.4 DELETE
         delete {
-            // create data instance
-            val graphStoreRequest = GraphStoreRequest(call,
+            handleGraphStore(body, GspRequest(call,
                 graphIri = parseGspParams(call),
-            )
-
-            // invoke
-            body(graphStoreRequest)
+            ))
         }
 
     }
 }
+
+typealias GspContext = Layer1Context<GspRequest, GspResponse>

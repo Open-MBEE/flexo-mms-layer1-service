@@ -96,7 +96,7 @@ abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val 
 }
 
 abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     indentLevel: Int,
 ): SparqlBuilder<Instance>(indentLevel) {
     fun graph(graph: String, setup: GraphBuilder.() -> Unit): Instance {
@@ -117,17 +117,17 @@ abstract class PatternBuilder<out Instance: SparqlBuilder<Instance>>(
 }
 
 class GroupBuilder(
-    layer1: Layer1Context<*, *>,
+    layer1: AnyLayer1Context,
     indentLevel: Int,
 ): WhereBuilder(layer1, indentLevel)
 
 class GraphBuilder(
-    layer1: Layer1Context<*, *>,
+    layer1: AnyLayer1Context,
     indentLevel: Int,
 ): SparqlBuilder<GraphBuilder>(indentLevel)
 
 class KeyedValuesBuilder(
-    layer1: Layer1Context<*, *>,
+    layer1: AnyLayer1Context,
     indentLevel: Int,
 ): SparqlBuilder<KeyedValuesBuilder>(indentLevel) {
     private val block = StringBuilder()
@@ -144,7 +144,7 @@ class KeyedValuesBuilder(
 }
 
 class ValuesBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     private val indentLevel: Int,
 ): SparqlBuilder<ValuesBuilder>(indentLevel) {
     fun key(key: String, setup: KeyedValuesBuilder.()->Unit): ValuesBuilder {
@@ -157,7 +157,7 @@ class ValuesBuilder(
 }
 
 open class WhereBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(layer1, indentLevel) {
     fun txn(subTxnId: String?=null, scope: String?=null): WhereBuilder {
@@ -196,7 +196,7 @@ open class WhereBuilder(
 }
 
 class DeleteBuilder(
-    layer1: Layer1Context<*, *>,
+    layer1: AnyLayer1Context,
     indentLevel: Int,
 ): PatternBuilder<DeleteBuilder>(layer1, indentLevel)
 
@@ -221,7 +221,7 @@ class TxnBuilder(
 }
 
 class InsertBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     val indentLevel: Int,
 ): PatternBuilder<InsertBuilder>(layer1, indentLevel) {
     fun txn(vararg extras: Pair<String, String>, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
@@ -253,7 +253,7 @@ class InsertBuilder(
 
 
 class ConstructBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     indentLevel: Int,
 ): PatternBuilder<ConstructBuilder>(layer1, indentLevel) {
     fun txn(subTxnId: String?=null): ConstructBuilder {
@@ -280,7 +280,7 @@ class ConstructBuilder(
 
 
 class QueryBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     indentLevel: Int=0,
 ): SparqlBuilder<QueryBuilder>(indentLevel) {
     fun construct(setup: ConstructBuilder.() -> Unit): QueryBuilder {
@@ -301,7 +301,7 @@ class QueryBuilder(
 }
 
 class ComposeUpdateBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     private val indentLevel: Int=0,
 ): PatternBuilder<ComposeUpdateBuilder>(layer1, indentLevel) {
     var deleteString = ""
@@ -352,7 +352,7 @@ class ComposeUpdateBuilder(
 class LostUpdateOperationException: Exception("An update operation was lost")
 
 class UpdateBuilder(
-    private val layer1: Layer1Context<*, *>,
+    private val layer1: AnyLayer1Context,
     indentLevel: Int=0,
 ): SparqlBuilder<UpdateBuilder>(indentLevel) {
     var operationCount = 0

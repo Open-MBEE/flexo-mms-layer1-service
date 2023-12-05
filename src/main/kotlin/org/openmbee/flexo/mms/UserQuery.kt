@@ -22,7 +22,7 @@ class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
-suspend fun Layer1Context<*, *>.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
     // for certain endpoints, point user query at a predetermined graph
     var targetGraphIri = when(refIri) {
         prefixes["mor"] -> {

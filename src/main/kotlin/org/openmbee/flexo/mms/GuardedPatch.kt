@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms
 
 import io.ktor.http.*
 import io.ktor.server.response.*
+import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
 import org.apache.jena.sparql.modify.request.UpdateDataInsert
 import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
@@ -10,7 +11,33 @@ import org.apache.jena.update.UpdateFactory
 import org.openmbee.flexo.mms.plugins.SparqlUpdateRequest
 
 
-suspend fun Layer1Context<*, *>.guardedPatch(updateRequest: SparqlUpdateRequest, objectKey: String, graph: String, preconditions: ConditionsGroup) {
+fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
+    return {
+        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
+    }
+}
+
+fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
+    return {
+        if(it.subject.isVariable) {
+            throw VariablesNotAllowedInUpdateException("subject")
+        }
+        else if(!it.subject.isURI || it.subject.uri != subjectIri) {
+            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
+        }
+        else if(it.predicate.isVariable) {
+            throw VariablesNotAllowedInUpdateException("predicate")
+        }
+        else if(it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)) {
+            throw Http400Exception("User not allowed to set property using predicate <${it.predicate.uri}>")
+        }
+
+        true
+    }
+}
+
+
+suspend fun AnyLayer1Context.guardedPatch(updateRequest: SparqlUpdateRequest, objectKey: String, graph: String, preconditions: ConditionsGroup) {
     val baseIri = prefixes[objectKey]!!
 
     // parse query

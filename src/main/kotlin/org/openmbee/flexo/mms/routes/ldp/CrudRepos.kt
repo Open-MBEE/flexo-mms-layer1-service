@@ -6,13 +6,15 @@ import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
 
 const val SPARQL_VAR_NAME_REPO = "_repo"
 
+private const val REPOS_PATH = "/orgs/{orgId}/repos"
+
 
 /**
  * Repo CRUD routing
  */
 fun Route.CrudRepos() {
     // all repos
-    linkedDataPlatformDirectContainer("/orgs/{orgId}/repos") {
+    linkedDataPlatformDirectContainer(REPOS_PATH) {
         beforeEach = {
             parsePathParams {
                 org()
@@ -21,12 +23,12 @@ fun Route.CrudRepos() {
 
         // state of all repos
         head {
-            headRepos()
+            headRepos(true)
         }
 
         // read all repos
         get {
-            getRepos()
+            getRepos(true)
         }
 
         // create a new repo
@@ -43,7 +45,7 @@ fun Route.CrudRepos() {
     }
 
     // specific repo
-    linkedDataPlatformDirectContainer("/orgs/{orgId}/repos/{repoId}") {
+    linkedDataPlatformDirectContainer("$REPOS_PATH/{repoId}") {
         beforeEach = {
             parsePathParams {
                 org()
@@ -53,12 +55,12 @@ fun Route.CrudRepos() {
 
         // state of a repo
         head {
-            headRepos(repoId)
+            headRepos()
         }
 
         // read a repo
         get {
-            getRepos(repoId)
+            getRepos()
         }
 
         // create or replace repo

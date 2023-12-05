@@ -49,6 +49,13 @@ object RdfContentTypes {
     }
 }
 
+val triplesContentTypes = arrayOf(
+    RdfContentTypes.Turtle,
+    RdfContentTypes.NTriples,
+    RdfContentTypes.JsonLd,
+    RdfContentTypes.RdfXml,
+)
+
 val contentTypeToLanguage = mapOf(
     RdfContentTypes.Turtle to RDFLanguages.TURTLE,
     RdfContentTypes.TriG to RDFLanguages.TRIG,
@@ -68,7 +75,7 @@ fun ApplicationCall.expectContentTypes(typesMap: Map<ContentType, ContentType>, 
     // find mapped content type, otherwise forward to 'other' handle if defined; otherwise throw
     return typesMap[contentType]
         ?: other?.let { it(contentType) }
-        ?: throw UnsupportedMediaType(typesMap.keys.joinToString(","))
+        ?: throw UnsupportedMediaType(typesMap.keys)
 }
 
 /**
@@ -128,8 +135,11 @@ fun ApplicationCall.negotiateRdfResponseContentType(): ContentType {
         // failed to negotiate type
         else -> {
             throw NotAcceptableException(
-                acceptTypes.joinToString(", ") { it.toString() },
-                "*/*, text/turtle, application/n-triples, application/ld+json, application/rdf+xml"
+                request.accept(),
+                listOf(
+                    ContentType.Any,
+                    *triplesContentTypes,
+                )
             )
         }
     }

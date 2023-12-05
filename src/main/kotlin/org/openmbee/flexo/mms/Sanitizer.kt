@@ -3,8 +3,20 @@ package org.openmbee.flexo.mms
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
+import org.apache.jena.vocabulary.OWL
+import org.apache.jena.vocabulary.RDF
+import org.apache.jena.vocabulary.RDFS
 
-class Sanitizer(val layer1: Layer1Context<*, *>, val node: Resource) {
+val FORBIDDEN_PREDICATES_REGEX = listOf(
+    RDF.uri,
+    RDFS.uri,
+    OWL.getURI(),
+    "http://www.w3.org/ns/shacl#",
+    MMS.uri,
+).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
+
+
+class Sanitizer(val layer1: AnyLayer1Context, val node: Resource) {
     private val explicitUris = hashMapOf<String, Resource>()
     private val explicitUriSets = hashMapOf<String, List<Resource>>()
     private val explicitLiterals = hashMapOf<String, String>()

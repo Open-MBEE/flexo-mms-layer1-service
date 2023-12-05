@@ -4,19 +4,17 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
-import io.ktor.util.*
-import io.ktor.util.pipeline.*
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.UnsupportedMediaType
-import kotlin.text.get
 
 // canonical sparql update request object
-data class SparqlUpdateRequest(
+class SparqlUpdateRequest(
+    call: ApplicationCall,
     val update: String,
     val defaultGraphUris: Set<String> = setOf(),
     val namedGraphUris: Set<String> = setOf()
-)
+): GenericRequest(call)
 
 // SPARQL protocol param ids
 private const val updateParamId = "update"
@@ -26,7 +24,7 @@ private const val namedGraphUriParamId = "using-named-graph-uri"
 /**
  * Declares a SPARQL Update endpoint
  */
-fun Route.sparqlUpdate(path: String, body: Layer1Handler<SparqlUpdateRequest>): Route {
+fun Route.sparqlUpdate(path: String, body: Layer1HandlerGeneric<SparqlUpdateRequest>): Route {
     return route(path) {
         // POST
         post {
@@ -34,8 +32,7 @@ fun Route.sparqlUpdate(path: String, body: Layer1Handler<SparqlUpdateRequest>): 
             lateinit var updateRequest: SparqlUpdateRequest
 
             // depending on content-type (without params, e.g., charset)
-            val contentType = call.request.contentType().withoutParameters()
-            when(contentType) {
+            when(val contentType = call.request.contentType().withoutParameters()) {
                 // 2.2.2 directly
                 RdfContentTypes.SparqlUpdate -> {
                     // from query parameters
@@ -48,7 +45,7 @@ fun Route.sparqlUpdate(path: String, body: Layer1Handler<SparqlUpdateRequest>): 
                         val update = call.receiveText()
 
                         // create data instance
-                        updateRequest = SparqlUpdateRequest(update, defaultGraphUris, namedGraphUris)
+                        updateRequest = SparqlUpdateRequest(call, update, defaultGraphUris, namedGraphUris)
                     }
                 }
 
@@ -64,18 +61,21 @@ fun Route.sparqlUpdate(path: String, body: Layer1Handler<SparqlUpdateRequest>): 
                         val update = this[updateParamId] ?: ""
 
                         // create data instance
-                        updateRequest = SparqlUpdateRequest(update, defaultGraphUris, namedGraphUris)
+                        updateRequest = SparqlUpdateRequest(call, update, defaultGraphUris, namedGraphUris)
                     }
                 }
 
                 // other
                 else -> {
-                    throw UnsupportedMediaType(contentType.toString())
+                    throw UnsupportedMediaType(listOf(
+                        RdfContentTypes.SparqlUpdate,
+                        ContentType.Application.FormUrlEncoded,
+                    ))
                 }
             }
 
             // create layer1 context
-            val layer1 = Layer1Context(call, updateRequest)
+            val layer1 = Layer1Context(updateRequest)
 
             // invoke
             body(layer1)

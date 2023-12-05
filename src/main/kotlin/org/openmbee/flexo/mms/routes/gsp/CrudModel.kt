@@ -1,139 +1,50 @@
-package org.openmbee.flexo.mms
+package org.openmbee.flexo.mms.routes.endpoints
 
 import com.linkedin.migz.MiGzOutputStream
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.server.plugins.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.util.*
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import org.apache.jena.rdf.model.Property
-import org.apache.jena.rdf.model.RDFNode
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.rdf.model.ResourceFactory
-import org.apache.jena.sparql.core.Quad
-import org.apache.jena.sparql.modify.request.UpdateDataDelete
-import org.apache.jena.sparql.modify.request.UpdateDataInsert
-import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
-import org.apache.jena.sparql.modify.request.UpdateModify
-import org.apache.jena.update.UpdateFactory
-import org.apache.jena.vocabulary.OWL
-import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.RDFS
-import org.openmbee.flexo.mms.plugins.SparqlUpdateRequest
-import org.openmbee.flexo.mms.plugins.UserDetailsPrincipal
-import org.openmbee.flexo.mms.plugins.httpClient
+import io.ktor.server.routing.*
+import loadModel
+import org.openmbee.flexo.mms.ConditionsGroup
+import org.openmbee.flexo.mms.MethodNotAllowedException
+import org.openmbee.flexo.mms.Role
+import org.openmbee.flexo.mms.Scope
+import org.openmbee.flexo.mms.plugins.GspContext
+import org.openmbee.flexo.mms.plugins.graphStoreProtocol
+import org.openmbee.flexo.mms.routes.gsp.readModel
 import java.io.ByteArrayOutputStream
-import java.util.*
-
-class ParamNotParsedException(paramId: String): Exception("The {$paramId} is being used but the param was never parsed.")
-
-val DEFAULT_BRANCH_ID = "master"
-
-private val MIGZ_BLOCK_SIZE = 1536 * 1024
 
 
-fun Resource.addNodes(vararg properties: Pair<Property, RDFNode>) {
-    for(property in properties) {
-        addProperty(property.first, property.second)
-    }
-}
+fun Route.CrudModel() {
+    graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
+        // depending on request method
+        when(call.request.httpMethod) {
+            // read
+            HttpMethod.Head, HttpMethod.Get -> {
+                readModel()
+            }
 
-fun Resource.addLiterals(vararg properties: Pair<Property, String>) {
-    for(property in properties) {
-        addProperty(property.first, property.second)
-    }
-}
+            // overwrite (load)
+            HttpMethod.Put -> {
+                loadModel()
+            }
 
-fun Resource.removeNonLiterals(property: Property) {
-    listProperties(property).forEach {
-        if(!it.`object`.isLiteral) {
-            it.remove()
-        }
-    }
-}
+//            // merge
+//            HttpMethod.Post -> {
+//
+//            }
 
-val FORBIDDEN_PREDICATES_REGEX = listOf(
-    RDF.uri,
-    RDFS.uri,
-    OWL.getURI(),
-    "http://www.w3.org/ns/shacl#",
-    MMS.uri,
-).joinToString("|") { "^${Regex.escape(it)}" }.toRegex()
-
-fun Quad.isSanitary(): Boolean {
-    val predicateUri = this.predicate.uri
-    return predicateUri.contains(FORBIDDEN_PREDICATES_REGEX)
-}
-
-
-
-fun parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {
-    return RdfModeler(this, prefixes["m"]!!, responseText).apply(setup).model
-}
-
-
-suspend fun downloadModel(graphUri: String): KModel {
-    val constructResponseText = executeSparqlConstructOrDescribe("""
-        construct {
-            ?s ?p ?o
-        } where {
-            graph ?_graph {
-                ?s ?p ?o
+            // not supported
+            else -> {
+                throw MethodNotAllowedException()
             }
         }
-    """) {
-        prefixes(prefixes)
 
-        iri(
-            "_graph" to graphUri,
-        )
-    }
-
-    return KModel(prefixes) {
-        parseTurtle(
-            body = constructResponseText,
-            model = this,
-        )
     }
 }
 
 
-// TODO: move these functions to another file
-
-fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
-    return {
-        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
-    }
-}
-
-fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
-    return {
-        if(it.subject.isVariable) {
-            throw VariablesNotAllowedInUpdateException("subject")
-        }
-        else if(!it.subject.isURI || it.subject.uri != subjectIri) {
-            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
-        }
-        else if(it.predicate.isVariable) {
-            throw VariablesNotAllowedInUpdateException("predicate")
-        }
-        else if(it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)) {
-            throw Http400Exception("User not allowed to set property using predicate <${it.predicate.uri}>")
-        }
-
-        true
-    }
-}
-
-fun genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
+fun GspContext.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
@@ -204,7 +115,7 @@ fun genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: Stri
     }
 }
 
-fun genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
+fun GspContext.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(
@@ -298,6 +209,9 @@ fun genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, raw
     }
 }
 
+
+
+private val MIGZ_BLOCK_SIZE = 1536 * 1024
 
 val COMPRESSION_TIME_BUDGET = 3 * 1000L  // algorithm is allowed up to 3 seconds max to further optimize compression
 val COMPRESSION_NO_RETRY_THRESHOLD = 12 * 1024 * 1024  // do not attempt to retry if compressed output is >12 MiB

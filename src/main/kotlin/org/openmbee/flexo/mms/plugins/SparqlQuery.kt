@@ -22,9 +22,9 @@ private const val defaultGraphUriParamId = "default-graph-uri"
 private const val namedGraphUriParamId = "named-graph-uri"
 
 /**
- * Declares a SPARQL Query endpoint
+ * Declares a SPARQL Query endpoint. Incoming requests are canonicalized and used to construct the Layer1Context
  */
-fun Route.sparqlQuery(path: String, body: Layer1Handler<SparqlQueryRequest>): Route {
+fun Route.sparqlQuery(path: String, body: Layer1HandlerGeneric<SparqlQueryRequest>): Route {
     return route(path) {
         // 2.1.1. GET
         get {
@@ -41,7 +41,7 @@ fun Route.sparqlQuery(path: String, body: Layer1Handler<SparqlQueryRequest>): Ro
                 val queryRequest = SparqlQueryRequest(call, query, defaultGraphUris, namedGraphUris)
 
                 // create layer1 context
-                val layer1 = Layer1Context(call, queryRequest, GenericResponse(queryRequest))
+                val layer1 = Layer1Context(queryRequest, GenericResponse(queryRequest))
 
                 // invoke
                 body(layer1)
@@ -54,8 +54,7 @@ fun Route.sparqlQuery(path: String, body: Layer1Handler<SparqlQueryRequest>): Ro
             lateinit var queryRequest: SparqlQueryRequest
 
             // depending on content-type (without params, e.g., charset)
-            val contentType = call.request.contentType().withoutParameters()
-            when(contentType) {
+            when(val contentType = call.request.contentType().withoutParameters()) {
                 // 2.1.3. directly
                 RdfContentTypes.SparqlQuery -> {
                     // from query parameters
@@ -68,7 +67,7 @@ fun Route.sparqlQuery(path: String, body: Layer1Handler<SparqlQueryRequest>): Ro
                         val query = call.receiveText()
 
                         // create data instance
-                        queryRequest = SparqlQueryRequest(query, defaultGraphUris, namedGraphUris)
+                        queryRequest = SparqlQueryRequest(call, query, defaultGraphUris, namedGraphUris)
                     }
                 }
 
@@ -84,18 +83,21 @@ fun Route.sparqlQuery(path: String, body: Layer1Handler<SparqlQueryRequest>): Ro
                         val query = this[queryParamId] ?: ""
 
                         // create data instance
-                        queryRequest = SparqlQueryRequest(query, defaultGraphUris, namedGraphUris)
+                        queryRequest = SparqlQueryRequest(call, query, defaultGraphUris, namedGraphUris)
                     }
                 }
 
                 // other
                 else -> {
-                    throw UnsupportedMediaType(contentType.toString())
+                    throw UnsupportedMediaType(listOf(
+                        RdfContentTypes.SparqlQuery,
+                        ContentType.Application.FormUrlEncoded,
+                    ))
                 }
             }
 
             // create layer1 context
-            val layer1 = Layer1Context(call, queryRequest)
+            val layer1 = Layer1Context(queryRequest)
 
             // invoke
             body(layer1)

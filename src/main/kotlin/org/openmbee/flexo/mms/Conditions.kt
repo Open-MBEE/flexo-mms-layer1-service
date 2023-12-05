@@ -146,7 +146,7 @@ enum class ConditionType {
 
 class Condition(val type: ConditionType, val key: String) {
     var pattern: String = ""
-    var handler: (layer1: Layer1Context<*, *>) -> Pair<String, HttpStatusCode> = {
+    var handler: (layer1: AnyLayer1Context) -> Pair<String, HttpStatusCode> = {
         "`$key` condition failed" to HttpStatusCode.BadRequest
     }
 }
@@ -158,7 +158,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
      */
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
-            handler = { layer1 -> "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
+            handler = { layer1 -> "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${layer1.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
 
             permittedActionSparqlBgp(permission, scope)
         }
@@ -246,7 +246,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return ConditionsGroup(ConditionsBuilder(conditions.toMutableList()).apply{setup()}.conditions)
     }
 
-    fun handle(model: KModel, layer1: Layer1Context<*, *>): Nothing {
+    fun handle(model: KModel, layer1: AnyLayer1Context): Nothing {
         // inspect node
         val inspectNode = model.createResource("urn:mms:inspect")
         val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
@@ -290,35 +290,6 @@ class ConditionsGroup(var conditions: List<Condition>) {
         }
 
         throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")
-    }
-
-    /**
-     * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
-     * a call to [RdfModeler.normalizeRefOrCommit] within a [Layer1Context.filterIncomingStatements] block.
-     */
-    fun appendRefOrCommit(refSource: String?): ConditionsGroup {
-        return append {
-            require("validSource") {
-                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" to HttpStatusCode.BadRequest }
-
-                """
-                    ${if(refSource != null) """
-                        graph m-graph:Schema {
-                            ?__mms_refSourceClass rdfs:subClassOf* mms:Ref .
-                        }
-               
-                        graph mor-graph:Metadata {         
-                            ?_refSource a ?__mms_refSourceClass ;
-                                mms:commit ?__mms_commitSource ;
-                                .
-                        }
-                    """ else ""} 
-                    graph mor-graph:Metadata {
-                       ?__mms_commitSource a mms:Commit .
-                    }
-                """
-            }
-        }
     }
 
     fun appendSrcRef(): ConditionsGroup {

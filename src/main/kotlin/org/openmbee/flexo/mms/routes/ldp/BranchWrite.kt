@@ -123,7 +123,7 @@ private val SPARQL_CONSTRUCT_DELTAS = """
 """.trimIndent()
 
 
-suspend fun Layer1Context<*, *>.createBranch() {
+suspend fun AnyLayer1Context.createBranch() {
     // process RDF body from user about this new branch
     val branchTriples = filterIncomingStatements("morb") {
         // relative to this branch node
@@ -142,7 +142,7 @@ suspend fun Layer1Context<*, *>.createBranch() {
     }
 
     // extend the default conditions with requirements for user-specified ref or commit
-    val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit(refSource)
+    val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {

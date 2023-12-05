@@ -70,9 +70,7 @@ private val SPARQL_CONSTRUCT_ORG = """
 /**
  * Fetches the org(s) ETag
  */
-suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(orgId: String?=null) {
-    // cache whether this request is asking for all orgs
-    val allOrgs = orgId?.isBlank() ?: true
+suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(allOrgs: Boolean=false) {
     val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
     // fetch all orgs
@@ -105,9 +103,8 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(orgId: String?=null) {
 /**
  * Fetches org(s) metadata
  */
-suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(orgId: String?=null) {
+suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
     // cache whether this request is asking for all orgs
-    val allOrgs = orgId?.isBlank() ?: true
     val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
     // fetch all org details

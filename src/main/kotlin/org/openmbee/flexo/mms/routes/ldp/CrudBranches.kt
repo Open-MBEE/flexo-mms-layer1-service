@@ -6,13 +6,15 @@ import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
 
 const val SPARQL_VAR_NAME_BRANCH = "_branch"
 
+private const val BRANCHES_PATH = "/orgs/{orgId}/repos/{repoId}/branches"
+
 
 /**
  * Repo CRUD routing
  */
 fun Route.CrudBranches() {
     // all repos
-    linkedDataPlatformDirectContainer("/orgs/{orgId}/repos/{repoId}/branches") {
+    linkedDataPlatformDirectContainer(BRANCHES_PATH) {
         beforeEach = {
             parsePathParams {
                 org()
@@ -44,7 +46,7 @@ fun Route.CrudBranches() {
     }
 
     // specific repo
-    linkedDataPlatformDirectContainer("/orgs/{orgId}/repos/{repoId}/branches/{branchId}") {
+    linkedDataPlatformDirectContainer("$BRANCHES_PATH/{branchId}") {
         beforeEach = {
             parsePathParams {
                 org()

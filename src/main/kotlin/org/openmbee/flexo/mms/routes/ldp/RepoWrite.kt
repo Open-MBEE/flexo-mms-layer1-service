@@ -6,8 +6,6 @@ import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpDirectContainerRequest
-import org.openmbee.flexo.mms.plugins.LdpWriteContext
 import org.openmbee.flexo.mms.plugins.LdpWriteResponse
 
 // default starting conditions for any calls to create a repo

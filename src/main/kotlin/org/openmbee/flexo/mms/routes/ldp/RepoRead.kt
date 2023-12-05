@@ -3,6 +3,9 @@ package org.openmbee.flexo.mms.routes.ldp
 import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
+import org.openmbee.flexo.mms.plugins.LdpGetResponse
+import org.openmbee.flexo.mms.plugins.LdpHeadResponse
 
 
 // reusable basic graph pattern for matching repo(s)
@@ -60,9 +63,8 @@ private val SPARQL_CONSTRUCT_REPO: (Boolean) -> String = { allRepos -> """
 /**
  * Fetches the repo(s) ETag
  */
-suspend fun Layer1Context<*, *>.headRepos(repoId: String?=null) {
+suspend fun LdpDcLayer1Context<LdpHeadResponse>.headRepos(allRepos: Boolean=false) {
     // cache whether this request is asking for all repos
-    val allRepos = repoId?.isBlank() ?: true
     val repoIri = if(allRepos) null else prefixes["mor"]!!
 
     // fetch all repos
@@ -96,9 +98,8 @@ suspend fun Layer1Context<*, *>.headRepos(repoId: String?=null) {
 /**
  * Fetches repo(s) metadata
  */
-suspend fun Layer1Context<*, *>.getRepos(repoId: String?=null) {
+suspend fun LdpDcLayer1Context<LdpGetResponse>.getRepos(allRepos: Boolean=false) {
     // cache whether this request is asking for all repos
-    val allRepos = repoId?.isBlank() ?: true
     val repoIri = if(allRepos) null else prefixes["mor"]!!
 
     // fetch all repo details

@@ -42,7 +42,7 @@ class InvalidQueryParameter(detail: String): Http400Exception("Request contains 
 class PreconditionsForbidden(detail: String): Http400Exception("Cannot use preconditions here: $detail")
 
 
-open class Http403Exception(layer1: Layer1Context<*, *>, resource: String="(unspecified)"): HttpException("User ${layer1.userId} (${layer1.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
+open class Http403Exception(layer1: AnyLayer1Context, resource: String="(unspecified)"): HttpException("User ${layer1.userId} (${layer1.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
 
 
 open class Http404Exception(resource: String): HttpException("The requested resource does not exist: $resource", HttpStatusCode.NotFound)
@@ -55,7 +55,12 @@ class MethodNotAllowedException(): Http405Exception("The requested method is not
 
 open class Http406Exception(msg: String): HttpException(msg, HttpStatusCode.NotAcceptable)
 
-class NotAcceptableException(accepts: String, provides: String): Http406Exception("Unable to provide content matching $accepts. Must be one of $provides")
+class NotAcceptableException(detail: String): Http406Exception("Not acceptable. $detail") {
+    constructor(acceptValue: String, more: String): this("Unable to provide content matching $acceptValue. $more")
+    constructor(accepts: ContentType?, more: String): this("$accepts", more)
+    constructor(accepts: String?, provides: Collection<ContentType>): this(accepts ?: "", "Must be one of ${provides.joinToString(", ")}")
+}
+
 
 
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
@@ -65,7 +70,10 @@ class PreconditionFailedException(type: String): Http412Exception("$type precond
 
 open class Http415Exception(msg: String): HttpException(msg, HttpStatusCode.UnsupportedMediaType)
 
-class UnsupportedMediaType(types: String): Http415Exception("Unsupported media type(s): $types")
+class UnsupportedMediaType(detail: String): Http415Exception("Unsupported media type. $detail") {
+    constructor(expected: Collection<ContentType>): this("Expected one of: ${expected.joinToString(", ")}")
+}
+
 
 class InvalidTriplesDocumentTypeException(detail: String): Http415Exception("The input document content-type is not recognized as an acceptable triples format: $detail")
 

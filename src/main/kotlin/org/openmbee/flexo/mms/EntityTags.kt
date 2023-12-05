@@ -32,7 +32,7 @@ fun ApplicationCall.parseEtagQualifierHeader(headerKey: String): EtagQualifier? 
 
 
 
-fun Layer1Context<*, *>.injectPreconditions(): String {
+fun AnyLayer1Context.injectPreconditions(): String {
     // log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
     // log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
 
@@ -52,7 +52,7 @@ fun Layer1Context<*, *>.injectPreconditions(): String {
     """
 }
 
-fun Layer1Context<*, *>.assertPreconditions(builder: ConditionsBuilder, inject: ((String)->String)?=null) {
+fun AnyLayer1Context.assertPreconditions(builder: ConditionsBuilder, inject: ((String)->String)?=null) {
     if((ifMatch != null && !ifMatch.isStar) || ifNoneMatch != null) {
         if(ifNoneMatch?.isStar == true) {
             throw BadRequestException("Cannot provide `If-None-Match: *` precondition to target action")
