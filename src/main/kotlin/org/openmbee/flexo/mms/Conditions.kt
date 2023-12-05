@@ -2,11 +2,10 @@ package org.openmbee.flexo.mms
 
 import io.ktor.http.*
 import org.apache.jena.rdf.model.impl.PropertyImpl
-import org.openmbee.flexo.mms.plugins.UserDetailsPrincipal
 
 val GLOBAL_CRUD_CONDITIONS = conditions {
     inspect("agentExists") {
-        handler = { mms -> "User <${mms.prefixes["mu"]}> does not exist or does not belong to any authorized groups." to HttpStatusCode.Forbidden }
+        handler = { layer1 -> "User <${layer1.prefixes["mu"]}> does not exist or does not belong to any authorized groups." to HttpStatusCode.Forbidden }
 
         """
             {
@@ -33,28 +32,34 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
     }
 }
 
+// starting conditions for any operation that depends on parent org existing
 val ORG_CRUD_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     orgExists()
 }
 
-val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
-    require("repoExists") {
-        handler = { mms -> "Repo <${mms.prefixes["mor"]}> does not exist." to HttpStatusCode.NotFound }
+// default starting conditions for any calls to create an org
+val ORG_UPDATE_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    // require that the user has the ability to update orgs on a cluster-level scope
+    permit(Permission.UPDATE_ORG, Scope.CLUSTER)
+}
 
-        """
-            # repo must exist
-            graph m-graph:Cluster {
-                mor: a mms:Repo .
-            }
-        """
-    }
+// starting conditions for any operation that depends on parent repo existing
+val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    repoExists()
+}
+
+// default starting conditions for any calls to update a repo
+val REPO_UPDATE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    // TODO: why is scope of REPO is inconsistent with CLUSTER for equivalent org condition above?
+    // require that the user has the ability to update repos on a repo-level scope
+    permit(Permission.UPDATE_REPO, Scope.REPO)
 }
 
 val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
     require("stagingExists") {
-        handler = { mms -> "The destination branch <${mms.prefixes["morb"]}> is corrupt. No staging snapshot found." to HttpStatusCode.InternalServerError }
+        handler = { layer1 -> "The destination branch <${layer1.prefixes["morb"]}> is corrupt. No staging snapshot found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -70,19 +75,11 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
             }
         """
     }
-
-//
-//                optional {
-//                    # optionally, its model snapshot
-//                    morc: ^mms:commit/mms:snapshot ?model .
-//                    ?model a mms:Model ;
-//                        mms:graph ?modelGraph .
-//                }
 }
 
 val SNAPSHOT_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("queryableSnapshotExists") {
-        handler = { mms -> "The target model is corrupt. No queryable snapshots found." to HttpStatusCode.InternalServerError }
+        handler = { layer1 -> "The target model is corrupt. No queryable snapshots found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -118,7 +115,7 @@ val DIFF_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
 
 val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("commitExists") {
-        handler = { mms -> "Commit <${mms.prefixes["morc"]}> does not exist." to HttpStatusCode.NotFound }
+        handler = { layer1 -> "Commit <${layer1.prefixes["morc"]}> does not exist." to HttpStatusCode.NotFound }
 
         """
             # commit must exist
@@ -131,7 +128,7 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
 val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("lockExists") {
-        handler = { mms -> "Lock <${mms.prefixes["morl"]}> does not exist." to HttpStatusCode.NotFound }
+        handler = { layer1 -> "Lock <${layer1.prefixes["morl"]}> does not exist." to HttpStatusCode.NotFound }
 
         """
             # lock must exist
@@ -149,7 +146,7 @@ enum class ConditionType {
 
 class Condition(val type: ConditionType, val key: String) {
     var pattern: String = ""
-    var handler: (mms: MmsL1Context) -> Pair<String, HttpStatusCode> = {
+    var handler: (layer1: Layer1Context<*, *>) -> Pair<String, HttpStatusCode> = {
         "`$key` condition failed" to HttpStatusCode.BadRequest
     }
 }
@@ -161,7 +158,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
      */
     fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
         return require(permission.id) {
-            handler = { mms -> "User <${mms.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
+            handler = { layer1 -> "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${mms.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
 
             permittedActionSparqlBgp(permission, scope)
         }
@@ -169,12 +166,25 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
 
     fun orgExists() {
         require("orgExists") {
-            handler = { mms -> "Org <${mms.prefixes["mo"]}> does not exist." to HttpStatusCode.NotFound }
+            handler = { layer1 -> "Org <${layer1.prefixes["mo"]}> does not exist." to HttpStatusCode.NotFound }
 
             """
                 # org must exist
                 graph m-graph:Cluster {
                     mo: a mms:Org .
+                }
+            """
+        }
+    }
+
+    fun repoExists() {
+        require("repoExists") {
+            handler = { layer1 -> "Repo <${layer1.prefixes["mor"]}> does not exist." to HttpStatusCode.NotFound }
+
+            """
+                # repo must exist
+                graph m-graph:Cluster {
+                    mor: a mms:Repo .
                 }
             """
         }
@@ -236,7 +246,7 @@ class ConditionsGroup(var conditions: List<Condition>) {
         return ConditionsGroup(ConditionsBuilder(conditions.toMutableList()).apply{setup()}.conditions)
     }
 
-    fun handle(model: KModel, mms: MmsL1Context): Nothing {
+    fun handle(model: KModel, layer1: Layer1Context<*, *>): Nothing {
         // inspect node
         val inspectNode = model.createResource("urn:mms:inspect")
         val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
@@ -248,14 +258,14 @@ class ConditionsGroup(var conditions: List<Condition>) {
         for(condition in conditions) {
             // inspection key is missing from set of passes
             if(!passes.contains(condition.key)) {
-                val (msg, code) = condition.handler(mms)
+                val (msg, code) = condition.handler(layer1)
 
                 // add to possible reasons
                 failedConditions.add(msg to code)
 
                 // forbidden; fail right away
                 if(code == HttpStatusCode.Forbidden) {
-                    throw Http403Exception(mms, msg)
+                    throw Http403Exception(layer1, msg)
                 }
             }
         }
@@ -280,6 +290,75 @@ class ConditionsGroup(var conditions: List<Condition>) {
         }
 
         throw ServerBugException("Unable to verify transaction from CONSTRUCT response; pattern failed to match anything")
+    }
+
+    /**
+     * Adds a requirement to the query conditions that asserts a valid `refSource` or `commitSource`, usually follows
+     * a call to [RdfModeler.normalizeRefOrCommit] within a [Layer1Context.filterIncomingStatements] block.
+     */
+    fun appendRefOrCommit(refSource: String?): ConditionsGroup {
+        return append {
+            require("validSource") {
+                handler = { prefixes -> "Invalid ${if(refSource != null) "ref" else "commit"} source" to HttpStatusCode.BadRequest }
+
+                """
+                    ${if(refSource != null) """
+                        graph m-graph:Schema {
+                            ?__mms_refSourceClass rdfs:subClassOf* mms:Ref .
+                        }
+               
+                        graph mor-graph:Metadata {         
+                            ?_refSource a ?__mms_refSourceClass ;
+                                mms:commit ?__mms_commitSource ;
+                                .
+                        }
+                    """ else ""} 
+                    graph mor-graph:Metadata {
+                       ?__mms_commitSource a mms:Commit .
+                    }
+                """
+            }
+        }
+    }
+
+    fun appendSrcRef(): ConditionsGroup {
+        return append {
+            require("validSourceRef") {
+                handler = { prefixes -> "Invalid source ref" to HttpStatusCode.BadRequest }
+
+                """
+                    graph m-graph:Schema {
+                        ?srcRefClass rdfs:subClassOf* mms:Ref .
+                    }
+           
+                    graph mor-graph:Metadata {         
+                        ?srcRef a ?srcRefClass ;
+                            mms:commit ?srcCommit ;
+                            .
+                    }
+                """
+            }
+        }
+    }
+
+    fun appendDstRef(): ConditionsGroup {
+        return append {
+            require("validSourceRef") {
+                handler = { prefixes -> "Invalid destination ref" to HttpStatusCode.BadRequest }
+
+                """
+                    graph m-graph:Schema {
+                        ?dstRefClass rdfs:subClassOf* mms:Ref .
+                    }
+           
+                    graph mor-graph:Metadata {         
+                        ?dstRef a ?dstRefClass ;
+                            mms:commit ?dstCommit ;
+                            .
+                    }
+                """
+            }
+        }
     }
 }
 

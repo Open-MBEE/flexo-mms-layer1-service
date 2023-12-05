@@ -4,18 +4,18 @@ import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.query.ParameterizedSparqlString
 
 
-class Parameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
+class SparqlParameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
     private val pss = if(null != prefixes) ParameterizedSparqlString(sparql, prefixes.toPrefixMappings()) else ParameterizedSparqlString(sparql)
 
     var acceptReplicaLag = false
 
-    fun prefixes(prefixes: PrefixMapBuilder): Parameterizer {
+    fun prefixes(prefixes: PrefixMapBuilder): SparqlParameterizer {
         pss.setNsPrefixes(prefixes.map)
 
         return this
     }
 
-    fun iri(vararg map: Pair<String, String>): Parameterizer {
+    fun iri(vararg map: Pair<String, String>): SparqlParameterizer {
         for((key, value) in map) {
             pss.setIri(key, value)
         }
@@ -23,7 +23,7 @@ class Parameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
         return this
     }
 
-    fun literal(vararg map: Pair<String, String>): Parameterizer {
+    fun literal(vararg map: Pair<String, String>): SparqlParameterizer {
         for((key, value) in map) {
             pss.setLiteral(key, value)
         }
@@ -31,7 +31,7 @@ class Parameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
         return this
     }
 
-    fun datatyped(vararg map: Pair<String, Pair<String, RDFDatatype>>): Parameterizer {
+    fun datatyped(vararg map: Pair<String, Pair<String, RDFDatatype>>): SparqlParameterizer {
         for((key, pair) in map) {
             pss.setLiteral(key, pair.first, pair.second)
         }
@@ -44,6 +44,6 @@ class Parameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
     }
 }
 
-fun parameterizedSparql(sparql: String, setup: Parameterizer.() -> Parameterizer): String {
-    return setup(Parameterizer(sparql)).toString()
+fun parameterizedSparql(sparql: String, setup: SparqlParameterizer.() -> SparqlParameterizer): String {
+    return setup(SparqlParameterizer(sparql)).toString()
 }

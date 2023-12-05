@@ -7,80 +7,14 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-import org.apache.jena.graph.Node
-import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
-import org.apache.jena.query.Query
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.path.Path
-import org.apache.jena.sparql.path.PathFactory
 import org.apache.jena.sparql.syntax.*
-import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformCopyBase
-import org.apache.jena.sparql.syntax.syntaxtransform.ElementTransformer
-import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps
-import org.apache.jena.vocabulary.RDF
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-
-private val UTF8Name = StandardCharsets.UTF_8.name()
-
-const val MMS_VARIABLE_PREFIX = "__mms_"
-
-val NEFARIOUS_VARIABLE_REGEX = """[?$]$MMS_VARIABLE_PREFIX""".toRegex()
-
-val MMS_SNAPSHOT_PROPERTY_NODE = MMS.snapshot.asNode()
-
+import org.openmbee.flexo.mms.plugins.SparqlQueryRequest
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
-
-class NefariousVariableNameException(name: String): Exception("Nefarious variable name detected: ?$name")
-
-
-
-class VariableAccumulator(private val variables: MutableCollection<Var>): PatternVarsVisitor(variables) {
-    private fun walk(el: Element) {
-        ElementWalker.walk(el, this)
-    }
-
-    override fun visit(el: ElementExists) {
-        walk(el.element)
-    }
-
-    override fun visit(el: ElementNotExists) {
-        walk(el.element)
-    }
-
-    override fun visit(el: ElementMinus) {
-        walk(el.minusElement)
-    }
-
-    override fun visit(el: ElementFilter) {
-        variables.addAll(el.expr.varsMentioned)
-    }
-
-    override fun visit(el: ElementGroup) {
-        for(child in el.elements) {
-            walk(child)
-        }
-    }
-
-    override fun visit(el: ElementUnion) {
-        for(child in el.elements) {
-            walk(child)
-        }
-    }
-
-    override fun visit(el: ElementOptional) {
-        walk(el.optionalElement)
-    }
-
-    override fun visit(el: ElementService) {
-        // not supported
-        throw ServiceNotAllowedException()
-    }
-}
 
 
 /**
@@ -88,7 +22,7 @@ class VariableAccumulator(private val variables: MutableCollection<Var>): Patter
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
-suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+suspend fun Layer1Context<*, *>.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
     // for certain endpoints, point user query at a predetermined graph
     var targetGraphIri = when(refIri) {
         prefixes["mor"] -> {
@@ -175,7 +109,7 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
 
         // parse check response and route to appropriate handler
         parseConstructResponse(checkResponseText) {
-            conditions.handle(model, mms)
+            conditions.handle(model, this@processAndSubmitUserQuery)
         }
 
         // handler did not terminate connection
@@ -190,10 +124,10 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
     // parse user query
     val userQuery = try {
         if(baseIri != null) {
-            QueryFactory.create(inputQueryString, baseIri)
+            QueryFactory.create(queryRequest.query, baseIri)
         }
         else {
-            QueryFactory.create(inputQueryString)
+            QueryFactory.create(queryRequest.query)
         }
     } catch(parse: Exception) {
         throw QuerySyntaxException(parse)
@@ -251,6 +185,11 @@ suspend fun MmsL1Context.processAndSubmitUserQuery(inputQueryString: String, ref
         // reject any from or from named
         if(graphURIs.isNotEmpty() || namedGraphURIs.isNotEmpty()) {
             throw Http403Exception(this@processAndSubmitUserQuery, "FROM target")
+        }
+
+        // reject any target graphs
+        if(queryRequest.defaultGraphUris.isNotEmpty() || queryRequest.namedGraphUris.isNotEmpty()) {
+            throw Http403Exception(this@processAndSubmitUserQuery, "graph parameter(s)")
         }
 
         // set default graph

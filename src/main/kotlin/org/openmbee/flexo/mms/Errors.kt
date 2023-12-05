@@ -31,23 +31,43 @@ class ConstraintViolationException(detail: String): Http400Exception("The input 
 
 class InvalidDocumentSemanticsException(detail: String): Http400Exception("The input document contains invalid semantics: $detail")
 
-class InvalidTriplesDocumentTypeException(detail: String): Http400Exception("The input document content-type is not recognized as an acceptable triples format: $detail")
-
 class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
 
 class ForbiddenPrefixException(prefix: String): Http400Exception("Prefix not allowed here: $prefix")
 
 class ForbiddenPrefixRemapException(prefix: String, iri: String): Http400Exception("Prefix \"$prefix\" not allowed to be set to anything other than <$iri>")
 
-open class Http403Exception(mmsL1Context: MmsL1Context, resource: String="(unspecified)"): HttpException("User ${mmsL1Context.userId} (${mmsL1Context.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
+class InvalidQueryParameter(detail: String): Http400Exception("Request contains invalid query parameter(s): $detail")
+
+class PreconditionsForbidden(detail: String): Http400Exception("Cannot use preconditions here: $detail")
+
+
+open class Http403Exception(layer1: Layer1Context<*, *>, resource: String="(unspecified)"): HttpException("User ${layer1.userId} (${layer1.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
+
 
 open class Http404Exception(resource: String): HttpException("The requested resource does not exist: $resource", HttpStatusCode.NotFound)
+
+
+open class Http405Exception(msg: String): HttpException(msg, HttpStatusCode.MethodNotAllowed)
+
+class MethodNotAllowedException(): Http405Exception("The requested method is not allow on this resource")
+
+
+open class Http406Exception(msg: String): HttpException(msg, HttpStatusCode.NotAcceptable)
+
+class NotAcceptableException(accepts: String, provides: String): Http406Exception("Unable to provide content matching $accepts. Must be one of $provides")
 
 
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
 
 class PreconditionFailedException(type: String): Http412Exception("$type precondition failed")
 
+
+open class Http415Exception(msg: String): HttpException(msg, HttpStatusCode.UnsupportedMediaType)
+
+class UnsupportedMediaType(types: String): Http415Exception("Unsupported media type(s): $types")
+
+class InvalidTriplesDocumentTypeException(detail: String): Http415Exception("The input document content-type is not recognized as an acceptable triples format: $detail")
 
 
 open class Http500Excpetion(msg: String): HttpException(msg, HttpStatusCode.InternalServerError)

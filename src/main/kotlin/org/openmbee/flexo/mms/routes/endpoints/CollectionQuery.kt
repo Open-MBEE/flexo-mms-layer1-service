@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms.routes.endpoints
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.plugins.sparqlQuery
 
 
 private val SPARQL_SUBSELECT_QUERY = """
@@ -15,15 +16,15 @@ private val SPARQL_SUBSELECT_QUERY = """
     }
 """
 
+/**
+ * User submitted SPARQL Query to a specific collection
+ */
 fun Route.queryCollection() {
-    post("/orgs/{orgId}/collections/{collectionId}/query/{inspect?}") {
-        call.mmsL1(Permission.READ_COLLECTION) {
-            pathParams {
-                org()
-                collection()
-            }
-
-            checkPrefixConflicts()
+    sparqlQuery("/orgs/{orgId}/collections/{collectionId}/query/{inspect?}") {
+        parsePathParams {
+            org()
+            collection()
+        }
 
 //            val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
 //
@@ -35,7 +36,5 @@ fun Route.queryCollection() {
 //                graphURIs.clear()
 //                // graphURIs.addAll()
 //            }.queryPattern.toString()
-        }
-
     }
 }

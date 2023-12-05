@@ -4,10 +4,6 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.selects.select
-import org.apache.jena.rdf.model.Property
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 
