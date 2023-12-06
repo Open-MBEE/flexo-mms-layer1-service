@@ -1,4 +1,4 @@
-package org.openmbee.flexo.mms.plugins
+package org.openmbee.flexo.mms.server
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm

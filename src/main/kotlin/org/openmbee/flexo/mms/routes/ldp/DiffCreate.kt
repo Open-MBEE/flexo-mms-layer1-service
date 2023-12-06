@@ -3,8 +3,9 @@ package org.openmbee.flexo.mms.routes.ldp
 import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpPostResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpPostResponse
+import org.openmbee.flexo.mms.routes.sparql.genDiffUpdate
 import java.security.MessageDigest
 
 

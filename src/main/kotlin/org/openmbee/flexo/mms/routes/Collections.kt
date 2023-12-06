@@ -1,16 +1,17 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.DEFAULT_BRANCH_ID
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceCollection
 
 private const val COLLECTIONS_PATH = "/orgs/{orgId}/collections"
 
 /**
  * Collection CRUD routing
  */
-fun Route.CrudCollections() {
+fun Route.crudCollections() {
     // all collections
     linkedDataPlatformDirectContainer(COLLECTIONS_PATH) {
         beforeEach = {

@@ -1,9 +1,9 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.server.application.*
-import org.openmbee.flexo.mms.plugins.configureAuthentication
-import org.openmbee.flexo.mms.plugins.configureHTTP
-import org.openmbee.flexo.mms.plugins.configureRouting
+import org.openmbee.flexo.mms.server.configureAuthentication
+import org.openmbee.flexo.mms.server.configureHTTP
+import org.openmbee.flexo.mms.server.configureRouting
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 

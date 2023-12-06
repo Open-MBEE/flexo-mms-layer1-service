@@ -2,8 +2,8 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpDeleteResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpDeleteResponse
 
 private val DEFAULT_CONDITIONS =  LOCK_CRUD_CONDITIONS.append {
     permit(Permission.DELETE_LOCK, Scope.LOCK)

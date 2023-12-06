@@ -1,7 +1,5 @@
 package org.openmbee.flexo.mms
 
-import io.ktor.server.application.*
-
 enum class Crud(val id: String) {
     CREATE("Create"),
     READ("Read"),

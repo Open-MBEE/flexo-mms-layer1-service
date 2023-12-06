@@ -8,7 +8,7 @@ import org.apache.jena.sparql.modify.request.UpdateDataInsert
 import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
 import org.apache.jena.sparql.modify.request.UpdateModify
 import org.apache.jena.update.UpdateFactory
-import org.openmbee.flexo.mms.plugins.SparqlUpdateRequest
+import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 
 fun quadDataFilter(subjectIri: String): (Quad)->Boolean {

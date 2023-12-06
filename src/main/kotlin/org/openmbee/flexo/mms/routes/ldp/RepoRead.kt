@@ -3,9 +3,11 @@ package org.openmbee.flexo.mms.routes.ldp
 import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpGetResponse
-import org.openmbee.flexo.mms.plugins.LdpHeadResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpGetResponse
+import org.openmbee.flexo.mms.server.LdpHeadResponse
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_REPO
 
 
 // reusable basic graph pattern for matching repo(s)

@@ -1,21 +1,17 @@
-package org.openmbee.flexo.mms.routes.endpoints
+package org.openmbee.flexo.mms.routes.sparql
 
 import com.linkedin.migz.MiGzOutputStream
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import loadModel
-import org.openmbee.flexo.mms.ConditionsGroup
-import org.openmbee.flexo.mms.MethodNotAllowedException
-import org.openmbee.flexo.mms.Role
-import org.openmbee.flexo.mms.Scope
-import org.openmbee.flexo.mms.plugins.GspContext
-import org.openmbee.flexo.mms.plugins.graphStoreProtocol
+import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.server.graphStoreProtocol
 import org.openmbee.flexo.mms.routes.gsp.readModel
 import java.io.ByteArrayOutputStream
 
 
-fun Route.CrudModel() {
+fun Route.crudModel() {
     graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         // depending on request method
         when(call.request.httpMethod) {
@@ -44,7 +40,7 @@ fun Route.CrudModel() {
 }
 
 
-fun GspContext.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
+fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
@@ -115,7 +111,7 @@ fun GspContext.genCommitUpdate(conditions: ConditionsGroup, delete: String="", i
     }
 }
 
-fun GspContext.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
+fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(

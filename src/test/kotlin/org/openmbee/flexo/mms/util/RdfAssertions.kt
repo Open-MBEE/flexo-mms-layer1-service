@@ -11,8 +11,10 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.*
+import org.openmbee.flexo.mms.KModel
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.parseTurtle
+import org.openmbee.flexo.mms.reindent
 
 
 /**
@@ -298,7 +300,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
 
         // check for existence
         val exists = model.contains(subject, null)
-        if(!exists) fail("No triples were found in the \"$modelName\" model having subject <$iri>")
+        if(!exists) fail("No triples were found in the \"$modelName\" model having subject <$iri>\n\"\"\"${KModel.fromModel(model).stringify().reindent(1)}\n\"\"\"")
 
         // apply assertions
         SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }

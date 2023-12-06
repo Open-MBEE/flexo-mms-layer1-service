@@ -1,9 +1,7 @@
-package org.openmbee.flexo.mms.routes.endpoints
+package org.openmbee.flexo.mms.routes.sparql
 
-import io.ktor.server.application.*
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.sparqlQuery
+import org.openmbee.flexo.mms.server.sparqlQuery
 
 
 private val SPARQL_SUBSELECT_QUERY = """

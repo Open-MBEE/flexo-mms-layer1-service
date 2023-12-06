@@ -6,13 +6,15 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.syntax.*
-import org.openmbee.flexo.mms.plugins.SparqlQueryRequest
+import org.apache.jena.sparql.syntax.ElementData
+import org.apache.jena.sparql.syntax.ElementGroup
+import org.apache.jena.sparql.syntax.ElementTriplesBlock
+import org.apache.jena.sparql.syntax.ElementUnion
+import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
@@ -23,7 +25,7 @@ class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
 suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
-    // for certain endpoints, point user query at a predetermined graph
+    // for certain sparql, point user query at a predetermined graph
     var targetGraphIri = when(refIri) {
         prefixes["mor"] -> {
             "${prefixes["mor-graph"]}Metadata"

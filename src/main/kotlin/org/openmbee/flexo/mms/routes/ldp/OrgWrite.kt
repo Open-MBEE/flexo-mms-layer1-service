@@ -2,10 +2,11 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.*
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 
 // default starting conditions for any calls to create an org
 private val ORG_CREATE_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {

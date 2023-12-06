@@ -1,4 +1,4 @@
-package org.openmbee.flexo.mms.plugins
+package org.openmbee.flexo.mms.server
 
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -197,7 +197,7 @@ fun Route.linkedDataPlatformDirectContainer(
     linkedDataPlatformRdfSource(path, listOf("DirectContainer")) {
         // create route builder instance
         val route = LinkedDataPlatformRoute(
-            this@linkedDataPlatformDirectContainer,
+            this,
             {
                 // create the request context
                 LdpDirectContainerRequest(this)

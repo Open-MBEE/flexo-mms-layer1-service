@@ -1,4 +1,4 @@
-package org.openmbee.flexo.mms.plugins
+package org.openmbee.flexo.mms.server
 
 import io.ktor.http.*
 import io.ktor.server.application.*

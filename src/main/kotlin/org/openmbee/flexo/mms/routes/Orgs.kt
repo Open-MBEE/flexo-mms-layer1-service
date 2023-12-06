@@ -1,8 +1,11 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceOrg
+import org.openmbee.flexo.mms.routes.ldp.getOrgs
+import org.openmbee.flexo.mms.routes.ldp.headOrgs
 
 const val SPARQL_VAR_NAME_ORG = "_org"
 
@@ -11,7 +14,7 @@ private const val ORGS_PATH = "/orgs"
 /**
  * Org CRUD routing
  */
-fun Route.CrudOrgs() {
+fun Route.crudOrgs() {
     // all orgs
     linkedDataPlatformDirectContainer(ORGS_PATH) {
         // state of all orgs

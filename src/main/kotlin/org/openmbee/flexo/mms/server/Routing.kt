@@ -1,18 +1,17 @@
-package org.openmbee.flexo.mms.plugins
+package org.openmbee.flexo.mms.server
 
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.serialization.*
-
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.locations.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
-import io.ktor.util.pipeline.*
 import io.ktor.util.reflect.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
@@ -20,10 +19,8 @@ import io.ktor.utils.io.jvm.javaio.*
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.requestTimeout
-import org.openmbee.flexo.mms.routes.endpoints.*
-import org.openmbee.flexo.mms.routes.ldp.*
-
-typealias CustomRouteHandler<TRequest> = suspend PipelineContext<Unit, ApplicationCall>.(TRequest) -> Unit
+import org.openmbee.flexo.mms.routes.*
+import org.openmbee.flexo.mms.routes.sparql.*
 
 // helper type for the body callback arguments to the verb methods in route handling implementor
 typealias Layer1Handler<TRequestContext, TResponseContext> = suspend Layer1Context<TRequestContext, TResponseContext>.() -> Unit
@@ -92,47 +89,34 @@ fun Application.configureRouting() {
     // install(AutoHeadResponse)
 
     routing {
-        // install(StatusPages) {
-        //     exception<HttpException> { cause ->
-        //         cause.handle(call)
-        //     }
-            // exception<AuthenticationException> { cause ->
-            //     call.respond(HttpStatusCode.Unauthorized)
-            // }
-            // exception<AuthorizationException> { cause ->
-            //     call.respond(HttpStatusCode.Forbidden)
-            // }
-        // }
-
-
         authenticate {
-            CrudOrgs()
-            CrudRepos()
-            CrudBranches()
+            crudOrgs()
+            crudRepos()
+            crudBranches()
+            crudLocks()
+            crudDiffs()
 
-            CrudModel()
+            crudModel()
 
-            CrudCollections()
-            CrudLocks()
-            CrudDiffs()
+            crudCollections()
 
-            queryCollection()
+            crudGroups()
+            crudPolicies()
 
             queryRepo()
-
-            // deleteBranch()
+            queryLock()
+            queryDiff()
 
             queryModel()
             commitModel()
 
+            queryCollection()
 
-            queryLock()
-
-            queryDiff()
-            // deleteDiff()
-
-            CrudGroups()
-            CrudPolicies()
+            route("/orgs") {
+                get {
+                    call.respondText("Hi")
+                }
+            }
         }
     }
 }

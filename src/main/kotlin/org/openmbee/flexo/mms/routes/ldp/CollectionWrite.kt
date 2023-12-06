@@ -4,8 +4,8 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpWriteResponse
 
 
 // default starting conditions for any calls to create a collection

@@ -3,7 +3,7 @@ package org.openmbee.flexo.mms.routes.gsp
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.GspContext
+import org.openmbee.flexo.mms.server.GspContext
 
 suspend fun GspContext.readModel() {
     parsePathParams {

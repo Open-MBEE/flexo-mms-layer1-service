@@ -1,15 +1,17 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceGroup
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceOrg
 
 private const val GROUPS_PATH = "/groups"
 
 /**
  * Group CRUD routing
  */
-fun Route.CrudGroups() {
+fun Route.crudGroups() {
     // all groups
     linkedDataPlatformDirectContainer(GROUPS_PATH) {
 //        // state of all groups

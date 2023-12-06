@@ -1,12 +1,10 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.server.response.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpGetResponse
-import org.openmbee.flexo.mms.plugins.LdpHeadResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpGetResponse
+import org.openmbee.flexo.mms.server.LdpHeadResponse
 
 private val SPARQL_BGP_LOCK = """
     graph mor-graph:Metadata {

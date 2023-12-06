@@ -1,15 +1,16 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplacePolicy
 
 private const val POLICIES_PATH = "/policies"
 
 /**
  * Policy CRUD routing
  */
-fun Route.CrudPolicies() {
+fun Route.crudPolicies() {
     // all policies
     linkedDataPlatformDirectContainer(POLICIES_PATH) {
         // create new policy

@@ -1,8 +1,11 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createBranch
+import org.openmbee.flexo.mms.routes.ldp.getBranches
+import org.openmbee.flexo.mms.routes.ldp.headBranches
 
 const val SPARQL_VAR_NAME_BRANCH = "_branch"
 
@@ -10,10 +13,10 @@ private const val BRANCHES_PATH = "/orgs/{orgId}/repos/{repoId}/branches"
 
 
 /**
- * Repo CRUD routing
+ * Branch CRUD routing
  */
-fun Route.CrudBranches() {
-    // all repos
+fun Route.crudBranches() {
+    // all branches
     linkedDataPlatformDirectContainer(BRANCHES_PATH) {
         beforeEach = {
             parsePathParams {
@@ -45,7 +48,7 @@ fun Route.CrudBranches() {
         }
     }
 
-    // specific repo
+    // specific branch
     linkedDataPlatformDirectContainer("$BRANCHES_PATH/{branchId}") {
         beforeEach = {
             parsePathParams {
@@ -68,13 +71,13 @@ fun Route.CrudBranches() {
         // create branch
         put {
             // assert id is legal when new resource is being created
-            assertLegalId(repoId!!)
+            assertLegalId(branchId!!)
 
             // create branch
             createBranch()
         }
 
-//        // modify existing repo
+//        // modify existing branch
 //        patch {
 //            guardedPatch(
 //                updateRequest = it,

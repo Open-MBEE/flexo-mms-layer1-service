@@ -3,11 +3,15 @@ package org.openmbee.flexo.mms
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import org.apache.commons.io.IOUtils
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.jena.datatypes.BaseDatatype
 import org.apache.jena.graph.Factory
+import org.apache.jena.graph.GraphMemFactory
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
@@ -147,7 +151,16 @@ fun ApplicationCall.negotiateRdfResponseContentType(): ContentType {
     return destinationType
 }
 
-class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.() -> Unit)?=null): ModelCom(Factory.createGraphMem()) {
+class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.() -> Unit)?=null): ModelCom(GraphMemFactory.createGraphMem()) {
+    companion object {
+        fun fromModel(model: Model): KModel {
+            return KModel().apply {
+                setNsPrefixes(model.nsPrefixMap)
+                add(model)
+            }
+        }
+    }
+
     init {
         this.setNsPrefixes(prefixes.map)
         if(null != setup) setup()
@@ -197,7 +210,7 @@ class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.(
 fun parseRdf(language: Lang, body: String, model: Model, baseIri: String?=null, prefixes: PrefixMapBuilder?=null) {
     // parse input document
     RDFParser.create().apply {
-        prefixes(PrefixMapAdapter(prefixes?.toPrefixMappings()))
+        prefixes?.let {prefixes(PrefixMapAdapter(it.toPrefixMappings())) }
         lang(language)
         errorHandler(ErrorHandlerFactory.errorHandlerWarn)
         if(baseIri != null) base(baseIri)

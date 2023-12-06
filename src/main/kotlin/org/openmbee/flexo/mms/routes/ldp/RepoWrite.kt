@@ -5,8 +5,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_REPO
 
 // default starting conditions for any calls to create a repo
 private val CREATE_REPO_CONDITIONS = ORG_CRUD_CONDITIONS.append {

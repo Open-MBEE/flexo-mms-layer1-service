@@ -1,15 +1,18 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceLock
+import org.openmbee.flexo.mms.routes.ldp.deleteLock
+import org.openmbee.flexo.mms.routes.ldp.getLocks
 
 private const val LOCKS_PATH = "/orgs/{orgId}/repos/{repoId}/locks"
 
 /**
  * Lock CRUD routing
  */
-fun Route.CrudLocks() {
+fun Route.crudLocks() {
     // all locks
     linkedDataPlatformDirectContainer(LOCKS_PATH) {
         beforeEach = {

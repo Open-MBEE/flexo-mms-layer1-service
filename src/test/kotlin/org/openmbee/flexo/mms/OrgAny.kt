@@ -54,6 +54,8 @@ fun TriplesAsserter.validateCreatedOrgTriples(
 open class OrgAny: CommonSpec() {
     open val logger = LoggerFactory.getLogger(OrgAny::class.java)
 
+    val orgsPath = "/orgs"
+
     val orgId = "open-mbee"
     val orgName = "OpenMBEE"
     val orgPath = "/orgs/$orgId"

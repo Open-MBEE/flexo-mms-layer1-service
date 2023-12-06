@@ -1,9 +1,9 @@
-package org.openmbee.flexo.mms.routes.endpoints
+package org.openmbee.flexo.mms.routes.sparql
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.DIFF_QUERY_CONDITIONS
 import org.openmbee.flexo.mms.assertPreconditions
-import org.openmbee.flexo.mms.plugins.sparqlQuery
+import org.openmbee.flexo.mms.server.sparqlQuery
 import org.openmbee.flexo.mms.processAndSubmitUserQuery
 
 

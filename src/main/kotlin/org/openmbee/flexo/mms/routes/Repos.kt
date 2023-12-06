@@ -1,8 +1,11 @@
-package org.openmbee.flexo.mms.routes.ldp
+package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.assertLegalId
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.routes.ldp.createOrReplaceRepo
+import org.openmbee.flexo.mms.routes.ldp.getRepos
+import org.openmbee.flexo.mms.routes.ldp.headRepos
 
 const val SPARQL_VAR_NAME_REPO = "_repo"
 
@@ -12,7 +15,7 @@ private const val REPOS_PATH = "/orgs/{orgId}/repos"
 /**
  * Repo CRUD routing
  */
-fun Route.CrudRepos() {
+fun Route.crudRepos() {
     // all repos
     linkedDataPlatformDirectContainer(REPOS_PATH) {
         beforeEach = {

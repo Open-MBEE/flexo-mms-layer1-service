@@ -1,14 +1,12 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.LdpDcLayer1Context
-import org.openmbee.flexo.mms.plugins.LdpGetResponse
-import org.openmbee.flexo.mms.plugins.LdpHeadResponse
-import org.openmbee.flexo.mms.plugins.LdpReadResponse
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpGetResponse
+import org.openmbee.flexo.mms.server.LdpHeadResponse
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 
 private const val SPARQL_VAR_NAME_CONTEXT = "_context"
 

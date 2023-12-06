@@ -1,7 +1,6 @@
-package org.openmbee.flexo.mms.routes.endpoints
+package org.openmbee.flexo.mms.routes.sparql
 
 import io.ktor.http.*
-import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.Property
@@ -10,7 +9,7 @@ import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.update.Update
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.plugins.sparqlUpdate
+import org.openmbee.flexo.mms.server.sparqlUpdate
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
