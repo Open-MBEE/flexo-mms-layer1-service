@@ -54,7 +54,7 @@ class OrgRead : OrgAny() {
 
             withTest {
                 httpGet(orgPath) {
-                    addHeader("If-Match", "\"${etag}\"")
+                    addHeader(HttpHeaders.IfMatch, "\"${etag}\"")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                 }
@@ -66,7 +66,7 @@ class OrgRead : OrgAny() {
 
             withTest {
                 httpGet(orgPath) {
-                    addHeader("If-Match", "\"${UUID.randomUUID()}\"")
+                    addHeader(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }
@@ -78,7 +78,7 @@ class OrgRead : OrgAny() {
 
             withTest {
                 httpGet(orgPath) {
-                    addHeader("If-None-Match", "\"${create.response.headers[HttpHeaders.ETag]!!}\"")
+                    addHeader(HttpHeaders.IfNoneMatch, "\"${create.response.headers[HttpHeaders.ETag]!!}\"")
                 }.apply {
                     logger.info(response.status().toString())
                     response shouldHaveStatus HttpStatusCode.NotModified
@@ -91,7 +91,7 @@ class OrgRead : OrgAny() {
 
             withTest {
                 httpGet(orgPath) {
-                    addHeader("If-None-Match", "*")
+                    addHeader(HttpHeaders.IfNoneMatch, "*")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.NotModified
                 }

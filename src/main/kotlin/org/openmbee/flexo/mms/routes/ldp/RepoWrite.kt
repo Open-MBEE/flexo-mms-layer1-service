@@ -79,6 +79,9 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
         }
     }
 
+    // set default branch
+    branchId = DEFAULT_BRANCH_ID
+
     // whether the user intends to replace an existing repo
     val replaceExisting = call.request.httpMethod == HttpMethod.Put && ifNoneMatch?.isStar == false
 

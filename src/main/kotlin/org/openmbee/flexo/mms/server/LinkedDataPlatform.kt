@@ -45,7 +45,7 @@ open class LdpResponse(requestContext: GenericRequest): GenericResponse(requestC
             ?: throw NotAcceptableException(responseType, "Not acceptable RDF format")
 
         // serialize to destination format
-        return model.stringify(language.name)
+        return model.stringify(language.name, true)
     }
 
     protected suspend fun respondRdf(turtle: String, statusCode: HttpStatusCode?) {
@@ -84,7 +84,7 @@ open class LdpReadResponse(requestContext: GenericRequest): LdpResponse(requestC
 open class LdpWriteResponse(requestContext: GenericRequest): LdpResponse(requestContext) {
     suspend fun createdResource(resourceIri: String, responseBodyTurtle: String) {
         // set location header
-        call.response.headers.append("Location", resourceIri)
+        call.response.headers.append(HttpHeaders.Location, resourceIri)
 
         // respond in the request format
         respondRdf(responseBodyTurtle, HttpStatusCode.Created)
@@ -95,7 +95,7 @@ open class LdpWriteResponse(requestContext: GenericRequest): LdpResponse(request
      */
     suspend fun createdResource(resourceIri: String, responseBodyModel: KModel) {
         // set location header
-        call.response.headers.append("Location", resourceIri)
+        call.response.headers.append(HttpHeaders.Location, resourceIri)
 
         // respond in the request format
         respondRdfModel(responseBodyModel, HttpStatusCode.Created)

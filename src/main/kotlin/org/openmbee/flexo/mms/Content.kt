@@ -197,7 +197,7 @@ class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.(
         this.write(outputStream, lang)
         return outputStream.toString(StandardCharsets.UTF_8.name()).run {
             if(!emitPrefixes) {
-                return replaceFirst("^\\s*@?prefix\\s+.*\\r?\\n\\r?\\n\\s*".toRegex(setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "\t\t")
+                return replace("(^|\\r?\\n)\\s*@?prefix\\s+[^\\r\\n]*\\r?\\n".toRegex(setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)), "")
                     .trimIndent()
             }
 

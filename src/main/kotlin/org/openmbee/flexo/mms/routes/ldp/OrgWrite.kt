@@ -1,31 +1,14 @@
 package org.openmbee.flexo.mms.routes.ldp
 
-import io.ktor.http.*
-import io.ktor.server.request.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpWriteResponse
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 
 // default starting conditions for any calls to create an org
 private val ORG_CREATE_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
     // require that the user has the ability to create orgs on a cluster-level scope
     permit(Permission.CREATE_ORG, Scope.CLUSTER)
-
-    // require that the given org does not exist before attempting to create it
-    require("orgNotExists") {
-        handler = { layer1 -> "The provided org <${layer1.prefixes["mo"]}> already exists." to HttpStatusCode.BadRequest }
-
-        """
-            # org must not yet exist
-            filter not exists {
-                graph m-graph:Cluster {
-                    mo: a mms:Org .
-                }
-            }
-        """
-    }
 }
 
 
@@ -48,11 +31,34 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
         }
     }
 
-    // whether the user intends to replace an existing org
-    val replaceExisting = call.request.httpMethod == HttpMethod.Put && ifNoneMatch?.isStar == false
+    // build conditions
+    val localConditions = GLOBAL_CRUD_CONDITIONS.append {
+        // resource must exist
+        if(mustExist) {
+            orgExists()
 
-    // inherit the default conditions
-    val localConditions = if(replaceExisting) ORG_UPDATE_CONDITIONS else ORG_CREATE_CONDITIONS
+            // additionally, it's etag must match satisfy the given precondition
+            val preconditions = injectPreconditions()
+            if(preconditions.trim().isNotEmpty()) {
+                resourceMatchesEtag(prefixes["mo"]!!, preconditions, "org")
+            }
+        }
+        // resource must not exist
+        else if(mustNotExist) {
+            orgNotExists()
+        }
+
+        // intent is ambiguous or resource is definitely being replaced
+        if(intentIsAmbiguous || replaceExisting) {
+            // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
+            permit(Permission.UPDATE_ORG, Scope.CLUSTER)
+        }
+        // resource is being created
+        else {
+            // require that the user has the ability to create orgs on a cluster-level scope
+            permit(Permission.CREATE_ORG, Scope.CLUSTER)
+        }
+    }
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
@@ -60,9 +66,7 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
             delete {
                 graph("m-graph:Cluster") {
                     raw("""
-                        optional {
-                            ?$SPARQL_VAR_NAME_ORG ?orgExisting_p ?orgExisting_o .
-                        }
+                        mo: ?orgExisting_p ?orgExisting_o .
                     """)
                 }
             }
@@ -70,11 +74,11 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
         insert {
             // create a new txn object in the transactions graph
             txn {
-                // create a new policy that grants this user admin over the new org
-                if(!replaceExisting) autoPolicy(Scope.ORG, Role.ADMIN_ORG)
+                // create a new policy that grants this user admin over the (potentially) new org
+                if(!replaceExisting || intentIsAmbiguous) autoPolicy(Scope.ORG, Role.ADMIN_ORG)
             }
 
-            // insert the triples about the new org, including arbitrary metadata supplied by user
+            // insert the triples about the org, including arbitrary metadata supplied by user
             graph("m-graph:Cluster") {
                 raw(orgTriples)
             }
@@ -124,8 +128,8 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     // validate whether the transaction succeeded
     val model = validateTransaction(constructResponseText, localConditions, null, "mo")
 
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(model, prefixes["mo"])
+    // set response ETag from created/replaced resource
+    handleWrittenResourceEtag(model, prefixes["mo"]!!)
 
     // respond with the created resource
     responseContext.createdResource(prefixes["mo"]!!, model)

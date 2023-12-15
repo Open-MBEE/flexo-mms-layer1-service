@@ -7,7 +7,7 @@ import io.ktor.server.request.*
 import org.apache.jena.rdf.model.ResourceFactory
 
 
-private val ETAG_VALUE = """(W/)?"([\w-]+)"""".toRegex()
+private val ETAG_VALUE = """(W/)?"([\w_-]+)"""".toRegex()
 
 private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
 
@@ -33,9 +33,6 @@ fun ApplicationCall.parseEtagQualifierHeader(headerKey: String): EtagQualifier? 
 
 
 fun AnyLayer1Context.injectPreconditions(): String {
-    // log.info("escpaeLiteral('test'): ${escapeLiteral("test")}")
-    // log.info("etags: ${ifMatch?.etags?.joinToString("; ")}")
-
     return """
         ${if(ifMatch?.isStar == false) """
             values ?__mms_etag {

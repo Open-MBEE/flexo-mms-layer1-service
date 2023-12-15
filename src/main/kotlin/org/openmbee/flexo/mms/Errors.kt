@@ -64,7 +64,7 @@ class NotAcceptableException(detail: String): Http406Exception("Not acceptable. 
 
 open class Http412Exception(msg: String): HttpException(msg, HttpStatusCode.PreconditionFailed)
 
-class PreconditionFailedException(type: String): Http412Exception("$type precondition failed")
+class PreconditionFailedException(detail: String): Http412Exception("Precondition failed. $detail")
 
 
 open class Http415Exception(msg: String): HttpException(msg, HttpStatusCode.UnsupportedMediaType)

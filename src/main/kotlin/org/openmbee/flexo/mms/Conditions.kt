@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms
 
 import io.ktor.http.*
 import org.apache.jena.rdf.model.impl.PropertyImpl
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 
 val GLOBAL_CRUD_CONDITIONS = conditions {
     inspect("agentExists") {
@@ -164,14 +165,46 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
+    fun resourceMatchesEtag(resourceIri: String, preconditions: String, resourceTypeLabel: String="resource") {
+        require("${resourceTypeLabel}MatchesEtag") {
+            handler = {
+                "ETag for ${resourceTypeLabel} <$resourceIri> does not satisfy the given precondition(s)" to
+                    HttpStatusCode.PreconditionFailed
+            }
+
+            """ 
+                $preconditions
+            """
+        }
+    }
+
     fun orgExists() {
         require("orgExists") {
-            handler = { layer1 -> "Org <${layer1.prefixes["mo"]}> does not exist." to HttpStatusCode.NotFound }
+            handler = { layer1 -> "Org <${layer1.prefixes["mo"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
 
             """
                 # org must exist
                 graph m-graph:Cluster {
-                    mo: a mms:Org .
+                    mo: a mms:Org ;
+                        ?orgExisting_p ?orgExisting_o ;
+                        mms:etag ?__mms_etag .
+                }
+            """
+        }
+    }
+
+    fun orgNotExists() {
+        // require that the given org does not exist before attempting to create it
+        require("orgNotExists") {
+            handler = { layer1 -> "The provided org <${layer1.prefixes["mo"]}> already exists." to HttpStatusCode.BadRequest }
+
+            """
+                # org must not yet exist
+                filter not exists {
+                    graph m-graph:Cluster {
+                        mo: a mms:Org .
+                    }
                 }
             """
         }
@@ -184,7 +217,9 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
             """
                 # repo must exist
                 graph m-graph:Cluster {
-                    mor: a mms:Repo .
+                    mor: a mms:Repo ;
+                        ?repoExisting_p ?repoExisting_o ;
+                         mms:etag ?__mms_etag .
                 }
             """
         }

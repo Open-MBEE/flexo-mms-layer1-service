@@ -74,6 +74,13 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
     val ifMatch = call.parseEtagQualifierHeader(HttpHeaders.IfMatch)
     val ifNoneMatch = call.parseEtagQualifierHeader(HttpHeaders.IfNoneMatch)
 
+    // precondition implications
+    val isPutMethod: Boolean
+    val replaceExisting: Boolean
+    val mustExist: Boolean
+    val mustNotExist: Boolean
+    val intentIsAmbiguous: Boolean
+
     /*
      * All of the following identify the resource being CRUD'd -- has nothing to do with the current user
      */
@@ -173,6 +180,7 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
         }
     }
 
+
     /*
      * Initialize the context, asserting the auth session data is valid.
      */
@@ -190,10 +198,45 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
         userId = session.name
         groups = session.groups
 
-        // forbid the use of `If-Match` and `If-None-Match` headers in POST operations
-        if(call.request.httpMethod == HttpMethod.Post && (call.request.headers.contains("If-Match") || call.request.headers.contains("If-None-Match"))) {
-            throw PreconditionsForbidden("when creating a resource")
+        // `If-None-Match` star on POST should always fail
+        if(call.request.httpMethod === HttpMethod.Post && ifNoneMatch?.isStar == true) {
+            throw PreconditionFailedException("If-None-Match: * on POST will never succeed")
         }
+
+        /*
+             (default)          -- create new, or replace existing
+             if-match: *        -- replace existing, fail if none exists
+             if-match: TAG      -- replace existing, fail if resource does not match tag
+             if-none-match: *   -- create new resource, fail if already exists
+             if-none-match: TAG -- create new or replace existing, fail if existing resource matches tag
+         */
+
+        // cache whether it is a PUT request
+        isPutMethod = call.request.httpMethod == HttpMethod.Put
+
+        // whether the replacement of an existing resource is acceptable
+        replaceExisting = isPutMethod && (ifNoneMatch == null || !ifNoneMatch.isStar)
+
+        // resource must exist
+        mustExist = ifMatch != null
+
+        // resource must not exist
+        mustNotExist = ifNoneMatch?.isStar == true
+
+        // precondition conflict
+        if((mustExist && mustNotExist)
+            || (ifNoneMatch != null && ifMatch?.etags?.intersect(ifNoneMatch.etags)?.isNotEmpty() == true)
+        ) {
+            throw PreconditionFailedException("Impossible precondition; If-Match and If-None-Match are in conflict")
+        }
+
+        // whether the intent to create or replace is ambiguous
+        intentIsAmbiguous = isPutMethod && !mustExist && !mustNotExist
+
+//        // anything other than PUT should fail?
+//        if(!isPutMethod && mustNotExist) {
+//            throw PreconditionFailedException("")
+//        }
     }
 
     /**
@@ -348,8 +391,36 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
         checkPreconditions(etag)
     }
 
+    fun extractResourceEtag(model: KModel, resourceNode: Resource, allEtags: Boolean=false): String {
+        // etags
+        val etags = model.listObjectsOfProperty(if(allEtags) null else resourceNode, MMS.etag).toList()
+        val etag = when(etags.size) {
+            0 -> throw ServerBugException("Constructed model did not contain any etag values.")
+            1 -> etags[0].asLiteral().string
+            else -> etags.map { it.asLiteral().string }.sorted()
+                .joinToString(":").sha256()
+        }
+
+        // set etag value in response header
+        call.response.header(HttpHeaders.ETag, etag)
+
+        return etag
+    }
+
+    fun handleWrittenResourceEtag(model: KModel, resourceUri: String, allEtags: Boolean=false): String {
+        // create resource node in model
+        val resourceNode = model.createResource(resourceUri)
+
+        // resource not exists; server error
+        if(!resourceNode.listProperties().hasNext()) {
+            throw ServerBugException("Model from select/construct response missing resource ETag")
+        }
+
+        return extractResourceEtag(model, resourceNode, allEtags)
+    }
+
     @JvmOverloads
-    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?, allEtags: Boolean?=false) {
+    fun handleEtagAndPreconditions(model: KModel, resourceUri: String?, allEtags: Boolean=false) {
         // single resource
         if(resourceUri != null) {
             // create resource node in model
@@ -360,17 +431,8 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
                 throw Http404Exception(call.request.path())
             }
 
-            // etags
-            val etags = model.listObjectsOfProperty(if(true == allEtags) null else resourceNode, MMS.etag).toList()
-            val etag = when(etags.size) {
-                0 -> throw ServerBugException("Constructed model did not contain any etag values.")
-                1 -> etags[0].asLiteral().string
-                else -> etags.map { it.asLiteral().string }.sorted()
-                    .joinToString(":").sha256()
-            }
-
-            // set etag value in response header
-            call.response.header(HttpHeaders.ETag, etag)
+            // get resource etag
+            val etag = extractResourceEtag(model, resourceNode, allEtags)
 
             // check preconditions
             checkPreconditions(etag)
