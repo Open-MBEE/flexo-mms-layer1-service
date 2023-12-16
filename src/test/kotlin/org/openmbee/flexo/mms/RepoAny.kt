@@ -4,7 +4,6 @@ import io.kotest.core.test.TestCase
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 
@@ -73,6 +72,11 @@ fun TriplesAsserter.validateCreatedRepoTriples(
         )
     }
 
+    // snapshots staging & model, commit, commit data, and lock
+    matchMultipleSubjectsByPrefix(localIri("${repoPath}/snapshots/")) { ignoreAll() }
+    matchMultipleSubjectsByPrefix(localIri("${repoPath}/commits/")) { ignoreAll() }
+    matchOneSubjectByPrefix(localIri("${repoPath}/locks/")) { ignoreAll() }
+
     // transaction
     validateTransaction(orgPath=orgPath, repoPath=repoPath)
 }
@@ -80,27 +84,29 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 open class RepoAny : OrgAny() {
     override val logger = LoggerFactory.getLogger(RepoUpdate::class.java)
 
-    val repoId = "new-repo"
-    val repoName = "New Repo"
-    val repoPath = "$orgPath/repos/$repoId"
-    val commitsPath = "$repoPath/commits"
+    val basePathRepos = "$demoOrgPath/repos"
+
+    val demoRepoId = "new-repo"
+    val demoRepoName = "New Repo"
+    val demoRepoPath = "$basePathRepos/$demoRepoId"
+    val demoCommitsPath = "$demoRepoPath/commits"
     val validRepoBody = """
-        <> dct:title "$repoName"@en .
+        <> dct:title "$demoRepoName"@en .
     """.trimIndent()
 
-    val repoFooId = "foo-repo"
-    val repoFooName = "foo-repo"
-    val repoFooPath = "$orgPath/repos/$repoFooId"
+    val fooRepoId = "foo-repo"
+    val fooRepoName = "foo-repo"
+    val fooRepoPath = "$demoOrgPath/repos/$fooRepoId"
 
-    val repoBarId = "bar-repo"
-    val repoBarName = "bar-repo"
-    val repoBarPath = "$orgPath/repos/$repoBarId"
+    val barRepoId = "bar-repo"
+    val barRepoName = "bar-repo"
+    val barRepoPath = "$demoOrgPath/repos/$barRepoId"
 
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
 
         // create base org for repo test
-        createOrg(orgId, orgName)
+        createOrg(demoOrgId, demoOrgName)
     }
 }

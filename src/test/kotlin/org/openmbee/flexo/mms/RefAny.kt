@@ -6,7 +6,6 @@ import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 
 fun title(name: String): String {
@@ -16,11 +15,11 @@ fun title(name: String): String {
 open class RefAny : RepoAny() {
     val branchId = "new-branch"
     val branchName = "New Branch"
-    val branchPath = "$repoPath/branches/$branchId"
-    val masterPath = "$repoPath/branches/master"
+    val branchPath = "$demoRepoPath/branches/$branchId"
+    val masterPath = "$demoRepoPath/branches/master"
 
     val lockId = "new-lock"
-    val lockPath = "$repoPath/locks/$lockId"
+    val lockPath = "$demoRepoPath/locks/$lockId"
 
     val fromMaster = "<> mms:ref <../branches/master> .\n"
 
@@ -31,7 +30,7 @@ open class RefAny : RepoAny() {
     // create a repo before each branch test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        repoEtag = createRepo(orgPath, repoId, repoName).response.headers[HttpHeaders.ETag]!!
+        repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).response.headers[HttpHeaders.ETag]!!
     }
 
     fun TestApplicationCall.validateCreateBranchResponse(fromCommit: String) {
@@ -46,7 +45,7 @@ open class RefAny : RepoAny() {
                     MMS.id exactly branchId,
                     DCTerms.title exactly branchName.en,
                     MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
-                    MMS.commit startsWith localIri("$commitsPath/").iri,  // TODO: incorporate fromCommit ?
+                    MMS.commit startsWith localIri("$demoCommitsPath/").iri,  // TODO: incorporate fromCommit ?
                     MMS.createdBy exactly userIri("root").iri
                 )
             }
@@ -57,7 +56,7 @@ open class RefAny : RepoAny() {
                 )
             }
 
-            validateTransaction(orgPath, repoPath, branchPath, "root")
+            validateTransaction(demoOrgPath, demoRepoPath, branchPath, "root")
 
             // inspect
             subject("urn:mms:inspect") { ignoreAll() }

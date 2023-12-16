@@ -82,14 +82,6 @@ open class LdpReadResponse(requestContext: GenericRequest): LdpResponse(requestC
  * Response context for when a resource is being written to (i.e., POST, PUT or PATCH)
  */
 open class LdpWriteResponse(requestContext: GenericRequest): LdpResponse(requestContext) {
-    suspend fun createdResource(resourceIri: String, responseBodyTurtle: String) {
-        // set location header
-        call.response.headers.append(HttpHeaders.Location, resourceIri)
-
-        // respond in the request format
-        respondRdf(responseBodyTurtle, HttpStatusCode.Created)
-    }
-
     /**
      * Sends a success response to an LDP request that asked to create a resource
      */

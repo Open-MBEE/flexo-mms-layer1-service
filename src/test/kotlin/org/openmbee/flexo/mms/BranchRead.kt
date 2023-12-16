@@ -25,7 +25,7 @@ class BranchRead : RefAny() {
             }
         }
         "create and head new branch" {
-            val create = createBranch(repoPath, "master", branchId, branchName)
+            val create = createBranch(demoRepoPath, "master", branchId, branchName)
 
             withTest {
                 httpHead(branchPath) {}.apply {
@@ -61,10 +61,10 @@ class BranchRead : RefAny() {
                 }
             """.trimIndent())
 
-            val create = createBranch(repoPath, "master", branchId, branchName)
+            val create = createBranch(demoRepoPath, "master", branchId, branchName)
 
             withTest {
-                httpGet("$repoPath/branches") {}.apply {
+                httpGet("$demoRepoPath/branches") {}.apply {
                     response includesTriples  {
                         subject(localIri(branchPath)) {
                             includes(

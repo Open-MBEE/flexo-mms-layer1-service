@@ -1,7 +1,6 @@
 package org.openmbee.flexo.mms
 
 
-import io.ktor.http.*
 import org.apache.jena.sparql.vocabulary.FOAF
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
@@ -10,7 +9,7 @@ import org.openmbee.flexo.mms.util.*
 class BranchUpdate : RefAny() {
     init {
         "patch branch" {
-            createBranch(repoPath, "master", branchId, branchName)
+            createBranch(demoRepoPath, "master", branchId, branchName)
 
             withTest {
                 httpPatch(branchPath) {

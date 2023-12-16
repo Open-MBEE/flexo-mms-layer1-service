@@ -3,23 +3,21 @@ package org.openmbee.flexo.mms
 
 import io.ktor.http.*
 import org.apache.jena.sparql.vocabulary.FOAF
-import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 
 class RepoUpdate : RepoAny() {
     init {
         "patch repo insert" {
-            createRepo(orgPath, repoId, repoName)
+            createRepo(demoOrgPath, demoRepoId, demoRepoName)
 
             withTest {
-                httpPatch(repoPath) {
+                httpPatch(demoRepoPath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
-                            <> dct:title "$repoName"@en .
+                            <> dct:title "$demoRepoName"@en .
                         }
                     """.trimIndent()))
                 }.apply {
@@ -27,29 +25,29 @@ class RepoUpdate : RepoAny() {
 
                     response includesTriples  {
                         validateRepoTriples(
-                            repoId, repoName, orgPath, listOf(
+                            demoRepoId, demoRepoName, demoOrgPath, listOf(
                                 FOAF.homepage exactly "https://www.openmbee.org/".iri
                             )
                         )
 
                         // transaction
-                        validateTransaction(repoPath=repoPath)
+                        validateTransaction(repoPath=demoRepoPath)
                     }
                 }
             }
         }
 
         "patch repo insert failed condition" {
-            createRepo(orgPath, repoId, repoName)
+            createRepo(demoOrgPath, demoRepoId, demoRepoName)
 
             withTest {
-                httpPatch(repoPath) {
+                httpPatch(demoRepoPath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
-                            <> dct:title "Not $repoName"@en .
+                            <> dct:title "Not $demoRepoName"@en .
                         }
                     """.trimIndent()))
                 }.apply {

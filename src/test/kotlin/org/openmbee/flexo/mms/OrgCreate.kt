@@ -9,23 +9,28 @@ import java.util.*
 class OrgCreate : OrgAny() {
     init {
         LinkedDataPlatformDirectContainerTests(
-            basePath = "/orgs",
-            resourceId = orgId,
+            basePath = basePathOrgs,
+            resourceId = demoOrgId,
             validBodyForCreate = validOrgBody
         ) {
             create {
-                validateCreatedOrgTriples(it, orgId, orgName)
+                validateCreatedOrgTriples(it, demoOrgId, demoOrgName)
+            }
+
+            postWithPrecondition {
+                response shouldHaveStatus HttpStatusCode.BadRequest
             }
         }
 
+
         mapOf(
             "rdf:type" to "mms:NotOrg",
-            "mms:id" to "\"not-$orgId\"",
+            "mms:id" to "\"not-$demoOrgId\"",
             "mms:etag" to "\"${UUID.randomUUID()}\"",
         ).forEach { (pred, obj) ->
             "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
-                    httpPut(orgPath) {
+                    httpPut(demoOrgPath) {
                         setTurtleBody(withAllTestPrefixes("""
                             $validOrgBody
                             <> $pred $obj .

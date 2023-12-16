@@ -203,7 +203,7 @@ class ModelQuery : ModelAny() {
 
         "query result is different between master and branch" {
             commitModel(masterPath, insertAliceRex)
-            createBranch(repoPath, "master", branchId, branchName)
+            createBranch(demoRepoPath, "master", branchId, branchName)
             commitModel(masterPath, insertBobFluffy)
 
             withTest {
@@ -224,7 +224,7 @@ class ModelQuery : ModelAny() {
 
         "query result is different between master and lock" {
             commitModel(masterPath, insertAliceRex)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
             commitModel(masterPath, insertBobFluffy)
 
             withTest {
@@ -246,7 +246,7 @@ class ModelQuery : ModelAny() {
 
         "query result is different between master and lock from model loads" {
             loadModel(masterPath, loadAliceRex)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
             loadModel(masterPath, loadBobFluffy)
 
             withTest {

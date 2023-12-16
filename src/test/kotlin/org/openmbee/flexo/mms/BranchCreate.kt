@@ -12,7 +12,7 @@ class BranchCreate : RefAny() {
     init {
         "reject invalid branch id".config(tags=setOf(NoAuth)) {
             withTest {
-                httpPut("/orgs/$orgId/repos/$repoId/branches/bad branch id") {
+                httpPut("/orgs/$demoOrgId/repos/$demoRepoId/branches/bad branch id") {
                     setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest

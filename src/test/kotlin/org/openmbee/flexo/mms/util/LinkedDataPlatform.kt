@@ -42,7 +42,7 @@ class LinkedDataPlatformDirectContainerTests(
         body()
     }
 
-    fun TestApplicationCall.validateCreated(testName: String, validator: (TriplesAsserter.(TestApplicationResponse) -> Unit)?=null) {
+    fun TestApplicationCall.validateCreatedLdpResource(testName: String, validator: (TriplesAsserter.(TestApplicationResponse) -> Unit)?=null) {
         // LDP 4.2.1.3 - Etag
         response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
@@ -106,22 +106,6 @@ class LinkedDataPlatformDirectContainerTests(
                 }
             }
 
-            "POST $it - reject precondition: if-match star".config(tags = setOf(NoAuth)) {
-                withTest {
-                    httpPost(basePath) {
-                        addHeader(HttpHeaders.IfMatch, "*")
-
-                        // use Slug header to define new resource id
-                        addHeader(HttpHeaders.SLUG, resourceId)
-
-                        // set valid turtle body for creating new resource
-                        setTurtleBody(withAllTestPrefixes(validBodyForCreate))
-                    }.apply {
-                        response shouldHaveStatus HttpStatusCode.PreconditionFailed
-                    }
-                }
-            }
-
             "POST $it - reject precondition: if-none-match star".config(tags = setOf(NoAuth)) {
                 withTest {
                     httpPost(basePath) {
@@ -147,7 +131,7 @@ class LinkedDataPlatformDirectContainerTests(
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        validateCreated(it, validator)
+                        validateCreatedLdpResource(it, validator)
                     }
                 }
             }
@@ -207,7 +191,7 @@ class LinkedDataPlatformDirectContainerTests(
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                       validateCreated(it, validator)
+                       validateCreatedLdpResource(it, validator)
                     }
                 }
             }
@@ -222,9 +206,29 @@ class LinkedDataPlatformDirectContainerTests(
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                           validateCreated(it, validator)
+                           validateCreatedLdpResource(it, validator)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fun CommonSpec.postWithPrecondition(
+        validation: (TestApplicationCall.(testName: String) -> Unit)
+    ) {
+        "POST $basePath - with precondition: if-match star".config(tags = setOf(NoAuth)) {
+            withTest {
+                httpPost(basePath) {
+                    addHeader(HttpHeaders.IfMatch, "*")
+
+                    // use Slug header to define new resource id
+                    addHeader(HttpHeaders.SLUG, resourceId)
+
+                    // set valid turtle body for creating new resource
+                    setTurtleBody(withAllTestPrefixes(validBodyForCreate))
+                }.apply {
+                    validation(it)
                 }
             }
         }

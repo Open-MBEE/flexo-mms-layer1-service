@@ -87,7 +87,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headRepos(allRepos: Boolean=fals
     }
 
     // parse the result bindings
-    val bindings = parseSparqlResultsJson(selectResponseText)
+    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
 
     // hash all the repo etags
     handleEtagAndPreconditions(bindings)

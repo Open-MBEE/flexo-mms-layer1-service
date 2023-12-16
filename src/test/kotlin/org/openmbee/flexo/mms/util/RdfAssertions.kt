@@ -321,6 +321,17 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
         return this.subject(model.expandPrefix(terse), assertions)
     }
 
+    /**
+     * Asserts that exactly one subject's IRI starts with the given string and asserts its contents
+     */
+    fun matchMultipleSubjectsByPrefix(prefix: String, assertions: SubjectHandle.() -> Unit) {
+        // find matching subjects
+        val matches = model.listSubjects().filterKeep { it?.uri?.startsWith(prefix)?: false }.toList()
+
+        for(match in matches) {
+            this.subject(match.uri, assertions)
+        }
+    }
 
     /**
      * Asserts that exactly one subject's IRI starts with the given string and asserts its contents

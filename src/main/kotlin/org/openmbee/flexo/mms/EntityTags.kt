@@ -50,10 +50,10 @@ fun AnyLayer1Context.injectPreconditions(): String {
 }
 
 fun AnyLayer1Context.assertPreconditions(builder: ConditionsBuilder, inject: ((String)->String)?=null) {
-    if((ifMatch != null && !ifMatch.isStar) || ifNoneMatch != null) {
-        if(ifNoneMatch?.isStar == true) {
-            throw BadRequestException("Cannot provide `If-None-Match: *` precondition to target action")
-        }
+    if(ifMatch?.isStar == false || ifNoneMatch != null) {
+//        if(ifNoneMatch?.isStar == true) {
+//            throw BadRequestException("Cannot provide `If-None-Match: *` precondition to target action")
+//        }
 
         if(inject != null) {
             builder.require("userPreconditions") {

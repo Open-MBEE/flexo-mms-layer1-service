@@ -283,6 +283,14 @@ class QueryBuilder(
     private val layer1: AnyLayer1Context,
     indentLevel: Int=0,
 ): SparqlBuilder<QueryBuilder>(indentLevel) {
+    fun ask(setup: WhereBuilder.() -> Unit): QueryBuilder {
+        return raw("""
+            ask {
+                ${WhereBuilder(layer1, 4).apply{ setup() }}
+            }
+        """)
+    }
+
     fun construct(setup: ConstructBuilder.() -> Unit): QueryBuilder {
         return raw("""
             construct {

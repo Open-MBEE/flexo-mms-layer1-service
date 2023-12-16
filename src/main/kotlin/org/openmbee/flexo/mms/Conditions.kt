@@ -187,24 +187,7 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
                 # org must exist
                 graph m-graph:Cluster {
                     mo: a mms:Org ;
-                        ?orgExisting_p ?orgExisting_o ;
-                        mms:etag ?__mms_etag .
-                }
-            """
-        }
-    }
-
-    fun orgNotExists() {
-        // require that the given org does not exist before attempting to create it
-        require("orgNotExists") {
-            handler = { layer1 -> "The provided org <${layer1.prefixes["mo"]}> already exists." to HttpStatusCode.BadRequest }
-
-            """
-                # org must not yet exist
-                filter not exists {
-                    graph m-graph:Cluster {
-                        mo: a mms:Org .
-                    }
+                        ?orgExisting_p ?orgExisting_o .
                 }
             """
         }
@@ -212,14 +195,14 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
 
     fun repoExists() {
         require("repoExists") {
-            handler = { layer1 -> "Repo <${layer1.prefixes["mor"]}> does not exist." to HttpStatusCode.NotFound }
+            handler = { layer1 -> "Repo <${layer1.prefixes["mor"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
 
             """
                 # repo must exist
                 graph m-graph:Cluster {
                     mor: a mms:Repo ;
-                        ?repoExisting_p ?repoExisting_o ;
-                         mms:etag ?__mms_etag .
+                        ?repoExisting_p ?repoExisting_o .
                 }
             """
         }
@@ -314,9 +297,11 @@ class ConditionsGroup(var conditions: List<Condition>) {
             }
             // multiple conditions failed
             else {
-                // give precedence to 404
-                failedConditions.find { it.second === HttpStatusCode.NotFound }?.let {
-                    throw HttpException(it.first, it.second)
+                // give precedence to [412, 404]
+                listOf(HttpStatusCode.PreconditionFailed, HttpStatusCode.NotFound).forEach {status ->
+                    failedConditions.find { it.second === status }?.let {
+                        throw HttpException(it.first, it.second)
+                    }
                 }
 
                 // bundle

@@ -8,7 +8,7 @@ class OrgRead : OrgAny() {
     init {
         "head non-existent org" {
             withTest {
-                httpHead(orgPath) {}.apply {
+                httpHead(demoOrgPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
@@ -16,17 +16,17 @@ class OrgRead : OrgAny() {
 
         "get non-existent org" {
             withTest {
-                httpGet(orgPath) {}.apply {
+                httpGet(demoOrgPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "head org" {
-            val create = createOrg(orgId, orgName)
+            val create = createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpHead(orgPath) {}.apply {
+                httpHead(demoOrgPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
                 }
@@ -34,15 +34,15 @@ class OrgRead : OrgAny() {
         }
 
         "get org" {
-            val create = createOrg(orgId, orgName)
+            val create = createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpGet(orgPath) {}.apply {
+                httpGet(demoOrgPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
 
                     response includesTriples  {
-                        validateOrgTriples(response, orgId, orgName)
+                        validateOrgTriples(response, demoOrgId, demoOrgName)
                     }
                 }
             }
@@ -50,10 +50,10 @@ class OrgRead : OrgAny() {
 
 
         "get org if-match etag" {
-            val etag = createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
+            val etag = createOrg(demoOrgId, demoOrgName).response.headers[HttpHeaders.ETag]
 
             withTest {
-                httpGet(orgPath) {
+                httpGet(demoOrgPath) {
                     addHeader(HttpHeaders.IfMatch, "\"${etag}\"")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -62,10 +62,10 @@ class OrgRead : OrgAny() {
         }
 
         "get org if-match random" {
-            createOrg(orgId, orgName).response.headers[HttpHeaders.ETag]
+            createOrg(demoOrgId, demoOrgName).response.headers[HttpHeaders.ETag]
 
             withTest {
-                httpGet(orgPath) {
+                httpGet(demoOrgPath) {
                     addHeader(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
@@ -74,10 +74,10 @@ class OrgRead : OrgAny() {
         }
 
         "get org if-none-match etag" {
-            val create = createOrg(orgId, orgName)
+            val create = createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpGet(orgPath) {
+                httpGet(demoOrgPath) {
                     addHeader(HttpHeaders.IfNoneMatch, "\"${create.response.headers[HttpHeaders.ETag]!!}\"")
                 }.apply {
                     logger.info(response.status().toString())
@@ -87,10 +87,10 @@ class OrgRead : OrgAny() {
         }
 
         "get org if-none-match star" {
-            createOrg(orgId, orgName)
+            createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpGet(orgPath) {
+                httpGet(demoOrgPath) {
                     addHeader(HttpHeaders.IfNoneMatch, "*")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.NotModified
@@ -99,9 +99,9 @@ class OrgRead : OrgAny() {
         }
 
         "get all orgs" {
-            val createBase = createOrg(orgId, orgName)
-            val createFoo = createOrg(orgFooId, orgFooName)
-            val createBar = createOrg(orgBarId, orgBarName)
+            val createBase = createOrg(demoOrgId, demoOrgName)
+            val createFoo = createOrg(fooOrgId, fooOrgName)
+            val createBar = createOrg(barOrgId, barOrgName)
 
             withTest {
                 httpGet("/orgs") {}.apply {
@@ -110,9 +110,9 @@ class OrgRead : OrgAny() {
                     response.includesTriples {
                         modelName = it
 
-                        validateOrgTriples(createBase.response, orgId, orgName)
-                        validateOrgTriples(createFoo.response, orgFooId, orgFooName)
-                        validateOrgTriples(createBar.response, orgBarId, orgBarName)
+                        validateOrgTriples(createBase.response, demoOrgId, demoOrgName)
+                        validateOrgTriples(createFoo.response, fooOrgId, fooOrgName)
+                        validateOrgTriples(createBar.response, barOrgId, barOrgName)
                     }
                 }
             }

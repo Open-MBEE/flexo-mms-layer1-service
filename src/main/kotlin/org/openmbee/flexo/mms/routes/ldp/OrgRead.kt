@@ -92,7 +92,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(allOrgs: Boolean=false)
     }
 
     // parse the result bindings
-    val bindings = parseSparqlResultsJson(selectResponseText)
+    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
 
     // hash all the org etags
     handleEtagAndPreconditions(bindings)

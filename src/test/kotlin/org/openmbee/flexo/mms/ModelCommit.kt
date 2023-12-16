@@ -26,7 +26,7 @@ class ModelCommit: ModelAny() {
         }
 
         "commit model on empty master" {
-            val branch = createBranch(repoPath, "master", branchId, branchName)
+            val branch = createBranch(demoRepoPath, "master", branchId, branchName)
 
             commitAndValidateModel(branchPath)
         }
@@ -34,7 +34,7 @@ class ModelCommit: ModelAny() {
         "commit model on non-empty master" {
             commitModel(masterPath, insertAliceRex)
 
-            val branch = createBranch(repoPath, "master", branchId, branchName)
+            val branch = createBranch(demoRepoPath, "master", branchId, branchName)
 
             commitAndValidateModel(branchPath)
         }

@@ -127,13 +127,13 @@ open class ModelAny: RefAny() {
         branchPath: String,
         etag: String,
     ) {
-        matchOneSubjectByPrefix(localIri("$commitsPath/")) {
+        matchOneSubjectByPrefix(localIri("$demoCommitsPath/")) {
             includes(
                 RDF.type exactly MMS.Commit,
                 MMS.etag exactly etag,
                 MMS.submitted hasDatatype XSD.dateTime,
-                MMS.parent startsWith localIri("$commitsPath/").iri,
-                MMS.data startsWith localIri("$commitsPath/").iri,
+                MMS.parent startsWith localIri("$demoCommitsPath/").iri,
+                MMS.data startsWith localIri("$demoCommitsPath/").iri,
                 MMS.createdBy exactly localIri("/users/root").iri
             )
         }
@@ -146,7 +146,7 @@ open class ModelAny: RefAny() {
         }*/
 
         // validate transaction
-        validateTransaction(orgPath=orgPath, repoPath=repoPath, branchPath=branchPath, user="root")
+        validateTransaction(orgPath=demoOrgPath, repoPath=demoRepoPath, branchPath=branchPath, user="root")
 
         // inspect
         subject("urn:mms:inspect") { ignoreAll() }

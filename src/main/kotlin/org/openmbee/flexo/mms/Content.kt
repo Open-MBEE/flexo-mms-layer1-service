@@ -3,14 +3,10 @@ package org.openmbee.flexo.mms
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.*
 import org.apache.commons.io.IOUtils
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.jena.datatypes.BaseDatatype
-import org.apache.jena.graph.Factory
 import org.apache.jena.graph.GraphMemFactory
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.rdf.model.Property
@@ -244,8 +240,12 @@ fun parseAcceptTypes(types: List<HeaderValue>): List<ContentType> {
     return types.map { ContentType.parse(it.value) }
 }
 
-fun parseSparqlResultsJson(selectResponseText: String): List<JsonObject> {
+fun parseSparqlResultsJsonSelect(selectResponseText: String): List<JsonObject> {
     return Json.parseToJsonElement(selectResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray.map { it.jsonObject }
+}
+
+fun parseSparqlResultsJsonAsk(selectResponseText: String): Boolean {
+    return Json.parseToJsonElement(selectResponseText).jsonObject["boolean"]!!.jsonPrimitive.boolean
 }
 
 fun AnyLayer1Context.parseConstructResponse(responseText: String, setup: RdfModeler.()->Unit): KModel {

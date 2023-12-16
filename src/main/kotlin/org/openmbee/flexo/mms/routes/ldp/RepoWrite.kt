@@ -2,18 +2,14 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpWriteResponse
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_REPO
 
-// default starting conditions for any calls to create a repo
-private val CREATE_REPO_CONDITIONS = ORG_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create repos on a repo-level scope
-    permit(Permission.CREATE_REPO, Scope.REPO)
 
+// require that the given repo does not exist before attempting to create it
+private fun ConditionsBuilder.repoNotExists() {
     // require that the given repo does not exist before attempting to create it
     require("repoNotExists") {
         handler = { mms -> "The provided repo <${mms.prefixes["mor"]}> already exists." to HttpStatusCode.Conflict }
@@ -58,6 +54,14 @@ private val CREATE_REPO_CONDITIONS = ORG_CRUD_CONDITIONS.append {
 }
 
 
+// selects all properties of an existing repo
+private fun PatternBuilder<*>.existingRepo() {
+    graph("m-graph:Cluster") {
+        raw("""
+            mor: ?repoExisting_p ?repoExisting_o .
+        """)
+    }
+}
 
 /**
  * Creates or replaces org(s)
@@ -68,7 +72,7 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     // process RDF body from user about this new repo
     val repoTriples = filterIncomingStatements("mor") {
         // relative to this repo node
-        orgNode().apply {
+        repoNode().apply {
             // sanitize statements
             sanitizeCrudObject {
                 setProperty(RDF.type, MMS.Repo)
@@ -82,29 +86,89 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     // set default branch
     branchId = DEFAULT_BRANCH_ID
 
-    // whether the user intends to replace an existing repo
-    val replaceExisting = call.request.httpMethod == HttpMethod.Put && ifNoneMatch?.isStar == false
+    // resolve ambiguity
+    if(intentIsAmbiguous) {
+        // ask if repo exists
+        val probeResults = executeSparqlSelectOrAsk(buildSparqlQuery {
+            ask {
+                existingRepo()
+            }
+        })
 
-    // inherit the default conditions
-    val localConditions = if(replaceExisting) REPO_UPDATE_CONDITIONS else CREATE_REPO_CONDITIONS
+        // parse response
+        val exists = parseSparqlResultsJsonAsk(probeResults)
+
+        // repo does not exist
+        if(!exists) {
+            replaceExisting = false
+        }
+    }
+
+    // build conditions
+    val localConditions = ORG_CRUD_CONDITIONS.append {
+        // POST
+        if(isPostMethod) {
+            // user is asking to create repo only if the state of its container org passes their preconditions
+            appendPreconditions { values ->
+                """
+                    graph m-graph:Cluster {
+                        mo: mms:etag ?__mms_etag .
+                        $values
+                    }
+                    
+                """.trimIndent()
+            }
+        }
+        // not POST
+        else {
+            // resource must exist
+            if(mustExist) {
+                repoExists()
+            }
+
+            // resource must not exist
+            if(mustNotExist) {
+                repoNotExists()
+            }
+            // resource may exist
+            else {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph m-graph:Cluster {
+                            ${if(mustExist) "" else "optional {"}
+                                mor: mms:tag ?__mms_etag .
+                                $values
+                            ${if(mustExist) "" else "}"}
+                        }                        
+                    """
+                }
+            }
+        }
+
+        // resource is being replaced
+        if(replaceExisting) {
+            // require that the user has the ability to update repos on an org-level scope (necessarily implies ability to create)
+            permit(Permission.UPDATE_REPO, Scope.REPO)
+        }
+        // resource is being created
+        else {
+            // require that the user has the ability to create repos on an org-level scope
+            permit(Permission.CREATE_REPO, Scope.REPO)
+        }
+    }
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
         if(replaceExisting) {
             delete {
-                graph("m-graph:Cluster") {
-                    raw("""
-                        optional {
-                            ?$SPARQL_VAR_NAME_REPO ?repoExisting_p ?repoExisting_o .
-                        }
-                    """)
-                }
+                existingRepo()
             }
         }
         insert {
             // create a new txn object in the transactions graph
             txn {
-                // not replacing existing
+                // not replacing existing, create new policy
                 if(!replaceExisting) {
                     // create a new policy that grants this user admin over the new repo
                     autoPolicy(Scope.REPO, Role.ADMIN_REPO)
@@ -249,30 +313,6 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
-
-    // validate whether the transaction succeeded
-    val constructModel = validateTransaction(constructResponseText, localConditions, null, "mor")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(constructModel, prefixes["mor"], true)
-
-    // respond
-    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
-
-    // delete transaction graph
-    run {
-        // prepare SPARQL DROP
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
-    }
+    // finalize transaction
+    finalizeWriteTransaction(constructString, localConditions, "mor")
 }

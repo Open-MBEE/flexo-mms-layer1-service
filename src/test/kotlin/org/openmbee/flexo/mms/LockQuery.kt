@@ -12,7 +12,7 @@ class LockQuery : LockAny() {
     init {
         "query lock" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -33,7 +33,7 @@ class LockQuery : LockAny() {
 
         "query lock with graph var" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -63,7 +63,7 @@ class LockQuery : LockAny() {
 
         "ask lock: true" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -85,7 +85,7 @@ class LockQuery : LockAny() {
 
         "ask lock: false" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -107,7 +107,7 @@ class LockQuery : LockAny() {
 
         "describe lock explicit" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -126,7 +126,7 @@ class LockQuery : LockAny() {
 
         "describe lock where" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {
@@ -147,7 +147,7 @@ class LockQuery : LockAny() {
 
         "construct lock" {
             commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpPost("$lockPath/query") {

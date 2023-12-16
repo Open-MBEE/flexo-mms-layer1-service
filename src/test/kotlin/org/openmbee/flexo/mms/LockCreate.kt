@@ -3,15 +3,12 @@ package org.openmbee.flexo.mms
 
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
-import io.ktor.server.testing.*
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 
 class LockCreate : LockAny() {
     fun createAndValidateLock(_lockId: String=lockId, lockBody: String=fromMaster) {
         withTest {
-            httpPut("$repoPath/locks/$_lockId") {
+            httpPut("$demoRepoPath/locks/$_lockId") {
                 setTurtleBody(withAllTestPrefixes(lockBody))
             }.apply {
                 val etag = response.headers[HttpHeaders.ETag]
@@ -19,7 +16,7 @@ class LockCreate : LockAny() {
 
                 response.exclusivelyHasTriples {
                     modelName = "ValidateLock"
-                    validateLockTriples(_lockId, etag!!, orgPath)
+                    validateLockTriples(_lockId, etag!!, demoOrgPath)
                 }
             }
         }

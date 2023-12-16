@@ -9,7 +9,7 @@ import org.openmbee.flexo.mms.util.*
 class BranchDelete : RefAny() {
     init {
         "delete branch".config(enabled=false) {
-            createBranch(repoPath, "master", branchId, branchName)
+            createBranch(demoRepoPath, "master", branchId, branchName)
 
             withTest {
                 // delete branch should work

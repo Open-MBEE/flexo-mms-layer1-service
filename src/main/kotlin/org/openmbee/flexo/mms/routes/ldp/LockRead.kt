@@ -80,7 +80,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headLocks(allLocks: Boolean=fals
     }
 
     // parse the results
-    val bindings = parseSparqlResultsJson(selectResponseText)
+    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
 
     // hash all the lock etags
     handleEtagAndPreconditions(bindings)

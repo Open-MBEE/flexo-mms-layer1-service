@@ -1,27 +1,36 @@
 package org.openmbee.flexo.mms
 
 
-import org.openmbee.flexo.mms.util.LinkedDataPlatformDirectContainerTests
-import org.openmbee.flexo.mms.util.exactly
-import org.openmbee.flexo.mms.util.toPredicate
-import org.openmbee.flexo.mms.util.withAllTestPrefixes
+import io.ktor.server.testing.*
+import org.openmbee.flexo.mms.util.*
+
 
 class RepoCreate : RepoAny() {
     init {
         LinkedDataPlatformDirectContainerTests(
-            basePath = "/orgs/$orgId/repos",
-            resourceId = repoId,
+            basePath = basePathRepos,
+            resourceId = demoRepoId,
             validBodyForCreate = withAllTestPrefixes("""
                 $validRepoBody
                 <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
             """.trimIndent())
         ) {
-            create {
+            fun TriplesAsserter.validCreatedRepo(response: TestApplicationResponse) {
                 modelName = "CreateValidRepo"
 
-                validateCreatedRepoTriples(it, repoId, repoName, orgPath, listOf(
+                validateCreatedRepoTriples(response, demoRepoId, demoRepoName, demoOrgPath, listOf(
                     arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
                 ))
+            }
+
+            create {
+                validCreatedRepo(it)
+            }
+
+            postWithPrecondition { testName ->
+                validateCreatedLdpResource(testName) {
+                    validCreatedRepo(it)
+                }
             }
         }
     }

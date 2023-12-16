@@ -86,7 +86,7 @@ suspend fun Layer1Context<*, *>.headBranches(branchId: String?=null) {
     }
 
     // parse the result bindings
-    val bindings = parseSparqlResultsJson(selectResponseText)
+    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
 
     // hash all the branch etags
     handleEtagAndPreconditions(bindings)

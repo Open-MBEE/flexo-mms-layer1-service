@@ -22,10 +22,10 @@ class RepoQuery : ModelAny() {
         "query time of commit of lock" {
             val update = commitModel(masterPath, insertAliceRex)
             val etag = update.response.headers[HttpHeaders.ETag]!!
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
             // lock should be pointing to the commit from update
             withTest {
-                httpPost("$repoPath/query") {
+                httpPost("$demoRepoPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes(lockCommitQuery))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK

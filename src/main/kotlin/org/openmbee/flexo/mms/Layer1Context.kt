@@ -75,8 +75,9 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
     val ifNoneMatch = call.parseEtagQualifierHeader(HttpHeaders.IfNoneMatch)
 
     // precondition implications
+    val isPostMethod: Boolean
     val isPutMethod: Boolean
-    val replaceExisting: Boolean
+    var replaceExisting: Boolean
     val mustExist: Boolean
     val mustNotExist: Boolean
     val intentIsAmbiguous: Boolean
@@ -210,6 +211,9 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
              if-none-match: *   -- create new resource, fail if already exists
              if-none-match: TAG -- create new or replace existing, fail if existing resource matches tag
          */
+
+        // cache whether it is a POST request
+        isPostMethod = call.request.httpMethod == HttpMethod.Post
 
         // cache whether it is a PUT request
         isPutMethod = call.request.httpMethod == HttpMethod.Put
@@ -584,6 +588,17 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
                        ?__mms_commitSource a mms:Commit .
                     }
                 """
+            }
+        }
+    }
+
+    fun ConditionsBuilder.appendPreconditions(inject: ((String)->String)={it}) {
+        // preconditions apply
+        if(ifMatch?.isStar == false || ifNoneMatch != null) {
+            require("userPreconditions") {
+                handler = { "User preconditions failed" to HttpStatusCode.PreconditionFailed }
+
+                inject(injectPreconditions())
             }
         }
     }

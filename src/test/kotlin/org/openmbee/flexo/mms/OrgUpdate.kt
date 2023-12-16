@@ -5,21 +5,20 @@ package org.openmbee.flexo.mms
 import io.ktor.http.*
 import org.apache.jena.sparql.vocabulary.FOAF
 import org.openmbee.flexo.mms.util.*
-import java.util.*
 
 class OrgUpdate : OrgAny() {
     init {
         "patch org insert" {
-            createOrg(orgId, orgName)
+            createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpPatch(orgPath) {
+                httpPatch(demoOrgPath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
-                            <> dct:title "$orgName"@en .
+                            <> dct:title "$demoOrgName"@en .
                         }
                     """.trimIndent()))
                 }.apply {
@@ -27,7 +26,7 @@ class OrgUpdate : OrgAny() {
 
                     response exclusivelyHasTriples {
                         validateCreatedOrgTriples(
-                            response, orgId, orgName, listOf(
+                            response, demoOrgId, demoOrgName, listOf(
                                 FOAF.homepage exactly "https://www.openmbee.org/".iri
                             )
                         )
@@ -37,16 +36,16 @@ class OrgUpdate : OrgAny() {
         }
 
         "patch org insert failed condition" {
-            createOrg(orgId, orgName)
+            createOrg(demoOrgId, demoOrgName)
 
             withTest {
-                httpPatch(orgPath) {
+                httpPatch(demoOrgPath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
-                            <> dct:title "Not $orgName"@en .
+                            <> dct:title "Not $demoOrgName"@en .
                         }
                     """.trimIndent()))
                 }.apply {

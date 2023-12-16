@@ -2,7 +2,6 @@ package org.openmbee.flexo.mms
 
 
 import io.ktor.http.*
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 
 class LockRead : LockAny() {
@@ -21,7 +20,7 @@ class LockRead : LockAny() {
         }
 
         "head valid lock" {
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterPath, lockId)
 
             withTest {
                 httpHead(lockPath) {}.apply {
@@ -31,7 +30,7 @@ class LockRead : LockAny() {
         }
 
         "get valid lock" {
-            val etag = createLock(repoPath, masterPath, lockId).response.headers[HttpHeaders.ETag]
+            val etag = createLock(demoRepoPath, masterPath, lockId).response.headers[HttpHeaders.ETag]
 
             withTest {
                 httpGet(lockPath) {}.apply {
