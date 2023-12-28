@@ -95,10 +95,11 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
                 appendPreconditions { values ->
                     """
                         graph m-graph:Cluster {
-                            mo: mms:etag ?__mms_etag .
+                            ${if(mustExist) "" else "optional {"}
+                                mo: mms:etag ?__mms_etag .
+                                ${values.reindent(8)}
+                            ${if(mustExist) "" else "}"}
                         }
-                        
-                        $values
                     """
                 }
             }

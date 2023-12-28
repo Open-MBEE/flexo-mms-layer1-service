@@ -113,10 +113,10 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
                 """
                     graph m-graph:Cluster {
                         mo: mms:etag ?__mms_etag .
+
                         $values
                     }
-                    
-                """.trimIndent()
+                """
             }
         }
         // not POST
