@@ -5,6 +5,7 @@ import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.ROOT_CONTEXT
+import java.util.*
 
 val EXHAUSTIVE_PRECONDITIONS = listOf(
     "*",
@@ -31,12 +32,22 @@ val CONFLICTING_PRECONDITIONS = listOf(
     ),
 )
 
+/**
+ * Bundles responses for when resources get created in tests
+ */
+data class TestApplicationCreatedResponseBundle(
+    val response: TestApplicationResponse,
+    val createdBase: TestApplicationResponse,
+    val createdOthers: List<TestApplicationResponse> = listOf(),
+)
+
 class LinkedDataPlatformDirectContainerTests(
     val basePath: String,
     var resourceId: String,
     var validBodyForCreate: String = "",
     body: LinkedDataPlatformDirectContainerTests.() -> Unit
 ) {
+    val resourcePath = "$basePath/$resourceId"
 
     init {
         body()
@@ -47,7 +58,7 @@ class LinkedDataPlatformDirectContainerTests(
         response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
         // LDP 5.2.3.1 - Location header points to new resource
-        response.headers[HttpHeaders.Location].shouldBe("${ROOT_CONTEXT}$basePath/$resourceId")
+        response.headers[HttpHeaders.Location].shouldBe("${ROOT_CONTEXT}$resourcePath")
 
         // LDP 5.2.3.1 - response with status code 201; body is not required by LDP
         response.exclusivelyHasTriples(HttpStatusCode.Created) {
@@ -57,6 +68,9 @@ class LinkedDataPlatformDirectContainerTests(
         }
     }
 
+    /**
+     * Checks that the LDP direct container responds correctly to various create calls
+     */
     fun CommonSpec.create(validator: (TriplesAsserter.(TestApplicationResponse) -> Unit)?=null) {
         // POST to the resource container
         basePath.let {
@@ -138,10 +152,8 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         // PUT to a specific resource
-        "$basePath/$resourceId".let {
-            val resourcePath = it
-
-            "PUT $it - reject invalid id".config(tags=setOf(NoAuth)) {
+        run {
+            "PUT $resourcePath - reject invalid id".config(tags = setOf(NoAuth)) {
                 withTest {
                     httpPut("$basePath/test with invalid id") {
                         // set valid turtle body for creating new resource
@@ -153,7 +165,7 @@ class LinkedDataPlatformDirectContainerTests(
             }
 
             EXHAUSTIVE_PRECONDITIONS.forEach { preconditions ->
-                "PUT $it - reject failed precondition: if-match $preconditions".config(tags = setOf(NoAuth)) {
+                "PUT $resourcePath - reject failed precondition: if-match $preconditions".config(tags = setOf(NoAuth)) {
                     withTest {
                         httpPut(resourcePath) {
                             addHeader(HttpHeaders.IfMatch, preconditions)
@@ -169,7 +181,7 @@ class LinkedDataPlatformDirectContainerTests(
 
             // conflicting preconditions
             CONFLICTING_PRECONDITIONS.forEachIndexed { index, preconditions ->
-                "PUT $it - reject conflicting preconditions #${index+1}".config(tags=setOf(NoAuth)) {
+                "PUT $resourcePath - reject conflicting preconditions #${index + 1}".config(tags = setOf(NoAuth)) {
                     withTest {
                         httpPut(resourcePath) {
                             preconditions.forEach {
@@ -185,20 +197,20 @@ class LinkedDataPlatformDirectContainerTests(
                 }
             }
 
-            "PUT $it - create valid" {
+            "PUT $resourcePath - create valid" {
                 withTest {
                     httpPut(resourcePath) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                       validateCreatedLdpResource(it, validator)
+                        validateCreatedLdpResource(it, validator)
                     }
                 }
             }
 
 
             EXHAUSTIVE_PRECONDITIONS.forEach { preconditions ->
-                "PUT $it - create valid with precondition: if-none-match $preconditions" {
+                "PUT $resourcePath - create valid with precondition: if-none-match $preconditions" {
                     withTest {
                         httpPut(resourcePath) {
                             addHeader(HttpHeaders.IfNoneMatch, preconditions)
@@ -206,7 +218,7 @@ class LinkedDataPlatformDirectContainerTests(
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                           validateCreatedLdpResource(it, validator)
+                            validateCreatedLdpResource(it, validator)
                         }
                     }
                 }
@@ -214,6 +226,9 @@ class LinkedDataPlatformDirectContainerTests(
         }
     }
 
+    /**
+     * Checks that the LDP direct container responds correctly to POST'ing with precondition
+     */
     fun CommonSpec.postWithPrecondition(
         validation: (TestApplicationCall.(testName: String) -> Unit)
     ) {
@@ -229,6 +244,124 @@ class LinkedDataPlatformDirectContainerTests(
                     setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                 }.apply {
                     validation(it)
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks that the LDP direct container responds correctly to various read calls
+     */
+    fun CommonSpec.read(
+        creator: () -> TestApplicationCall,
+        vararg creators: () -> TestApplicationCall,
+        validator: ((TestApplicationCreatedResponseBundle) -> Unit)
+    ) {
+        "HEAD $resourcePath - non-existent" {
+            withTest {
+                httpHead(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
+        "GET $resourcePath - non-existent" {
+            withTest {
+                httpGet(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
+        "HEAD $resourcePath - valid" {
+            val createdBase = creator()
+            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
+
+            withTest {
+                httpHead(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NoContent
+                    response.shouldHaveHeader(HttpHeaders.ETag, etag)
+                }
+            }
+        }
+
+        "GET $resourcePath - valid" {
+            val createdBase = creator()
+            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
+
+            withTest {
+                httpGet(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response.shouldHaveHeader(HttpHeaders.ETag, etag)
+
+                    validator(TestApplicationCreatedResponseBundle(response, createdBase.response))
+                }
+            }
+        }
+
+        "GET $resourcePath - if-match etag" {
+            val createdBase = creator()
+            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
+
+            withTest {
+                httpGet(resourcePath) {
+                    addHeader(HttpHeaders.IfMatch, "\"$etag\"")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
+
+        "GET $resourcePath - if-match random" {
+            creator()
+
+            withTest {
+                httpGet(resourcePath) {
+                    addHeader(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                }
+            }
+        }
+
+        "GET $resourcePath - if-none-match etag" {
+            val createdBase = creator()
+            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
+
+            withTest {
+                httpGet(resourcePath) {
+                    addHeader(HttpHeaders.IfNoneMatch, "\"$etag\"")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotModified
+                }
+            }
+        }
+
+        "GET $resourcePath - if-none-match star" {
+            creator()
+
+            withTest {
+                httpGet(resourcePath) {
+                    addHeader(HttpHeaders.IfNoneMatch, "*")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.NotModified
+                }
+            }
+        }
+
+        "GET $basePath - all resources" {
+            val createdBase = creator()
+            val createdOthers = creators.map { it() }
+
+            withTest {
+                httpGet("/orgs") {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+
+                    response.includesTriples {
+                        modelName = it
+
+                        validator(TestApplicationCreatedResponseBundle(response, createdBase.response, createdOthers.map { it.response }))
+                    }
                 }
             }
         }

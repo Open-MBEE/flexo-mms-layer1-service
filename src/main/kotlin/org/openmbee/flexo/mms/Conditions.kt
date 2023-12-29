@@ -266,8 +266,8 @@ class ConditionsGroup(var conditions: List<Condition>) {
 
     fun handle(model: KModel, layer1: AnyLayer1Context): Nothing {
         // inspect node
-        val inspectNode = model.createResource("urn:mms:inspect")
-        val passes = inspectNode.listProperties(PropertyImpl("urn:mms:pass")).toList()
+        val inspectNode = model.createResource(MMS_URNS.SUBJECT.inspect)
+        val passes = inspectNode.listProperties(PropertyImpl(MMS_URNS.PREDICATE.pass)).toList()
             .map { it.`object`.asLiteral().string }.toHashSet()
 
         val failedConditions = mutableListOf<Pair<String, HttpStatusCode>>()

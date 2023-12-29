@@ -46,7 +46,7 @@ fun TriplesAsserter.validateCreatedOrgTriples(
     validateTransaction(orgPath="/orgs/$orgId")
 
     // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
+    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 open class OrgAny: CommonSpec() {

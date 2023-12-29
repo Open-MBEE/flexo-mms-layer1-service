@@ -81,7 +81,7 @@ suspend fun Layer1Context<*, *>.headBranches(branchId: String?=null) {
         }
 
         iri(
-            "_context" to "urn:mms:context:$transactionId",
+            "_context" to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 
@@ -119,7 +119,7 @@ suspend fun Layer1Context<*, *>.getBranches(branchId: String?=null) {
         }
 
         iri(
-            "_context" to "urn:mms:context:$transactionId",
+            "_context" to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 

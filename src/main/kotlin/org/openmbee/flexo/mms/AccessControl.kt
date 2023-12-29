@@ -153,5 +153,5 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
                 mms:implies* mms-object:Permission.${permission.id} ;
                 .
         }
-    """.trimIndent()
+    """
 }

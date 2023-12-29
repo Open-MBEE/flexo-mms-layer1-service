@@ -28,7 +28,10 @@ fun TriplesAsserter.validateRepoTriples(
     }
 
     // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
+    optionalSubject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
+
+    // aggregator
+    optionalSubject(MMS_URNS.SUBJECT.aggregator) { ignoreAll() }
 }
 
 fun TriplesAsserter.validateRepoTriplesWithMasterBranch(

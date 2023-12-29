@@ -282,6 +282,9 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
                 
                 # all triples in metadata graph
                 ?m_s ?m_p ?m_o .
+                
+                # metadata element etags
+                <${MMS_URNS.SUBJECT.aggregator}> mms:etag ?elementEtag .
             """)
         }
         where {
@@ -305,6 +308,10 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
                     
                     graph mor-graph:Metadata {
                         ?m_s ?m_p ?m_o .
+                        
+                        optional {
+                            ?m_s mms:etag ?elementEtag
+                        }
                     }
                 """)
             }

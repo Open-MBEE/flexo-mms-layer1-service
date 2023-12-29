@@ -381,34 +381,51 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
             throw Http404Exception(call.request.path())
         }
 
-        // compose etag
-        val etag = if(bindings.size == 1) {
+        // compose output etag
+        var outputEtag = if(bindings.size == 1) {
             bindings[0]["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content
         }  else {
-            bindings.joinToString(":") { it["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }.sha256()
+            bindings.map { it["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
+                .distinct().joinToString(":").sha256()
+        }
+
+        // aggregation
+        if(bindings[0]["elementEtag"]?.jsonObject != null) {
+            outputEtag += ":"+bindings.map { it["elementEtag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
+                .sorted().joinToString(":").sha256()
         }
 
         // set etag value in response header
-        call.response.header(HttpHeaders.ETag, etag)
+        call.response.header(HttpHeaders.ETag, outputEtag)
 
         // check preconditions
-        checkPreconditions(etag)
+        checkPreconditions(outputEtag)
     }
 
     fun extractResourceEtag(model: KModel, resourceNode: Resource, allEtags: Boolean=false): String {
-        // etags
-        val etags = model.listObjectsOfProperty(if(allEtags) null else resourceNode, MMS.etag).toList()
-        val etag = when(etags.size) {
+        // resource etags
+        val resourceEtags = model.listObjectsOfProperty(if(allEtags) null else resourceNode, MMS.etag).toList()
+        var outputEtag = when(resourceEtags.size) {
             0 -> throw ServerBugException("Constructed model did not contain any etag values.")
-            1 -> etags[0].asLiteral().string
-            else -> etags.map { it.asLiteral().string }.sorted()
+            1 -> resourceEtags[0].asLiteral().string
+            else -> resourceEtags.map { it.asLiteral().string }.sorted()
                 .joinToString(":").sha256()
         }
 
-        // set etag value in response header
-        call.response.header(HttpHeaders.ETag, etag)
+        // get all element etags from aggregator sorted
+        val elementEtags = model.createResource(MMS_URNS.SUBJECT.aggregator)
+            .listProperties(MMS.etag).toList().map { it.string }.sorted()
 
-        return etag
+        // aggregated elements exit
+        if(elementEtags.isNotEmpty()) {
+            // modify output etag
+            outputEtag += ":${elementEtags.joinToString(":").sha256()}"
+        }
+
+        // set etag value in response header
+        call.response.header(HttpHeaders.ETag, outputEtag)
+
+        return outputEtag
     }
 
     fun handleWrittenResourceEtag(model: KModel, resourceUri: String, allEtags: Boolean=false): String {
@@ -450,21 +467,33 @@ class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericRe
         }
 
         // prep map of resources to etags
-        val resEtags = mutableListOf<String>()
+        val resourceEtags = mutableListOf<String>()
+        val elementEtags = mutableListOf<String>()
 
         // each node that has an etag...
         model.listSubjectsWithProperty(MMS.etag).forEach { subject ->
+            val etagStmts = subject.listProperties(MMS.etag)
+
             // ...that is of the specified type
             if(subject.hasProperty(RDF.type, resourceType)) {
-                // add all etgas
-                resEtags.addAll(subject.listProperties(MMS.etag).mapWith { statement ->
+                // add all etags to resource list
+                resourceEtags.addAll(etagStmts.mapWith { statement ->
                     statement.`object`.asLiteral().string
                 }.toList())
+            }
+            // other
+            else {
+                if(MMS_URNS.SUBJECT.aggregator === subject.uri) {
+                    // add all etags to aggregator list
+                    elementEtags.addAll(etagStmts.mapWith { statement ->
+                        statement.`object`.asLiteral().string
+                    }.toList())
+                }
             }
         }
 
         // sort list of etags and hash them
-        val etag = resEtags.sorted().toList().joinToString(":").sha256()
+        val etag = resourceEtags.sorted().toList().joinToString(":").sha256()
 
         // set etag value in response header
         call.response.header(HttpHeaders.ETag, etag)

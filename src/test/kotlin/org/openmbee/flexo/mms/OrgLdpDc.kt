@@ -6,7 +6,7 @@ import org.openmbee.flexo.mms.util.*
 import java.util.*
 
 
-class OrgCreate : OrgAny() {
+class OrgLdpDc : OrgAny() {
     init {
         LinkedDataPlatformDirectContainerTests(
             basePath = basePathOrgs,
@@ -19,6 +19,23 @@ class OrgCreate : OrgAny() {
 
             postWithPrecondition {
                 response shouldHaveStatus HttpStatusCode.BadRequest
+            }
+
+            read(
+                { createOrg(demoOrgId, demoOrgName) },
+                { createOrg(fooOrgId, fooOrgName) },
+                { createOrg(barOrgId, barOrgName) },
+            ) {
+                it.response includesTriples {
+                    validateOrgTriples(it.createdBase, demoOrgId, demoOrgName)
+                }
+
+                if(it.createdOthers.isNotEmpty()) {
+                    it.response includesTriples {
+                        validateOrgTriples(it.createdOthers[0], fooOrgId, fooOrgName)
+                        validateOrgTriples(it.createdOthers[1], barOrgId, barOrgName)
+                    }
+                }
             }
         }
 

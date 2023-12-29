@@ -267,7 +267,7 @@ class ConstructBuilder(
         return raw("""
             ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
             
-            <urn:mms:inspect> <urn:mms:pass> ?__mms_inspect_pass .
+            <${MMS_URNS.SUBJECT.inspect}> <${MMS_URNS.PREDICATE.pass}> ?__mms_inspect_pass .
         """)
     }
 

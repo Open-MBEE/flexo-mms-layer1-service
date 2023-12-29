@@ -12,12 +12,12 @@ suspend fun GspContext.readModel() {
         branch()
     }
 
-    val authorizedIri = "<urn:mms:auth:${transactionId}>"
+    val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
 
     val constructString = buildSparqlQuery {
         construct {
             raw("""
-                $authorizedIri <urn:mms:policy> ?__mms_authMethod . 
+                $authorizedIri <${MMS_URNS.PREDICATE.policy}> ?__mms_authMethod . 
 
                 ?s ?p ?o
             """)
@@ -60,7 +60,7 @@ suspend fun GspContext.readModel() {
     }
     else {
         // try to avoid parsing model for performance reasons
-        val modelText = constructResponseText.replace("""$authorizedIri\s+<urn:mms:policy>\s+\"(user|group)\"\s+\.""".toRegex(), "")
+        val modelText = constructResponseText.replace("""$authorizedIri\s+<${MMS_URNS.PREDICATE.policy}>\s+\"(user|group)\"\s+\.""".toRegex(), "")
 
         call.respondText(modelText, contentType=RdfContentTypes.Turtle)
     }

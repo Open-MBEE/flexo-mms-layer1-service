@@ -5,7 +5,7 @@ import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
 
-class RepoCreate : RepoAny() {
+class RepoLdpDc : RepoAny() {
     init {
         LinkedDataPlatformDirectContainerTests(
             basePath = basePathRepos,
@@ -30,6 +30,25 @@ class RepoCreate : RepoAny() {
             postWithPrecondition { testName ->
                 validateCreatedLdpResource(testName) {
                     validCreatedRepo(it)
+                }
+            }
+
+            read(
+                { createRepo(demoOrgPath, demoRepoId, demoRepoName) },
+                { createRepo(demoOrgPath, fooRepoId, fooRepoName) },
+                { createRepo(demoOrgPath, barRepoId, barRepoName) },
+            ) {
+                if(it.createdOthers.isEmpty()) {
+                    it.response exclusivelyHasTriples {
+                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
+                    }
+                }
+                else {
+                    it.response includesTriples {
+                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
+                        validateRepoTriplesWithMasterBranch(fooRepoId, fooRepoName, fooOrgPath)
+                        validateRepoTriplesWithMasterBranch(barRepoId, barRepoName, barOrgPath)
+                    }
                 }
             }
         }

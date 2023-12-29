@@ -294,6 +294,22 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     /**
      * Asserts the given subject by IRI exists and asserts its contents
      */
+    fun optionalSubject(iri: String, assertions: SubjectHandle.() -> Unit) {
+        // create resource
+        val subject = model.createResource(iri)
+
+        // check for existence
+        val exists = model.contains(subject, null)
+        if(!exists) return
+
+        // apply assertions
+        SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }
+    }
+
+
+    /**
+     * Asserts the given subject by IRI exists and asserts its contents
+     */
     fun subject(iri: String, assertions: SubjectHandle.() -> Unit) {
         // create resource
         val subject = model.createResource(iri)

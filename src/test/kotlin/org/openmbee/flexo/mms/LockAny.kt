@@ -38,7 +38,7 @@ fun TriplesAsserter.validateLockTriples(
     validateTransaction(orgPath=orgPath)
 
     // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
+    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 

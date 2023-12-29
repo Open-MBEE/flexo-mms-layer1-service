@@ -338,3 +338,19 @@ object MMS_OBJECT {
         val ReadAccessControl = res("ReadAccessControl")
     }
 }
+
+object MMS_URNS {
+    private val mms = "urn:mms"
+
+    object SUBJECT {
+        val aggregator = "$mms:aggregator"
+        val auth = "$mms:auth"
+        val context = "$mms:context"
+        val inspect = "$mms:inspect"
+    }
+
+    object PREDICATE {
+        val pass = "$mms:pass"
+        val policy = "$mms:policy"
+    }
+}

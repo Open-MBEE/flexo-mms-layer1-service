@@ -3,18 +3,18 @@ package org.openmbee.flexo.mms.routes.ldp
 import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_REPO
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpGetResponse
 import org.openmbee.flexo.mms.server.LdpHeadResponse
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_REPO
 
 
 // reusable basic graph pattern for matching repo(s)
 private val SPARQL_BGP_REPO: (Boolean) -> String = { allRepos -> """
     graph m-graph:Cluster {
         ?$SPARQL_VAR_NAME_REPO a mms:Repo ;
-            mms:etag ?etagCluster ;
+            mms:etag ?__mms_etag ;
             mms:org ?$SPARQL_VAR_NAME_ORG ;
             ?repo_p ?repo_o .
         
@@ -28,10 +28,8 @@ private val SPARQL_BGP_REPO: (Boolean) -> String = { allRepos -> """
     
     graph ?metadataGraph {
         ?m_s ?m_p ?m_o ;
-            mms:etag ?etagRepo .
+            mms:etag ?elementEtag .
     }
-    
-    bind(concat(?etagCluster, ?etagRepo) as ?__mms_etag)
     
     ${permittedActionSparqlBgp(Permission.READ_REPO, Scope.REPO,
         if(allRepos) "^mor:?$".toRegex() else null,
@@ -40,9 +38,9 @@ private val SPARQL_BGP_REPO: (Boolean) -> String = { allRepos -> """
 
 // select ETag(s) of existing repo(s)
 private val SPARQL_SELECT_REPO_ETAGS: (Boolean) -> String = { allRepos -> """
-    select distinct ?__mms_etag {
+    select distinct ?__mms_etag ?elementEtag {
         ${SPARQL_BGP_REPO(allRepos)}
-    } order by asc(?__mms_etag)
+    }
 """ }
 
 // construct graph of all relevant repo metadata
@@ -54,7 +52,7 @@ private val SPARQL_CONSTRUCT_REPO: (Boolean) -> String = { allRepos -> """
         
         ?m_s ?m_p ?m_o .
         
-        <urn:mms:inspect> <urn:mms:etag> ?__mms_etag .
+        <${MMS_URNS.SUBJECT.aggregator}> mms:etag ?elementEtag .
     } where {
         ${SPARQL_BGP_REPO(allRepos)}
     }
@@ -72,6 +70,8 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headRepos(allRepos: Boolean=fals
     // fetch all repos
     val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_REPO_ETAGS(allRepos)) {
         acceptReplicaLag = true
+
+        prefixes(prefixes)
 
         // always belongs to some org
         iri(
@@ -107,6 +107,8 @@ suspend fun LdpDcLayer1Context<LdpGetResponse>.getRepos(allRepos: Boolean=false)
     // fetch all repo details
     val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO(allRepos)) {
         acceptReplicaLag = true
+
+        prefixes(prefixes)
 
         // always belongs to some org
         iri(

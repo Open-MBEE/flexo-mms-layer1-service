@@ -87,7 +87,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(allOrgs: Boolean=false)
 
         // bind a context IRI
         iri(
-            SPARQL_VAR_NAME_CONTEXT to "urn:mms:context:$transactionId",
+            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 
@@ -125,7 +125,7 @@ suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
 
         // bind a context IRI
         iri(
-            SPARQL_VAR_NAME_CONTEXT to "urn:mms:context:$transactionId",
+            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 

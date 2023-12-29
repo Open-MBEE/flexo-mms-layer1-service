@@ -7,9 +7,7 @@ import io.ktor.server.request.*
 import org.apache.jena.rdf.model.ResourceFactory
 
 
-private val ETAG_VALUE = """(W/)?"([\w_-]+)"""".toRegex()
-
-private val ETAG_PROPERTY = ResourceFactory.createProperty("urn:mms:etag")
+private val ETAG_VALUE = """(W/)?"([\w_:-]+)"""".toRegex()
 
 data class EtagQualifier(
     val etags: HashSet<String>,

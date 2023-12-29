@@ -75,7 +75,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headLocks(allLocks: Boolean=fals
         }
 
         iri(
-            "_context" to "urn:mms:context:$transactionId",
+            "_context" to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 
@@ -108,7 +108,7 @@ suspend fun LdpDcLayer1Context<LdpGetResponse>.getLocks(allLocks: Boolean=false)
         }
 
         iri(
-            "_context" to "urn:mms:context:$transactionId",
+            "_context" to "${MMS_URNS.SUBJECT.context}:$transactionId",
         )
     }
 
