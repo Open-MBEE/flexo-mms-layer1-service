@@ -200,6 +200,12 @@ class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.(
             this
         }
     }
+
+    fun stringifyPrefixes(): String {
+        return this.prefixes.toString() + this.graph.prefixMapping.nsPrefixMap.map {
+            "PREFIX ${it.key}: <${it.value}>"
+        }.joinToString("\n")
+    }
 }
 
 

@@ -1,11 +1,10 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.request.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
-import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 // require that the given org does not exist before attempting to create it
 private fun ConditionsBuilder.orgNotExists() {
@@ -37,7 +36,7 @@ private fun PatternBuilder<*>.existingOrg() {
  *
  * TResponseContext generic is bound by LdpWriteResponse, which can be a response to either a PUT or POST request
  */
-suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceOrg() {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceOrg() {
     // process RDF body from user about this new org
     val orgTriples = filterIncomingStatements("mo") {
         // relative to this org node
@@ -173,5 +172,5 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     }
 
     // finalize transaction
-    finalizeWriteTransaction(constructString, localConditions, "mo")
+    finalizeMutateTransaction(constructString, localConditions, "mo", true)
 }

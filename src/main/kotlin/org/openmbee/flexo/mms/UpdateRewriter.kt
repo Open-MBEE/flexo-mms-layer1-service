@@ -117,7 +117,7 @@ fun asSparqlGroup(quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): Strin
 
             if(quadFilter != null && !quadFilter(quad)) continue;
 
-            addTriple(Triple(quad.subject, quad.predicate, quad.`object`))
+            addTriple(Triple.create(quad.subject, quad.predicate, quad.`object`))
         }
     })
 }

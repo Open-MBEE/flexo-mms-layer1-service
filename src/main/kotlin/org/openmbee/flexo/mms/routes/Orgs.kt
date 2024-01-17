@@ -1,7 +1,7 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.assertLegalId
+import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceOrg
 import org.openmbee.flexo.mms.routes.ldp.getOrgs
@@ -67,14 +67,33 @@ fun Route.crudOrgs() {
             createOrReplaceOrg()
         }
 
-//        // modify existing org
-//        patch {
-////            guardedPatch(
-////                updateRequest = it,
-////                objectKey = "mo",
-////                graph = "m-graph:Cluster",
-////                preconditions = UPDATE_ORG_CONDITIONS,
-////            )
-//        }
+        // modify existing org
+        patch {
+            // build conditions
+            val localConditions = GLOBAL_CRUD_CONDITIONS.append {
+                // org must exist
+                orgExists()
+
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph m-graph:Cluster {
+                            mo: mms:etag ?__mms_etag .
+                            ${values.reindent(6)}
+                        }
+                    """
+                }
+
+                // require that the user has the ability to update this org on an org-level scope
+                permit(Permission.UPDATE_ORG, Scope.ORG)
+            }
+
+            guardedPatch(
+                updateRequest = it,
+                objectKey = "mo",
+                graph = "m-graph:Cluster",
+                preconditions = localConditions,
+            )
+        }
     }
 }

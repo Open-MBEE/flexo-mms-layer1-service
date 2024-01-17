@@ -2,12 +2,13 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import org.openmbee.flexo.mms.ConditionsGroup
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
-import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 
-suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseContext>.finalizeWriteTransaction(
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.finalizeMutateTransaction(
     constructString: String,
     localConditions: ConditionsGroup,
-    resourceSymbol: String
+    resourceSymbol: String,
+    isNewResource: Boolean,
 ) {
     // execute construct
     val constructResponseText = executeSparqlConstructOrDescribe(constructString)
@@ -21,8 +22,15 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     // set response ETag from created/replaced resource
     handleWrittenResourceEtag(constructModel, prefixes[resourceSymbol]!!)
 
-    // respond with the created resource
-    responseContext.createdResource(prefixes[resourceSymbol]!!, constructModel)
+    // new resource
+    if(isNewResource) {
+        // respond with the created resource
+        responseContext.createdResource(prefixes[resourceSymbol]!!, constructModel)
+    }
+    // existing resource
+    else {
+        responseContext.mutatedResource(prefixes[resourceSymbol]!!, constructModel)
+    }
 
     // delete transaction
     run {
@@ -36,6 +44,6 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
         """)
 
         // log response
-        log.info(dropResponseText)
+        log.info("Delete transaction response:\n$dropResponseText")
     }
 }

@@ -145,7 +145,7 @@ fun Route.commitModel() {
         val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
             if(whereString.isNotEmpty()) {
                 inspect("userWhere") {
-                    handler = { "User update condition is not satisfiable" to HttpStatusCode.InternalServerError }
+                    handler = { "User update condition is not satisfiable" to HttpStatusCode.PreconditionFailed }
 
                     """
                         graph ?stagingGraph {

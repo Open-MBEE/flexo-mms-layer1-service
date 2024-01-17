@@ -79,9 +79,9 @@ open class LdpResponse(requestContext: GenericRequest): GenericResponse(requestC
 open class LdpReadResponse(requestContext: GenericRequest): LdpResponse(requestContext)
 
 /**
- * Response context for when a resource is being written to (i.e., POST, PUT or PATCH)
+ * Response context for when a resource is being mutated to (i.e., POST, PUT or PATCH)
  */
-open class LdpWriteResponse(requestContext: GenericRequest): LdpResponse(requestContext) {
+open class LdpMutateResponse(requestContext: GenericRequest): LdpResponse(requestContext) {
     /**
      * Sends a success response to an LDP request that asked to create a resource
      */
@@ -91,6 +91,14 @@ open class LdpWriteResponse(requestContext: GenericRequest): LdpResponse(request
 
         // respond in the request format
         respondRdfModel(responseBodyModel, HttpStatusCode.Created)
+    }
+
+    /**
+     * Sends a success response to an LDP request that asked to modify a resource
+     */
+    suspend fun mutatedResource(resourceIri: String, responseBodyModel: KModel) {
+        // respond in the request format
+        respondRdfModel(responseBodyModel, HttpStatusCode.OK)
     }
 }
 
@@ -108,12 +116,12 @@ class LdpGetResponse(requestContext: GenericRequest): LdpReadResponse(requestCon
 /**
  * Response context for POST to LDP resource
  */
-class LdpPostResponse(requestContext: GenericRequest): LdpWriteResponse(requestContext)
+class LdpPostResponse(requestContext: GenericRequest): LdpMutateResponse(requestContext)
 
 /**
  * Response context for PUT to LDP resource
  */
-class LdpPutResponse(requestContext: GenericRequest): LdpWriteResponse(requestContext) {
+class LdpPutResponse(requestContext: GenericRequest): LdpMutateResponse(requestContext) {
 //    suspend fun overwroteResource(resourceIri: String, responseBodyTurtle: String) {
 //        // set location header
 //        call.response.headers.append("Location", resourceIri)
@@ -126,7 +134,7 @@ class LdpPutResponse(requestContext: GenericRequest): LdpWriteResponse(requestCo
 /**
  * Response context for PATCH to LDP resource
  */
-class LdpPatchResponse(requestContext: GenericRequest): LdpWriteResponse(requestContext)
+class LdpPatchResponse(requestContext: GenericRequest): LdpMutateResponse(requestContext)
 
 /**
  * Response context for DELETE to LDP resource
@@ -410,9 +418,11 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
                             throw Http400Exception("Failed to parse triples document: $parseError")
                         }
 
-                        // stringify and inject into INSERT block of SPARQL Update string
+                        // stringify and inject into INSERT DATA block of SPARQL Update string
                         updateString = """
-                            insert {
+                            ${model.stringifyPrefixes()}
+                            
+                            insert data {
                                 ${model.stringify()}
                             }
                         """.trimIndent()

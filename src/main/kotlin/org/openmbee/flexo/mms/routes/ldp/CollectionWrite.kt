@@ -5,7 +5,7 @@ import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
-import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
 // default starting conditions for any calls to create a collection
@@ -42,7 +42,7 @@ private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     }
 }
 
-suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceCollection() {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceCollection() {
     // process RDF body from user about this new collection
     val collectionTriples = filterIncomingStatements("moc") {
         // relative to this org node

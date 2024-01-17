@@ -1,11 +1,10 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.request.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
-import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
 // require that the given repo does not exist before attempting to create it
@@ -68,7 +67,7 @@ private fun PatternBuilder<*>.existingRepo() {
  *
  * TResponseContext generic is bound by LdpWriteResponse, which can be a response to either a PUT or POST request
  */
-suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceRepo() {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceRepo() {
     // process RDF body from user about this new repo
     val repoTriples = filterIncomingStatements("mor") {
         // relative to this repo node
@@ -321,5 +320,5 @@ suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseCon
     }
 
     // finalize transaction
-    finalizeWriteTransaction(constructString, localConditions, "mor")
+    finalizeMutateTransaction(constructString, localConditions, "mor", true)
 }

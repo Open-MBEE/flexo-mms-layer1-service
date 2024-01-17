@@ -5,7 +5,7 @@ import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
-import org.openmbee.flexo.mms.server.LdpWriteResponse
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
 // default starting conditions for any calls to create a lock
@@ -79,7 +79,7 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
 """
 
 
-suspend fun <TResponseContext: LdpWriteResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceLock() {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceLock() {
     // process RDF body from user about this new lock
     val lockTriples = filterIncomingStatements("morl") {
         // relative to this lock node

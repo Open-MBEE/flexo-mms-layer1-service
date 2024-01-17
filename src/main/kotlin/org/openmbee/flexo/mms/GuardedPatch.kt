@@ -1,13 +1,15 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.http.*
-import io.ktor.server.response.*
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
 import org.apache.jena.sparql.modify.request.UpdateDataInsert
 import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
 import org.apache.jena.sparql.modify.request.UpdateModify
 import org.apache.jena.update.UpdateFactory
+import org.openmbee.flexo.mms.routes.ldp.finalizeMutateTransaction
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 
@@ -37,7 +39,12 @@ fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
 }
 
 
-suspend fun AnyLayer1Context.guardedPatch(updateRequest: SparqlUpdateRequest, objectKey: String, graph: String, preconditions: ConditionsGroup) {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.guardedPatch(
+    updateRequest: SparqlUpdateRequest,
+    objectKey: String,
+    graph: String,
+    preconditions: ConditionsGroup
+) {
     val baseIri = prefixes[objectKey]!!
 
     // parse query
@@ -47,16 +54,17 @@ suspend fun AnyLayer1Context.guardedPatch(updateRequest: SparqlUpdateRequest, ob
         throw UpdateSyntaxException(parse)
     }
 
+    // normalize operations into delete/insert/where sections
     var deleteBgpString = ""
     var insertBgpString = ""
     var whereString = ""
 
-    val operations = sparqlUpdateAst.operations
-
+    // prepare quad filters
     val dataFilter = quadDataFilter(baseIri)
     val patternFilter = quadPatternFilter(baseIri)
 
-    for(update in operations) {
+    // each operation
+    for(update in sparqlUpdateAst.operations) {
         when(update) {
             is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, dataFilter)
             is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, dataFilter)
@@ -85,6 +93,7 @@ suspend fun AnyLayer1Context.guardedPatch(updateRequest: SparqlUpdateRequest, ob
 
     val conditions = preconditions.append {
         if(whereString.isNotEmpty()) {
+            // appropriate the 412 HTTP error code to indicate that the user-supplied WHERE block failed as a precondition
             require("userWhere") {
                 handler = { "User update condition is not satisfiable" to HttpStatusCode.PreconditionFailed }
 
@@ -180,31 +189,34 @@ suspend fun AnyLayer1Context.guardedPatch(updateRequest: SparqlUpdateRequest, ob
         }
     }
 
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+    // finalize transaction
+    finalizeMutateTransaction(constructString, conditions, objectKey, false)
 
-    log.info("Post-update construct response:\n$constructResponseText")
-
-    val constructModel = validateTransaction(constructResponseText, conditions)
-
-    // set etag header
-    call.response.header(HttpHeaders.ETag, transactionId)
-
-    // forward response to client
-    call.respondText(
-        constructResponseText,
-        contentType = RdfContentTypes.Turtle,
-    )
-
-    // delete transaction
-    run {
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        log("Transaction delete response:\n$dropResponseText")
-    }
+//    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+//
+//    log.info("Post-update construct response:\n$constructResponseText")
+//
+//    val constructModel = validateTransaction(constructResponseText, conditions)
+//
+//    // set etag header
+//    call.response.header(HttpHeaders.ETag, transactionId)
+//
+//    // forward response to client
+//    call.respondText(
+//        constructResponseText,
+//        contentType = RdfContentTypes.Turtle,
+//    )
+//
+//    // delete transaction
+//    run {
+//        val dropResponseText = executeSparqlUpdate("""
+//            delete where {
+//                graph m-graph:Transactions {
+//                    mt: ?p ?o .
+//                }
+//            }
+//        """)
+//
+//        log("Transaction delete response:\n$dropResponseText")
+//    }
 }

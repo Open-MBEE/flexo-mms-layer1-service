@@ -4,6 +4,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.sparql.vocabulary.FOAF
 import org.openmbee.flexo.mms.ROOT_CONTEXT
 import java.util.*
 
@@ -31,6 +32,8 @@ val CONFLICTING_PRECONDITIONS = listOf(
         HttpHeaders.IfNoneMatch to "\"SOME_TAG\", \"ANOTHER_TAG\"",
     ),
 )
+
+val PATCH_INSERT_TRIPLES = "<> foaf:homepage <https://www.openmbee.org/> ."
 
 /**
  * Bundles responses for when resources get created in tests
@@ -354,7 +357,7 @@ class LinkedDataPlatformDirectContainerTests(
             val createdOthers = creators.map { it() }
 
             withTest {
-                httpGet("/orgs") {}.apply {
+                httpGet(basePath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
 
                     response.includesTriples {
@@ -362,6 +365,94 @@ class LinkedDataPlatformDirectContainerTests(
 
                         validator(TestApplicationCreatedResponseBundle(response, createdBase.response, createdOthers.map { it.response }))
                     }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Checks that the LDP direct container responds correctly to various patch calls
+     */
+    fun CommonSpec.patch(
+        creator: () -> TestApplicationCall,
+    ) {
+        fun validatePatchResponse(response: TestApplicationResponse) {
+            response shouldHaveStatus HttpStatusCode.OK
+
+            response includesTriples {
+                subject(localIri(resourcePath)) {
+                    includes(
+                        FOAF.homepage exactly model.createResource("https://www.openmbee.org/")
+                    )
+                }
+            }
+        }
+
+        "PATCH $resourcePath - Turtle: insert 1 triple unconditionally" {
+            val createdBase = creator()
+
+            withTest {
+                httpPatch(resourcePath) {
+                    setTurtleBody(withAllTestPrefixes("""
+                        $PATCH_INSERT_TRIPLES
+                    """.trimIndent()))
+                }.apply {
+                    validatePatchResponse(response)
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple unconditionally" {
+            val createdBase = creator()
+
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(withAllTestPrefixes("""
+                        insert data {
+                            $PATCH_INSERT_TRIPLES
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    validatePatchResponse(response)
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally passing" {
+            val createdBase = creator()
+
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(withAllTestPrefixes("""
+                        insert {
+                            $PATCH_INSERT_TRIPLES
+                        }
+                        where {
+                            <> ?p ?o .
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    validatePatchResponse(response)
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally failing" {
+            val createdBase = creator()
+
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(withAllTestPrefixes("""
+                        insert {
+                            $PATCH_INSERT_TRIPLES
+                        }
+                        where {
+                            <> <urn:mms:never> <urn:mms:never> .
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }
             }
         }

@@ -13,6 +13,8 @@ class OrgLdpDc : OrgAny() {
             resourceId = demoOrgId,
             validBodyForCreate = validOrgBody
         ) {
+            val orgCreator = { createOrg(demoOrgId, demoOrgName) }
+
             create {
                 validateCreatedOrgTriples(it, demoOrgId, demoOrgName)
             }
@@ -22,7 +24,7 @@ class OrgLdpDc : OrgAny() {
             }
 
             read(
-                { createOrg(demoOrgId, demoOrgName) },
+                orgCreator,
                 { createOrg(fooOrgId, fooOrgName) },
                 { createOrg(barOrgId, barOrgName) },
             ) {
@@ -37,6 +39,8 @@ class OrgLdpDc : OrgAny() {
                     }
                 }
             }
+
+            patch(orgCreator)
         }
 
 
