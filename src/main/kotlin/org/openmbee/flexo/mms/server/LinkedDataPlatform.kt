@@ -6,6 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
+import java.util.UUID
 
 const val LINKED_DATA_PLATFORM_NS = "http://www.w3.org/ns/ldp#"
 
@@ -339,9 +340,10 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
             // handle common and create layer1 context
             val layer1 = eachCall(call) { LdpPostResponse(it) }
 
-            // require slug header
+            // get slug from header, otherwise generate one from uuid
             val slug = call.request.headers["Slug"]
-                ?: throw InvalidHeaderValue("missing required `Slug` header which will become new resource's id")
+                ?: UUID.randomUUID().toString()
+//                ?: throw InvalidHeaderValue("missing required `Slug` header which will become new resource's id")
 
             // assert the slug is a legal identifier
             assertLegalId(slug, legalSlugRegex)

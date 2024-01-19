@@ -22,21 +22,21 @@ fun ModelCommit.commitAndValidateModel(branchPath: String) {
 class ModelCommit: ModelAny() {
     init {
         "commit model on master" {
-            commitAndValidateModel(masterPath)
+            commitAndValidateModel(masterBranchPath)
         }
 
         "commit model on empty master" {
-            val branch = createBranch(demoRepoPath, "master", branchId, branchName)
+            val branch = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
 
-            commitAndValidateModel(branchPath)
+            commitAndValidateModel(demoBranchPath)
         }
 
         "commit model on non-empty master" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
-            val branch = createBranch(demoRepoPath, "master", branchId, branchName)
+            val branch = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
 
-            commitAndValidateModel(branchPath)
+            commitAndValidateModel(demoBranchPath)
         }
     }
 }

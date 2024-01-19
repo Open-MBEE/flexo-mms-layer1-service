@@ -111,12 +111,6 @@ fun Application.configureRouting() {
             commitModel()
 
             queryCollection()
-
-            route("/orgs") {
-                get {
-                    call.respondText("Hi")
-                }
-            }
         }
     }
 }

@@ -22,11 +22,12 @@ private const val defaultGraphUriParamId = "using-graph-uri"
 private const val namedGraphUriParamId = "using-named-graph-uri"
 
 /**
- * Declares a SPARQL Update endpoint
+ * Declares a SPARQL Update endpoint.
+ * Implements the update portion of the SPARQL 1.1 Protocol: <https://www.w3.org/TR/sparql11-protocol/>
  */
 fun Route.sparqlUpdate(path: String, body: Layer1HandlerGeneric<SparqlUpdateRequest>): Route {
     return route(path) {
-        // POST
+        // 2.2.1. & 2.2.3. POST
         post {
             // prep update request
             lateinit var updateRequest: SparqlUpdateRequest

@@ -13,17 +13,21 @@ fun title(name: String): String {
 }
 
 open class RefAny : RepoAny() {
-    val branchId = "new-branch"
-    val branchName = "New Branch"
-    val branchPath = "$demoRepoPath/branches/$branchId"
-    val masterPath = "$demoRepoPath/branches/master"
+    val demoBranchId = "new-branch"
+    val demoBranchName = "New Branch"
+    val demoBranchPath = "$demoRepoPath/branches/$demoBranchId"
+    val masterBranchPath = "$demoRepoPath/branches/master"
 
-    val lockId = "new-lock"
-    val lockPath = "$demoRepoPath/locks/$lockId"
+    val basePathLocks = "$demoRepoPath/locks"
 
-    val fromMaster = "<> mms:ref <../branches/master> .\n"
+    val demoLockId = "new-lock"
+    val demoLockPath = "$basePathLocks/$demoLockId"
 
-    val validBranchBodyFromMaster = title(branchName)+fromMaster
+    val validLockBodyfromMaster = withAllTestPrefixes("""
+        <> mms:ref <../branches/master> .
+    """.trimIndent())
+
+    val validBranchBodyFromMaster = title(demoBranchName)+validLockBodyfromMaster
 
     var repoEtag = ""
 
@@ -39,11 +43,11 @@ open class RefAny : RepoAny() {
         response exclusivelyHasTriples {
             modelName = "CreateBranch"
 
-            subject(localIri(branchPath)) {
+            subject(localIri(demoBranchPath)) {
                 includes(
                     RDF.type exactly MMS.Branch,
-                    MMS.id exactly branchId,
-                    DCTerms.title exactly branchName.en,
+                    MMS.id exactly demoBranchId,
+                    DCTerms.title exactly demoBranchName.en,
                     MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
                     MMS.commit startsWith localIri("$demoCommitsPath/").iri,  // TODO: incorporate fromCommit ?
                     MMS.createdBy exactly userIri("root").iri
@@ -56,7 +60,7 @@ open class RefAny : RepoAny() {
                 )
             }
 
-            validateTransaction(demoOrgPath, demoRepoPath, branchPath, "root")
+            validateTransaction(demoOrgPath, demoRepoPath, demoBranchPath, "root")
 
             // inspect
             subject("urn:mms:inspect") { ignoreAll() }

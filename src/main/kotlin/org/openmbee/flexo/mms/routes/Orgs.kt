@@ -88,6 +88,7 @@ fun Route.crudOrgs() {
                 permit(Permission.UPDATE_ORG, Scope.ORG)
             }
 
+            // handle all varieties of accepted PATCH request formats
             guardedPatch(
                 updateRequest = it,
                 objectKey = "mo",

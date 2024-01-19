@@ -12,7 +12,7 @@ class LockRead : LockAny() {
         ).forEach { method ->
             "$method non-existent lock" {
                 withTest {
-                    httpRequest(HttpMethod(method.uppercase()), lockPath) {}.apply {
+                    httpRequest(HttpMethod(method.uppercase()), demoLockPath) {}.apply {
                         response shouldHaveStatus HttpStatusCode.NotFound
                     }
                 }
@@ -20,22 +20,22 @@ class LockRead : LockAny() {
         }
 
         "head valid lock" {
-            createLock(demoRepoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpHead(lockPath) {}.apply {
+                httpHead(demoLockPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }
 
         "get valid lock" {
-            val etag = createLock(demoRepoPath, masterPath, lockId).response.headers[HttpHeaders.ETag]
+            val etag = createLock(demoRepoPath, masterBranchPath, demoLockId).response.headers[HttpHeaders.ETag]
 
             withTest {
-                httpGet(lockPath) {}.apply {
+                httpGet(demoLockPath) {}.apply {
                     response includesTriples {
-                        thisLockTriples(lockId, etag!!)
+                        validateLockTriples(demoLockId, etag!!)
                     }
                 }
             }

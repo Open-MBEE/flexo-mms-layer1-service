@@ -11,11 +11,11 @@ import org.openmbee.flexo.mms.util.*
 class LockQuery : LockAny() {
     init {
         "query lock" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?o {
                             <urn:mms:s> <urn:mms:p> ?o .
@@ -32,11 +32,11 @@ class LockQuery : LockAny() {
         }
 
         "query lock with graph var" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?g ?o {
                             graph ?g {
@@ -62,11 +62,11 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: true" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
                             <urn:mms:s> <urn:mms:p> ?o .
@@ -84,11 +84,11 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: false" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
                             <urn:mms:s> <urn:mms:p> <urn:mms:NOT_DEFINED> .
@@ -106,11 +106,11 @@ class LockQuery : LockAny() {
         }
 
         "describe lock explicit" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe <urn:mms:s>
                     """.trimIndent())
@@ -125,11 +125,11 @@ class LockQuery : LockAny() {
         }
 
         "describe lock where" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe ?s {
                             ?s <urn:mms:p> <urn:mms:o> .
@@ -146,11 +146,11 @@ class LockQuery : LockAny() {
         }
 
         "construct lock" {
-            commitModel(masterPath, insertLock)
-            createLock(demoRepoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         construct {
                             ?o ?p ?s .

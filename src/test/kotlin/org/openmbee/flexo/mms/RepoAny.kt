@@ -7,6 +7,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 
+// validates response triples for a repo
 fun TriplesAsserter.validateRepoTriples(
     repoId: String,
     repoName: String,
@@ -34,6 +35,7 @@ fun TriplesAsserter.validateRepoTriples(
     optionalSubject(MMS_URNS.SUBJECT.aggregator) { ignoreAll() }
 }
 
+// validates response triples for a repo and its master branch
 fun TriplesAsserter.validateRepoTriplesWithMasterBranch(
     repoId: String,
     repoName: String,
@@ -56,7 +58,7 @@ fun TriplesAsserter.validateRepoTriplesWithMasterBranch(
     }
 }
 
-
+// validates response triples for a newly created repo
 fun TriplesAsserter.validateCreatedRepoTriples(
     createResponse: TestApplicationResponse,
     repoId: String,
@@ -85,7 +87,7 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 }
 
 open class RepoAny : OrgAny() {
-    override val logger = LoggerFactory.getLogger(RepoUpdate::class.java)
+    override val logger = LoggerFactory.getLogger(RepoAny::class.java)
 
     val basePathRepos = "$demoOrgPath/repos"
 
@@ -109,7 +111,9 @@ open class RepoAny : OrgAny() {
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
 
-        // create base org for repo test
+        // create base orgs for repo test
         createOrg(demoOrgId, demoOrgName)
+        createOrg(fooOrgId, fooOrgName)
+        createOrg(barOrgId, barOrgName)
     }
 }

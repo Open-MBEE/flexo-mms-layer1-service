@@ -48,6 +48,7 @@ class LinkedDataPlatformDirectContainerTests(
     val basePath: String,
     var resourceId: String,
     var validBodyForCreate: String = "",
+    val resourceCreator: () -> TestApplicationCall,
     body: LinkedDataPlatformDirectContainerTests.() -> Unit
 ) {
     val resourcePath = "$basePath/$resourceId"
@@ -56,34 +57,67 @@ class LinkedDataPlatformDirectContainerTests(
         body()
     }
 
-    fun TestApplicationCall.validateCreatedLdpResource(testName: String, validator: (TriplesAsserter.(TestApplicationResponse) -> Unit)?=null) {
+
+    // overloaded version of below
+    fun TestApplicationCall.validateCreatedLdpResource(
+        testName: String,
+        validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null,
+    ) {
+        validateCreatedLdpResource(testName, validator, false)
+    }
+
+    fun TestApplicationCall.validateCreatedLdpResource(
+        testName: String,
+        validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null,
+        slugWasOmitted: Boolean?=false
+    ) {
         // LDP 4.2.1.3 - Etag
         response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
         // LDP 5.2.3.1 - Location header points to new resource
-        response.headers[HttpHeaders.Location].shouldBe("${ROOT_CONTEXT}$resourcePath")
+        val location = response.headers[HttpHeaders.Location]
+        location.shouldNotBeBlank()
+
+        // prepare to extract the slug
+        var slug = ""
+
+        // slug was omitted from call
+        if(slugWasOmitted == true) {
+            // extract slug from location
+            "/([^/]+)$".toRegex().find(location!!)?.let {
+                slug = it.groupValues[1]
+            } ?: assert(false) { "Failed to match slug" }
+        }
+        // slug was provided
+        else {
+            // expect location to match resource path
+            location.shouldBe("${ROOT_CONTEXT}$resourcePath")
+
+            // set slug from resource id
+            slug = resourceId
+        }
 
         // LDP 5.2.3.1 - response with status code 201; body is not required by LDP
         response.exclusivelyHasTriples(HttpStatusCode.Created) {
             modelName = testName
 
-            validator?.invoke(this, response)
+            validator?.invoke(this, response, slug)
         }
     }
 
     /**
      * Checks that the LDP direct container responds correctly to various create calls
      */
-    fun CommonSpec.create(validator: (TriplesAsserter.(TestApplicationResponse) -> Unit)?=null) {
+    fun CommonSpec.create(validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null) {
         // POST to the resource container
         basePath.let {
-            "POST $it - reject missing slug".config(tags = setOf(NoAuth)) {
+            "POST $it - allow missing slug".config(tags = setOf(NoAuth)) {
                 withTest {
                     httpPost(basePath) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.BadRequest
+                        validateCreatedLdpResource(it, validator, true)
                     }
                 }
             }
@@ -256,7 +290,6 @@ class LinkedDataPlatformDirectContainerTests(
      * Checks that the LDP direct container responds correctly to various read calls
      */
     fun CommonSpec.read(
-        creator: () -> TestApplicationCall,
         vararg creators: () -> TestApplicationCall,
         validator: ((TestApplicationCreatedResponseBundle) -> Unit)
     ) {
@@ -277,7 +310,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "HEAD $resourcePath - valid" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
 
             withTest {
@@ -289,7 +322,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $resourcePath - valid" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
 
             withTest {
@@ -303,7 +336,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $resourcePath - if-match etag" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
 
             withTest {
@@ -316,7 +349,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $resourcePath - if-match random" {
-            creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpGet(resourcePath) {
@@ -328,7 +361,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $resourcePath - if-none-match etag" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
 
             withTest {
@@ -341,7 +374,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $resourcePath - if-none-match star" {
-            creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpGet(resourcePath) {
@@ -353,7 +386,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "GET $basePath - all resources" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
             val createdOthers = creators.map { it() }
 
             withTest {
@@ -374,9 +407,7 @@ class LinkedDataPlatformDirectContainerTests(
     /**
      * Checks that the LDP direct container responds correctly to various patch calls
      */
-    fun CommonSpec.patch(
-        creator: () -> TestApplicationCall,
-    ) {
+    fun CommonSpec.patch() {
         fun validatePatchResponse(response: TestApplicationResponse) {
             response shouldHaveStatus HttpStatusCode.OK
 
@@ -390,7 +421,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "PATCH $resourcePath - Turtle: insert 1 triple unconditionally" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpPatch(resourcePath) {
@@ -404,7 +435,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple unconditionally" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpPatch(resourcePath) {
@@ -420,7 +451,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally passing" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpPatch(resourcePath) {
@@ -439,7 +470,7 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally failing" {
-            val createdBase = creator()
+            val createdBase = resourceCreator()
 
             withTest {
                 httpPatch(resourcePath) {
@@ -453,6 +484,28 @@ class LinkedDataPlatformDirectContainerTests(
                     """.trimIndent()))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Checks that the LDP direct container responds correctly to various delete calls
+     */
+    fun CommonSpec.delete() {
+        "DELETE $resourcePath" {
+            val createdBase = resourceCreator()
+
+            withTest {
+                // delete resource should work
+                httpDelete(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                }
+
+                // get deleted resource should 404
+                httpGet(resourcePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }

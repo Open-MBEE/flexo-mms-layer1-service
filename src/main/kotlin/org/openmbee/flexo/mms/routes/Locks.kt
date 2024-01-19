@@ -24,9 +24,6 @@ fun Route.crudLocks() {
 
         // create new lock
         post { slug ->
-            // assert id is legal
-            assertLegalId(slug)
-
             // set policy id on context
             lockId = slug
 

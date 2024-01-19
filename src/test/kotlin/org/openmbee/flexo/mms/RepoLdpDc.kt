@@ -13,28 +13,28 @@ class RepoLdpDc : RepoAny() {
             validBodyForCreate = withAllTestPrefixes("""
                 $validRepoBody
                 <> <$arbitraryPropertyIri> "$arbitraryPropertyValue" .
-            """.trimIndent())
+            """.trimIndent()),
+            resourceCreator = { createRepo(demoOrgPath, demoRepoId, demoRepoName) }
         ) {
-            fun TriplesAsserter.validCreatedRepo(response: TestApplicationResponse) {
+            fun TriplesAsserter.validCreatedRepo(response: TestApplicationResponse, slug: String) {
                 modelName = "CreateValidRepo"
 
-                validateCreatedRepoTriples(response, demoRepoId, demoRepoName, demoOrgPath, listOf(
+                validateCreatedRepoTriples(response, slug, demoRepoName, demoOrgPath, listOf(
                     arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
                 ))
             }
 
-            create {
-                validCreatedRepo(it)
+            create {response, slug ->
+                validCreatedRepo(response, slug)
             }
 
             postWithPrecondition { testName ->
-                validateCreatedLdpResource(testName) {
-                    validCreatedRepo(it)
+                validateCreatedLdpResource(testName) { response, slug ->
+                    validCreatedRepo(response, slug)
                 }
             }
 
             read(
-                { createRepo(demoOrgPath, demoRepoId, demoRepoName) },
                 { createRepo(demoOrgPath, fooRepoId, fooRepoName) },
                 { createRepo(demoOrgPath, barRepoId, barRepoName) },
             ) {
@@ -46,11 +46,15 @@ class RepoLdpDc : RepoAny() {
                 else {
                     it.response includesTriples {
                         validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
-                        validateRepoTriplesWithMasterBranch(fooRepoId, fooRepoName, fooOrgPath)
-                        validateRepoTriplesWithMasterBranch(barRepoId, barRepoName, barOrgPath)
+                        validateRepoTriplesWithMasterBranch(fooRepoId, fooRepoName, demoOrgPath)
+                        validateRepoTriplesWithMasterBranch(barRepoId, barRepoName, demoOrgPath)
                     }
                 }
             }
+
+            patch()
+
+//            delete()
         }
     }
 }

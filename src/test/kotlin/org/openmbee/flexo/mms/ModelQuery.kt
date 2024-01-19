@@ -11,9 +11,9 @@ import org.openmbee.flexo.mms.util.*
 class ModelQuery : ModelAny() {
     init {
         "query data from model" {
-            val update = commitModel(masterPath, insertAliceRex)
+            val update = commitModel(masterBranchPath, insertAliceRex)
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
@@ -22,11 +22,11 @@ class ModelQuery : ModelAny() {
         }
 
         "query model with graph var" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         select distinct ?g {
                             graph ?g {
@@ -51,11 +51,11 @@ class ModelQuery : ModelAny() {
         }
 
         "query model with from default not authorized" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
                         select *
                             from m-graph:AccessControl.Policies
@@ -70,11 +70,11 @@ class ModelQuery : ModelAny() {
         }
 
         "query model with from named not authorized" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
                         select *
                             from named m-graph:AccessControl.Policies
@@ -91,11 +91,11 @@ class ModelQuery : ModelAny() {
         }
 
         "query model graph not there" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
                         select * {
                             graph m-graph:AccessControl.Policies {
@@ -114,10 +114,10 @@ class ModelQuery : ModelAny() {
         }
 
         "ask model: true" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -137,10 +137,10 @@ class ModelQuery : ModelAny() {
         }
 
         "ask model: false" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -160,10 +160,10 @@ class ModelQuery : ModelAny() {
         }
 
         "describe model explicit" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -180,10 +180,10 @@ class ModelQuery : ModelAny() {
         }
 
         "describe model where" {
-            commitModel(masterPath, insertAliceRex)
+            commitModel(masterBranchPath, insertAliceRex)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -202,19 +202,19 @@ class ModelQuery : ModelAny() {
         }
 
         "query result is different between master and branch" {
-            commitModel(masterPath, insertAliceRex)
-            createBranch(demoRepoPath, "master", branchId, branchName)
-            commitModel(masterPath, insertBobFluffy)
+            commitModel(masterBranchPath, insertAliceRex)
+            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
+            commitModel(masterBranchPath, insertBobFluffy)
 
             withTest {
                 // branch model does not have second updates
-                httpPost("$branchPath/query") {
+                httpPost("$demoBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceBobResult
@@ -223,20 +223,20 @@ class ModelQuery : ModelAny() {
         }
 
         "query result is different between master and lock" {
-            commitModel(masterPath, insertAliceRex)
-            createLock(demoRepoPath, masterPath, lockId)
-            commitModel(masterPath, insertBobFluffy)
+            commitModel(masterBranchPath, insertAliceRex)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
+            commitModel(masterBranchPath, insertBobFluffy)
 
             withTest {
                 // branch model does not have second updates
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
                 // master model is updated
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceBobResult
@@ -245,18 +245,18 @@ class ModelQuery : ModelAny() {
         }
 
         "query result is different between master and lock from model loads" {
-            loadModel(masterPath, loadAliceRex)
-            createLock(demoRepoPath, masterPath, lockId)
-            loadModel(masterPath, loadBobFluffy)
+            loadModel(masterBranchPath, loadAliceRex)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
+            loadModel(masterBranchPath, loadBobFluffy)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
                     // the load overwrites, so only bob exists
@@ -270,11 +270,11 @@ class ModelQuery : ModelAny() {
         }
 
         "subquery" {
-            loadModel(masterPath, loadAliceRex)
-            loadModel(masterPath, loadBobFluffy)
+            loadModel(masterBranchPath, loadAliceRex)
+            loadModel(masterBranchPath, loadBobFluffy)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -310,10 +310,10 @@ class ModelQuery : ModelAny() {
         }
 
         "concat" {
-            loadModel(masterPath, loadAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
-                httpPost("$masterPath/query") {
+                httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
 

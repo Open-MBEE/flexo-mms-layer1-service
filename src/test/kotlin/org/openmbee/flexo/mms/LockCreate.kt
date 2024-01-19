@@ -6,7 +6,7 @@ import io.ktor.http.*
 import org.openmbee.flexo.mms.util.*
 
 class LockCreate : LockAny() {
-    fun createAndValidateLock(_lockId: String=lockId, lockBody: String=fromMaster) {
+    fun createAndValidateLock(_lockId: String=demoLockId, lockBody: String=validLockBodyfromMaster) {
         withTest {
             httpPut("$demoRepoPath/locks/$_lockId") {
                 setTurtleBody(withAllTestPrefixes(lockBody))
@@ -16,7 +16,7 @@ class LockCreate : LockAny() {
 
                 response.exclusivelyHasTriples {
                     modelName = "ValidateLock"
-                    validateLockTriples(_lockId, etag!!, demoOrgPath)
+                    validateCreatedLockTriples(_lockId, etag!!, demoOrgPath)
                 }
             }
         }
@@ -25,8 +25,8 @@ class LockCreate : LockAny() {
     init {
         "reject invalid lock id".config(tags=setOf(NoAuth)) {
             withTest {
-                httpPut("$lockPath with invalid id") {
-                    setTurtleBody(withAllTestPrefixes(fromMaster))
+                httpPut("$demoLockPath with invalid id") {
+                    setTurtleBody(withAllTestPrefixes(validLockBodyfromMaster))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -38,7 +38,7 @@ class LockCreate : LockAny() {
         }
 
         "create lock on committed master" {
-            commitModel(masterPath, """
+            commitModel(masterBranchPath, """
                 insert data {
                     <urn:mms:s> <urn:mms:p> <urn:mms:o> .
                 }
@@ -48,7 +48,7 @@ class LockCreate : LockAny() {
         }
 
         "create lock on existing lock" {
-            commitModel(masterPath, """
+            commitModel(masterBranchPath, """
                 insert data {
                     <urn:mms:s> <urn:mms:p> <urn:mms:o> .
                 }
@@ -56,7 +56,7 @@ class LockCreate : LockAny() {
 
             createAndValidateLock()
 
-            createAndValidateLock("other-lock", "<> mms:ref <./$lockId> .")
+            createAndValidateLock("other-lock", "<> mms:ref <./$demoLockId> .")
         }
     }
 }

@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 
+import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import org.openmbee.flexo.mms.util.*
 import java.util.*
@@ -11,12 +12,11 @@ class OrgLdpDc : OrgAny() {
         LinkedDataPlatformDirectContainerTests(
             basePath = basePathOrgs,
             resourceId = demoOrgId,
-            validBodyForCreate = validOrgBody
+            validBodyForCreate = validOrgBody,
+            resourceCreator = { createOrg(demoOrgId, demoOrgName) }
         ) {
-            val orgCreator = { createOrg(demoOrgId, demoOrgName) }
-
-            create {
-                validateCreatedOrgTriples(it, demoOrgId, demoOrgName)
+            create {response, slug ->
+                validateCreatedOrgTriples(response, slug, demoOrgName)
             }
 
             postWithPrecondition {
@@ -24,7 +24,6 @@ class OrgLdpDc : OrgAny() {
             }
 
             read(
-                orgCreator,
                 { createOrg(fooOrgId, fooOrgName) },
                 { createOrg(barOrgId, barOrgName) },
             ) {
@@ -40,7 +39,9 @@ class OrgLdpDc : OrgAny() {
                 }
             }
 
-            patch(orgCreator)
+            patch()
+
+//            delete()
         }
 
 

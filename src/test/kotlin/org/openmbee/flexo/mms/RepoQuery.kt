@@ -11,7 +11,7 @@ class RepoQuery : ModelAny() {
 
     val lockCommitQuery = """
         select ?etag ?time where {
-            ?lock mms:id "$lockId" .
+            ?lock mms:id "$demoLockId" .
             ?lock mms:commit ?commit .
             ?commit mms:etag ?etag .
             ?commit mms:submitted ?time .
@@ -20,9 +20,9 @@ class RepoQuery : ModelAny() {
 
     init {
         "query time of commit of lock" {
-            val update = commitModel(masterPath, insertAliceRex)
+            val update = commitModel(masterBranchPath, insertAliceRex)
             val etag = update.response.headers[HttpHeaders.ETag]!!
-            createLock(demoRepoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
             // lock should be pointing to the commit from update
             withTest {
                 httpPost("$demoRepoPath/query") {

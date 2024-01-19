@@ -1,7 +1,7 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.assertLegalId
+import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceRepo
 import org.openmbee.flexo.mms.routes.ldp.getRepos
@@ -36,9 +36,6 @@ fun Route.crudRepos() {
 
         // create a new repo
         post { slug ->
-            // assert id is legal
-            assertLegalId(slug)
-
             // set repo id on context
             repoId = slug
 
@@ -75,14 +72,28 @@ fun Route.crudRepos() {
             createOrReplaceRepo()
         }
 
-//        // modify existing repo
-//        patch {
-//            guardedPatch(
-//                updateRequest = it,
-//                objectKey = "mor",
-//                graph = "mor-graph:Metadata",
-//                preconditions = UPDATE_REPO_CONDITIONS,
-//            )
-//        }
+        // modify existing repo
+        patch {
+            // build conditions
+            val localConditions = REPO_UPDATE_CONDITIONS.append {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph mor-graph:Metadata {
+                            mor: mms:etag ?__mms_etag .
+                            ${values.reindent(6)}
+                        }
+                    """
+                }
+            }
+
+            // handle all varieties of accepted PATCH request formats
+            guardedPatch(
+                updateRequest = it,
+                objectKey = "mor",
+                graph = "mor-graph:Metadata",
+                preconditions = localConditions,
+            )
+        }
     }
 }

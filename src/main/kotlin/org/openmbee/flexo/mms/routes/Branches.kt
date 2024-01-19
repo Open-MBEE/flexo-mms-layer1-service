@@ -37,9 +37,6 @@ fun Route.crudBranches() {
 
         // create a new branch
         post { slug ->
-            // assert id is legal
-            assertLegalId(slug)
-
             // set branch id on context
             branchId = slug
 

@@ -1,12 +1,17 @@
 package org.openmbee.flexo.mms
 
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.vocabulary.DCTerms
+import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.XSD
-import org.openmbee.flexo.mms.util.*
+import org.openmbee.flexo.mms.util.TriplesAsserter
+import org.openmbee.flexo.mms.util.exactly
+import org.openmbee.flexo.mms.util.iri
+import org.openmbee.flexo.mms.util.startsWith
+import org.slf4j.LoggerFactory
 
-fun TriplesAsserter.thisLockTriples(lockId: String, etag: String) {
+// validates response triples for a lock
+fun TriplesAsserter.validateLockTriples(lockId: String, etag: String) {
     // lock triples
     subjectTerse("mor-lock:$lockId") {
         exclusivelyHas(
@@ -20,12 +25,13 @@ fun TriplesAsserter.thisLockTriples(lockId: String, etag: String) {
     }
 }
 
-fun TriplesAsserter.validateLockTriples(
+// validates response triples for a newly created lock
+fun TriplesAsserter.validateCreatedLockTriples(
     lockId: String,
     etag: String,
     orgPath: String,
 ) {
-    thisLockTriples(lockId, etag)
+    validateLockTriples(lockId, etag)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoLockOwner") {
@@ -41,11 +47,14 @@ fun TriplesAsserter.validateLockTriples(
     subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
-
 open class LockAny : RefAny() {
+    override val logger = LoggerFactory.getLogger(RepoAny::class.java)
+
     val insertLock = """
         insert data {
             <urn:mms:s> <urn:mms:p> <urn:mms:o> .
         }
     """.trimIndent()
+
+
 }

@@ -22,7 +22,8 @@ private const val defaultGraphUriParamId = "default-graph-uri"
 private const val namedGraphUriParamId = "named-graph-uri"
 
 /**
- * Declares a SPARQL Query endpoint. Incoming requests are canonicalized and used to construct the Layer1Context
+ * Declares a SPARQL Query endpoint. Incoming requests are canonicalized and used to construct the Layer1Context.
+ * Implements the query portion of the SPARQL 1.1 Protocol: <https://www.w3.org/TR/sparql11-protocol/>
  */
 fun Route.sparqlQuery(path: String, body: Layer1HandlerGeneric<SparqlQueryRequest>): Route {
     return route(path) {
@@ -48,7 +49,7 @@ fun Route.sparqlQuery(path: String, body: Layer1HandlerGeneric<SparqlQueryReques
             }
         }
 
-        // POST
+        // 2.1.2. & 2.1.3. POST
         post {
             // prep query request
             lateinit var queryRequest: SparqlQueryRequest

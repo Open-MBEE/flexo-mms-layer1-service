@@ -22,18 +22,18 @@ class BranchCreate : RefAny() {
 
         mapOf(
             "rdf:type" to "mms:NotBranch",
-            "mms:id" to "\"not-$branchId\"",
+            "mms:id" to "\"not-$demoBranchId\"",
             "mms:etag" to "\"${UUID.randomUUID()}\"",
             "mms:ref" to "<./nosuchbranch>"
         ).forEach { (pred, obj) ->
             "reject wrong $pred".config(tags=setOf(NoAuth)) {
                 withTest {
-                    httpPut(branchPath) {
+                    httpPut(demoBranchPath) {
                         var ref = "<> mms:ref <./master> ."
                         if (pred == "mms:ref")
                             ref = ""
                         setTurtleBody(withAllTestPrefixes("""
-                            <> dct:title "$branchName"@en .
+                            <> dct:title "$demoBranchName"@en .
                             <> $pred $obj .
                             $ref
                         """.trimIndent()))
@@ -45,7 +45,7 @@ class BranchCreate : RefAny() {
         }
 
         "create branch from master after a commit to master" {
-            val update = commitModel(masterPath, """
+            val update = commitModel(masterBranchPath, """
                 insert data {
                     <mms:urn:s> <mms:urn:p> 5 . 
                 }
@@ -54,7 +54,7 @@ class BranchCreate : RefAny() {
             val commit = update.response.headers[HttpHeaders.ETag]
 
             withTest {
-                httpPut(branchPath) {
+                httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     validateCreateBranchResponse(commit!!)
@@ -64,7 +64,7 @@ class BranchCreate : RefAny() {
 
         "create branch from empty master" {
             withTest {
-                httpPut(branchPath) {
+                httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes(validBranchBodyFromMaster))
                 }.apply {
                     validateCreateBranchResponse(repoEtag)
@@ -73,7 +73,7 @@ class BranchCreate : RefAny() {
         }
 
         "insert, replace x 4, branch on 2nd" {
-            val init = commitModel(masterPath, """
+            val init = commitModel(masterBranchPath, """
                 insert data {
                     <urn:mms:s> <urn:mms:p> 1 . 
                 }
@@ -85,7 +85,7 @@ class BranchCreate : RefAny() {
             val commitIds = mutableListOf<String>();
 
             suspend fun replaceCounterValue(value: Int): String {
-                val update = commitModel(masterPath, """
+                val update = commitModel(masterBranchPath, """
                     delete where {
                         <urn:mms:s> <urn:mms:p> ?previous .
                     } ;
@@ -114,9 +114,9 @@ class BranchCreate : RefAny() {
 
             withTest {
                 // create branch and validate
-                httpPut(branchPath) {
+                httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""
-                        ${title(branchName)}
+                        ${title(demoBranchName)}
                         <> mms:commit mor-commit:$restoreCommitId .
                     """.trimIndent()))
                 }.apply {
@@ -124,13 +124,13 @@ class BranchCreate : RefAny() {
                 }
 
                 // assert the resultant model is in the correct state
-                val refPath = "$branchPath/graph"
+                val refPath = "$demoBranchPath/graph"
                 httpGet(refPath) {
                     addHeader(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     val model = KModel()
-                    parseTurtle(response.content!!, model, branchPath)
+                    parseTurtle(response.content!!, model, demoBranchPath)
 
                     val s = ResourceFactory.createResource("urn:mms:s")
                     val p = ResourceFactory.createProperty("urn:mms:p")
@@ -143,13 +143,13 @@ class BranchCreate : RefAny() {
         }
 
         "model load x 3, branch on 2" {
-            val load1 = loadModel(masterPath, """
+            val load1 = loadModel(masterBranchPath, """
                 <urn:mms:s> <urn:mms:p> 1 .
             """.trimIndent())
 
             delay(500L)
 
-            val load2 = loadModel(masterPath, """
+            val load2 = loadModel(masterBranchPath, """
                 <urn:mms:s> <urn:mms:p> 2 .
             """.trimIndent())
 
@@ -157,16 +157,16 @@ class BranchCreate : RefAny() {
 
             delay(500L)
 
-            val load3 = loadModel(masterPath, """
+            val load3 = loadModel(masterBranchPath, """
                 <urn:mms:s> <urn:mms:p> 3 .
             """.trimIndent())
 
             delay(500L)
 
             withTest {
-                httpPut(branchPath) {
+                httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""
-                        ${title(branchName)}
+                        ${title(demoBranchName)}
                         <> mms:commit mor-commit:${commitId2} .
                     """.trimIndent()))
                 }.apply {
@@ -174,13 +174,13 @@ class BranchCreate : RefAny() {
                 }
 
 
-                val refPath = "$branchPath/graph"
+                val refPath = "$demoBranchPath/graph"
                 httpGet(refPath) {
                     addHeader(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     val model = KModel()
-                    parseTurtle(response.content!!, model, branchPath)
+                    parseTurtle(response.content!!, model, demoBranchPath)
 
                     val s = ResourceFactory.createResource("urn:mms:s")
                     val p = ResourceFactory.createProperty("urn:mms:p")
