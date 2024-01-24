@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms.util
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.*
+import java.net.URLEncoder
 
 
 fun createOrg(orgId: String, orgName: String): TestApplicationCall {
@@ -62,6 +63,18 @@ fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicati
         httpPut("$repoPath/locks/$lockId") {
             setTurtleBody("""
                 <> mms:ref <$refPath> .
+            """.trimIndent())
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
+fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
+    return withTest {
+        httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
+            setTurtleBody("""
+                <> dct:title "${groupTitle}"@en .
             """.trimIndent())
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK

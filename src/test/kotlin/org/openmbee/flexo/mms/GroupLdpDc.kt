@@ -1,60 +1,35 @@
-//package org.openmbee.flexo.mms
-//
-//import io.kotest.assertions.withClue
-//import io.kotest.matchers.string.shouldNotBeBlank
-//import io.ktor.http.*
-//import io.ktor.server.testing.*
-//import org.apache.jena.vocabulary.DCTerms
-//import org.apache.jena.vocabulary.RDF
-//import org.openmbee.flexo.mms.util.*
-//import org.slf4j.LoggerFactory
-//import java.net.URLEncoder
-//
-//fun TriplesAsserter.validateGroupTriples(
-//    createResponse: TestApplicationResponse,
-//    groupId: String,
-//    extraPatterns: List<PairPattern> = listOf()
-//) {
-//    val groupIri = localIri("/groups/$groupId")
-//
-//    // org triples
-//    subject(groupIri) {
-//        exclusivelyHas(
-//            RDF.type exactly MMS.Group,
-//            MMS.id exactly groupId,
-//            MMS.etag startsWith "",
-//            *extraPatterns.toTypedArray()
-//        )
-//    }
-//}
-//
-//fun TriplesAsserter.validateCreatedGroupTriples(
-//    createResponse: TestApplicationResponse,
-//    groupId: String,
-//    extraPatterns: List<PairPattern> = listOf()
-//) {
-//    validateGroupTriples(createResponse, groupId, extraPatterns)
-//
-//    // transaction
-//    validateTransaction()
-//
-//    // inspect
-//    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
-//}
-//
-//
-//class GroupCreate : CommonSpec() {
-//    open val logger = LoggerFactory.getLogger(GroupCreate::class.java)
-//
-//    val groupId = "ldap/cn=all.personnel,ou=personnel"
-//    val groupPath = "/groups/${URLEncoder.encode(groupId, "UTF-8")}"
-//
-//    val groupTitle = "Test Group"
-//    val validGroupBody = withAllTestPrefixes("""
-//        <>
-//            dct:title "${groupTitle}"@en ;
-//            .
-//    """.trimIndent())
+package org.openmbee.flexo.mms
+
+import io.ktor.http.*
+import org.openmbee.flexo.mms.util.LinkedDataPlatformDirectContainerTests
+import org.openmbee.flexo.mms.util.createGroup
+import org.openmbee.flexo.mms.util.exclusivelyHasTriples
+import org.openmbee.flexo.mms.util.shouldHaveStatus
+
+class GroupLdpDc : GroupAny() {
+    init {
+        LinkedDataPlatformDirectContainerTests(
+            basePath = basePathGroups,
+            resourceId = demoGroupId,
+            validBodyForCreate = validGroupBody,
+            resourceCreator = { createGroup(demoGroupId, demoGroupTitle) }
+        ) {
+            create {response, slug ->
+                validateCreatedGroupTriples(response, slug)
+            }
+
+            postWithPrecondition {
+                response shouldHaveStatus HttpStatusCode.BadRequest
+            }
+
+            read() {
+                it.response exclusivelyHasTriples {
+                    validateGroupTriples(it.response, demoGroupId)
+                }
+            }
+        }
+    }
+}
 //
 //    init {
 //        "group id with slash".config(tags=setOf(NoAuth)) {
@@ -115,4 +90,3 @@
 //            }
 //        }
 //    }
-//}
