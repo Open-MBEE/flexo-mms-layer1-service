@@ -240,30 +240,6 @@ fun Route.loadModel() {
                                 }
                             }
                         }
-                        
-                        bind(
-                            sha256(
-                                concat(str(?dstCommit), "\n", str(?srcCommit))
-                            ) as ?diffId
-                        )
-                        
-                        bind(
-                            iri(
-                                concat(str(?dstCommit), "/diffs/", ?diffId)
-                            ) as ?diff
-                        )
-                        
-                        bind(
-                            iri(
-                                concat(str(mor-graph:), "Diff.Ins.", ?diffId)
-                            ) as ?insGraph
-                        )
-                        
-                        bind(
-                            iri(
-                                concat(str(mor-graph:), "Diff.Del.", ?diffId)
-                            ) as ?delGraph
-                        )
                     }
                 """.trimIndent()
 
@@ -273,12 +249,6 @@ fun Route.loadModel() {
                     iri(
                         // use current branch as ref source
                         "srcRef" to prefixes["morb"]!!,
-
-                        // set dst graph
-                        "dstGraph" to loadGraphUri,
-
-                        // set dst commit (this commit)
-                        "dstCommit" to prefixes["morc"]!!,
                     )
                 }
 
