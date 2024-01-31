@@ -218,7 +218,7 @@ fun Route.loadModel() {
             // compute the delta
             run {
                 val selectQueryString = """
-                    select distinct ?srcGraph {
+                    select distinct ?srcGraph ?srcCommit {
                         graph mor-graph:Metadata {
                             # select the latest commit from the current named ref
                             ?srcRef mms:commit ?srcCommit .
@@ -261,29 +261,9 @@ fun Route.loadModel() {
 
                 val sourceGraphIri = bindings[0].jsonObject["srcGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
 
-                val updateString = genDiffUpdate("", localConditions, """
-                    graph mor-graph:Metadata {
-                        # select the latest commit from the current named ref
-                        ?srcRef mms:commit ?srcCommit .
-                        
-                        # get the latest snapshot associated with the source commit
-                        ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                        {
-                            # prefer the model snapshot
-                            ?srcSnapshot a mms:Model ;
-                                mms:graph ?srcGraph  .
-                        } union {
-                            # settle for staging...
-                            ?srcSnapshot a mms:Staging ;
-                                mms:graph ?srcGraph .
-                            
-                            # ...if model is not available
-                            filter not exists {
-                                ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
-                            }
-                        }
-                    }
-                """)
+                val sourceCommitri = bindings[0].jsonObject["srcCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
+
+                val updateString = genDiffUpdate("", localConditions, "")
 
                 executeSparqlUpdate(updateString) {
                     prefixes(prefixes)
@@ -300,6 +280,9 @@ fun Route.loadModel() {
 
                         // use explicit srcGraph
                         "srcGraph" to sourceGraphIri,
+
+                        // use explicit srcCommit
+                        "srcCommit" to sourceCommitri,
                     )
                 }
             }
