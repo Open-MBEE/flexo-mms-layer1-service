@@ -216,174 +216,41 @@ fun Route.linkedDataPlatformDirectContainer(
  * Route builder for LDP resources
  */
 class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
-    val route: Route,
-    val requestContextCreator: RequestContextCreator<TRequestContext>,
-    private val acceptableMediaTypesForPost: List<ContentType>,
-    private val acceptableMediaTypesForPatch: List<ContentType>,
-    private val acceptableMediaTypesForPut: List<ContentType>?=acceptableMediaTypesForPost,
+    route: Route,
+    requestContextCreator: RequestContextCreator<TRequestContext>,
+    acceptableMediaTypesForPost: List<ContentType>,
+    acceptableMediaTypesForPatch: List<ContentType>,
+    acceptableMediaTypesForPut: List<ContentType>?=acceptableMediaTypesForPost,
+): GenericProtocolRoute<TRequestContext>(
+    route,
+    requestContextCreator,
+    acceptableMediaTypesForPost,
+    acceptableMediaTypesForPatch,
+    acceptableMediaTypesForPut
 ) {
-    // allowed HTTP methods for a resource matching the given route
-    private var allowedMethods = mutableListOf("Options")
-
-    // accepted content types for a POST request to a resource matching the given route
-    private var acceptedTypesPost = mutableListOf<ContentType>()
-
-    // accepted content types for a PATCH request to a resource matching the given route
-    private var acceptedTypesPatch = mutableListOf<ContentType>()
-
-    // accepted content types for a PUT request to a resource matching the given route
-    private var acceptedTypesPut = mutableListOf<ContentType>()
-
-
-    /**
-     * Set a callback to execute before each call handled under given route
-     */
-    var beforeEach: (suspend Layer1Context<TRequestContext, out GenericResponse>.() -> Unit)? = null
-
-    /**
-     * Override the regex used to assert the slug is a legal identifier when POST-ing to create new resource
-     */
-    var legalSlugRegex: Regex = LEGAL_ID_REGEX
-
-
-    init {
-        // always define OPTIONS
-        route.options {
-            // handle common by default
-            eachCall(call, responseContextCreatorNone())
-
-            // respond with 204 No Content
-            call.respond(HttpStatusCode.NoContent)
-        }
-    }
-
-
-    // applies custom before each and handles common
-    private suspend fun <TResponseContext: GenericResponse> eachCall(
-        call: ApplicationCall,
-        responseContextCreator: ArgReturn<TRequestContext, TResponseContext>
-    ): Layer1Context<TRequestContext, TResponseContext> {
-        // create request context
-        val requestContext = requestContextCreator(call);
-
-        // create response context
-        val responseContext = responseContextCreator(requestContext)
-
-        // create layer1 context
-        val layer1 = Layer1Context(requestContext, responseContext)
-
-        // invoke custom beforeEach if defined
-        beforeEach?.invoke(layer1)
-
-        // set allowed methods
-        call.response.headers.append("Allow", allowedMethods.joinToString { ", " })
-
-        // set accepted RDF formats for POST requests
-        if(acceptedTypesPost.isNotEmpty()) {
-            call.response.headers.append("Accept-Post", acceptedTypesPost.joinToString(", "))
-        }
-
-        // set accepted RDF formats for PATCH requests
-        if(acceptedTypesPatch.isNotEmpty()) {
-            call.response.headers.append("Accept-Patch", acceptedTypesPatch.joinToString(", "))
-        }
-
-        // set accepted RDF formats for PUT requests
-        if(acceptedTypesPut.isNotEmpty()) {
-            call.response.headers.append("Accept-Put", acceptedTypesPut.joinToString(", "))
-        }
-
-        // return layer1 context
-        return layer1
-    }
-
     // HEAD
     fun head(body: Layer1Handler<TRequestContext, LdpHeadResponse>) {
-        // add to allowed methods
-        allowedMethods.add("HEAD")
-
-        // define handler
-        route.head {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpHeadResponse(it) }
-
-            // apply caller-defined handling
-            body(layer1)
-        }
+        super.head(body, { LdpHeadResponse(it) }, null)
     }
 
     // GET
     fun get(body: Layer1Handler<TRequestContext, LdpGetResponse>) {
-        // add to allowed methods
-        allowedMethods.add("GET")
-
-        // define handler
-        route.get {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpGetResponse(it) }
-
-            // apply caller-defined handling
-            body(layer1)
-        }
+        super.get(body, { LdpGetResponse(it) }, null)
     }
 
     // POST
     fun post(body: suspend Layer1Context<TRequestContext, LdpPostResponse>.(slug: String) -> Unit) {
-        // add to allowed methods
-        allowedMethods.add("POST")
-
-        // add supported RDF content types to accepted POST types
-        acceptedTypesPost.addAll(acceptableMediaTypesForPost)
-
-        // define handler
-        route.post {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpPostResponse(it) }
-
-            // get slug from header, otherwise generate one from uuid
-            val slug = call.request.headers["Slug"]
-                ?: UUID.randomUUID().toString()
-//                ?: throw InvalidHeaderValue("missing required `Slug` header which will become new resource's id")
-
-            // assert the slug is a legal identifier
-            assertLegalId(slug, legalSlugRegex)
-
-            // apply caller-defined handling
-            body(layer1, slug)
-        }
+        super.post(body, { LdpPostResponse(it) }, null)
     }
 
     // PUT
     fun put(body: Layer1Handler<TRequestContext, LdpPutResponse>) {
-        // add to allowed methods
-        allowedMethods.add("PUT")
-
-        // add supported RDF content types to accepted PUT types
-        acceptedTypesPut.addAll(acceptableMediaTypesForPut ?: acceptableMediaTypesForPost)
-
-        // define handler
-        route.put {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpPutResponse(it) }
-
-            // apply caller-defined handling
-            body(layer1)
-        }
+        super.put(body, { LdpPutResponse(it) }, null)
     }
 
     // PATCH
     fun patch(body: suspend Layer1Context<TRequestContext, LdpPatchResponse>.(updateRequest: SparqlUpdateRequest) -> Unit) {
-        // add to allowed methods
-        allowedMethods.add("PATCH")
-
-        // add supported RDF content types to accepted PATCH types
-        acceptedTypesPatch.addAll(acceptableMediaTypesForPatch)
-
-        // define handler
-        route.patch {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpPatchResponse(it) }
-
+        super.patch(body, { LdpPatchResponse(it) }) {
             // prep update string
             var updateString = ""
 
@@ -442,31 +309,14 @@ class LinkedDataPlatformRoute<TRequestContext: GenericRequest>(
             }
 
             // create update request data instance
-            val updateRequest = SparqlUpdateRequest(call, updateString)
-
-            // forward update request to body
-            body(layer1, updateRequest)
+            SparqlUpdateRequest(call, updateString)
         }
     }
 
     // DELETE
     fun delete(body: Layer1Handler<TRequestContext, LdpDeleteResponse>) {
-        // add to allowed methods
-        allowedMethods.add("DELETE")
-
-        // define handler
-        route.delete {
-            // handle common and create layer1 context
-            val layer1 = eachCall(call) { LdpDeleteResponse(it) }
-
-            // apply caller-defined handling
-            body(layer1)
-        }
+        super.delete(body, { LdpDeleteResponse(it) }, null)
     }
-
-    // OPTIONS
-    @Deprecated("Don't implement OPTIONS in LDP. Handled by wrapper")
-    fun options() {}
 }
 
 /**

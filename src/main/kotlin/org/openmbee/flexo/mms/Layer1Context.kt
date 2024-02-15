@@ -44,7 +44,7 @@ typealias AnyLayer1Context = Layer1Context<*, *>
 /**
  * Encapsulates both the request and response contexts, providing properties and methods relevant to any route handler
  */
-class Layer1Context<TRequestContext: GenericRequest, TResponseContext: GenericResponse>(
+class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: GenericResponse>(
     val requestContext: TRequestContext,
     val responseContext: TResponseContext,
 ) {

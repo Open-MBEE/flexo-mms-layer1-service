@@ -12,14 +12,15 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.server.GspContext
 import org.openmbee.flexo.mms.routes.sparql.compressStringLiteral
 import org.openmbee.flexo.mms.routes.sparql.genCommitUpdate
 import org.openmbee.flexo.mms.routes.sparql.genDiffUpdate
+import org.openmbee.flexo.mms.server.GspLayer1Context
+import org.openmbee.flexo.mms.server.GspMutateResponse
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
-suspend fun GspContext.loadModel() {
+suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // check path parameters
     parsePathParams {
         org()

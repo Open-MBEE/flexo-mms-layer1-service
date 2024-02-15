@@ -11,31 +11,40 @@ import org.openmbee.flexo.mms.routes.gsp.readModel
 import java.io.ByteArrayOutputStream
 
 
+/**
+ * Model CRUD routing
+ */
 fun Route.crudModel() {
     graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
-        // depending on request method
-        when(call.request.httpMethod) {
-            // read
-            HttpMethod.Head, HttpMethod.Get -> {
-                readModel()
-            }
-
-            // overwrite (load)
-            HttpMethod.Put -> {
-                loadModel()
-            }
-
-//            // merge
-//            HttpMethod.Post -> {
-//
-//            }
-
-            // not supported
-            else -> {
-                throw MethodNotAllowedException()
-            }
+        // 5.6 HEAD: check state of graph
+        head {
+            readModel()
         }
 
+        // 5.2 GET: read graph
+        get {
+            readModel()
+        }
+
+        // 5.3 PUT: overwrite (load)
+        put {
+            loadModel()
+        }
+
+//        // 5.5 POST: merge
+//        post {
+//
+//        }
+
+//        // 5.7 PATCH: patch
+//        patch {
+//
+//        }
+
+//        // 5.4 DELETE: delete
+//        delete {
+//
+//        }
     }
 }
 
