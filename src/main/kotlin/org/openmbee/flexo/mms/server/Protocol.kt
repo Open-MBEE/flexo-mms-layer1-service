@@ -9,6 +9,7 @@ import io.ktor.util.pipeline.*
 import org.openmbee.flexo.mms.LEGAL_ID_REGEX
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.assertLegalId
+import java.net.URLDecoder
 import java.util.*
 
 /**
@@ -283,6 +284,10 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         route.put {
             // handle common and create layer1 context
             val layer1 = eachCall(call, responseContextCreator)
+
+            // assert id (from final part of path) is legal
+            val pathParam = URLDecoder.decode(call.request.path().split("/").last(), "UTF-8")
+            assertLegalId(pathParam, legalSlugRegex)
 
             // allow implementor to handle when put is called
             called?.invoke(layer1)

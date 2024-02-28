@@ -1,11 +1,10 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createBranch
 import org.openmbee.flexo.mms.routes.ldp.getBranches
 import org.openmbee.flexo.mms.routes.ldp.headBranches
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 const val SPARQL_VAR_NAME_BRANCH = "_branch"
 
@@ -67,10 +66,6 @@ fun Route.crudBranches() {
 
         // create branch
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(branchId!!)
-
-            // create branch
             createBranch()
         }
 

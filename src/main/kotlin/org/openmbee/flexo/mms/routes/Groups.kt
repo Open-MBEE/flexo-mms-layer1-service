@@ -1,10 +1,10 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
+import org.openmbee.flexo.mms.LDAP_COMPATIBLE_SLUG_REGEX
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceGroup
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceOrg
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 private const val GROUPS_PATH = "/groups"
 
@@ -14,6 +14,8 @@ private const val GROUPS_PATH = "/groups"
 fun Route.crudGroups() {
     // all groups
     linkedDataPlatformDirectContainer(GROUPS_PATH) {
+        legalSlugRegex = LDAP_COMPATIBLE_SLUG_REGEX
+
 //        // state of all groups
 //        head {
 //            headGroups(true)
@@ -26,19 +28,18 @@ fun Route.crudGroups() {
 
         // create a new group
         post { slug ->
-            // assert id is legal
-            assertLegalId(slug)
-
             // set group id on context
             groupId = slug
 
             // create new group
-            createOrReplaceOrg()
+            createOrReplaceGroup()
         }
     }
 
     // specific group
     linkedDataPlatformDirectContainer("$GROUPS_PATH/{groupId}") {
+        legalSlugRegex = LDAP_COMPATIBLE_SLUG_REGEX
+
         beforeEach = {
             parsePathParams {
                 group()
@@ -57,10 +58,6 @@ fun Route.crudGroups() {
 
         // create or replace group
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(groupId!!)
-
-            // create/replace group
             createOrReplaceGroup()
         }
 

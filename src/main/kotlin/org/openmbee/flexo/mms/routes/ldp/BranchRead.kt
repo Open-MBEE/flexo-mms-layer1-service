@@ -73,6 +73,8 @@ suspend fun Layer1Context<*, *>.headBranches(branchId: String?=null) {
     val selectResponseText = executeSparqlSelectOrAsk(sparqlSelect) {
         acceptReplicaLag = true
 
+        prefixes(prefixes)
+
         // get by branchId
         if(!allBranches) {
             iri(
@@ -110,6 +112,8 @@ suspend fun Layer1Context<*, *>.getBranches(branchId: String?=null) {
     // fetch all branch details
     val constructResponseText = executeSparqlConstructOrDescribe(sparqlConstruct) {
         acceptReplicaLag = true
+
+        prefixes(prefixes)
 
         // get by branchId
         if(!allBranches) {

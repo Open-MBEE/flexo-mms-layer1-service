@@ -65,10 +65,6 @@ fun Route.crudRepos() {
 
         // create or replace repo
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(repoId!!)
-
-            // create/replace repo
             createOrReplaceRepo()
         }
 

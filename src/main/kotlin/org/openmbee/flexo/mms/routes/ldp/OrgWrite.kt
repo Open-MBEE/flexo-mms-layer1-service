@@ -172,5 +172,5 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     }
 
     // finalize transaction
-    finalizeMutateTransaction(constructString, localConditions, "mo", true)
+    finalizeMutateTransaction(constructString, localConditions, "mo", !replaceExisting)
 }

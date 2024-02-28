@@ -2,10 +2,10 @@ package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceOrg
 import org.openmbee.flexo.mms.routes.ldp.getOrgs
 import org.openmbee.flexo.mms.routes.ldp.headOrgs
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 const val SPARQL_VAR_NAME_ORG = "_org"
 
@@ -29,9 +29,6 @@ fun Route.crudOrgs() {
 
         // create a new org
         post { slug ->
-            // assert id is legal
-            assertLegalId(slug)
-
             // set org id on context
             orgId = slug
 
@@ -60,10 +57,6 @@ fun Route.crudOrgs() {
 
         // create or replace org
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(orgId!!)
-
-            // create/replace org
             createOrReplaceOrg()
         }
 

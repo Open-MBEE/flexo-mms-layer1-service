@@ -1,5 +1,7 @@
 package org.openmbee.flexo.mms
 
+val LDAP_COMPATIBLE_SLUG_REGEX = """[/?&=,._\pL0-9-]{3,256}""".toRegex()
+
 enum class Crud(val id: String) {
     CREATE("Create"),
     READ("Read"),

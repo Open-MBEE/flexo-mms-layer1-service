@@ -129,7 +129,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     inner class PathParamNormalizer() {
         fun group(legal: Boolean=false) {
             groupId = call.parameters["groupId"]?: throw Http400Exception("Requisite {groupId} parameter was null")
-            if(legal) assertLegalId(groupId!!, """[/?&=.,_\pL-]{3,256}""".toRegex())
+            if(legal) assertLegalId(groupId!!, LDAP_COMPATIBLE_SLUG_REGEX)
         }
 
         fun org(legal: Boolean=false) {

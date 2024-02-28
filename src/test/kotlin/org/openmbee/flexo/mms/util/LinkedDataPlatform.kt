@@ -1,11 +1,13 @@
 package org.openmbee.flexo.mms.util
 
+import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.sparql.vocabulary.FOAF
 import org.openmbee.flexo.mms.ROOT_CONTEXT
+import java.net.URLEncoder
 import java.util.*
 
 val EXHAUSTIVE_PRECONDITIONS = listOf(
@@ -51,7 +53,7 @@ class LinkedDataPlatformDirectContainerTests(
     val resourceCreator: () -> TestApplicationCall,
     body: LinkedDataPlatformDirectContainerTests.() -> Unit
 ) {
-    val resourcePath = "$basePath/$resourceId"
+    val resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
 
     init {
         body()
@@ -72,11 +74,15 @@ class LinkedDataPlatformDirectContainerTests(
         slugWasOmitted: Boolean?=false
     ) {
         // LDP 4.2.1.3 - Etag
-        response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+        withClue("Expected created LDP resource to return ETag header") {
+            response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+        }
 
         // LDP 5.2.3.1 - Location header points to new resource
         val location = response.headers[HttpHeaders.Location]
-        location.shouldNotBeBlank()
+        withClue("Expected created LDP resource to return Location header") {
+            location.shouldNotBeBlank()
+        }
 
         // prepare to extract the slug
         var slug = ""

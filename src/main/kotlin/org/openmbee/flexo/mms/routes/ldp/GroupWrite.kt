@@ -8,11 +8,8 @@ import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
-// default starting conditions for any calls to create a group
-private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create groups on an access-control-level scope
-    permit(Permission.CREATE_GROUP, Scope.GROUP)
-
+// require that the given group does not exist before attempting to create it
+private fun ConditionsBuilder.groupNotExists() {
     // require that the given group does not exist before attempting to create it
     require("groupNotExists") {
         handler = { mms -> "The provided group <${mms.prefixes["mg"]}> already exists." to HttpStatusCode.BadRequest }
@@ -25,6 +22,15 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
                 }
             }
         """
+    }
+}
+
+// selects all properties of an existing group
+private fun PatternBuilder<*>.existingGroup() {
+    graph("m-graph:AccessControl.Agents") {
+        raw("""
+            mg: ?groupExisting_p ?groupExisting_o .
+        """)
     }
 }
 
@@ -42,16 +48,87 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
-    // inherit the default conditions
-    val localConditions = DEFAULT_CONDITIONS
+    // resolve ambiguity
+    if(intentIsAmbiguous) {
+        // ask if org exists
+        val probeResults = executeSparqlSelectOrAsk(buildSparqlQuery {
+            ask {
+                existingGroup()
+            }
+        })
+
+        // parse response
+        val exists = parseSparqlResultsJsonAsk(probeResults)
+
+        // org does not exist
+        if(!exists) {
+            replaceExisting = false
+        }
+    }
+
+    // build conditions
+    val localConditions = GLOBAL_CRUD_CONDITIONS.append {
+        // require that the user has the ability to create groups on an access-control-level scope
+        permit(Permission.CREATE_GROUP, Scope.GROUP)
+
+        // POST
+        if(isPostMethod) {
+            // reject preconditions on POST; ETags not created for cluster since that would degrade multi-tenancy
+            if(ifMatch != null || ifNoneMatch != null) {
+                throw PreconditionsForbidden("when creating org via POST")
+            }
+        }
+        // not POST
+        else {
+            // resource must exist
+            if(mustExist) {
+                groupExists()
+            }
+
+            // resource must not exist
+            if(mustNotExist) {
+                groupNotExists()
+            }
+            // resource may exist
+            else {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph m-graph:AccessControl.Agents {
+                            ${if(mustExist) "" else "optional {"}
+                                mg: mms:etag ?__mms_etag .
+                                ${values.reindent(8)}
+                            ${if(mustExist) "" else "}"}
+                        }
+                    """
+                }
+            }
+        }
+
+        // intent is ambiguous or resource is definitely being replaced
+        if(replaceExisting) {
+            // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
+            permit(Permission.UPDATE_ORG, Scope.CLUSTER)
+        }
+        // resource is being created
+        else {
+            // require that the user has the ability to create orgs on a cluster-level scope
+            permit(Permission.CREATE_ORG, Scope.CLUSTER)
+        }
+    }
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
+        if(replaceExisting) {
+            delete {
+                existingGroup()
+            }
+        }
         insert {
             // create a new txn object in the transactions graph
             txn {
-                // create a new policy that grants this user admin over the new branch
-                autoPolicy(Scope.GROUP, Role.ADMIN_GROUP)
+                // create a new policy that grants this user admin over the new group
+                if(!replaceExisting) autoPolicy(Scope.GROUP, Role.ADMIN_GROUP)
             }
 
             // insert the triples about the new group, including arbitrary metadata supplied by user
@@ -84,44 +161,48 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             group {
                 txn(null, "mg")
 
-                raw("""
-                    graph m-graph:AccessControl.Agents {
+                graph("m-graph:AccessControl.Agents") {
+                    raw(""" 
                         mg: ?mg_p ?mg_o .
-                    }
-                """)
+                    """)
+                }
             }
             // all subsequent unions are for inspecting what if any conditions failed
             raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+    // finalize transaction
+    finalizeMutateTransaction(constructString, localConditions, "mg", !replaceExisting)
 
-    // log
-    log.info("Triplestore responded with:\n$constructResponseText")
-
-    // validate whether the transaction succeeded
-    val model = validateTransaction(constructResponseText, localConditions, null, "mg")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(model, prefixes["mg"])
-
-    // respond
-    call.respondText(constructResponseText, RdfContentTypes.Turtle)
-
-    // delete transaction
-    run {
-        // submit update
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
-    }
+//
+//    // execute construct
+//    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+//
+//    // log
+//    log.info("Triplestore responded with:\n$constructResponseText")
+//
+//    // validate whether the transaction succeeded
+//    val model = validateTransaction(constructResponseText, localConditions, null, "mg")
+//
+//    // check that the user-supplied HTTP preconditions were met
+//    handleEtagAndPreconditions(model, prefixes["mg"])
+//
+//    // respond
+//    call.respondText(constructResponseText, RdfContentTypes.Turtle)
+//
+//    // delete transaction
+//    run {
+//        // submit update
+//        val dropResponseText = executeSparqlUpdate("""
+//            delete where {
+//                graph m-graph:Transactions {
+//                    mt: ?p ?o .
+//                }
+//            }
+//        """)
+//
+//        // log response
+//        log.info(dropResponseText)
+//    }
 }

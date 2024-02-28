@@ -3,8 +3,8 @@ package org.openmbee.flexo.mms.routes
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.DEFAULT_BRANCH_ID
 import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceCollection
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 private const val COLLECTIONS_PATH = "/orgs/{orgId}/collections"
 
@@ -67,10 +67,6 @@ fun Route.crudCollections() {
 
         // create or replace collection
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(orgId!!)
-
-            // create/replace collection
             createOrReplaceCollection()
         }
 

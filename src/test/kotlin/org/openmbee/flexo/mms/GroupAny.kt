@@ -12,7 +12,7 @@ fun TriplesAsserter.validateGroupTriples(
     groupId: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    val groupIri = localIri("/groups/$groupId")
+    val groupIri = localIri("/groups/${URLEncoder.encode(groupId, "UTF-8")}")
 
     // org triples
     subject(groupIri) {

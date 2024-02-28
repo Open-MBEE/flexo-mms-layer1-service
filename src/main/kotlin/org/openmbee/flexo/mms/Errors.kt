@@ -30,7 +30,7 @@ class ConstraintViolationException(detail: String): Http400Exception("The input 
 
 class InvalidDocumentSemanticsException(detail: String): Http400Exception("The input document contains invalid semantics: $detail")
 
-class IllegalIdException: Http400Exception("Illegal ID string. Must be at least 3 characters long. Letter symbols and special characters '.' '-' '_' allowed.")
+class IllegalIdException(slug: String, regex: Regex): Http400Exception("Illegal ID string \"$slug\". Must match the regex pattern /${regex.pattern}/ .")
 
 class ForbiddenPrefixException(prefix: String): Http400Exception("Prefix not allowed here: $prefix")
 

@@ -208,6 +208,21 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
+    fun groupExists() {
+        require("groupExists") {
+            handler = { layer1 -> "Group <${layer1.prefixes["mg"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+            """
+                # group must exist
+                graph m-graph:AccessControl.Agents {
+                    mg: a mms:Group ;
+                        ?groupExisting_p ?groupExisting_o .
+                }
+            """
+        }
+    }
+
     /**
      * Adds a pattern to the query conditions that is only evaluated upon inspection.
      */

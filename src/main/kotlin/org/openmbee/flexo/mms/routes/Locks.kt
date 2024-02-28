@@ -1,11 +1,10 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
-import org.openmbee.flexo.mms.assertLegalId
-import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceLock
 import org.openmbee.flexo.mms.routes.ldp.deleteLock
 import org.openmbee.flexo.mms.routes.ldp.getLocks
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 private const val LOCKS_PATH = "/orgs/{orgId}/repos/{repoId}/locks"
 
@@ -54,10 +53,6 @@ fun Route.crudLocks() {
 
         // create or replace lock
         put {
-            // assert id is legal when new resource is being created
-            assertLegalId(lockId!!)
-
-            // create/replace lock
             createOrReplaceLock()
         }
 

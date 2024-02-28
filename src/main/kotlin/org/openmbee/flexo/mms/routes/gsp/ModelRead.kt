@@ -24,7 +24,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel() {
             """)
         }
         where {
-            auth(Permission.READ_BRANCH.id, BRANCH_QUERY_CONDITIONS)
+            auth(Permission.READ_BRANCH.scope.id, BRANCH_QUERY_CONDITIONS)
 
             raw("""
                 graph mor-graph:Metadata {

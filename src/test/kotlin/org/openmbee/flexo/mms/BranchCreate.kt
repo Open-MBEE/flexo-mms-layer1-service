@@ -81,7 +81,6 @@ class BranchCreate : RefAny() {
 
             val initCommitId = init.response.headers[HttpHeaders.ETag]
 
-
             val commitIds = mutableListOf<String>();
 
             suspend fun replaceCounterValue(value: Int): String {
