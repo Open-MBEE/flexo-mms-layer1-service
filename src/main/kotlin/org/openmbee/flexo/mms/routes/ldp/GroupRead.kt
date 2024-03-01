@@ -68,7 +68,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headGroups(allGroups: Boolean=fa
     val groupIri = if(allGroups) null else prefixes["mg"]!!
 
     // fetch all groups
-    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_GROUP_ETAGS) {
+     val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_GROUP_ETAGS) {
         acceptReplicaLag = true
 
         // internal query, give it all the prefixes
