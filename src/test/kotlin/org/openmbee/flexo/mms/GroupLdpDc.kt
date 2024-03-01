@@ -15,7 +15,7 @@ class GroupLdpDc : GroupAny() {
             resourceCreator = { createGroup(demoGroupId, demoGroupTitle) }
         ) {
             create {response, slug ->
-                validateCreatedGroupTriples(response, slug)
+                validateCreatedGroupTriples(response, slug, demoGroupTitle)
             }
 
             postWithPrecondition {
@@ -24,7 +24,7 @@ class GroupLdpDc : GroupAny() {
 
             read() {
                 it.response exclusivelyHasTriples {
-                    validateGroupTriples(it.response, demoGroupId)
+                    validateGroupTriples(it.response, demoGroupId, demoGroupTitle)
                 }
             }
         }
