@@ -70,6 +70,9 @@ enum class Permission(
     DELETE_DIFF(Crud.DELETE, Scope.DIFF),
 
     CREATE_GROUP(Crud.CREATE, Scope.GROUP),
+    READ_GROUP(Crud.READ, Scope.GROUP),
+    UPDATE_GROUP(Crud.UPDATE, Scope.GROUP),
+    DELETE_GROUP(Crud.DELETE, Scope.GROUP),
 
     CREATE_POLICY(Crud.CREATE, Scope.POLICY),
     READ_POLICY(Crud.READ, Scope.POLICY),

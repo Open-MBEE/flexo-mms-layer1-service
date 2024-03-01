@@ -65,7 +65,7 @@ fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicati
                 <> mms:ref <$refPath> .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
         }
     }
 }
@@ -77,7 +77,7 @@ fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
                 <> dct:title "${groupTitle}"@en .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
         }
     }
 }
