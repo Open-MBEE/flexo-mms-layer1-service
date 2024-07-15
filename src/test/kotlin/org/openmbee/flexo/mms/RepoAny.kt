@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.kotest.core.test.TestCase
+import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
@@ -68,6 +69,7 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 ) {
     val repoPath = "$orgPath/repos/$repoId"
 
+    createResponse shouldHaveStatus HttpStatusCode.Created
     validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
 
     // auto policy

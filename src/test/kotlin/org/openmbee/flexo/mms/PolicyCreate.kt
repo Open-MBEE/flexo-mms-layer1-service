@@ -43,6 +43,7 @@ fun TriplesAsserter.validateCreatedPolicyTriples(
     roleNodes: List<Resource>,
     extraPatterns: List<PairPattern> = listOf()
 ) {
+    createResponse shouldHaveStatus HttpStatusCode.Created
     validatePolicyTriples(createResponse, policyId, subjectPath, scopePath, roleNodes, extraPatterns)
 
     // // auto policy

@@ -2,13 +2,13 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.9.20"
-    kotlin("plugin.serialization") version "1.9.20"
+    kotlin("jvm") version "1.9.24"
+    kotlin("plugin.serialization") version "1.9.24"
     jacoco
 }
 
 group = "org.openmbee.flexo.mms"
-version = "0.1.0-ALPHA"
+version = "0.2.0-ALPHA"
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")
 }
@@ -26,7 +26,7 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    val kotestVersion = "5.8.0"
+    val kotestVersion = "5.9.1"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")

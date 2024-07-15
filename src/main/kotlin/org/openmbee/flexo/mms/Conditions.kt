@@ -56,6 +56,16 @@ val REPO_UPDATE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_REPO, Scope.REPO)
 }
 
+// starting conditions for any operation that depends on branch existing
+val BRANCH_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS
+
+// default starting conditions for any calls to update a repo
+val BRANCH_UPDATE_CONDITIONS = BRANCH_CRUD_CONDITIONS.append {
+    // TODO: why is scope of REPO is inconsistent with CLUSTER for equivalent org condition above?
+    // require that the user has the ability to update branch on a branch-level scope
+    permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
+}
+
 val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 

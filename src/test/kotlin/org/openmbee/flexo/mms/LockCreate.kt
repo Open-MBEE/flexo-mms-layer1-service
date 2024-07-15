@@ -14,6 +14,7 @@ class LockCreate : LockAny() {
                 val etag = response.headers[HttpHeaders.ETag]
                 etag.shouldNotBeBlank()
 
+                response shouldHaveStatus HttpStatusCode.Created
                 response.exclusivelyHasTriples {
                     modelName = "ValidateLock"
                     validateCreatedLockTriples(_lockId, etag!!, demoOrgPath)

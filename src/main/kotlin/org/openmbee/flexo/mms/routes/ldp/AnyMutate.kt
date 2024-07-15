@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import org.openmbee.flexo.mms.ConditionsGroup
+import org.openmbee.flexo.mms.KModel
+import org.openmbee.flexo.mms.SparqlParameterizer
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
@@ -9,9 +11,11 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     localConditions: ConditionsGroup,
     resourceSymbol: String,
     isNewResource: Boolean,
+    setup: (SparqlParameterizer.() -> Unit)?=null,
+    teardown: (suspend(model: KModel) -> Unit)?=null,
 ) {
     // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString, setup)
 
     // log
     log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
@@ -31,6 +35,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     else {
         responseContext.mutatedResource(prefixes[resourceSymbol]!!, constructModel)
     }
+
+    // optional teardown
+    teardown?.invoke(constructModel)
 
     // delete transaction
     run {

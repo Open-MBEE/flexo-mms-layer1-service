@@ -228,9 +228,7 @@ fun parseTurtle(body: String, model: Model, baseIri: String?=null, prefixes: Pre
 
 fun parseRdfByContentType(contentType: ContentType, body: String, model: Model, baseIri: String?=null, prefixes: PrefixMapBuilder?=null) {
     val language = contentTypeToLanguage[contentType]
-    if(language == null) {
-        throw Exception("No RDF content parser available for $contentType")
-    }
+        ?: throw Exception("No RDF content parser available for $contentType")
 
     return parseRdf(language, body, model, baseIri, prefixes)
 }

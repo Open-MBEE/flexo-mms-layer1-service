@@ -52,7 +52,7 @@ fun createBranch(repoPath: String, refId: String, branchId: String, branchName: 
 
             // assert it exists
             httpGet("/$repoPath/branches/$branchId") {}.apply {
-                response shouldHaveStatus 200
+                this.response shouldHaveStatus 200
             }
         }
     }
@@ -94,7 +94,7 @@ fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
 
 fun loadModel(refPath: String, turtle: String): TestApplicationCall {
     return withTest {
-        httpPost("$refPath/graph") {
+        httpPut("$refPath/graph") {
             setTurtleBody(turtle)
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK

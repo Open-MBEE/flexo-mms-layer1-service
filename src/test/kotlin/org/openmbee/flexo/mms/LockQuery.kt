@@ -22,6 +22,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "o" to "urn:mms:o".bindingUri
@@ -51,6 +52,7 @@ class LockQuery : LockAny() {
 
                     graphVal shouldContain "/graphs/Model."
 
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri,
@@ -73,6 +75,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
@@ -95,6 +98,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
@@ -115,6 +119,7 @@ class LockQuery : LockAny() {
                         describe <urn:mms:s>
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -136,6 +141,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -159,6 +165,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response exclusivelyHasTriples  {
                         subject("urn:mms:o") {
                             exclusivelyHas(

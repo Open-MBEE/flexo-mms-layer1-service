@@ -379,9 +379,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     }
 }
 
-fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
-    this shouldHaveStatus statusCode
-
+infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
 
@@ -393,22 +391,11 @@ fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertio
     return TriplesAsserter(model).apply { assertions() }
 }
 
-infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
-    return includesTriples(HttpStatusCode.OK, assertions)
-}
-
-fun TestApplicationResponse.exclusivelyHasTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit) {
-    includesTriples(statusCode, assertions).assertEmpty()
-}
-
 infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
-    exclusivelyHasTriples(HttpStatusCode.OK, assertions)
+    includesTriples(assertions).assertEmpty()
 }
 
 infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
-    // 200
-    this shouldHaveStatus HttpStatusCode.OK
-
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.SparqlResultsJson.contentType)
 

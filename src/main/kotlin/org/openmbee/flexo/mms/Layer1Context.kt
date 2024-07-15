@@ -80,6 +80,8 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var replaceExisting: Boolean
     val mustExist: Boolean
     val mustNotExist: Boolean
+
+    // whether the intent to create or replace is ambiguous (relevant during a PUT method)
     val intentIsAmbiguous: Boolean
 
     /*

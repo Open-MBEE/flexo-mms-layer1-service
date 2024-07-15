@@ -541,6 +541,21 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
         // delete interim lock
         executeSparqlUpdate("""
+            delete {
+                graph ?model {
+                    ?model_s ?model_p ?model_o .
+                }
+            } where {
+                graph mor-graph:Metadata {
+                    ?_interim mms:snapshot/mms:graph ?model .
+                }
+                
+                optional {
+                    graph ?model {
+                        ?model_s ?model_p ?model_o .
+                    }
+                }
+            };
             delete where {
                 graph mor-graph:Metadata {
                     ?_interim ?lock_p ?lock_o ;
@@ -548,12 +563,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                     
                     ?snapshot mms:graph ?model ;
                         ?snapshot_p ?snapshot_o .
-                }
-                
-                optional {
-                    graph ?model {
-                        ?model_s ?model_p ?model_o .
-                    }
                 }
             }
         """) {

@@ -34,6 +34,8 @@ fun TriplesAsserter.validateCreatedGroupTriples(
     groupName: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
+    createResponse shouldHaveStatus HttpStatusCode.Created
+
     validateGroupTriples(createResponse, groupId, groupName, extraPatterns)
 
     // auto policy

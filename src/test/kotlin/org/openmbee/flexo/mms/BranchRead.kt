@@ -29,7 +29,7 @@ class BranchRead : RefAny() {
 
             withTest {
                 httpHead(demoBranchPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
 
                     response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
                 }

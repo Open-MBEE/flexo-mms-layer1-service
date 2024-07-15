@@ -34,6 +34,7 @@ class LockRead : LockAny() {
 
             withTest {
                 httpGet(demoLockPath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         validateLockTriples(demoLockId, etag!!)
                     }

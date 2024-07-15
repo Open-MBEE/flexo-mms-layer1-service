@@ -174,35 +174,4 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // finalize transaction
     finalizeMutateTransaction(constructString, localConditions, "mg", !replaceExisting)
-
-//
-//    // execute construct
-//    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
-//
-//    // log
-//    log.info("Triplestore responded with:\n$constructResponseText")
-//
-//    // validate whether the transaction succeeded
-//    val model = validateTransaction(constructResponseText, localConditions, null, "mg")
-//
-//    // check that the user-supplied HTTP preconditions were met
-//    handleEtagAndPreconditions(model, prefixes["mg"])
-//
-//    // respond
-//    call.respondText(constructResponseText, RdfContentTypes.Turtle)
-//
-//    // delete transaction
-//    run {
-//        // submit update
-//        val dropResponseText = executeSparqlUpdate("""
-//            delete where {
-//                graph m-graph:Transactions {
-//                    mt: ?p ?o .
-//                }
-//            }
-//        """)
-//
-//        // log response
-//        log.info(dropResponseText)
-//    }
 }

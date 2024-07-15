@@ -104,7 +104,8 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         // LDP 5.2.3.1 - response with status code 201; body is not required by LDP
-        response.exclusivelyHasTriples(HttpStatusCode.Created) {
+        response shouldHaveStatus HttpStatusCode.Created
+        response.exclusivelyHasTriples {
             modelName = testName
 
             validator?.invoke(this, response, slug)

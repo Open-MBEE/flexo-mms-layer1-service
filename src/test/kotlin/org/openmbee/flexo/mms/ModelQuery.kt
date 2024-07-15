@@ -16,6 +16,7 @@ class ModelQuery : ModelAny() {
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
             }
@@ -41,6 +42,7 @@ class ModelQuery : ModelAny() {
 
                     graphVal shouldContain "/graphs/Model."
 
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri
@@ -104,6 +106,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent()))
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         varsExpect.addAll(listOf(
                             "s", "p", "o"
@@ -126,6 +129,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson """
                         {
                             "head": {},
@@ -149,6 +153,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson """
                         {
                             "head": {},
@@ -170,6 +175,7 @@ class ModelQuery : ModelAny() {
                         describe :Alice
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples  {
                         subjectTerse(":Alice") {
                             ignoreAll()
@@ -192,6 +198,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         subjectTerse(":Rex") {
                             ignoreAll()
@@ -211,12 +218,14 @@ class ModelQuery : ModelAny() {
                 httpPost("$demoBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
@@ -232,6 +241,7 @@ class ModelQuery : ModelAny() {
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
@@ -239,6 +249,7 @@ class ModelQuery : ModelAny() {
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
@@ -253,12 +264,15 @@ class ModelQuery : ModelAny() {
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+
                     // the load overwrites, so only bob exists
                     response equalsSparqlResults {
                         binding(
@@ -290,6 +304,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "personName" to "Bob".bindingLit
@@ -324,6 +339,7 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "concat" to "test:Alice".bindingLit

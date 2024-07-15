@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
+import org.openmbee.flexo.mms.BRANCH_UPDATE_CONDITIONS
+import org.openmbee.flexo.mms.guardedPatch
 import org.openmbee.flexo.mms.routes.ldp.createBranch
 import org.openmbee.flexo.mms.routes.ldp.getBranches
 import org.openmbee.flexo.mms.routes.ldp.headBranches
@@ -40,7 +42,7 @@ fun Route.crudBranches() {
             branchId = slug
 
             // create new branch
-            createBranch()
+            createBranch(usedPost=true)
         }
     }
 
@@ -69,14 +71,14 @@ fun Route.crudBranches() {
             createBranch()
         }
 
-//        // modify existing branch
-//        patch {
-//            guardedPatch(
-//                updateRequest = it,
-//                objectKey = "mor",
-//                graph = "mor-graph:Metadata",
-//                preconditions = UPDATE_REPO_CONDITIONS,
-//            )
-//        }
+        // modify existing branch
+        patch {
+            guardedPatch(
+                updateRequest = it,
+                objectKey = "morb",
+                graph = "mor-graph:Metadata",
+                preconditions = BRANCH_UPDATE_CONDITIONS,
+            )
+        }
     }
 }

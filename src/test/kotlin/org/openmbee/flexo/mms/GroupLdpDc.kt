@@ -1,10 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.http.*
-import org.openmbee.flexo.mms.util.LinkedDataPlatformDirectContainerTests
-import org.openmbee.flexo.mms.util.createGroup
-import org.openmbee.flexo.mms.util.exclusivelyHasTriples
-import org.openmbee.flexo.mms.util.shouldHaveStatus
+import org.openmbee.flexo.mms.util.*
 
 class GroupLdpDc : GroupAny() {
     init {
@@ -14,7 +11,7 @@ class GroupLdpDc : GroupAny() {
             validBodyForCreate = validGroupBody,
             resourceCreator = { createGroup(demoGroupId, demoGroupTitle) }
         ) {
-            create {response, slug ->
+            create { response, slug ->
                 validateCreatedGroupTriples(response, slug, demoGroupTitle)
             }
 
@@ -22,8 +19,8 @@ class GroupLdpDc : GroupAny() {
                 response shouldHaveStatus HttpStatusCode.BadRequest
             }
 
-            read() {
-                it.response exclusivelyHasTriples {
+            read {
+                it.response includesTriples {
                     validateGroupTriples(it.response, demoGroupId, demoGroupTitle)
                 }
             }

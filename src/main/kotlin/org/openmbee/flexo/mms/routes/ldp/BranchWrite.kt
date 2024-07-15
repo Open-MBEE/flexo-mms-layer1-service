@@ -6,6 +6,8 @@ import io.ktor.server.response.*
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.server.LdpDcLayer1Context
+import org.openmbee.flexo.mms.server.LdpMutateResponse
 import java.io.ByteArrayInputStream
 
 
@@ -123,7 +125,8 @@ private val SPARQL_CONSTRUCT_DELTAS = """
 """.trimIndent()
 
 
-suspend fun AnyLayer1Context.createBranch() {
+//suspend fun AnyLayer1Context.createBranch(usedPost: Boolean = false) {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createBranch(usedPost: Boolean = false) {
     // process RDF body from user about this new branch
     val branchTriples = filterIncomingStatements("morb") {
         // relative to this branch node
@@ -221,8 +224,8 @@ suspend fun AnyLayer1Context.createBranch() {
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+    // finalize transaction
+    finalizeMutateTransaction(constructString, localConditions, "morb", true, {
         prefixes(prefixes)
 
         // replace IRI substitution variables
@@ -231,182 +234,162 @@ suspend fun AnyLayer1Context.createBranch() {
             if(refSource != null) "_refSource" to refSource!!
             else "__mms_commitSource" to commitSource!!,
         )
-    }
-
-    // validate whether the transaction succeeded
-    val constructModel = validateTransaction(constructResponseText, localConditions, null, "morb")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(constructModel, prefixes["morb"])
-
-    // respond
-    call.respondText(constructResponseText, RdfContentTypes.Turtle)
+    }) { constructModel ->
+        //
+        // ==== Response closed ====
+        //
 
 
-    //
-    // ==== Response closed ====
-    //
+        // predetermine snapshot graphs
+        val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
+        val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
+        val modelSnapshot = "${prefixes["mor-snapshot"]}Model.${transactionId}"
 
+        // clone graph
+        run {
+            // isolate the transaction node
+            val transactionNode = constructModel.createResource(prefixes["mt"])
 
-    // predetermine snapshot graphs
-    val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
-    val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
-    val modelSnapshot = "${prefixes["mor-snapshot"]}Model.${transactionId}"
-
-    // clone graph
-    run {
-        // isolate the transaction node
-        val transactionNode = constructModel.createResource(prefixes["mt"])
-
-        // snapshot is available for source commit
-        val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-        if(sourceGraphs.size >= 1) {
-            // copy graph
-            executeSparqlUpdate("""
-                # copy existing snapshot graph to new branch's staging graph
-                copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
-                
-                # save snapshot metadata
-                insert data {
-                    # add snapshot graph to registry
-                    graph m-graph:Graphs {
-                        ?_stgGraph a mms:SnapshotGraph .
+            // snapshot is available for source commit
+            val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
+            if (sourceGraphs.size >= 1) {
+                // copy graph
+                executeSparqlUpdate(
+                    """
+                    # copy existing snapshot graph to new branch's staging graph
+                    copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
+                    
+                    # save snapshot metadata
+                    insert data {
+                        # add snapshot graph to registry
+                        graph m-graph:Graphs {
+                            ?_stgGraph a mms:SnapshotGraph .
+                        }
+                    
+                        # declare snapshot in repository metadata
+                        graph mor-graph:Metadata {
+                            morb: mms:snapshot ?_stgSnapshot . 
+                            ?_stgSnapshot a mms:Staging ;
+                                mms:graph ?_stgGraph ;
+                                .
+                        }
                     }
-                
-                    # declare snapshot in repository metadata
-                    graph mor-graph:Metadata {
-                        morb: mms:snapshot ?_stgSnapshot . 
-                        ?_stgSnapshot a mms:Staging ;
-                            mms:graph ?_stgGraph ;
-                            .
+                """
+                ) {
+                    iri(
+                        "_stgGraph" to stagingGraph,
+                        "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
+                    )
+                }
+            }
+            // no snapshots available, must build for commit
+            else {
+                // select most recent preceding snapshot and copy to new snapshot graph
+                val sequenceUpdateResponseText = executeSparqlUpdate(SPARQL_UPDATE_SEQUENCE) {
+                    prefixes(prefixes)
+
+                    iri(
+                        "_commitSource" to commitSource!!,
+                        "_mdlGraph" to modelGraph,
+                    )
+                }
+
+                log.info(sequenceUpdateResponseText)
+
+                // select all commits between source and target
+                val deltasResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_DELTAS) {
+                    prefixes(prefixes)
+
+                    iri(
+                        "_commitSource" to commitSource!!,
+                    )
+                }
+
+                log.info(deltasResponseText)
+
+                // build sparql update string
+                val updates = mutableListOf<String>()
+                parseConstructResponse(deltasResponseText) {
+                    // find root commit
+                    val rootCommits = model.listObjectsOfProperty(ROOT_COMMIT_RESOURCE, IS_PROPERTY).toList()
+                    if (rootCommits.size != 1) throw Http500Excpetion("Failed to determine commit history")
+
+                    // set initial commit resource
+                    var commit = rootCommits[0].asResource()
+
+                    // iterate thru all commits
+                    while (true) {
+                        // get patch body
+                        val patches =
+                            model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
+                        if (patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
+
+                        // ref literal
+                        val patchLiteral = patches[0].asLiteral()
+
+                        // compressed sparql gz
+                        val patchString = if (patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
+                            val bytes = patchLiteral.string.toByteArray()
+
+                            // prep input stream
+                            val stream = ByteArrayInputStream(bytes)
+
+                            // instantiate decompressor
+                            val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
+
+                            // read decompressed data and create string
+                            String(migz.readAllBytes())
+
+                        }
+                        // uncompressed sparql
+                        else {
+                            patchLiteral.string
+                        }
+
+                        // add to update strings
+                        updates.add(patchString)
+
+                        // traverse to child commit
+                        val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
+                        if (children.isEmpty()) break
+
+                        // repeat
+                        commit = children[0]
                     }
                 }
-            """) {
-                iri(
-                    "_stgGraph" to stagingGraph,
-                    "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                )
+
+                // apply all commits in sequence
+                executeSparqlUpdate(updates.joinToString(" ;\n")) {
+                    prefixes(prefixes)
+
+                    iri(
+                        "__mms_model" to modelGraph
+                    )
+                }
+
+                // save new snapshot
+                executeSparqlUpdate(
+                    """
+                    insert data {
+                        graph mor-graph:Metadata {
+                            mor-lock:Commit.${transactionId} a mms:Lock ;
+                                mms:commit morc: ;
+                                mms:snapshot ?_mdlSnapshot ;
+                                .
+    
+                            ?_mdlSnapshot a mms:Model ;
+                                mms:graph ?_mdlGraph ;
+                                .
+                        }
+                    }
+                """
+                ) {
+                    iri(
+                        "_mdlGraph" to modelGraph,
+                        "_mdlSnapshot" to modelSnapshot,
+                    )
+                }
             }
         }
-        // no snapshots available, must build for commit
-        else {
-            // select most recent preceding snapshot and copy to new snapshot graph
-            val sequenceUpdateResponseText = executeSparqlUpdate(SPARQL_UPDATE_SEQUENCE) {
-                prefixes(prefixes)
-
-                iri(
-                    "_commitSource" to commitSource!!,
-                    "_mdlGraph" to modelGraph,
-                )
-            }
-
-            log.info(sequenceUpdateResponseText)
-
-            // select all commits between source and target
-            val deltasResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_DELTAS) {
-                prefixes(prefixes)
-
-                iri(
-                    "_commitSource" to commitSource!!,
-                )
-            }
-
-            log.info(deltasResponseText)
-
-            // build sparql update string
-            val updates = mutableListOf<String>()
-            parseConstructResponse(deltasResponseText) {
-                // find root commit
-                val rootCommits = model.listObjectsOfProperty(ROOT_COMMIT_RESOURCE, IS_PROPERTY).toList()
-                if(rootCommits.size != 1) throw Http500Excpetion("Failed to determine commit history")
-
-                // set initial commit resource
-                var commit = rootCommits[0].asResource()
-
-                // iterate thru all commits
-                while(true) {
-                    // get patch body
-                    val patches = model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
-                    if(patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
-
-                    // ref literal
-                    val patchLiteral = patches[0].asLiteral()
-
-                    // compressed sparql gz
-                    val patchString = if(patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
-                        val bytes = patchLiteral.string.toByteArray()
-
-                        // prep input stream
-                        val stream = ByteArrayInputStream(bytes)
-
-                        // instantiate decompressor
-                        val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
-
-                        // read decompressed data and create string
-                        String(migz.readAllBytes())
-
-                    }
-                    // uncompressed sparql
-                    else {
-                        patchLiteral.string
-                    }
-
-                    // add to update strings
-                    updates.add(patchString)
-
-                    // traverse to child commit
-                    val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
-                    if(children.isEmpty()) break
-
-                    // repeat
-                    commit = children[0]
-                }
-            }
-
-            // apply all commits in sequence
-            executeSparqlUpdate(updates.joinToString(" ;\n")) {
-                prefixes(prefixes)
-
-                iri(
-                    "__mms_model" to modelGraph
-                )
-            }
-
-            // save new snapshot
-            executeSparqlUpdate("""
-                insert data {
-                    graph mor-graph:Metadata {
-                        mor-lock:Commit.${transactionId} a mms:Lock ;
-                            mms:commit morc: ;
-                            mms:snapshot ?_mdlSnapshot ;
-                            .
-
-                        ?_mdlSnapshot a mms:Model ;
-                            mms:graph ?_mdlGraph ;
-                            .
-                    }
-                }
-            """) {
-                iri(
-                    "_mdlGraph" to modelGraph,
-                    "_mdlSnapshot" to modelSnapshot,
-                )
-            }
-        }
-    }
-
-    // delete transaction
-    run {
-        // submit update
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
     }
 }

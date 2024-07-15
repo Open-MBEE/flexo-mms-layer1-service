@@ -12,7 +12,8 @@ fun ModelCommit.commitAndValidateModel(branchPath: String) {
             val etag = response.headers[HttpHeaders.ETag]
             etag.shouldNotBeBlank()
 
-            response.exclusivelyHasTriples(HttpStatusCode.Created) {
+            response shouldHaveStatus HttpStatusCode.Created
+            response.exclusivelyHasTriples {
                 validateModelCommitResponse(branchPath, etag!!)
             }
         }

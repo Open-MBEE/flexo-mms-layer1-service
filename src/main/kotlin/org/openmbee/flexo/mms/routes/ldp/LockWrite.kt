@@ -8,25 +8,47 @@ import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
-// default starting conditions for any calls to create a lock
-private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create locks on a repo-level scope
-    permit(Permission.CREATE_LOCK, Scope.REPO)
-
-    // require that the given lock does not exist before attempting to create it
+// require that the given lock does not exist (before attempting to create it)
+private fun ConditionsBuilder.lockNotExists() {
     require("lockNotExists") {
         handler = { mms -> "The provided lock <${mms.prefixes["morl"]}> already exists." to HttpStatusCode.Conflict }
 
         """
             # lock must not yet exist
-            graph mor-graph:Metadata {
-                filter not exists {
+            filter not exists {
+                graph mor-graph:Metadata {
                     morl: a mms:Lock .
                 }
             }
         """
     }
 }
+
+// require that the given lock exists
+private fun ConditionsBuilder.lockExists() {
+    require("lockExists") {
+        handler = { layer1 -> "Lock <${layer1.prefixes["morl"]}> does not exist." to
+                if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+        """
+            # lock must exist
+            graph mor-graph:Metadata {
+                morl: a mms:Lock ;
+                    ?lockExisting_p ?lockExisting_o .
+            }
+        """
+    }
+}
+
+// selects all properties of an existing lock
+private fun PatternBuilder<*>.existingLock() {
+    graph("mor-graph:Metadata") {
+        raw("""
+            morl: ?lockExisting_p ?lockExisting_o .
+        """)
+    }
+}
+
 
 private const val SPARQL_CONSTRUCT_SNAPSHOT = """
     construct {
@@ -78,7 +100,6 @@ private const val SPARQL_CONSTRUCT_SNAPSHOT = """
     }
 """
 
-
 suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceLock() {
     // process RDF body from user about this new lock
     val lockTriples = filterIncomingStatements("morl") {
@@ -97,9 +118,68 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
+    // resolve ambiguity
+    if(intentIsAmbiguous) {
+        // ask if repo exists
+        val probeResults = executeSparqlSelectOrAsk(buildSparqlQuery {
+            ask {
+                existingLock()
+            }
+        })
+
+        // parse response
+        val exists = parseSparqlResultsJsonAsk(probeResults)
+
+        // lock does not exist
+        if(!exists) {
+            replaceExisting = false
+        }
+    }
 
     // extend the default conditions with requirements for user-specified ref or commit
-    val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
+    val localConditions = REPO_CRUD_CONDITIONS.append {
+        // POST
+        if(isPostMethod) {
+
+        }
+        // not POST
+        else {
+            // resource must exist
+            if(mustExist) {
+                lockExists()
+            }
+
+            // resource must not exist
+            if(mustNotExist) {
+                lockNotExists()
+            }
+            // resource may exist
+            else {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph mor-graph:Metadata {
+                            ${if(mustExist) "" else "optional {"}
+                                morl: mms:tag ?__mms_etag .
+                                $values
+                            ${if(mustExist) "" else "}"}
+                        }
+                    """
+                }
+            }
+        }
+
+        // resource is being replaced
+        if(replaceExisting) {
+            // require that the user has the ability to create locks on a repo-level scope
+            permit(Permission.UPDATE_LOCK, Scope.REPO)
+        }
+        // resource is being created
+        else {
+            // require that the user has the ability to create locks on a repo-level scope
+            permit(Permission.CREATE_LOCK, Scope.REPO)
+        }
+    }.appendRefOrCommit()
 
     // only support lock on existing ref for now
     if(refSource == null) {
@@ -180,33 +260,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+//    // check that the user-supplied HTTP preconditions were met
+//    handleEtagAndPreconditions(constructModel, prefixes["morl"])
 
-    // validate whether the transaction succeeded
-    val constructModel = validateTransaction(constructResponseText, localConditions, null, "morl")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(constructModel, prefixes["morl"])
-
-    // respond
-    call.respondText(constructResponseText, RdfContentTypes.Turtle)
-
-    // log
-    log.info("Triplestore responded with:\n$constructResponseText")
-
-    // delete transaction
-    run {
-        // submit update
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
-    }
+    // finalize transaction
+    finalizeMutateTransaction(constructString, localConditions, "morl", !replaceExisting)
 }
