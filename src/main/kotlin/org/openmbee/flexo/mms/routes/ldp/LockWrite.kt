@@ -140,7 +140,16 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     val localConditions = REPO_CRUD_CONDITIONS.append {
         // POST
         if(isPostMethod) {
+            // user is asking to create lock only if the state of its container repo passes their preconditions
+            appendPreconditions { values ->
+                """
+                    graph mor-graph:Metadata {
+                        morl: mms:etag ?__mms_etag .
 
+                        $values
+                    }
+                """
+            }
         }
         // not POST
         else {
@@ -188,11 +197,19 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
+        if(replaceExisting) {
+            delete {
+                existingLock()
+            }
+        }
         insert {
             // create a new txn object in the transactions graph
             txn {
-                // create a new policy that grants this user admin over the new lock
-                autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
+                // not replacing existing; create new policy
+                if(!replaceExisting) {
+                    // create a new policy that grants this user admin over the new lock
+                    autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
+                }
             }
 
             // insert the triples about the new lock, including arbitrary metadata supplied by user

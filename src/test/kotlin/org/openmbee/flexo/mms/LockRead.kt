@@ -24,7 +24,7 @@ class LockRead : LockAny() {
 
             withTest {
                 httpHead(demoLockPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }

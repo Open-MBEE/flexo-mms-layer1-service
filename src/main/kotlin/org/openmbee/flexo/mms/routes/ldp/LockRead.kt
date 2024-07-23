@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms.routes.ldp
 
+import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
@@ -86,7 +87,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headLocks(allLocks: Boolean=fals
     handleEtagAndPreconditions(bindings)
 
     // respond
-    call.respondText("")
+    call.respond(HttpStatusCode.NoContent)
 }
 
 

@@ -4,6 +4,7 @@ import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceLock
 import org.openmbee.flexo.mms.routes.ldp.deleteLock
 import org.openmbee.flexo.mms.routes.ldp.getLocks
+import org.openmbee.flexo.mms.routes.ldp.headLocks
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 private const val LOCKS_PATH = "/orgs/{orgId}/repos/{repoId}/locks"
@@ -41,10 +42,10 @@ fun Route.crudLocks() {
             }
         }
 
-//        // state of a lock
-//        head {
-//            headLocks()
-//        }
+        // state of a lock
+        head {
+            headLocks()
+        }
 
         // read a lock
         get {
