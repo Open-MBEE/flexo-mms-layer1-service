@@ -28,7 +28,7 @@ jobs:
             - flexo-mms-layer1-service/*
   build_and_test:
     machine:
-      image: ubuntu-2204:2022.04.1
+      image: default
     working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - attach_workspace:
