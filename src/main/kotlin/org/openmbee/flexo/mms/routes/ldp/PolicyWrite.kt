@@ -8,12 +8,8 @@ import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
-// default starting conditions for any calls to create a policy
-private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create policies on an access-control-level scope
-    permit(Permission.CREATE_POLICY, Scope.POLICY)
-
-    // require that the given policy does not exist before attempting to create it
+// require that the given policy does not exist before attempting to create it
+private fun ConditionsBuilder.policyNotExists() {
     require("policyNotExists") {
         handler = { mms -> "The provided policy <${mms.prefixes["mp"]}> already exists." to HttpStatusCode.Conflict }
 
@@ -25,6 +21,15 @@ private val DEFAULT_CONDITIONS = GLOBAL_CRUD_CONDITIONS.append {
                 }
             }
         """
+    }
+}
+
+// selects all properties of an existing policy
+private fun PatternBuilder<*>.existingPolicy() {
+    graph("m-graph:AccessControl.Policies") {
+        raw("""
+            mp: ?policyExisting_p ?policyExisting_o .
+        """)
     }
 }
 
@@ -59,11 +64,68 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
+    // resolve ambiguity
+    if(intentIsAmbiguous) {
+        // ask if policy exists
+        val probeResults = executeSparqlSelectOrAsk(buildSparqlQuery {
+            ask {
+                existingPolicy()
+            }
+        })
+
+        // parse response
+        val exists = parseSparqlResultsJsonAsk(probeResults)
+
+        // policy does not exist
+        if(!exists) {
+            replaceExisting = false
+        }
+    }
+
     // inherit the default conditions
-    val localConditions = DEFAULT_CONDITIONS
+    val localConditions = GLOBAL_CRUD_CONDITIONS.append {
+        // POST
+        if (isPostMethod) {
+            // reject preconditions on POST; ETags not created for cluster since that would degrade multi-tenancy
+            if (ifMatch != null || ifNoneMatch != null) {
+                throw PreconditionsForbidden("when creating policy via POST")
+            }
+        }
+        // not POST
+        else {
+            // resource must exist
+            if (mustExist) {
+                policyExists()
+            }
+
+            // resource must not exist
+            if (mustNotExist) {
+                policyNotExists()
+            }
+            // resource may exist
+            else {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph m-graph:AccessControl.Policies {
+                            ${if (mustExist) "" else "optional {"}
+                                mp: mms:etag ?__mms_etag .
+                                ${values.reindent(8)}
+                            ${if (mustExist) "" else "}"}
+                        }
+                    """
+                }
+            }
+        }
+    }
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
+        if(replaceExisting) {
+            delete {
+                existingPolicy()
+            }
+        }
         insert {
             // create a new txn object in the transactions graph
             txn {
@@ -112,33 +174,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
-
-    // log
-    log.info("Triplestore responded with:\n$constructResponseText")
-
-    // validate whether the transaction succeeded
-    val model = validateTransaction(constructResponseText, localConditions, null, "mp")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(model, prefixes["mp"])
-
-    // respond
-    call.respondText(constructResponseText, RdfContentTypes.Turtle)
-
-    // delete transaction
-    run {
-        // submit update
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
-    }
+    // finalize transaction
+    finalizeMutateTransaction(constructString, localConditions, "mp", !replaceExisting)
 }

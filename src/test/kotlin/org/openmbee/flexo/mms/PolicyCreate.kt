@@ -116,7 +116,7 @@ class PolicyCreate : CommonSpec() {
                 httpPut(policyPath) {
                     setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.Created
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
                     response exclusivelyHasTriples {

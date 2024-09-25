@@ -233,6 +233,21 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
+    fun policyExists() {
+        require("policyExists") {
+            handler = { layer1 -> "Policy <${layer1.prefixes["mp"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+            """
+                # group must exist
+                graph m-graph:AccessControl.Policies {
+                    mp: a mms:Policy ;
+                        ?policyExisting_p ?policyExisting_o .
+                }
+            """
+        }
+    }
+
     /**
      * Adds a pattern to the query conditions that is only evaluated upon inspection.
      */

@@ -98,6 +98,8 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
     return handleRequest(method, uri) {
         addHeader("Authorization", authorization(rootAuth))
         setup()
+    }.apply {
+//        response.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${System.getenv("FLEXO_MMS_VERSION")}")
     }
 }
 

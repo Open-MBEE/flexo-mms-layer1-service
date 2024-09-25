@@ -59,7 +59,7 @@ private val SPARQL_CONSTRUCT_LOCK = """
 
 
 /**
- * Fetches the locks(s) ETag
+ * Fetches the locks(') ETag
  */
 suspend fun LdpDcLayer1Context<LdpHeadResponse>.headLocks(allLocks: Boolean=false) {
     // use quicker select query to fetch etags
