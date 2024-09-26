@@ -16,7 +16,7 @@ fun Application.configureHTTP() {
     install(XForwardedHeaders) // WARNING: for security, do not include this if not behind a reverse proxy
     install(DefaultHeaders) {
         header("X-Engine", "Ktor") // will send this header with each response
-        header("Flexo-MMS-Layer-1", "Version=${System.getenv("FLEXO_MMS_VERSION")}")
+        header("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
     }
 
     install(StatusPages) {
