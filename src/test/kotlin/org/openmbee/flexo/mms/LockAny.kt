@@ -48,7 +48,7 @@ fun TriplesAsserter.validateCreatedLockTriples(
 }
 
 open class LockAny : RefAny() {
-    override val logger = LoggerFactory.getLogger(RepoAny::class.java)
+    override val logger = LoggerFactory.getLogger(LockAny::class.java)
 
     val insertLock = """
         insert data {
