@@ -169,7 +169,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     """
                         graph mor-graph:Metadata {
                             ${if(mustExist) "" else "optional {"}
-                                morl: mms:tag ?__mms_etag .
+                                morl: mms:etag ?__mms_etag .
                                 $values
                             ${if(mustExist) "" else "}"}
                         }

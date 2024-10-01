@@ -136,7 +136,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     """
                         graph m-graph:Cluster {
                             ${if(mustExist) "" else "optional {"}
-                                mor: mms:tag ?__mms_etag .
+                                mor: mms:etag ?__mms_etag .
                                 $values
                             ${if(mustExist) "" else "}"}
                         }                        
@@ -147,13 +147,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
         // resource is being replaced
         if(replaceExisting) {
-            // require that the user has the ability to update repos on an org-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_REPO, Scope.REPO)
+            // require that the user has the ability to update repos on a repo-level scope (necessarily implies ability to create)
+            permit(Permission.UPDATE_REPO, Scope.ORG)
         }
         // resource is being created
         else {
             // require that the user has the ability to create repos on an org-level scope
-            permit(Permission.CREATE_REPO, Scope.REPO)
+            permit(Permission.CREATE_REPO, Scope.ORG)
         }
     }
 
