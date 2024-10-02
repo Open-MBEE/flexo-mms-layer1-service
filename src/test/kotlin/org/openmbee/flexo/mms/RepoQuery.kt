@@ -50,5 +50,20 @@ class RepoQuery : ModelAny() {
                 }
             }
         }
+
+        "user query with BASE" {
+            // lock should be pointing to the commit from update
+            withTest {
+                httpPost("$demoRepoPath/query") {
+                    setSparqlQueryBody("""
+                        BASE <hacked>
+
+                        ${withAllTestPrefixes(lockCommitQuery)}
+                    """.trimIndent())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
     }
 }
