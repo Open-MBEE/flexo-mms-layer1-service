@@ -121,12 +121,12 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         // intent is ambiguous or resource is definitely being replaced
         if(replaceExisting) {
             // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_POLICY, Scope.ACCESS_CONTROL_ANY)
+            permit(Permission.UPDATE_POLICY, Scope.CLUSTER)
         }
         // resource is being created
         else {
             // require that the user has the ability to create orgs on a cluster-level scope
-            permit(Permission.CREATE_POLICY, Scope.ACCESS_CONTROL_ANY)
+            permit(Permission.CREATE_POLICY, Scope.CLUSTER)
         }
     }
 
@@ -140,8 +140,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         insert {
             // create a new txn object in the transactions graph
             txn {
-                // create a new policy that grants this user admin over the new policy
-                if(!replaceExisting) autoPolicy(Scope.POLICY, Role.ADMIN_POLICY)
+//                // create a new policy that grants this user admin over the new policy
+//                if(!replaceExisting) autoPolicy(Scope.POLICY, Role.ADMIN_POLICY)
             }
 
             // insert the triples about the new policy, including arbitrary metadata supplied by user

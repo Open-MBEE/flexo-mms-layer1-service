@@ -130,7 +130,6 @@ open class ModelAny: RefAny() {
         matchOneSubjectByPrefix(localIri("$demoCommitsPath/")) {
             includes(
                 RDF.type exactly MMS.Commit,
-                MMS.etag exactly etag,
                 MMS.submitted hasDatatype XSD.dateTime,
                 MMS.parent startsWith localIri("$demoCommitsPath/").iri,
                 MMS.data startsWith localIri("$demoCommitsPath/").iri,

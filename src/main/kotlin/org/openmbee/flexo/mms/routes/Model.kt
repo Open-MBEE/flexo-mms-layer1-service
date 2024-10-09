@@ -80,7 +80,6 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                 raw("""
                     # new commit
                     morc: a mms:Commit ;
-                        mms:etag ?_txnId ;
                         mms:parent ?baseCommit ;
                         mms:message ?_commitMessage ;
                         mms:submitted ?_now ;

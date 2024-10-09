@@ -5,6 +5,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
+import java.util.*
 
 
 // require that the given repo does not exist before attempting to create it
@@ -260,8 +261,11 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
         // replace Literal substitution variables
         literal(
-            // append "0" to branch etag in order to distinguish between repo etag
-            "_branchEtag" to "${transactionId}0",
+            // append "0" to commit etag in order to distinguish between repo etag
+            "_commitEtag" to "${transactionId}0",
+
+            // append "1" to branch etag in order to distinguish between repo etag
+            "_branchEtag" to "${transactionId}1",
         )
     }
 
