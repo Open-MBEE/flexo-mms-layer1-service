@@ -40,14 +40,12 @@ private val SPARQL_CONSTRUCT_BRANCH = """
             mms:policy ?policy ;
             .
         
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
         
         ?branchPolicy ?branchPolicy_p ?branchPolicy_o .
     } where {
         $SPARQL_BGP_BRANCH
         
         graph m-graph:AccessControl.Policies {
-            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
 
             optional {
                 ?branchPolicy a mms:Policy ;
