@@ -20,6 +20,8 @@ mms {
     store-service {
         url = ""
         url = ${?FLEXO_MMS_STORE_SERVICE_URL}
+        accepts = "text/turtle, application/ld+json, application/rdf+xml"
+        accepts = ${?FLEXO_MMS_STORE_SERVICE_ACCEPTS}
     }
 
     quad-store {
@@ -31,6 +33,8 @@ mms {
         master-query-url = ${?FLEXO_MMS_MASTER_QUERY_URL}
         graph-store-protocol-url = "https://quad-store-domain/sparql/gsp"
         graph-store-protocol-url = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL}
+        graph-store-protocol-accepts = "text/turtle, application/ld+json, application/rdf+xml"
+        graph-store-protocol-url = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_ACCEPTS}
     }
 }
 

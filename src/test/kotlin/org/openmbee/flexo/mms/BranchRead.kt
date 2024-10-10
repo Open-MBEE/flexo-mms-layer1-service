@@ -11,7 +11,7 @@ class BranchRead : RefAny() {
     init {
         "head non-existent branch" {
             withTest {
-                httpHead(branchPath) {}.apply {
+                httpHead(demoBranchPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
@@ -19,17 +19,17 @@ class BranchRead : RefAny() {
 
         "get non-existent branch" {
             withTest {
-                httpGet(branchPath) {}.apply {
+                httpGet(demoBranchPath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
         "create and head new branch" {
-            val create = createBranch(repoPath, "master", branchId, branchName)
+            val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
 
             withTest {
-                httpHead(branchPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                httpHead(demoBranchPath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NoContent
 
                     response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
                 }
@@ -38,9 +38,9 @@ class BranchRead : RefAny() {
 
         "get master branch" {
             withTest {
-                httpGet(masterPath) {}.apply {
+                httpGet(masterBranchPath) {}.apply {
                     response includesTriples {
-                        val branchiri = localIri(masterPath)
+                        val branchiri = localIri(masterBranchPath)
 
                         subject(branchiri) {
                             includes(
@@ -55,27 +55,27 @@ class BranchRead : RefAny() {
         }
 
         "create from committed master then get all branches" {
-            val update = commitModel(masterPath, """
+            val update = commitModel(masterBranchPath, """
                 insert data { 
                     <urn:mms:s> <urn:mms:p> 5 .
                 }
             """.trimIndent())
 
-            val create = createBranch(repoPath, "master", branchId, branchName)
+            val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
 
             withTest {
-                httpGet("$repoPath/branches") {}.apply {
+                httpGet("$demoRepoPath/branches") {}.apply {
                     response includesTriples  {
-                        subject(localIri(branchPath)) {
+                        subject(localIri(demoBranchPath)) {
                             includes(
                                 RDF.type exactly MMS.Branch,
-                                MMS.id exactly branchId,
-                                DCTerms.title exactly branchName.en,
+                                MMS.id exactly demoBranchId,
+                                DCTerms.title exactly demoBranchName.en,
                                 MMS.etag startsWith "",
                             )
                         }
 
-                        subject(localIri(masterPath)) {
+                        subject(localIri(masterBranchPath)) {
                             includes(
                                 RDF.type exactly MMS.Branch,
                                 MMS.id exactly "master",

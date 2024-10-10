@@ -1,10 +1,8 @@
 package org.openmbee.flexo.mms
 
-import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
-import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 
@@ -48,28 +46,30 @@ fun TriplesAsserter.validateCreatedOrgTriples(
     validateTransaction(orgPath="/orgs/$orgId")
 
     // inspect
-    subject("urn:mms:inspect") { ignoreAll() }
+    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 open class OrgAny: CommonSpec() {
     open val logger = LoggerFactory.getLogger(OrgAny::class.java)
 
-    val orgId = "open-mbee"
-    val orgName = "OpenMBEE"
-    val orgPath = "/orgs/$orgId"
+    val basePathOrgs = "/orgs"
 
-    val orgFooId = "foo-org"
-    val orgFooName = "Foo Org"
-    val orgFooPath = "/orgs/$orgFooId"
+    val demoOrgId = "open-mbee"
+    val demoOrgName = "OpenMBEE"
+    val demoOrgPath = "/orgs/$demoOrgId"
 
-    val orgBarId = "bar-org"
-    val orgBarName = "Bar Org"
-    val orgBarPath = "/orgs/$orgBarId"
+    val fooOrgId = "foo-org"
+    val fooOrgName = "Foo Org"
+    val fooOrgPath = "/orgs/$fooOrgId"
+
+    val barOrgId = "bar-org"
+    val barOrgName = "Bar Org"
+    val barOrgPath = "/orgs/$barOrgId"
 
     val arbitraryPropertyIri = "https://demo.org/custom/prop"
     val arbitraryPropertyValue = "test"
 
     val validOrgBody = """
-        <> dct:title "$orgName"@en .
+        <> dct:title "$demoOrgName"@en .
     """.trimIndent()
 }

@@ -1,6 +1,6 @@
 package org.openmbee.flexo.mms
 
-import io.ktor.server.application.*
+val LDAP_COMPATIBLE_SLUG_REGEX = """[/?&=,._\pL0-9-]{3,256}""".toRegex()
 
 enum class Crud(val id: String) {
     CREATE("Create"),
@@ -70,6 +70,9 @@ enum class Permission(
     DELETE_DIFF(Crud.DELETE, Scope.DIFF),
 
     CREATE_GROUP(Crud.CREATE, Scope.GROUP),
+    READ_GROUP(Crud.READ, Scope.GROUP),
+    UPDATE_GROUP(Crud.UPDATE, Scope.GROUP),
+    DELETE_GROUP(Crud.DELETE, Scope.GROUP),
 
     CREATE_POLICY(Crud.CREATE, Scope.POLICY),
     READ_POLICY(Crud.READ, Scope.POLICY),
@@ -155,5 +158,5 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
                 mms:implies* mms-object:Permission.${permission.id} ;
                 .
         }
-    """.trimIndent()
+    """
 }

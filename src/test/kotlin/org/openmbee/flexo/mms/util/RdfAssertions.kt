@@ -11,8 +11,10 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.*
+import org.openmbee.flexo.mms.KModel
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.parseTurtle
+import org.openmbee.flexo.mms.reindent
 
 
 /**
@@ -292,13 +294,29 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     /**
      * Asserts the given subject by IRI exists and asserts its contents
      */
+    fun optionalSubject(iri: String, assertions: SubjectHandle.() -> Unit) {
+        // create resource
+        val subject = model.createResource(iri)
+
+        // check for existence
+        val exists = model.contains(subject, null)
+        if(!exists) return
+
+        // apply assertions
+        SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }
+    }
+
+
+    /**
+     * Asserts the given subject by IRI exists and asserts its contents
+     */
     fun subject(iri: String, assertions: SubjectHandle.() -> Unit) {
         // create resource
         val subject = model.createResource(iri)
 
         // check for existence
         val exists = model.contains(subject, null)
-        if(!exists) fail("No triples were found in the \"$modelName\" model having subject <$iri>")
+        if(!exists) fail("No triples were found in the \"$modelName\" model having subject <$iri>\n\"\"\"${KModel.fromModel(model).stringify().reindent(1)}\n\"\"\"")
 
         // apply assertions
         SubjectHandle(ModelContext(model, modelName), subject).apply { assertions() }
@@ -319,6 +337,17 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
         return this.subject(model.expandPrefix(terse), assertions)
     }
 
+    /**
+     * Asserts that exactly one subject's IRI starts with the given string and asserts its contents
+     */
+    fun matchMultipleSubjectsByPrefix(prefix: String, assertions: SubjectHandle.() -> Unit) {
+        // find matching subjects
+        val matches = model.listSubjects().filterKeep { it?.uri?.startsWith(prefix)?: false }.toList()
+
+        for(match in matches) {
+            this.subject(match.uri, assertions)
+        }
+    }
 
     /**
      * Asserts that exactly one subject's IRI starts with the given string and asserts its contents
@@ -350,9 +379,7 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     }
 }
 
-fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
-    this shouldHaveStatus statusCode
-
+infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
 
@@ -364,22 +391,11 @@ fun TestApplicationResponse.includesTriples(statusCode: HttpStatusCode, assertio
     return TriplesAsserter(model).apply { assertions() }
 }
 
-infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
-    return includesTriples(HttpStatusCode.OK, assertions)
-}
-
-fun TestApplicationResponse.exclusivelyHasTriples(statusCode: HttpStatusCode, assertions: TriplesAsserter.() -> Unit) {
-    includesTriples(statusCode, assertions).assertEmpty()
-}
-
 infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
-    exclusivelyHasTriples(HttpStatusCode.OK, assertions)
+    includesTriples(assertions).assertEmpty()
 }
 
 infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
-    // 200
-    this shouldHaveStatus HttpStatusCode.OK
-
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.SparqlResultsJson.contentType)
 

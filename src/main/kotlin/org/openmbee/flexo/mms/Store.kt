@@ -21,11 +21,11 @@ suspend fun handleSparqlResponse(response: HttpResponse): String {
 }
 
 
-private val LEGAL_ID_REGEX = """[._\pL0-9-]{3,256}""".toRegex()
+val LEGAL_ID_REGEX = """[._\pL0-9-]{3,256}""".toRegex()
 
 fun assertLegalId(id: String, regex: Regex=LEGAL_ID_REGEX) {
     if(!id.matches(regex) || id.startsWith("__")) {
-        throw IllegalIdException()
+        throw IllegalIdException(id, regex)
     }
 }
 

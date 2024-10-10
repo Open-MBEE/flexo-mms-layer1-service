@@ -5,6 +5,7 @@ import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
+import java.net.URLEncoder
 
 class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.() -> PrefixMapBuilder)?=null) {
     var map = HashMap<String, String>()
@@ -109,7 +110,7 @@ fun prefixesFor(
         }
 
         if(null != groupId) {
-            with("$ROOT_CONTEXT/groups/$groupId") {
+            with("$ROOT_CONTEXT/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
                 add(
                     "mg" to this,
                 )
@@ -336,5 +337,21 @@ object MMS_OBJECT {
         val AdminAccessControl = res("AdminAccessControl")
         val WriteAccessControl = res("WriteAccessControl")
         val ReadAccessControl = res("ReadAccessControl")
+    }
+}
+
+object MMS_URNS {
+    private val mms = "urn:mms"
+
+    object SUBJECT {
+        val aggregator = "$mms:aggregator"
+        val auth = "$mms:auth"
+        val context = "$mms:context"
+        val inspect = "$mms:inspect"
+    }
+
+    object PREDICATE {
+        val pass = "$mms:pass"
+        val policy = "$mms:policy"
     }
 }

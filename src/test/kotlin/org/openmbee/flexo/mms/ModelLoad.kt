@@ -7,7 +7,7 @@ class ModelLoad : ModelAny() {
     init {
         "load all inserts on empty model" {
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -17,7 +17,7 @@ class ModelLoad : ModelAny() {
 
         "load no change on empty model" {
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -28,10 +28,10 @@ class ModelLoad : ModelAny() {
         }
 
         "load all inserts on non-empty model" {
-            loadModel(masterPath, loadAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody("""
                         $loadAliceRex
 
@@ -45,10 +45,10 @@ class ModelLoad : ModelAny() {
         }
 
         "load all deletes on non-empty model" {
-            loadModel(masterPath, loadAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -57,10 +57,10 @@ class ModelLoad : ModelAny() {
         }
 
         "load no change on non-empty model" {
-            loadModel(masterPath, loadAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -69,10 +69,10 @@ class ModelLoad : ModelAny() {
         }
 
         "load both inserts and deletes on non-empty model" {
-            loadModel(masterPath, loadAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
-                httpPost("$masterPath/graph") {
+                httpPut("$masterBranchPath/graph") {
                     setTurtleBody("""
                         @prefix : <https://mms.openmbee.org/demos/people/>
                         @prefix foaf: <http://xmlns.com/foaf/0.1/>

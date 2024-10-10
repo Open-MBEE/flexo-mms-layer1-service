@@ -2,7 +2,6 @@ package org.openmbee.flexo.mms
 
 
 import io.ktor.http.*
-import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 
 class LockRead : LockAny() {
@@ -13,7 +12,7 @@ class LockRead : LockAny() {
         ).forEach { method ->
             "$method non-existent lock" {
                 withTest {
-                    httpRequest(HttpMethod(method.uppercase()), lockPath) {}.apply {
+                    httpRequest(HttpMethod(method.uppercase()), demoLockPath) {}.apply {
                         response shouldHaveStatus HttpStatusCode.NotFound
                     }
                 }
@@ -21,22 +20,23 @@ class LockRead : LockAny() {
         }
 
         "head valid lock" {
-            createLock(repoPath, masterPath, lockId)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpHead(lockPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                httpHead(demoLockPath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "get valid lock" {
-            val etag = createLock(repoPath, masterPath, lockId).response.headers[HttpHeaders.ETag]
+            val etag = createLock(demoRepoPath, masterBranchPath, demoLockId).response.headers[HttpHeaders.ETag]
 
             withTest {
-                httpGet(lockPath) {}.apply {
+                httpGet(demoLockPath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
-                        thisLockTriples(lockId, etag!!)
+                        validateLockTriples(demoLockId, etag!!)
                     }
                 }
             }

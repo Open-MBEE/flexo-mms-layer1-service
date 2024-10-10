@@ -11,17 +11,18 @@ import org.openmbee.flexo.mms.util.*
 class LockQuery : LockAny() {
     init {
         "query lock" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?o {
                             <urn:mms:s> <urn:mms:p> ?o .
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "o" to "urn:mms:o".bindingUri
@@ -32,11 +33,11 @@ class LockQuery : LockAny() {
         }
 
         "query lock with graph var" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?g ?o {
                             graph ?g {
@@ -51,6 +52,7 @@ class LockQuery : LockAny() {
 
                     graphVal shouldContain "/graphs/Model."
 
+                    response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri,
@@ -62,17 +64,18 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: true" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
                             <urn:mms:s> <urn:mms:p> ?o .
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
@@ -84,17 +87,18 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: false" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
                             <urn:mms:s> <urn:mms:p> <urn:mms:NOT_DEFINED> .
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
@@ -106,15 +110,16 @@ class LockQuery : LockAny() {
         }
 
         "describe lock explicit" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe <urn:mms:s>
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -125,17 +130,18 @@ class LockQuery : LockAny() {
         }
 
         "describe lock where" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe ?s {
                             ?s <urn:mms:p> <urn:mms:o> .
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
@@ -146,11 +152,11 @@ class LockQuery : LockAny() {
         }
 
         "construct lock" {
-            commitModel(masterPath, insertLock)
-            createLock(repoPath, masterPath, lockId)
+            commitModel(masterBranchPath, insertLock)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
-                httpPost("$lockPath/query") {
+                httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         construct {
                             ?o ?p ?s .
@@ -159,6 +165,7 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                     response exclusivelyHasTriples  {
                         subject("urn:mms:o") {
                             exclusivelyHas(

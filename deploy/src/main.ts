@@ -194,6 +194,7 @@ ds_writer.write({
 			'm-group:SuperAdmins': {
 				a: 'mms:Group',
 				'mms:id': '"super_admins',
+				'mms:etag': '"mms-init-etag-value-group-SuperAdmins',
 			},
 		},
 

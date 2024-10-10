@@ -1,13 +1,14 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.server.application.*
-import org.openmbee.flexo.mms.plugins.configureAuthentication
-import org.openmbee.flexo.mms.plugins.configureHTTP
-import org.openmbee.flexo.mms.plugins.configureRouting
+import org.openmbee.flexo.mms.server.configureAuthentication
+import org.openmbee.flexo.mms.server.configureHTTP
+import org.openmbee.flexo.mms.server.configureRouting
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
-fun Application.module(testing: Boolean=false) {
+@Suppress("unused")
+fun Application.module() {
     configureAuthentication(environment)
     configureHTTP()
     configureRouting()
@@ -43,10 +44,22 @@ val Application.quadStoreGraphStoreProtocolUrl: String?
     get() = environment.config.propertyOrNull("mms.quad-store.graph-store-protocol-url")?.getString()?.ifEmpty { null }
 
 /**
+ * Comma-separated list of RDF content types the GSP backend accepts.
+ */
+val Application.quadStoreGraphStoreProtocolAccepts: String
+    get() = environment.config.propertyOrNull("mms.quad-store.graph-store-protocol-accepts")?.getString()?.ifEmpty { "*/*" } ?: "*/*"
+
+/**
  * Optional URL to a compatible MMS-5 store service.
  */
 val Application.storeServiceUrl: String?
     get() = environment.config.propertyOrNull("mms.store-service.url")?.getString()?.ifEmpty { null }
+
+/**
+ * Comma-separated list of RDF content types the store service (and subsequently the SPARQL UPDATE LOAD) accepts
+ */
+val Application.storeServiceAccepts: String
+    get() = environment.config.propertyOrNull("mms.store-service.accepts")?.getString()?.ifEmpty { "*/*" } ?: "*/*"
 
 /**
  * If set to `true`, responds with 404 to users who are not authorized to view a resource even if it exists.
