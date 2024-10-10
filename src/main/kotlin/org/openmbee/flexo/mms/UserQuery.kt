@@ -202,11 +202,19 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
     }
 
     // serialize user query
-    val userQueryString = userQuery.serialize()
+    var userQueryString = userQuery.serialize()
+
+    // remove BASE from user query
+    userQueryString = userQueryString.replace("\\bBASE(\\s*#[^\\n]*)*\\s+<[^>]*>".toRegex(RegexOption.IGNORE_CASE), "")
+
+    // a base IRI was provided; force it back in
+    if (baseIri != null) {
+       userQueryString = "BASE <${baseIri}>\n" + userQueryString
+    }
 
     // user only wants to inspect the generated query
     if(inspectOnly) {
-        call.respondText(userQuery.serialize())
+        call.respondText(userQueryString)
         return
     }
 

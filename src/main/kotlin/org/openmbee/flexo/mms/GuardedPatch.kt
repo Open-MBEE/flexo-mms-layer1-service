@@ -43,7 +43,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     updateRequest: SparqlUpdateRequest,
     objectKey: String,
     graph: String,
-    preconditions: ConditionsGroup
+    preconditions: ConditionsGroup,
+    etagGraph: String=graph
 ) {
     val baseIri = prefixes[objectKey]!!
 
@@ -119,12 +120,14 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // generate sparql update
     val updateString = buildSparqlUpdate {
         delete {
-            graph(graph) {
+            graph(etagGraph) {
                 raw("""
                     # delete old etag
                     $objectKey: mms:etag ?__mms_etag .
                 """)
+            }
 
+            graph(graph) {
                 if(deleteBgpString.isNotEmpty()) {
                     raw(deleteBgpString)
                 }
@@ -133,12 +136,14 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         insert {
             txn()
 
-            graph(graph) {
+            graph(etagGraph) {
                 raw("""
                     # set new etag
                     $objectKey: mms:etag ?_txnId .
                 """)
+            }
 
+            graph(graph) {
                 if(insertBgpString.isNotEmpty()) {
                     raw(insertBgpString)
                 }
@@ -147,7 +152,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             raw(*conditions.requiredPatterns())
 
-            graph(graph) {
+            graph(etagGraph) {
                 raw("""
                     # bind old etag for deletion
                     $objectKey: mms:etag ?__mms_etag .

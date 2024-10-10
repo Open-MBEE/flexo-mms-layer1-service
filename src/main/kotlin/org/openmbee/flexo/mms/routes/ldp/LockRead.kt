@@ -39,15 +39,11 @@ private val SPARQL_CONSTRUCT_LOCK = """
             mms:permit mms-object:Permission.ReadLock ;
             mms:policy ?policy .
         
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-        
         ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
     } where {
         $SPARQL_BGP_LOCK
         
         graph m-graph:AccessControl.Policies {
-            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-
             optional {
                 ?lockPolicy a mms:Policy ;
                     mms:scope ?_lock ;

@@ -68,9 +68,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // build conditions
     val localConditions = GLOBAL_CRUD_CONDITIONS.append {
-        // require that the user has the ability to create groups on an access-control-level scope
-        permit(Permission.CREATE_GROUP, Scope.GROUP)
-
         // POST
         if(isPostMethod) {
             // reject preconditions on POST; ETags not created for cluster since that would degrade multi-tenancy
@@ -108,12 +105,12 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         // intent is ambiguous or resource is definitely being replaced
         if(replaceExisting) {
             // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_ORG, Scope.CLUSTER)
+            permit(Permission.UPDATE_GROUP, Scope.CLUSTER)
         }
         // resource is being created
         else {
             // require that the user has the ability to create orgs on a cluster-level scope
-            permit(Permission.CREATE_ORG, Scope.CLUSTER)
+            permit(Permission.CREATE_GROUP, Scope.CLUSTER)
         }
     }
 
