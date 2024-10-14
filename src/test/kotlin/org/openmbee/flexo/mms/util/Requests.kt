@@ -5,6 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.ROOT_CONTEXT
+import org.openmbee.flexo.mms.server.BuildInfo
 import java.util.*
 
 
@@ -99,7 +100,7 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
         addHeader("Authorization", authorization(rootAuth))
         setup()
     }.apply {
-//        response.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${System.getenv("FLEXO_MMS_VERSION")}")
+        response.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
     }
 }
 
