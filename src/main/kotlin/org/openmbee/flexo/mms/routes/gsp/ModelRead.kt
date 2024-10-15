@@ -1,16 +1,26 @@
 package org.openmbee.flexo.mms.routes.gsp
 
+import com.concurrentli.ManagedMultiBlocker.block
+import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.GspLayer1Context
 import org.openmbee.flexo.mms.server.GspReadResponse
 
-suspend fun GspLayer1Context<GspReadResponse>.readModel() {
+enum class RefType {
+    BRANCH,
+    LOCK,
+}
+
+suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
     parsePathParams {
         org()
         repo()
-        branch()
+        when(refType) {
+            RefType.BRANCH -> branch()
+            RefType.LOCK -> lock()
+        }
     }
 
     val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
@@ -24,11 +34,17 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel() {
             """)
         }
         where {
-            auth(Permission.READ_BRANCH.scope.id, BRANCH_QUERY_CONDITIONS)
+            when(refType) {
+                RefType.BRANCH -> auth(Permission.READ_BRANCH.scope.id, BRANCH_QUERY_CONDITIONS)
+                RefType.LOCK -> auth(Permission.READ_LOCK.scope.id, LOCK_QUERY_CONDITIONS)
+            }
 
             raw("""
                 graph mor-graph:Metadata {
-                    morb: mms:commit/^mms:commit ?ref .
+                    ${when(refType) {
+                        RefType.BRANCH -> "morb:"
+                        RefType.LOCK -> "morl:"
+                    }} mms:commit/^mms:commit ?ref .
                     
                     ?ref mms:snapshot ?modelSnapshot .
                     
@@ -59,9 +75,14 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel() {
             throw Http403Exception(this, call.request.path())
         }
     }
+    // HEAD method
+    else if(call.request.httpMethod == HttpMethod.Head) {
+        call.respond(HttpStatusCode.OK)
+    }
+    // GET
     else {
         // try to avoid parsing model for performance reasons
-        val modelText = constructResponseText.replace("""$authorizedIri\s+<${MMS_URNS.PREDICATE.policy}>\s+\"(user|group)\"\s+\.""".toRegex(), "")
+        val modelText = constructResponseText.replace("""$authorizedIri\s+<${MMS_URNS.PREDICATE.policy}>\s+"(user|group)"\s+\.""".toRegex(), "")
 
         call.respondText(modelText, contentType=RdfContentTypes.Turtle)
     }
