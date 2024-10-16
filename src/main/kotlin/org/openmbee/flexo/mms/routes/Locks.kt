@@ -80,7 +80,7 @@ fun Route.crudLocks() {
                 // enforce preconditions if present
                 appendPreconditions { values ->
                     """
-                        graph m-graph:Cluster {
+                        graph mor-graph:Metadata {
                             morl: mms:etag ?__mms_etag .
                             
                             ${values.reindent(6)}
@@ -93,7 +93,7 @@ fun Route.crudLocks() {
             guardedPatch(
                 updateRequest = it,
                 objectKey = "morl",
-                graph = "m-graph:Cluster",
+                graph = "mor-graph:Metadata",
                 preconditions = localConditions,
             )
         }

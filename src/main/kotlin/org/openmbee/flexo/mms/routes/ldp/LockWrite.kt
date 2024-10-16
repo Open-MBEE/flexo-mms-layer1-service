@@ -181,7 +181,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
         // resource is being replaced
         if(replaceExisting) {
-            // require that the user has the ability to create locks on a repo-level scope
+            // require that the user has the ability to update locks on a repo-level scope
             permit(Permission.UPDATE_LOCK, Scope.REPO)
         }
         // resource is being created
