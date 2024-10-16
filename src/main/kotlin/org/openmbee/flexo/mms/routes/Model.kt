@@ -3,27 +3,31 @@ package org.openmbee.flexo.mms.routes.sparql
 import com.linkedin.migz.MiGzOutputStream
 import io.ktor.http.*
 import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import loadModel
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.server.graphStoreProtocol
 import org.openmbee.flexo.mms.routes.gsp.readModel
 import java.io.ByteArrayOutputStream
+
 
 
 /**
  * Model CRUD routing
  */
 fun Route.crudModel() {
+    // by branch
     graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph") {
         // 5.6 HEAD: check state of graph
         head {
-            readModel()
+            readModel(RefType.BRANCH)
         }
 
         // 5.2 GET: read graph
         get {
-            readModel()
+            readModel(RefType.BRANCH)
         }
 
         // 5.3 PUT: overwrite (load)
@@ -45,6 +49,22 @@ fun Route.crudModel() {
 //        delete {
 //
 //        }
+    }
+
+    // by lock
+    graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/locks/{lockId}/graph") {
+        // 5.6 HEAD: check state of graph
+        head {
+            readModel(RefType.LOCK)
+        }
+
+        // 5.2 GET: read graph
+        get {
+            readModel(RefType.LOCK)
+        }
+
+        // otherwise, deny the method
+        otherwiseNotAllowed("locks")
     }
 }
 

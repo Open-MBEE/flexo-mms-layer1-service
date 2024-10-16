@@ -88,7 +88,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
     protected val acceptableMediaTypesForPut: List<ContentType>?=acceptableMediaTypesForPost,
 ) {
     // allowed HTTP methods for a resource matching the given route
-    protected var allowedMethods = mutableListOf("Options")
+    protected var allowedMethods = mutableListOf(HttpMethod.Options)
 
     // accepted content types for a POST request to a resource matching the given route
     protected var acceptedTypesPost = mutableListOf<ContentType>()
@@ -127,6 +127,24 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         layer1: Layer1Context<TRequestContext, TResponseContext>
     ) {}
 
+    protected suspend fun checkAllowed(
+        call: ApplicationCall,
+        resourcesLabel: String?=null
+    ) {
+        // set allowed methods
+        call.response.headers.append("Allow", allowedMethods.joinToString(", ") { it.value })
+
+        // method not allowed
+        if(!allowedMethods.contains(call.request.httpMethod)) {
+            // reject request
+            call.respondText(
+                "${call.request.httpMethod.value} method not allowed on ${resourcesLabel ?: "this resource"}",
+                ContentType.Text.Plain,
+                HttpStatusCode.MethodNotAllowed
+            )
+        }
+    }
+
     // applies custom before each and handles common
     protected suspend fun <TResponseContext: GenericResponse> eachCall(
         call: ApplicationCall,
@@ -144,8 +162,8 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         // invoke custom beforeEach if defined
         beforeEach?.invoke(layer1)
 
-        // set allowed methods
-        call.response.headers.append("Allow", allowedMethods.joinToString { ", " })
+        // check allowed methods
+        checkAllowed(call)
 
         // set accepted RDF formats for POST requests
         if(acceptedTypesPost.isNotEmpty()) {
@@ -186,7 +204,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: ((Layer1Context<TRequestContext, TResponseContext>) -> Unit)?=null
     ) {
         // add to allowed methods
-        allowedMethods.add("HEAD")
+        allowedMethods.add(HttpMethod.Head)
 
         // allow implementor to handle when head is declared
         declaredHead()
@@ -211,7 +229,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: ((Layer1Context<TRequestContext, TResponseContext>) -> Unit)?=null
     ) {
         // add to allowed methods
-        allowedMethods.add("GET")
+        allowedMethods.add(HttpMethod.Get)
 
         // allow implementor to handle when get is declared
         declaredGet()
@@ -236,7 +254,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: ((Layer1Context<TRequestContext, TResponseContext>, slug: String) -> Unit)?=null
     ) {
         // add to allowed methods
-        allowedMethods.add("POST")
+        allowedMethods.add(HttpMethod.Post)
 
         // add supported RDF content types to accepted POST types
         acceptedTypesPost.addAll(acceptableMediaTypesForPost)
@@ -272,7 +290,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: ((Layer1Context<TRequestContext, TResponseContext>) -> Unit)?=null
     ) {
         // add to allowed methods
-        allowedMethods.add("PUT")
+        allowedMethods.add(HttpMethod.Put)
 
         // add supported RDF content types to accepted PUT types
         acceptedTypesPut.addAll(acceptableMediaTypesForPut ?: acceptableMediaTypesForPost)
@@ -304,7 +322,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: suspend PipelineContext<Unit, ApplicationCall>.(Layer1Context<TRequestContext, TResponseContext>) -> TUpdateRequest
     ) {
         // add to allowed methods
-        allowedMethods.add("PATCH")
+        allowedMethods.add(HttpMethod.Patch)
 
         // add supported RDF content types to accepted PATCH types
         acceptedTypesPatch.addAll(acceptableMediaTypesForPatch)
@@ -332,7 +350,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         called: ((Layer1Context<TRequestContext, TResponseContext>) -> Unit)?=null
     ) {
         // add to allowed methods
-        allowedMethods.add("DELETE")
+        allowedMethods.add(HttpMethod.Delete)
 
         // define handler
         route.delete {
@@ -350,4 +368,51 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
     // OPTIONS
     @Deprecated("Don't implement OPTIONS. Handled by wrapper")
     fun options() {}
+
+    // adds "Method not allowed" handling for all other routes
+    fun otherwiseNotAllowed(
+        resourcesLabel: String?=null
+    ) {
+        // HEAD
+        if(!allowedMethods.contains(HttpMethod.Head)) {
+           route.head {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+
+        // GET
+        if(!allowedMethods.contains(HttpMethod.Get)) {
+           route.get {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+
+        // POST
+        if(!allowedMethods.contains(HttpMethod.Post)) {
+           route.post {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+
+        // PUT
+        if(!allowedMethods.contains(HttpMethod.Put)) {
+           route.put {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+
+        // PATCH
+        if(!allowedMethods.contains(HttpMethod.Patch)) {
+           route.patch {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+
+        // DELETE
+        if(!allowedMethods.contains(HttpMethod.Delete)) {
+           route.delete {
+               checkAllowed(call, resourcesLabel)
+           }
+        }
+    }
 }
