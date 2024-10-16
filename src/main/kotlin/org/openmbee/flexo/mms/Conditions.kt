@@ -150,6 +150,11 @@ val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
+val LOCK_UPDATE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
+    // require that the user has the ability to update locks on a lock-level scope
+    permit(Permission.UPDATE_LOCK, Scope.LOCK)
+}
+
 enum class ConditionType {
     INSPECT,
     REQUIRE,

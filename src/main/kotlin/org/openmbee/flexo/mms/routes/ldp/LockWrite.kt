@@ -6,6 +6,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
+import org.openmbee.flexo.mms.server.LdpPatchResponse
 
 
 // require that the given lock does not exist (before attempting to create it)
