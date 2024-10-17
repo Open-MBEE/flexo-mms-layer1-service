@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 
+import io.ktor.http.*
 import org.apache.jena.sparql.vocabulary.FOAF
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
@@ -13,14 +14,18 @@ class BranchUpdate : RefAny() {
 
             withTest {
                 httpPatch(demoBranchPath) {
-                    setSparqlUpdateBody(withAllTestPrefixes("""
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes(
+                            """
                         insert {
                             <> foaf:homepage <https://www.openmbee.org/> .
                         }
                         where {
                             <> dct:title "$demoBranchName"@en .
                         }
-                    """.trimIndent()))
+                    """.trimIndent()
+                        )
+                    )
                 }.apply {
                     response includesTriples {
                         subject(localIri(demoBranchPath)) {
@@ -33,6 +38,32 @@ class BranchUpdate : RefAny() {
                         }
                     }
                 }
+            }
+        }
+
+        "all branches rejects other methods" {
+            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
+
+            withTest {
+                onlyAllowsMethods("$demoRepoPath/branches", setOf(
+                    HttpMethod.Head,
+                    HttpMethod.Get,
+                    HttpMethod.Post,
+                ))
+            }
+        }
+
+        "branch rejects other methods" {
+            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
+
+            withTest {
+                onlyAllowsMethods(demoBranchPath, setOf(
+                    HttpMethod.Head,
+                    HttpMethod.Get,
+                    HttpMethod.Put,
+                    HttpMethod.Patch,
+                    HttpMethod.Delete,
+                ))
             }
         }
     }
