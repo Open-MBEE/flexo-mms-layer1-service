@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms.routes
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.BRANCH_UPDATE_CONDITIONS
 import org.openmbee.flexo.mms.guardedPatch
+import org.openmbee.flexo.mms.notImplemented
 import org.openmbee.flexo.mms.routes.ldp.createBranch
 import org.openmbee.flexo.mms.routes.ldp.getBranches
 import org.openmbee.flexo.mms.routes.ldp.headBranches
@@ -44,6 +45,9 @@ fun Route.crudBranches() {
             // create new branch
             createBranch(usedPost=true)
         }
+
+        // method not allowed
+        otherwiseNotAllowed()
     }
 
     // specific branch
@@ -80,5 +84,13 @@ fun Route.crudBranches() {
                 preconditions = BRANCH_UPDATE_CONDITIONS,
             )
         }
+
+        // delete not yet implemented
+        delete {
+            notImplemented()
+        }
+
+        // method not allowed
+        otherwiseNotAllowed()
     }
 }

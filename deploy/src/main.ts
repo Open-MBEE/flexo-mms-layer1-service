@@ -427,6 +427,13 @@ ds_writer.write({
 				Repo: {
 					crud: {
 						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadRepo',
+								'UpdateBranch',  // PATCH for updating repo metadata
+								'UpdateLock',  // PATCH for updating repo metadata
+							],
+						},
 						Delete: {
 							implies: [
 								'UpdateRepo',
@@ -446,13 +453,7 @@ ds_writer.write({
 				},
 
 				Lock: {
-					crud: {
-						Create: {},
-						Read: {},
-						Delete: {
-							implies: ['ReadLock'],
-						},
-					},
+					crud: H_CRUD_DEFAULT,
 				},
 
 				AccessControlAny: {

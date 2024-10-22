@@ -21,6 +21,8 @@ class LockLdpDc : LockAny() {
 //                // validate
 //                validateCreatedLockTriples(demoLockId, etag, demoOrgPath)
 //            }
+
+            patch()
         }
     }
 }
