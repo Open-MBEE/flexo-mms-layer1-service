@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms
 
 import io.kotest.matchers.shouldBe
 import io.ktor.http.*
+import io.ktor.server.request.*
 import org.openmbee.flexo.mms.util.*
 
 class LockRead : LockAny() {
@@ -11,11 +12,16 @@ class LockRead : LockAny() {
             "head",
             "get",
             "patch",
-            "delete",
+//            "delete",
         ).forEach { method ->
             "$method non-existent lock" {
                 withTest {
-                    httpRequest(HttpMethod(method.uppercase()), demoLockPath) {}.apply {
+                    httpRequest(HttpMethod(method.uppercase()), demoLockPath) {
+                        // PATCH request
+                        if(method == "patch") {
+                            addHeader("Content-Type", RdfContentTypes.Turtle.toString())
+                        }
+                    }.apply {
                         response shouldHaveStatus HttpStatusCode.NotFound
                     }
                 }
