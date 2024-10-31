@@ -6,6 +6,7 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
+import org.openmbee.flexo.mms.server.LdpPatchResponse
 
 
 // require that the given lock does not exist (before attempting to create it)
@@ -180,7 +181,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
         // resource is being replaced
         if(replaceExisting) {
-            // require that the user has the ability to create locks on a repo-level scope
+            // require that the user has the ability to update locks on a repo-level scope
             permit(Permission.UPDATE_LOCK, Scope.REPO)
         }
         // resource is being created

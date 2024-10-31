@@ -1,6 +1,10 @@
 package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
+import org.openmbee.flexo.mms.LOCK_UPDATE_CONDITIONS
+import org.openmbee.flexo.mms.NotImplementedException
+import org.openmbee.flexo.mms.guardedPatch
+import org.openmbee.flexo.mms.reindent
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceLock
 import org.openmbee.flexo.mms.routes.ldp.deleteLock
 import org.openmbee.flexo.mms.routes.ldp.getLocks
@@ -22,6 +26,16 @@ fun Route.crudLocks() {
             }
         }
 
+        // state of a lock
+        head {
+            headLocks(true)
+        }
+
+        // get all locks
+        get {
+            getLocks(true)
+        }
+
         // create new lock
         post { slug ->
             // set policy id on context
@@ -30,6 +44,9 @@ fun Route.crudLocks() {
             // create new lock
             createOrReplaceLock()
         }
+
+        // method not allowed
+        otherwiseNotAllowed("locks")
     }
 
     // specific lock
@@ -57,9 +74,38 @@ fun Route.crudLocks() {
             createOrReplaceLock()
         }
 
+        // update lock metadata
+        patch {
+            // build conditions
+            val localConditions = LOCK_UPDATE_CONDITIONS.append {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph mor-graph:Metadata {
+                            morl: mms:etag ?__mms_etag .
+                            
+                            ${values.reindent(6)}
+                        }
+                    """
+                }
+            }
+
+            // handle all varieties of accepted PATCH request formats
+            guardedPatch(
+                updateRequest = it,
+                objectKey = "morl",
+                graph = "mor-graph:Metadata",
+                preconditions = localConditions,
+            )
+        }
+
         // delete a lock
         delete {
-            deleteLock()
+//            deleteLock()
+            throw NotImplementedException("DELETE Lock")
         }
+
+        // method not allowed
+        otherwiseNotAllowed("lock")
     }
 }

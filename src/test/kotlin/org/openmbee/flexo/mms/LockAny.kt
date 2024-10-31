@@ -4,23 +4,25 @@ import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.RDF
-import org.openmbee.flexo.mms.util.TriplesAsserter
-import org.openmbee.flexo.mms.util.exactly
-import org.openmbee.flexo.mms.util.iri
-import org.openmbee.flexo.mms.util.startsWith
+import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 
 // validates response triples for a lock
-fun TriplesAsserter.validateLockTriples(lockId: String, etag: String) {
+fun TriplesAsserter.validateLockTriples(
+    lockId: String,
+    etag: String?=null,
+    extraPatterns: List<PairPattern> = listOf()
+) {
     // lock triples
     subjectTerse("mor-lock:$lockId") {
         exclusivelyHas(
             RDF.type exactly MMS.Lock,
             MMS.id exactly lockId,
-            MMS.etag exactly etag,
+            if(etag != null) MMS.etag exactly etag else MMS.etag startsWith "",
             MMS.commit startsWith model.expandPrefix("mor-commit:").iri,
             MMS.snapshot startsWith model.expandPrefix("mor-snapshot:Model.").iri,
             MMS.createdBy exactly model.expandPrefix("mu:").iri,
+            *extraPatterns.toTypedArray(),
         )
     }
 }

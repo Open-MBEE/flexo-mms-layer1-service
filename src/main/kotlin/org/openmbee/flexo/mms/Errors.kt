@@ -81,3 +81,7 @@ open class Http500Excpetion(msg: String): HttpException(msg, HttpStatusCode.Inte
 
 class ServerBugException(msg: String?=null): Http500Excpetion("Possible server implementation bug: ${msg?: "(no description)"}")
 
+
+open class Http501Exception(msg: String): HttpException(msg, HttpStatusCode.NotImplemented)
+
+class NotImplementedException(msg: String): Http501Exception("That action is not yet implemented. $msg")

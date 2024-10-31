@@ -156,6 +156,9 @@ fun prefixesFor(
                                 )
                             }
                         }
+                        else {
+                            add("morl" to MMS_URNS.never)
+                        }
 
                         if(null !== diffId) {
                             with("$this/diffs/$diffId") {
@@ -163,6 +166,9 @@ fun prefixesFor(
                                     "mord" to this,
                                 )
                             }
+                        }
+                        else {
+                            add("morl" to MMS_URNS.never)
                         }
 
                         if(null != lockId) {
@@ -172,6 +178,9 @@ fun prefixesFor(
                                 )
                             }
                         }
+                        else {
+                            add("morl" to MMS_URNS.never)
+                        }
 
                         if(null != commitId) {
                             with("$this/commits/$commitId") {
@@ -180,6 +189,9 @@ fun prefixesFor(
                                     "morc-data" to "$this/data/",
                                 )
                             }
+                        }
+                        else {
+                            add("morl" to MMS_URNS.never)
                         }
                     }
                 }
@@ -202,7 +214,7 @@ fun prefixesFor(
 object MMS {
     private val BASE = SPARQL_PREFIXES["mms"]!!
     val uri = BASE
-    
+
     private fun res(id: String): Resource {
         return ResourceFactory.createResource("${BASE}${id}")
     }
@@ -234,7 +246,7 @@ object MMS {
 
     // object properties
     val id  = ResourceFactory.createProperty(BASE, "id")
-    
+
     private fun prop(id: String): Property {
         return ResourceFactory.createProperty(BASE, id)
     }
@@ -342,6 +354,8 @@ object MMS_OBJECT {
 
 object MMS_URNS {
     private val mms = "urn:mms"
+
+    val never = "$mms:never"
 
     object SUBJECT {
         val aggregator = "$mms:aggregator"
