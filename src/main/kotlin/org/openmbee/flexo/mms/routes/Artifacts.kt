@@ -25,7 +25,7 @@ fun Route.storeArtifacts() {
 
         // get all artifacts
         get {
-//            getArtifacts(true)
+            getArtifacts(true)
         }
 
         // create new artifact

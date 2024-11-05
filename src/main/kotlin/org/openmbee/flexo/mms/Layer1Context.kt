@@ -93,7 +93,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var repoId: String? = null
     var commitId: String = transactionId
     var lockId: String? = null
-    var objectId: String? = null
+    var artifactId: String? = null
     var branchId: String? = null
     var diffId: String? = null
     var policyId: String? = null
@@ -108,7 +108,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             branchId = branchId,
             commitId = commitId,
             lockId = lockId,
-            artifactId = objectId,
+            artifactId = artifactId,
             diffId = diffId,
             transactionId = transactionId,
             policyId = policyId,
@@ -162,8 +162,8 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }
 
         fun artifact(legal: Boolean=false) {
-            objectId = call.parameters["objectId"]
-            if(legal) assertLegalId(objectId!!)
+            artifactId = call.parameters["artifactId"]
+            if(legal) assertLegalId(artifactId!!)
         }
 
         fun branch(legal: Boolean=false) {

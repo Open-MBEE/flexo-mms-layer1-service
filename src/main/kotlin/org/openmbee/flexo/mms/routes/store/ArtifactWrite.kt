@@ -26,15 +26,15 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
     // create update SPARQL
     val updateString = buildSparqlUpdate {
         insert {
-            graph("mor-graph:Objects") {
-                raw(
-                    """
-                ?$SPARQL_VAR_NAME_ARTIFACT a mms:Object ;
-                    mms:contentType ${escapeLiteral(requestBodyContentType)} ;
-                    mms:body ${escapeLiteral(body)} ;
-                    .
-            """
-                )
+            txn {}
+
+            graph("mor-graph:Artifacts") {
+                raw("""
+                    ?$SPARQL_VAR_NAME_ARTIFACT a mms:Artifact ;
+                        mms:contentType ${escapeLiteral(requestBodyContentType)} ;
+                        mms:body ${escapeLiteral(body)} ;
+                        .
+                """)
             }
         }
         where {
@@ -44,20 +44,81 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
 
 
     // create object IRI
-    val objectIri = "${prefixes["mor-object"]}$transactionId"
+    val artifactIri = "${prefixes["mor-artifact"]}$transactionId"
 
     // execute update
     executeSparqlUpdate(updateString) {
         prefixes(prefixes)
 
         iri(
-            SPARQL_VAR_NAME_ARTIFACT to objectIri
+            SPARQL_VAR_NAME_ARTIFACT to artifactIri
         )
     }
 
-    // set location header
-    call.response.headers.append(HttpHeaders.Location, objectIri)
+    // create construct query to confirm transaction and fetch artifact details
+    val constructString = buildSparqlQuery {
+        construct {
+            // all details about this transaction
+            txn()
 
-    // created
+            // all properties about this artifact
+            raw("""
+                # outgoing artifact properties
+                ?$SPARQL_VAR_NAME_ARTIFACT ?mora_p ?mora_o .
+            """)
+        }
+        where {
+            group {
+                txn(null, "mora")
+
+                raw("""
+                    graph mor-graph:Artifacts {
+                        ?$SPARQL_VAR_NAME_ARTIFACT a mms:Artifact ;
+                            ?mora_p ?mora_o .
+                    }
+                """)
+            }
+            // all subsequent unions are for inspecting what if any conditions failed
+            raw("""union ${localConditions.unionInspectPatterns()}""")
+        }
+    }
+
+    // execute construct
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+        prefixes(prefixes)
+
+        iri(
+            SPARQL_VAR_NAME_ARTIFACT to artifactIri
+        )
+    }
+
+    // log
+    log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
+
+    // validate whether the transaction succeeded
+    val constructModel = validateTransaction(constructResponseText, localConditions, null, "mora")
+
+    // set location header
+    call.response.headers.append(HttpHeaders.Location, artifactIri)
+
+//    // response in the requested format
+//    call.respondText(constructModel.stringify(), RdfContentTypes.Turtle, HttpStatusCode.Created)
+
+    // close response with 201
     call.respond(HttpStatusCode.Created)
+
+    // delete transaction
+    run {
+        // submit update
+        val dropResponseText = executeSparqlUpdate("""
+            delete where {
+                graph m-graph:Transactions {
+                    mt: ?p ?o .
+                }
+            }
+        """)
+
+        // log response
+        log.info("Delete transaction response:\n$dropResponseText")
+    }
 }
