@@ -9,6 +9,7 @@ import org.openmbee.flexo.mms.MMS
 import org.openmbee.flexo.mms.ServerBugException
 import org.openmbee.flexo.mms.parseConstructResponse
 import org.openmbee.flexo.mms.server.GenericRequest
+import org.openmbee.flexo.mms.server.LdpReadResponse
 import org.openmbee.flexo.mms.server.StorageAbstractionReadResponse
 import java.time.Instant
 import java.util.Base64
@@ -82,7 +83,7 @@ suspend fun decodeArtifact(artifact: Resource): DecodedArtifact {
     }
 }
 
-suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifacts(allArtifacts: Boolean?=false) {
+suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
     val constructString = buildSparqlQuery {
         construct {
             raw(SPARQL_BIND_ARTIFACT)

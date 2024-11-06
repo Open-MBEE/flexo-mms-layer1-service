@@ -31,6 +31,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             graph("mor-graph:Artifacts") {
                 raw("""
                     ?$SPARQL_VAR_NAME_ARTIFACT a mms:Artifact ;
+                        mms:id ${escapeLiteral(transactionId)} ;
                         mms:created ?_now ;
                         mms:createdBy mu: ;
                         mms:contentType ${escapeLiteral(requestBodyContentType)} ;
