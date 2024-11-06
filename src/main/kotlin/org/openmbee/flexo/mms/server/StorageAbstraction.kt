@@ -4,6 +4,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.Layer1Context
+import org.openmbee.flexo.mms.MethodNotAllowedException
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.triplesContentTypes
 
@@ -157,8 +158,10 @@ class StorageAbstractionRoute<TRequestContext: GenericRequest>(
     }
 
     // PATCH
-    fun patch(body: Layer1Handler<TRequestContext, StorageAbstractionPatchResponse>) {
-        super.delete(body, { StorageAbstractionPatchResponse(it) }, null)
+    fun patch(body: suspend Layer1Context<TRequestContext, StorageAbstractionPatchResponse>.(updateRequest: GenericRequest) -> Unit) {
+        super.patch(body, { StorageAbstractionPatchResponse(it) },) { updateRequest ->
+            throw MethodNotAllowedException()
+        }
     }
 
     // DELETE
