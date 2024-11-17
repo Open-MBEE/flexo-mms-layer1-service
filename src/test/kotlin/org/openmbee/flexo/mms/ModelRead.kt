@@ -20,7 +20,7 @@ class ModelRead : ModelAny() {
         }
 
         "head branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
                 httpHead("$masterBranchPath/graph") {}.apply {
@@ -31,7 +31,7 @@ class ModelRead : ModelAny() {
         }
 
         "get branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
 
             withTest {
                 httpGet("$masterBranchPath/graph") {}.apply {
@@ -51,7 +51,7 @@ class ModelRead : ModelAny() {
         }
 
         "head lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
             createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
@@ -63,7 +63,7 @@ class ModelRead : ModelAny() {
         }
 
         "get lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
+            loadModel(masterBranchPath, loadAliceRex)
             createLock(demoRepoPath, masterBranchPath, demoLockId)
 
             withTest {
