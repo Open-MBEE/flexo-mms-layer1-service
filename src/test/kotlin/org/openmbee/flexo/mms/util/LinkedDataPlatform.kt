@@ -432,9 +432,13 @@ class LinkedDataPlatformDirectContainerTests(
 
             withTest {
                 httpPatch(resourcePath) {
-                    setTurtleBody(withAllTestPrefixes("""
+                    setTurtleBody(
+                        withAllTestPrefixes(
+                            """
                         $PATCH_INSERT_TRIPLES
-                    """.trimIndent()))
+                    """.trimIndent()
+                        )
+                    )
                 }.apply {
                     validatePatchResponse(response)
                 }
@@ -446,11 +450,15 @@ class LinkedDataPlatformDirectContainerTests(
 
             withTest {
                 httpPatch(resourcePath) {
-                    setSparqlUpdateBody(withAllTestPrefixes("""
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes(
+                            """
                         insert data {
                             $PATCH_INSERT_TRIPLES
                         }
-                    """.trimIndent()))
+                    """.trimIndent()
+                        )
+                    )
                 }.apply {
                     validatePatchResponse(response)
                 }
@@ -462,14 +470,18 @@ class LinkedDataPlatformDirectContainerTests(
 
             withTest {
                 httpPatch(resourcePath) {
-                    setSparqlUpdateBody(withAllTestPrefixes("""
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes(
+                            """
                         insert {
                             $PATCH_INSERT_TRIPLES
                         }
                         where {
                             <> ?p ?o .
                         }
-                    """.trimIndent()))
+                    """.trimIndent()
+                        )
+                    )
                 }.apply {
                     validatePatchResponse(response)
                 }
@@ -481,16 +493,54 @@ class LinkedDataPlatformDirectContainerTests(
 
             withTest {
                 httpPatch(resourcePath) {
-                    setSparqlUpdateBody(withAllTestPrefixes("""
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes(
+                            """
                         insert {
                             $PATCH_INSERT_TRIPLES
                         }
                         where {
                             <> <urn:mms:never> <urn:mms:never> .
                         }
-                    """.trimIndent()))
+                    """.trimIndent()
+                        )
+                    )
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete" {
+            val createdBase = resourceCreator()     // This creates a tuple
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes(
+                            """
+                        delete data {
+                            <> mms:id <urn:mms:foo> .
+                        }
+                    """.trimIndent()
+                        )
+                    )
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.BadRequest
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert" {
+            val createdBase = resourceCreator()
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(withAllTestPrefixes("""
+                        insert data {
+                            <> mms:id <urn:mms:foo> .
+                        }
+                    """.trimIndent()))
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
