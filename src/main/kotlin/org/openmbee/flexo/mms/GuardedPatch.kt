@@ -15,7 +15,11 @@ import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
     return {
-        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
+        if(it.subject.isURI && it.subject.uri == subjectIri && it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)) {
+            throw Http400Exception("User not allowed to use IRIs in the namespace <${it.predicate.uri}>")
+        }
+
+        true
     }
 }
 
@@ -25,7 +29,7 @@ fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
             throw VariablesNotAllowedInUpdateException("subject")
         }
         else if(!it.subject.isURI || it.subject.uri != subjectIri) {
-            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
+            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evaluate ${it.subject}")
         }
         else if(it.predicate.isVariable) {
             throw VariablesNotAllowedInUpdateException("predicate")

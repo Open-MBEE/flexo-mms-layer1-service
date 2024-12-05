@@ -495,18 +495,16 @@ class LinkedDataPlatformDirectContainerTests(
             }
         }
 
-        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete" {
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete data" {
             val createdBase = resourceCreator()     // This creates a tuple
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
-                        withAllTestPrefixes(
-                            """
-                        delete data {
-                            <> mms:id <urn:mms:foo> .
-                        }
-                    """.trimIndent()
-                        )
+                        withAllTestPrefixes("""
+                            delete data {
+                                <> mms:id <urn:mms:foo> .
+                            }
+                        """.trimIndent())
                     )
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
@@ -514,7 +512,7 @@ class LinkedDataPlatformDirectContainerTests(
             }
         }
 
-        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert" {
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert data" {
             val createdBase = resourceCreator()
             withTest {
                 httpPatch(resourcePath) {
@@ -523,6 +521,66 @@ class LinkedDataPlatformDirectContainerTests(
                             <> mms:id <urn:mms:foo> .
                         }
                     """.trimIndent()))
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.BadRequest
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete pattern" {
+            val createdBase = resourceCreator()     // This creates a tuple
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes("""
+                            delete {
+                                <> mms:id <urn:mms:foo> .
+                            }
+                            where {
+                                ?s ?p ?o .
+                            }
+                        """.trimIndent())
+                    )
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.BadRequest
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert pattern" {
+            val createdBase = resourceCreator()     // This creates a tuple
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes("""
+                            insert {
+                                <> mms:id <urn:mms:foo> .
+                            }
+                            where {
+                                ?s ?p ?o .
+                            }
+                        """.trimIndent())
+                    )
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.BadRequest
+                }
+            }
+        }
+
+        "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete predicate variable" {
+            val createdBase = resourceCreator()     // This creates a tuple
+            withTest {
+                httpPatch(resourcePath) {
+                    setSparqlUpdateBody(
+                        withAllTestPrefixes("""
+                            delete {
+                                <> ?p <urn:mms:foo> .
+                            }
+                            where {
+                                ?s ?p ?o .
+                            }
+                        """.trimIndent())
+                    )
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
