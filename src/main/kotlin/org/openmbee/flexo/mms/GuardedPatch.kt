@@ -13,16 +13,6 @@ import org.openmbee.flexo.mms.server.LdpMutateResponse
 import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 
-fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
-    return {
-        if(it.subject.isURI && it.subject.uri == subjectIri && it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)) {
-            throw Http400Exception("User not allowed to use IRIs in the namespace <${it.predicate.uri}>")
-        }
-
-        true
-    }
-}
-
 fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
     return {
         if(it.subject.isVariable) {
@@ -65,14 +55,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     var whereString = ""
 
     // prepare quad filters
-    val dataFilter = quadDataFilter(baseIri)
     val patternFilter = quadPatternFilter(baseIri)
 
     // each operation
     for(update in sparqlUpdateAst.operations) {
         when(update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, dataFilter)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, dataFilter)
+            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, patternFilter)
             is UpdateDeleteWhere -> {
                 deleteBgpString = asSparqlGroup(update.quads, patternFilter)
                 whereString = deleteBgpString
