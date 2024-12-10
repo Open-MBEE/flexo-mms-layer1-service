@@ -41,7 +41,7 @@ jobs:
           name: Build stack and run tests
           shell: /bin/bash
           command: |
-            docker-compose -f src/test/resources/docker-compose.yml up -d quad-store-server
+            docker-compose -f src/test/resources/docker-compose.yml up
             docker build -t flexo-mms-test:latest -f Dockerfile-Test .
             docker run --network=flexo-mms-test-network --name flexo-mms-test-container flexo-mms-test:latest
             SIG_INT=$?
