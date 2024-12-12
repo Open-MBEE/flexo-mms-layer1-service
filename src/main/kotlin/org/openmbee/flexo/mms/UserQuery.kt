@@ -55,7 +55,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
                     union {
                         ?snapshot a mms:Staging .
                         filter not exists {
-                            ?commit ^mms:commit/mms:snapshot/a mms:Model .
+                            ?snapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
                 }
