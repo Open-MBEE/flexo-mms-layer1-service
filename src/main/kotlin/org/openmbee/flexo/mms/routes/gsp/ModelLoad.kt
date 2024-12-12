@@ -227,30 +227,30 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // compute the delta
     run {
         val selectQueryString = """
-                    select distinct ?srcGraph ?srcCommit {
-                        graph mor-graph:Metadata {
-                            # select the latest commit from the current named ref
-                            ?srcRef mms:commit ?srcCommit .
-                            
-                            # get the latest snapshot associated with the source commit
-                            ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                            {
-                                # prefer the model snapshot
-                                ?srcSnapshot a mms:Model ;
-                                    mms:graph ?srcGraph  .
-                            } union {
-                                # settle for staging...
-                                ?srcSnapshot a mms:Staging ;
-                                    mms:graph ?srcGraph .
-                                
-                                # ...if model is not available
-                                filter not exists {
-                                    ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
-                                }
-                            }
+            select distinct ?srcGraph ?srcCommit {
+                graph mor-graph:Metadata {
+                    # select the latest commit from the current named ref
+                    ?srcRef mms:commit ?srcCommit .
+
+                    # get the latest snapshot associated with the source commit
+                    ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                    {
+                        # prefer the model snapshot
+                        ?srcSnapshot a mms:Model ;
+                            mms:graph ?srcGraph  .
+                    } union {
+                        # settle for staging...
+                        ?srcSnapshot a mms:Staging ;
+                            mms:graph ?srcGraph .
+
+                        # ...if model is not available
+                        filter not exists {
+                            ?srcSnapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
-                """.trimIndent()
+                }
+            }
+        """.trimIndent()
 
         val selectResponseText = executeSparqlSelectOrAsk(selectQueryString) {
             prefixes(prefixes)
