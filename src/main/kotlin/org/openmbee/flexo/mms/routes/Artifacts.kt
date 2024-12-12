@@ -7,6 +7,7 @@ import org.openmbee.flexo.mms.assertPreconditions
 import org.openmbee.flexo.mms.processAndSubmitUserQuery
 import org.openmbee.flexo.mms.routes.ldp.getArtifactsMetadata
 import org.openmbee.flexo.mms.routes.ldp.patchArtifactsMetadata
+import org.openmbee.flexo.mms.routes.ldp.postArtifactMetadata
 import org.openmbee.flexo.mms.routes.store.createArtifact
 import org.openmbee.flexo.mms.routes.store.getArtifactsStore
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
@@ -87,6 +88,11 @@ fun Route.metadataArtifacts() {
         // read all artifacts
         get {
             getArtifactsMetadata(true)
+        }
+
+        // post arbitrary metadata
+        post {
+            postArtifactMetadata()
         }
 
         // method not allowed

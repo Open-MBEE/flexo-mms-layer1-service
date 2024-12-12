@@ -10,8 +10,10 @@ import java.util.*
 
 enum class UpdateOperationBlock(val id: String) {
     NONE(""),
-    DELETE("DELETE"),
     INSERT("INSERT"),
+    DELETE("DELETE"),
+    INSERT_DATA("INSERT_DATA"),
+    DELETE_DATA("DELETE_DATA"),
     WHERE("WHERE"),
 }
 
@@ -251,6 +253,10 @@ class InsertBuilder(
     }
 }
 
+class InsertDataBuilder(
+    layer1: AnyLayer1Context,
+    indentLevel: Int,
+): PatternBuilder<InsertDataBuilder>(layer1, indentLevel)
 
 class ConstructBuilder(
     private val layer1: AnyLayer1Context,
@@ -406,6 +412,22 @@ class UpdateBuilder(
             }
         """).apply {
             pendingInsertString = ""
+        }
+    }
+
+    fun insertData(setup: InsertDataBuilder.() -> Unit): UpdateBuilder {
+        if(operationCount++ > 0) raw(";")
+
+        previousBlock = UpdateOperationBlock.INSERT_DATA
+
+        return raw("""
+            insert data {
+                ${InsertDataBuilder(layer1, 4).apply{ setup() }}
+                
+                $pendingInsertDataString
+            }
+        """).apply {
+            pendingInsertDataString = ""
         }
     }
 

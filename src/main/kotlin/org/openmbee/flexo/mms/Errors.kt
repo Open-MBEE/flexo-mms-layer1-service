@@ -40,6 +40,8 @@ class InvalidQueryParameter(detail: String): Http400Exception("Request contains 
 
 class PreconditionsForbidden(detail: String): Http400Exception("Cannot use preconditions here: $detail")
 
+class BlankNodesNotAllowedException(detail: String=""): Http404Exception("Blank nodes not allowed here: $detail")
+
 
 open class Http403Exception(layer1: AnyLayer1Context, resource: String="(unspecified)"): HttpException("User ${layer1.userId} (${layer1.groups.joinToString(", ") { "<$it>" }}) is not authorized to perform specified action on resource: $resource", HttpStatusCode.Forbidden)
 
