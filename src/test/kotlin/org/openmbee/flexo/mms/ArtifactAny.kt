@@ -17,6 +17,7 @@ open class ArtifactAny : RefAny() {
             withTest {
                 httpPost("$artifactsPath/store") {
                     addHeader("Content-Type", "text/plain")
+                    addHeader("Content-Length", "3")
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
