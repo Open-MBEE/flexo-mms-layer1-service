@@ -12,6 +12,7 @@ import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ARTIFACT
 import org.openmbee.flexo.mms.server.GenericRequest
 import org.openmbee.flexo.mms.server.StorageAbstractionPostResponse
+import java.util.*
 
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionPostResponse>.createArtifact() {
     // forbid wildcards
@@ -45,10 +46,14 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         }
         storage = "mms:storePath ${escapeLiteral(path)}"
     } else {
-        // fully load request body
-        // TODO need to base64 encode non text body
-        val body = call.receiveText()
-        storage = "mms:body ${escapeLiteral(body)}"
+        if (requestBodyContentType.startsWith("text")) {
+            val body = call.receiveText()
+            storage = "mms:body ${escapeLiteral(body)}"
+        } else {
+            val body = Base64.getEncoder().encodeToString(call.receive<ByteArray>())
+            storage = "mms:body ${escapeLiteral(body)}^^xsd:base64Binary"
+
+        }
     }
     // create update SPARQL
     val updateString = buildSparqlUpdate {
