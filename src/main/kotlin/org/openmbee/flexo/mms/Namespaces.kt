@@ -302,7 +302,6 @@ object MMS {
     val parent = prop("parent")
     val data = prop("data")
     val body = prop("body")
-    val storePath = prop("storePath")
     val patch = prop("patch")
     val delete = prop("delete")
     val insert = prop("insert")

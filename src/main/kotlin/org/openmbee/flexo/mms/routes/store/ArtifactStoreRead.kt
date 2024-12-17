@@ -22,6 +22,7 @@ import java.util.zip.ZipOutputStream
 val SPARQL_BIND_ARTIFACT = """
     ?artifact a mms:Artifact ;
         mms:contentType ?contentType ;
+        mms:body ?body ;
         ?artifact_p ?artifact_o ;
         . 
 """
@@ -49,36 +50,18 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
     // parse
     val contentType = ContentType.parse(contentTypeString)
 
-    if (artifact.hasProperty(MMS.body)) {
-        // ready its body
-        val bodyProperty = artifact.getProperty(MMS.body).`object`
+    // ready its body
+    val bodyProperty = artifact.getProperty(MMS.body).`object`
 
-        // not a literal
-        if(!bodyProperty.isLiteral) {
-            throw ServerBugException("Artifact body must be a literal")
-        }
+    // not a literal
+    if(!bodyProperty.isLiteral && !bodyProperty.isURIResource) {
+        throw ServerBugException("Artifact body must be a literal or uri")
+    }
 
-        // as literal
-        val bodyLiteral = bodyProperty.asLiteral()
-
-        // route datatype
-        val datatype = bodyLiteral.datatype
-        return when(datatype.uri) {
-            // base64 binary
-            XSD.base64Binary.uri -> {
-                DecodedArtifact(contentType, bodyBinary = Base64.getDecoder().decode(bodyLiteral.string))
-            }
-            // plain UTF-8 string
-            XSD.xstring.uri -> {
-                DecodedArtifact(contentType, bodyText = bodyLiteral.string)
-            }
-            else -> {
-                throw ServerBugException("Artifact body has unrecognized datatype: ${datatype.uri}")
-            }
-        }
-    } else if (artifact.hasProperty(MMS.storePath)) {
+    if (bodyProperty.isURIResource) {
         var storeServiceUrl: String? = call.application.storeServiceUrl
-        val path = artifact.getProperty(MMS.storePath).`object`.asLiteral().string
+        // uri was stored as <urn:path>
+        val path = bodyProperty.asResource().uri.split(":")[1]
         val response: HttpResponse = defaultHttpClient.get("$storeServiceUrl/$path") {
             // Pass received authorization to internal service
             headers {
@@ -90,7 +73,24 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
         val bytes = response.readBytes()
         return DecodedArtifact(contentType, bodyBinary = bytes)
     }
-    throw ServerBugException("Invalid Artifact")
+    // as literal
+    val bodyLiteral = bodyProperty.asLiteral()
+
+    // route datatype
+    val datatype = bodyLiteral.datatype
+    return when(datatype.uri) {
+        // base64 binary
+        XSD.base64Binary.uri -> {
+            DecodedArtifact(contentType, bodyBinary = Base64.getDecoder().decode(bodyLiteral.string))
+        }
+        // plain UTF-8 string
+        XSD.xstring.uri -> {
+            DecodedArtifact(contentType, bodyText = bodyLiteral.string)
+        }
+        else -> {
+            throw ServerBugException("Artifact body has unrecognized datatype: ${datatype.uri}")
+        }
+    }
 }
 
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
