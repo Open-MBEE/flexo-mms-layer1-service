@@ -106,6 +106,8 @@ tasks {
         environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
         if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
             environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
+        if (System.getenv("FLEXO_MMS_ARTIFACT_USE_STORE") != null)
+            environment("FLEXO_MMS_ARTIFACT_USE_STORE", System.getenv("FLEXO_MMS_ARTIFACT_USE_STORE"))
     }
     /*
     register<Copy>("copy-test-fuseki-server") {

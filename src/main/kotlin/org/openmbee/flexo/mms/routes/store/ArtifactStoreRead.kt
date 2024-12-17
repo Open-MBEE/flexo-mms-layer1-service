@@ -63,13 +63,13 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
 
         // route datatype
         val datatype = bodyLiteral.datatype
-        return when(datatype) {
+        return when(datatype.uri) {
             // base64 binary
-            XSD.base64Binary -> {
+            XSD.base64Binary.uri -> {
                 DecodedArtifact(contentType, bodyBinary = Base64.getDecoder().decode(bodyLiteral.string))
             }
             // plain UTF-8 string
-            XSD.xstring -> {
+            XSD.xstring.uri -> {
                 DecodedArtifact(contentType, bodyText = bodyLiteral.string)
             }
             else -> {
