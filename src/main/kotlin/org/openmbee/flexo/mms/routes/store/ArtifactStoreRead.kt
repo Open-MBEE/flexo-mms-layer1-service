@@ -60,20 +60,22 @@ suspend fun decodeArtifact(artifact: Resource): DecodedArtifact {
 
     // route datatype
     val datatype = bodyLiteral.datatype
-    return when(datatype) {
+
+    // Need datatype.uri since datatype also includes the java class, making the comparison wrong
+    return when(datatype.uri) {
         // base64 binary
-        XSD.base64Binary -> {
+        XSD.base64Binary.toString() -> {
             DecodedArtifact(contentType, bodyBinary = Base64.getDecoder().decode(bodyLiteral.string))
         }
 
         // URI
-        XSD.anyURI -> {
+        XSD.anyURI.toString() -> {
             // TODO: fetch from S3
             DecodedArtifact(contentType, bodyBinary = ByteArray(0))
         }
 
         // plain UTF-8 string
-        XSD.xstring -> {
+        XSD.xstring.toString() -> {
             DecodedArtifact(contentType, bodyText = bodyLiteral.string)
         }
 
