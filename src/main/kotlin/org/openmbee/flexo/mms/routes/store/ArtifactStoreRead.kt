@@ -4,10 +4,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.XSD
-import org.openmbee.flexo.mms.Layer1Context
-import org.openmbee.flexo.mms.MMS
-import org.openmbee.flexo.mms.ServerBugException
-import org.openmbee.flexo.mms.parseConstructResponse
+import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.GenericRequest
 import org.openmbee.flexo.mms.server.LdpReadResponse
 import org.openmbee.flexo.mms.server.StorageAbstractionReadResponse
@@ -86,6 +83,11 @@ suspend fun decodeArtifact(artifact: Resource): DecodedArtifact {
 }
 
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
+    val localConditions = REPO_CRUD_CONDITIONS.append {
+        // require that the user has the ability to create objects on a repo-level scope
+        permit(Permission.READ_ARTIFACT, Scope.REPO)
+    }
+
     val constructString = buildSparqlQuery {
         construct {
             raw(SPARQL_BIND_ARTIFACT)
@@ -94,6 +96,8 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             graph("mor-graph:Artifacts") {
                 raw(SPARQL_BIND_ARTIFACT)
             }
+            // Add permissions
+            raw(*localConditions.requiredPatterns())
         }
     }
 

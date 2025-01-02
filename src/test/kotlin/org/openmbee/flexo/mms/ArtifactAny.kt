@@ -120,12 +120,13 @@ open class ArtifactAny : RefAny() {
             }
         }
 
+        // Tried this and pdf since for some reason I saw that was binary - not working, same as above
         // TODO: this isn't necessarily needed - I want to see if it's an xstring - ArtifactStoreRead.kt, line 77
-        "get an artifact by id - text with param" {
+        "get an artifact by id - BINARY?" {
             withTest{
                 httpPost("$artifactsPath/store") {
-                    addHeader("Content-Type", "text/plain; charset=utf-8")
-                    setBody("foo")
+                    addHeader("Content-Type", "application/octet-stream")
+                    setBody("foo".toByteArray())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
                     response.headers["Location"] shouldContain artifactsPath
