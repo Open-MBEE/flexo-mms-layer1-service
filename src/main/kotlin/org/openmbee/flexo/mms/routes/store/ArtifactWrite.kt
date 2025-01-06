@@ -44,7 +44,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                 }
             })
         }
-        storage = "mms:body <urn:${path}>"
+        storage = "mms:body ${escapeLiteral(path)}^^xsd:anyURI"
     } else {
         if (requestBodyContentType.startsWith("text")) {
             val body = call.receiveText()

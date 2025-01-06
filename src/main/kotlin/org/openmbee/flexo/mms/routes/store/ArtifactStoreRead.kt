@@ -54,25 +54,10 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
     val bodyProperty = artifact.getProperty(MMS.body).`object`
 
     // not a literal
-    if(!bodyProperty.isLiteral && !bodyProperty.isURIResource) {
-        throw ServerBugException("Artifact body must be a literal or uri")
+    if(!bodyProperty.isLiteral) {
+        throw ServerBugException("Artifact body must be a literal")
     }
 
-    if (bodyProperty.isURIResource) {
-        var storeServiceUrl: String? = call.application.storeServiceUrl
-        // uri was stored as <urn:path>
-        val path = bodyProperty.asResource().uri.split(":")[1]
-        val response: HttpResponse = defaultHttpClient.get("$storeServiceUrl/$path") {
-            // Pass received authorization to internal service
-            headers {
-                call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
-                    append(HttpHeaders.Authorization, auth)
-                }
-            }
-        }
-        val bytes = response.readBytes()
-        return DecodedArtifact(contentType, bodyBinary = bytes)
-    }
     // as literal
     val bodyLiteral = bodyProperty.asLiteral()
 
@@ -86,6 +71,20 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
         // plain UTF-8 string
         XSD.xstring.uri -> {
             DecodedArtifact(contentType, bodyText = bodyLiteral.string)
+        }
+        XSD.anyURI.uri -> {
+            var storeServiceUrl: String? = call.application.storeServiceUrl
+            val path = bodyLiteral.string
+            val response: HttpResponse = defaultHttpClient.get("$storeServiceUrl/$path") {
+                // Pass received authorization to internal service, this shouldn't be needed..
+                headers {
+                    call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
+                        append(HttpHeaders.Authorization, auth)
+                    }
+                }
+            }
+            val bytes = response.readBytes()
+            DecodedArtifact(contentType, bodyBinary = bytes)
         }
         else -> {
             throw ServerBugException("Artifact body has unrecognized datatype: ${datatype.uri}")
