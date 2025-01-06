@@ -80,177 +80,36 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // prepare IRI for named graph to hold loaded model
     val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
-    // now load triples into designated load graph
-    run {
-        // allow client to manually pass in URL to remote file
-        var loadUrl: String? = call.request.queryParameters["url"]
-        var storeServiceUrl: String? = call.application.storeServiceUrl
-
-        // client did not explicitly provide a URL and the store service is configured
-        if (loadUrl == null && storeServiceUrl != null) {
-            // submit a POST request to the store service endpoint
-            val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
-                // TODO: verify store service request is correct and complete
-                // Pass received authorization to internal service
-                headers {
-                    call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
-                        append(HttpHeaders.Authorization, auth)
-                    }
-                }
-                // stream request body from client to store service
-                // TODO: Handle exceptions
-                setBody(object : OutgoingContent.WriteChannelContent() {
-                    override val contentType = call.request.contentType()
-                    override val contentLength = call.request.contentLength() ?: 0L
-                    override suspend fun writeTo(channel: ByteWriteChannel) {
-                        call.request.receiveChannel().copyTo(channel)
-                    }
-                })
-            }
-
-            // read response body
-            val responseText = response.bodyAsText()
-
-            // non-200
-            if (!response.status.isSuccess()) {
-                throw Non200Response(responseText, response.status)
-            }
-
-            // set load URL
-            loadUrl = responseText
-        }
-
-        // a load URL has been set
-        if (loadUrl != null) {
-            // parse types the store service backend accepts
-            val acceptTypes = parseAcceptTypes(call.application.storeServiceAccepts)
-
-            // confirm that store service/load supports content-type
-            if (!acceptTypes.contains(requestContext.requestContentType)) {
-                throw UnsupportedMediaType("Store/LOAD backend does not support ${requestContext.responseContentType}")
-            }
-
-            // use SPARQL LOAD
-            val loadUpdateString = buildSparqlUpdate {
-                raw("""
-                    load ?_loadUrl into graph ?_loadGraph
-                """.trimIndent())
-            }
-
-            log("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
-
-            executeSparqlUpdate(loadUpdateString) {
-                prefixes(prefixes)
-
-                iri(
-                    "_loadUrl" to loadUrl,
-                    "_loadGraph" to loadGraphUri,
-                )
-            }
-
-            // exit load block
-            return@run
-        }
-
-        // GSP is configured; use it
-        if (call.application.quadStoreGraphStoreProtocolUrl != null) {
-            // parse types the gsp backend accepts
-            val acceptTypes = parseAcceptTypes(call.application.quadStoreGraphStoreProtocolAccepts)
-
-            // confirm that backend supports content-type
-            if (!acceptTypes.contains(requestContext.requestContentType)) {
-                throw UnsupportedMediaType("GSP backend does not support loading ${requestContext.responseContentType}")
-            }
-
-            // submit a PUT request to the quad-store's GSP endpoint
-            val response: HttpResponse = defaultHttpClient.put(call.application.quadStoreGraphStoreProtocolUrl!!) {
-                // add the graph query parameter per the GSP specification
-                parameter("graph", loadGraphUri)
-
-                // stream request body from client to GSP endpoint
-                setBody(object : OutgoingContent.WriteChannelContent() {
-                    // forward the header for the content type, or default to turtle
-                    override val contentType = requestContext.requestContentType
-
-                    override suspend fun writeTo(channel: ByteWriteChannel) {
-                        call.request.receiveChannel().copyTo(channel)
-                    }
-                })
-            }
-
-            // read response body
-            val responseText = response.bodyAsText()
-
-            // non-200
-            if (!response.status.isSuccess()) {
-                throw Non200Response(responseText, response.status)
-            }
-        }
-        // fallback to SPARQL UPDATE string
-        else {
-            // fully load request body
-            val body = call.receiveText()
-
-            // parse it into a model
-            val model = KModel(prefixes).apply {
-                parseRdfByContentType(requestContext.requestContentType!!, body, this)
-
-                // clear the prefix map so that stringified version uses full IRIs
-                clearNsPrefixMap()
-            }
-
-            // serialize model into turtle
-            val loadUpdateString = buildSparqlUpdate {
-                insert {
-                    // embed the model in a triples block within the update
-                    raw("""
-                        # user model
-                        graph ?_loadGraph {
-                            ${model.stringify()}
-                        }
-                    """)
-                }
-            }
-
-            // execute
-            executeSparqlUpdate(loadUpdateString) {
-                prefixes(prefixes)
-
-                iri(
-                    "_loadGraph" to loadGraphUri,
-                )
-            }
-        }
-    }
-
+    // load triples into designated load graph
+    loadGraph(loadGraphUri)
 
     // compute the delta
     run {
         val selectQueryString = """
-                    select distinct ?srcGraph ?srcCommit {
-                        graph mor-graph:Metadata {
-                            # select the latest commit from the current named ref
-                            ?srcRef mms:commit ?srcCommit .
-                            
-                            # get the latest snapshot associated with the source commit
-                            ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                            {
-                                # prefer the model snapshot
-                                ?srcSnapshot a mms:Model ;
-                                    mms:graph ?srcGraph  .
-                            } union {
-                                # settle for staging...
-                                ?srcSnapshot a mms:Staging ;
-                                    mms:graph ?srcGraph .
-                                
-                                # ...if model is not available
-                                filter not exists {
-                                    ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
-                                }
-                            }
+            select distinct ?srcGraph ?srcCommit {
+                graph mor-graph:Metadata {
+                    # select the latest commit from the current named ref
+                    ?srcRef mms:commit ?srcCommit .
+                    
+                    # get the latest snapshot associated with the source commit
+                    ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
+                    {
+                        # prefer the model snapshot
+                        ?srcSnapshot a mms:Model ;
+                            mms:graph ?srcGraph  .
+                    } union {
+                        # settle for staging...
+                        ?srcSnapshot a mms:Staging ;
+                            mms:graph ?srcGraph .
+                        
+                        # ...if model is not available
+                        filter not exists {
+                            ?srcCommit ^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
-                """.trimIndent()
+                }
+            }
+        """.trimIndent()
 
         val selectResponseText = executeSparqlSelectOrAsk(selectQueryString) {
             prefixes(prefixes)

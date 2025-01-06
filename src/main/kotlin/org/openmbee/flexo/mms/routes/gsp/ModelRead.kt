@@ -1,6 +1,5 @@
 package org.openmbee.flexo.mms.routes.gsp
 
-import com.concurrentli.ManagedMultiBlocker.block
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -11,6 +10,7 @@ import org.openmbee.flexo.mms.server.GspReadResponse
 enum class RefType {
     BRANCH,
     LOCK,
+    SCRATCH,
 }
 
 suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
@@ -20,6 +20,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         when(refType) {
             RefType.BRANCH -> branch()
             RefType.LOCK -> lock()
+            RefType.SCRATCH -> {}
         }
     }
 
@@ -37,25 +38,34 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
             when(refType) {
                 RefType.BRANCH -> auth(Permission.READ_BRANCH.scope.id, BRANCH_QUERY_CONDITIONS)
                 RefType.LOCK -> auth(Permission.READ_LOCK.scope.id, LOCK_QUERY_CONDITIONS)
+                RefType.SCRATCH -> auth(Permission.READ_REPO.scope.id, REPO_QUERY_CONDITIONS)
             }
 
-            raw("""
-                graph mor-graph:Metadata {
-                    ${when(refType) {
-                        RefType.BRANCH -> "morb:"
-                        RefType.LOCK -> "morl:"
-                    }} mms:commit/^mms:commit ?ref .
-                    
-                    ?ref mms:snapshot ?modelSnapshot .
-                    
-                    ?modelSnapshot a mms:Model ;
-                        mms:graph ?modelGraph .
+            if(refType == RefType.SCRATCH) {
+                graph("mor-graph:Scratch") {
+                    raw("?s ?p ?o")
                 }
-
-                graph ?modelGraph {
-                    ?s ?p ?o .
-                }
-            """)
+            }
+            else {
+                raw("""
+                    graph mor-graph:Metadata {
+                        ${when(refType) {
+                            RefType.BRANCH -> "morb:"
+                            RefType.LOCK -> "morl:"
+                            else -> "urn:mms:invalid"
+                        }} mms:commit/^mms:commit ?ref .
+                        
+                        ?ref mms:snapshot ?modelSnapshot .
+                        
+                        ?modelSnapshot a mms:Model ;
+                            mms:graph ?modelGraph .
+                    }
+    
+                    graph ?modelGraph {
+                        ?s ?p ?o .
+                    }
+                """)
+            }
         }
     }
 

@@ -40,54 +40,20 @@ fun Route.commitModel() {
             branch()
         }
 
-        // parse query
-        val sparqlUpdateAst = try {
-            UpdateFactory.create(requestContext.update)
-        } catch(parse: Exception) {
-            throw UpdateSyntaxException(parse)
-        }
+        val (
+            deleteBgpString,
+            insertBgpString,
+            whereString,
+        ) = parseUserUpdateString(requestContext.update)
+
+        log("Model commit update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
         var patchString = ""
-        var deleteBgpString = ""
-        var insertBgpString = ""
-        var whereString = ""
 
-        val operations = sparqlUpdateAst.operations
-
-        assertOperationsAllowed(operations)
-
-        for(update in operations) {
-            when(update) {
-                is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
-                is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
-                is UpdateDeleteWhere -> {
-                    deleteBgpString = asSparqlGroup(update.quads)
-                    whereString = deleteBgpString
-                }
-                is UpdateModify -> {
-                    if(update.hasDeleteClause()) {
-                        deleteBgpString = asSparqlGroup(update.deleteQuads)
-                    }
-
-                    if(update.hasInsertClause()) {
-                        insertBgpString = asSparqlGroup(update.insertQuads)
-                    }
-
-                    whereString = asSparqlGroup(update.wherePattern.apply {
-                        visit(NoQuadsElementVisitor)
-                    })
-                }
-                is UpdateAdd -> {
-
-                }
-                else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
-            }
-        }
-
-        if(whereString.isBlank()) {
+        if (whereString.isBlank()) {
             val patches = mutableListOf<String>()
 
-            if(deleteBgpString.isNotBlank()) {
+            if (deleteBgpString.isNotBlank()) {
                 patches.add("""
                     delete data {
                         graph ?__mms_model {
@@ -97,7 +63,7 @@ fun Route.commitModel() {
                 """.trimIndent())
             }
 
-            if(insertBgpString.isNotBlank()) {
+            if (insertBgpString.isNotBlank()) {
                 patches.add("""
                     insert data {
                         graph ?__mms_model {
@@ -108,9 +74,8 @@ fun Route.commitModel() {
             }
 
             patchString = patches.joinToString(" ; ")
-        }
-        else {
-            if(deleteBgpString.isNotBlank()) {
+        } else {
+            if (deleteBgpString.isNotBlank()) {
                 patchString += """
                     delete {
                         graph ?__mms_model {
@@ -120,7 +85,7 @@ fun Route.commitModel() {
                 """.trimIndent()
             }
 
-            if(insertBgpString.isNotBlank()) {
+            if (insertBgpString.isNotBlank()) {
                 patchString += """
                     insert {
                         graph ?__mms_model {
@@ -138,9 +103,6 @@ fun Route.commitModel() {
                 }
             """.trimIndent()
         }
-
-
-        log("Model commit update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
         val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
             if(whereString.isNotEmpty()) {

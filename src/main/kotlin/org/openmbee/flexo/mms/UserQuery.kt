@@ -1,7 +1,12 @@
 package org.openmbee.flexo.mms
 
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.utils.io.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -10,11 +15,16 @@ import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
+import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
+import org.apache.jena.update.UpdateFactory
+import org.openmbee.flexo.mms.routes.sparql.assertOperationsAllowed
+import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
+import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
@@ -29,6 +39,9 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
     var targetGraphIri = when(refIri) {
         prefixes["mor"] -> {
             "${prefixes["mor-graph"]}Metadata"
+        }
+        "${prefixes["mor-graph"]}Scratch" -> {
+            refIri
         }
         else -> {
             null
@@ -245,5 +258,219 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
     // unsupported query type
     else {
         throw Http400Exception("Query operation not supported")
+    }
+}
+
+
+/**
+ * Struct for parsed SPARQL UPDATE components
+ */
+data class UpdateContext(
+    var deleteBgpString: String = "",
+    var insertBgpString: String = "",
+    var whereString: String = "",
+)
+
+/**
+ * Parses a SPARQL UPDATE request from the user
+ */
+fun Layer1Context<SparqlUpdateRequest, *>.parseUserUpdateString(updateString: String?=null): UpdateContext {
+    // parse query
+    val sparqlUpdateAst = try {
+        UpdateFactory.create(updateString?: requestContext.update)
+    } catch (parse: Exception) {
+        throw UpdateSyntaxException(parse)
+    }
+
+    var deleteBgpString = ""
+    var insertBgpString = ""
+    var whereString = ""
+
+    val operations = sparqlUpdateAst.operations
+
+    assertOperationsAllowed(operations)
+
+    for (update in operations) {
+        when (update) {
+            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
+            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
+            is UpdateDeleteWhere -> {
+                deleteBgpString = asSparqlGroup(update.quads)
+                whereString = deleteBgpString
+            }
+
+            is UpdateModify -> {
+                if (update.hasDeleteClause()) {
+                    deleteBgpString = asSparqlGroup(update.deleteQuads)
+                }
+
+                if (update.hasInsertClause()) {
+                    insertBgpString = asSparqlGroup(update.insertQuads)
+                }
+
+                whereString = asSparqlGroup(update.wherePattern.apply {
+                    visit(NoQuadsElementVisitor)
+                })
+            }
+
+            is UpdateAdd -> {
+                throw UpdateOperationNotAllowedException("SPARQL ADD not allowed here")
+            }
+
+            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+        }
+    }
+
+
+    return UpdateContext(
+        deleteBgpString = deleteBgpString,
+        insertBgpString = insertBgpString,
+        whereString = whereString,
+    )
+}
+
+
+/**
+ * Takes a Graph Store Protocol load request and forwards it to Layer 0
+ */
+suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
+    // allow client to manually pass in URL to remote file
+    var loadUrl: String? = call.request.queryParameters["url"]
+    val storeServiceUrl: String? = call.application.storeServiceUrl
+
+    // client did not explicitly provide a URL and the store service is configured
+    if (loadUrl == null && storeServiceUrl != null) {
+        // submit a POST request to the store service endpoint
+        val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
+            // TODO: verify store service request is correct and complete
+            // Pass received authorization to internal service
+            headers {
+                call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
+                    append(HttpHeaders.Authorization, auth)
+                }
+            }
+            // stream request body from client to store service
+            // TODO: Handle exceptions
+            setBody(object : OutgoingContent.WriteChannelContent() {
+                override val contentType = call.request.contentType()
+                override val contentLength = call.request.contentLength() ?: 0L
+                override suspend fun writeTo(channel: ByteWriteChannel) {
+                    call.request.receiveChannel().copyTo(channel)
+                }
+            })
+        }
+
+        // read response body
+        val responseText = response.bodyAsText()
+
+        // non-200
+        if (!response.status.isSuccess()) {
+            throw Non200Response(responseText, response.status)
+        }
+
+        // set load URL
+        loadUrl = responseText
+    }
+
+    // a load URL has been set
+    if (loadUrl != null) {
+        // parse types the store service backend accepts
+        val acceptTypes = parseAcceptTypes(call.application.storeServiceAccepts)
+
+        // confirm that store service/load supports content-type
+        if (!acceptTypes.contains(requestContext.requestContentType)) {
+            throw UnsupportedMediaType("Store/LOAD backend does not support ${requestContext.responseContentType}")
+        }
+
+        // use SPARQL LOAD
+        val loadUpdateString = buildSparqlUpdate {
+            raw("""
+                load ?_loadUrl into graph ?_loadGraph
+            """)
+        }
+
+        log("Loading <$loadUrl> into <$loadGraphUri> via: `$loadUpdateString`")
+
+        executeSparqlUpdate(loadUpdateString) {
+            prefixes(prefixes)
+
+            iri(
+                "_loadUrl" to loadUrl,
+                "_loadGraph" to loadGraphUri,
+            )
+        }
+
+        // exit
+        return
+    }
+
+    // GSP is configured; use it
+    if (call.application.quadStoreGraphStoreProtocolUrl != null) {
+        // parse types the gsp backend accepts
+        val acceptTypes = parseAcceptTypes(call.application.quadStoreGraphStoreProtocolAccepts)
+
+        // confirm that backend supports content-type
+        if (!acceptTypes.contains(requestContext.requestContentType)) {
+            throw UnsupportedMediaType("GSP backend does not support loading ${requestContext.responseContentType}")
+        }
+
+        // submit a PUT request to the quad-store's GSP endpoint
+        val response: HttpResponse = defaultHttpClient.put(call.application.quadStoreGraphStoreProtocolUrl!!) {
+            // add the graph query parameter per the GSP specification
+            parameter("graph", loadGraphUri)
+
+            // stream request body from client to GSP endpoint
+            setBody(object : OutgoingContent.WriteChannelContent() {
+                // forward the header for the content type, or default to turtle
+                override val contentType = requestContext.requestContentType
+
+                override suspend fun writeTo(channel: ByteWriteChannel) {
+                    call.request.receiveChannel().copyTo(channel)
+                }
+            })
+        }
+
+        // read response body
+        val responseText = response.bodyAsText()
+
+        // non-200
+        if (!response.status.isSuccess()) {
+            throw Non200Response(responseText, response.status)
+        }
+    }
+    // fallback to SPARQL UPDATE string
+    else {
+        // fully load request body
+        val body = call.receiveText()
+
+        // parse it into a model
+        val model = KModel(prefixes).apply {
+            parseRdfByContentType(requestContext.requestContentType!!, body, this)
+
+            // clear the prefix map so that stringified version uses full IRIs
+            clearNsPrefixMap()
+        }
+
+        // serialize model into turtle
+        val loadUpdateString = buildSparqlUpdate {
+            insert {
+                // embed the model in a triples block within the update
+                raw("""
+                    # user model
+                    graph ?_loadGraph {
+                        ${model.stringify()}
+                    }
+                """)
+            }
+        }
+
+        // execute
+        executeSparqlUpdate(loadUpdateString) {
+            prefixes(prefixes)
+
+            iri(
+                "_loadGraph" to loadGraphUri,
+            )
+        }
     }
 }

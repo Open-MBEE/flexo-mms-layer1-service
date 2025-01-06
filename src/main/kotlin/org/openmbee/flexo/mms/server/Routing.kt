@@ -99,6 +99,9 @@ fun Application.configureRouting() {
             metadataArtifacts()
             queryArtifacts()
 
+            crudScratch()
+            queryScratch()
+
             crudModel()
 
             crudCollections()
