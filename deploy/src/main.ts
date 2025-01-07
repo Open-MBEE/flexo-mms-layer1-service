@@ -321,6 +321,7 @@ ds_writer.write({
 					]
 				},
 				Collection: {},
+				Artifact: {},
 				Ref: {
 					implies: [
 						'Branch',
@@ -435,7 +436,6 @@ ds_writer.write({
 							implies: [
 								'ReadRepo',
 								'UpdateRef',
-								'UpdateArtifact',  // PATCH for updating artifact metadata
 							],
 						},
 						Delete: {
