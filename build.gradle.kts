@@ -96,7 +96,7 @@ dependencies {
 tasks {
     test {
         useJUnitPlatform()
-        dependsOn("copy-test-fuseki-server")
+        //dependsOn("copy-test-fuseki-server")
         this.testLogging {
             this.showStandardStreams = true
         }
@@ -106,12 +106,16 @@ tasks {
         environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
         if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
             environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
+        if (System.getenv("FLEXO_MMS_ARTIFACT_USE_STORE") != null)
+            environment("FLEXO_MMS_ARTIFACT_USE_STORE", System.getenv("FLEXO_MMS_ARTIFACT_USE_STORE"))
     }
+    /*
     register<Copy>("copy-test-fuseki-server") {
         // Copy fuseki-server jar to known location (build/test-fuseki-server)
         from(testFuseki.resolvedConfiguration.files)
         destinationDir = project.buildDir.resolve("test-fuseki-server")
     }
+    */
 }
 tasks.test {
     finalizedBy(tasks.jacocoTestReport) // report is always generated after tests run

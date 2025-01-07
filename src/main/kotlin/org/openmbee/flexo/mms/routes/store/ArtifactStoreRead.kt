@@ -1,13 +1,16 @@
 package org.openmbee.flexo.mms.routes.store
 
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.utils.io.*
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.XSD
-import org.openmbee.flexo.mms.Layer1Context
-import org.openmbee.flexo.mms.MMS
-import org.openmbee.flexo.mms.ServerBugException
-import org.openmbee.flexo.mms.parseConstructResponse
+import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.GenericRequest
 import org.openmbee.flexo.mms.server.LdpReadResponse
 import org.openmbee.flexo.mms.server.StorageAbstractionReadResponse
@@ -21,7 +24,7 @@ val SPARQL_BIND_ARTIFACT = """
         mms:contentType ?contentType ;
         mms:body ?body ;
         ?artifact_p ?artifact_o ;
-        .    
+        . 
 """
 
 data class DecodedArtifact(
@@ -40,7 +43,7 @@ data class DecodedArtifact(
         get() = bodyBinary ?: bodyText!!.toByteArray()
 }
 
-suspend fun decodeArtifact(artifact: Resource): DecodedArtifact {
+suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.decodeArtifact(artifact: Resource): DecodedArtifact {
     // read its content type
     val contentTypeString = artifact.getProperty(MMS.contentType).`object`.asLiteral().string
 
@@ -60,23 +63,29 @@ suspend fun decodeArtifact(artifact: Resource): DecodedArtifact {
 
     // route datatype
     val datatype = bodyLiteral.datatype
-    return when(datatype) {
+    return when(datatype.uri) {
         // base64 binary
-        XSD.base64Binary -> {
+        XSD.base64Binary.uri -> {
             DecodedArtifact(contentType, bodyBinary = Base64.getDecoder().decode(bodyLiteral.string))
         }
-
-        // URI
-        XSD.anyURI -> {
-            // TODO: fetch from S3
-            DecodedArtifact(contentType, bodyBinary = ByteArray(0))
-        }
-
         // plain UTF-8 string
-        XSD.xstring -> {
+        XSD.xstring.uri -> {
             DecodedArtifact(contentType, bodyText = bodyLiteral.string)
         }
-
+        XSD.anyURI.uri -> {
+            var storeServiceUrl: String? = call.application.storeServiceUrl
+            val path = bodyLiteral.string
+            val response: HttpResponse = defaultHttpClient.get("$storeServiceUrl/$path") {
+                // Pass received authorization to internal service, this shouldn't be needed..
+                headers {
+                    call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
+                        append(HttpHeaders.Authorization, auth)
+                    }
+                }
+            }
+            val bytes = response.readBytes()
+            DecodedArtifact(contentType, bodyBinary = bytes)
+        }
         else -> {
             throw ServerBugException("Artifact body has unrecognized datatype: ${datatype.uri}")
         }
