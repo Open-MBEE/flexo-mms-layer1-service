@@ -254,6 +254,7 @@ ds_writer.write({
 					super: 'Lock',
 				},
 				Artifact: {},
+				Scratch: {},
 
 				Snapshot: {},
 				Model: {
@@ -318,8 +319,11 @@ ds_writer.write({
 					implies: [
 						'Ref',
 						'Artifact',
+						'Scratch',
 					]
 				},
+				Artifact: {},
+				Scratch: {},
 				Collection: {},
 				Ref: {
 					implies: [
@@ -447,6 +451,8 @@ ds_writer.write({
 								'DeleteArtifact',
 								'CreateDiff',
 								'DeleteDiff',
+								'CreateScratch',
+								'DeleteScratch',
 							],
 						},
 					},
@@ -482,6 +488,10 @@ ds_writer.write({
 				},
 
 				Artifact: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Scratch: {
 					crud: H_CRUD_DEFAULT,
 				},
 

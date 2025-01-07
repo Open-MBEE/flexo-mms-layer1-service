@@ -7,15 +7,40 @@ import org.openmbee.flexo.mms.loadGraph
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.routes.gsp.readModel
 import org.openmbee.flexo.mms.server.graphStoreProtocol
+import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
+const val SPARQL_VAR_NAME_SCRATCH = "_scratch"
 
-const val SCRATCH_PATH = "/orgs/{orgId}/repos/{repoId}/scratch"
+const val SCRATCHES_PATH = "/orgs/{orgId}/repos/{repoId}/scratches"
 
 /**
  * Scratch CRUD routing
  */
 fun Route.crudScratch() {
-    graphStoreProtocol("$SCRATCH_PATH/graph") {
+    // all scratches
+    linkedDataPlatformDirectContainer(SCRATCHES_PATH) {
+        // state of all scratches
+        head {
+            headScratches(true)
+        }
+
+        // read all scratches
+        get {
+            getScratches(true)
+        }
+
+        // create a new scratch
+        post { slug ->
+            // set org id on context
+            scratchId = slug
+
+            // create new org
+            createOrReplaceScratch()
+        }
+    }
+
+    // GSP specific scratch
+    graphStoreProtocol("$SCRATCHES_PATH/{scratchId}/graph") {
         // 5.6 HEAD: check state of scratch graph
         head {
             readModel(RefType.SCRATCH)
@@ -29,7 +54,7 @@ fun Route.crudScratch() {
         // 5.3 PUT: overwrite (load)
         put {
             // load triples directly into mor-graph:Scratch
-            loadGraph("${prefixes["mor-graph"]}Scratch")
+            loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId")
 
             // close response
             call.respondText("", status = HttpStatusCode.NoContent)
@@ -50,6 +75,6 @@ fun Route.crudScratch() {
 //
 //        }
 
-        otherwiseNotAllowed("scratch")
+        otherwiseNotAllowed("scratches")
     }
 }

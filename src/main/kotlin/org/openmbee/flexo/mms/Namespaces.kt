@@ -93,11 +93,12 @@ fun prefixesFor(
     orgId: String?=null,
     collectionId: String?=null,
     repoId: String?=null,
-    refId: String?=null,
-    branchId: String?=null,
     commitId: String?=null,
-    lockId: String?=null,
     artifactId: String?=null,
+    refId: String?=null,
+    lockId: String?=null,
+    branchId: String?=null,
+    scratchId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
     policyId: String?=null,
@@ -208,6 +209,17 @@ fun prefixesFor(
                         else {
                             add("mora" to MMS_URNS.never)
                         }
+
+                        if(null != scratchId) {
+                            with("$this/scratches/$scratchId") {
+                                add(
+                                    "mors" to this,
+                                )
+                            }
+                        }
+                        else {
+                            add("mors" to MMS_URNS.never)
+                        }
                     }
                 }
             }
@@ -248,6 +260,7 @@ object MMS {
     val Lock = res("Lock")
     val Diff = res("Diff")
     val Artifact = res("Artifact")
+    val Scratch = res("Scratch")
 
     val User = res("User")
     val Group = res("Group")

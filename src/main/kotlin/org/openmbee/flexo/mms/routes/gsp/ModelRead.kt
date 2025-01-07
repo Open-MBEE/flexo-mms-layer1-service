@@ -20,7 +20,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         when(refType) {
             RefType.BRANCH -> branch()
             RefType.LOCK -> lock()
-            RefType.SCRATCH -> {}
+            RefType.SCRATCH -> scratch()
         }
     }
 
@@ -42,7 +42,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
             }
 
             if(refType == RefType.SCRATCH) {
-                graph("mor-graph:Scratch") {
+                graph("mor-graph:Scratch.$scratchId") {
                     raw("?s ?p ?o")
                 }
             }

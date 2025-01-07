@@ -6,7 +6,7 @@ import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.REPO_QUERY_CONDITIONS
 import org.openmbee.flexo.mms.parseUserUpdateString
 import org.openmbee.flexo.mms.processAndSubmitUserQuery
-import org.openmbee.flexo.mms.routes.SCRATCH_PATH
+import org.openmbee.flexo.mms.routes.SCRATCHES_PATH
 import org.openmbee.flexo.mms.server.sparqlQuery
 import org.openmbee.flexo.mms.server.sparqlUpdate
 
@@ -15,7 +15,7 @@ import org.openmbee.flexo.mms.server.sparqlUpdate
  * User submitted SPARQL Query to a scratch space
  */
 fun Route.queryScratch() {
-    sparqlQuery("$SCRATCH_PATH/query") {
+    sparqlQuery("$SCRATCHES_PATH/query") {
         parsePathParams {
             org()
             repo()
@@ -26,7 +26,7 @@ fun Route.queryScratch() {
         processAndSubmitUserQuery(requestContext, "${prefixes["mor-graph"]}Scratch", REPO_QUERY_CONDITIONS)
     }
 
-    sparqlUpdate("$SCRATCH_PATH/update") {
+    sparqlUpdate("$SCRATCHES_PATH/update") {
         parsePathParams {
             org()
             repo()

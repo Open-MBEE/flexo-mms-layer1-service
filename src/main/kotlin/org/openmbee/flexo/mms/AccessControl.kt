@@ -17,6 +17,7 @@ enum class Scope(val type: String, val id: String, vararg val extras: String) {
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morl"),
     ARTIFACT("Artifact", "mora"),
+    SCRATCH("Scratch", "mors"),
     DIFF("Diff", "mord"),
 
     ACCESS_CONTROL_ANY("AccessControl", "ma", "ma:Agents", "ma:Policies"),
@@ -66,9 +67,14 @@ enum class Permission(
     DELETE_LOCK(Crud.DELETE, Scope.LOCK),
 
     CREATE_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
-    READ_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
-    UPDATE_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
-    DELETE_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
+    READ_ARTIFACT(Crud.READ, Scope.ARTIFACT),
+    UPDATE_ARTIFACT(Crud.UPDATE, Scope.ARTIFACT),
+    DELETE_ARTIFACT(Crud.DELETE, Scope.ARTIFACT),
+
+    CREATE_SCRATCH(Crud.CREATE, Scope.SCRATCH),
+    READ_SCRATCH(Crud.READ, Scope.SCRATCH),
+    UPDATE_SCRATCH(Crud.UPDATE, Scope.SCRATCH),
+    DELETE_SCRATCH(Crud.DELETE, Scope.SCRATCH),
 
     CREATE_DIFF(Crud.CREATE, Scope.DIFF),
     READ_DIFF(Crud.READ, Scope.DIFF),
@@ -95,6 +101,7 @@ enum class Role(val id: String) {
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),
     ADMIN_BRANCH("AdminBranch"),
+    ADMIN_SCRATCH("AdminScratch"),
     ADMIN_DIFF("AdminDiff"),
     ADMIN_GROUP("AdminGroup"),
     ADMIN_POLICY("AdminPolicy"),
