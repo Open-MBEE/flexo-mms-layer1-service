@@ -38,7 +38,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
             when(refType) {
                 RefType.BRANCH -> auth(Permission.READ_BRANCH.scope.id, BRANCH_QUERY_CONDITIONS)
                 RefType.LOCK -> auth(Permission.READ_LOCK.scope.id, LOCK_QUERY_CONDITIONS)
-                RefType.SCRATCH -> auth(Permission.READ_REPO.scope.id, REPO_QUERY_CONDITIONS)
+                RefType.SCRATCH -> auth(Permission.READ_SCRATCH.scope.id, SCRATCH_QUERY_CONDITIONS)
             }
 
             if(refType == RefType.SCRATCH) {
