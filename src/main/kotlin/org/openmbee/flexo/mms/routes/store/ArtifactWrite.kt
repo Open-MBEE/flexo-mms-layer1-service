@@ -136,6 +136,9 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
     // set location header
     call.response.headers.append(HttpHeaders.Location, artifactIri)
 
+    // Can't get just the content-type without the parameter, need to parse manually
+    call.response.headers.append(HttpHeaders.ContentType, call.request.contentType().toString().split(";")[0])
+
 //    // response in the requested format
 //    call.respondText(constructModel.stringify(), RdfContentTypes.Turtle, HttpStatusCode.Created)
 
