@@ -202,7 +202,7 @@ fun prefixesFor(
 object MMS {
     private val BASE = SPARQL_PREFIXES["mms"]!!
     val uri = BASE
-    
+
     private fun res(id: String): Resource {
         return ResourceFactory.createResource("${BASE}${id}")
     }
@@ -234,7 +234,7 @@ object MMS {
 
     // object properties
     val id  = ResourceFactory.createProperty(BASE, "id")
-    
+
     private fun prop(id: String): Property {
         return ResourceFactory.createProperty(BASE, id)
     }
@@ -259,7 +259,7 @@ object MMS {
     // access control properties
     val implies = prop("implies")
 
-
+    val defaultBranchId = prop("defaultBranchId")
     val srcRef = prop("srcRef")
     val dstRef = prop("dstRef")
 

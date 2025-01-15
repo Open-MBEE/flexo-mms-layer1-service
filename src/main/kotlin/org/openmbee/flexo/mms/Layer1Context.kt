@@ -94,6 +94,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var commitId: String = transactionId
     var lockId: String? = null
     var branchId: String? = null
+    var defaultBranchId = DEFAULT_BRANCH_ID
     var diffId: String? = null
     var policyId: String? = null
 
@@ -180,6 +181,10 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                     throw Http404Exception(call.request.path())
                 } else true
             } else false
+        }
+
+        fun defaultBranchId() {
+            defaultBranchId = call.parameters["defaultBranchId"]?: DEFAULT_BRANCH_ID
         }
     }
 
