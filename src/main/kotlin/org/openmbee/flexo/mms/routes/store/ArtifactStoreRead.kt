@@ -15,7 +15,7 @@ import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-val SPARQL_BIND_ARTIFACT = """
+const val SPARQL_BIND_ARTIFACT = """
     ?artifact a mms:Artifact ;
         mms:contentType ?contentType ;
         mms:body ?body ;
@@ -91,8 +91,10 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
     val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
 
+    // build the construct query
     val constructString = buildSparqlQuery {
         construct {
+            // output auth info and artifact bindings
             raw("""
                 $authorizedIri <${MMS_URNS.PREDICATE.policy}> ?__mms_authMethod .
                 
@@ -100,20 +102,23 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             """)
         }
         where {
+            // set authentication parameters
             auth(Permission.READ_ARTIFACT.scope.id, ARTIFACT_QUERY_CONDITIONS)
 
+            // provide artifact bind pattern
             graph("mor-graph:Artifacts") {
                 raw(SPARQL_BIND_ARTIFACT)
             }
         }
     }
 
+    // finalize construct query and execute
     val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
         acceptReplicaLag = true
 
         prefixes(prefixes)
 
-        // single artifact
+        // single artifact; replace the ?artifact variable with the target IRI
         if(allArtifacts == false) {
             iri(
                 "artifact" to prefixes["mora"]!!
@@ -121,6 +126,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         }
     }
 
+    // missing authorized IRI, auth failed
     if(!constructResponseText.contains(authorizedIri)) {
         log("Rejecting unauthorized request with 404\n${constructResponseText}")
 
