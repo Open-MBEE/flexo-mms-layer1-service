@@ -1,21 +1,17 @@
 package org.openmbee.flexo.mms.routes.store
 
-import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
-import io.ktor.utils.io.*
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.GenericRequest
-import org.openmbee.flexo.mms.server.LdpReadResponse
 import org.openmbee.flexo.mms.server.StorageAbstractionReadResponse
 import java.time.Instant
-import java.util.Base64
+import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -93,11 +89,19 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
 }
 
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
+    val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
+
     val constructString = buildSparqlQuery {
         construct {
-            raw(SPARQL_BIND_ARTIFACT)
+            raw("""
+                $authorizedIri <${MMS_URNS.PREDICATE.policy}> ?__mms_authMethod .
+                
+                $SPARQL_BIND_ARTIFACT
+            """)
         }
         where {
+            auth(Permission.READ_ARTIFACT.scope.id, ARTIFACT_QUERY_CONDITIONS)
+
             graph("mor-graph:Artifacts") {
                 raw(SPARQL_BIND_ARTIFACT)
             }
@@ -105,6 +109,8 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
     }
 
     val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
+        acceptReplicaLag = true
+
         prefixes(prefixes)
 
         // single artifact
@@ -112,6 +118,17 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             iri(
                 "artifact" to prefixes["mora"]!!
             )
+        }
+    }
+
+    if(!constructResponseText.contains(authorizedIri)) {
+        log("Rejecting unauthorized request with 404\n${constructResponseText}")
+
+        if(call.application.glomarResponse) {
+            throw Http404Exception(call.request.path())
+        }
+        else {
+            throw Http403Exception(this, call.request.path())
         }
     }
 
