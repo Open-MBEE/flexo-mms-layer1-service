@@ -155,6 +155,9 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             ZipOutputStream(this).use { stream ->
                 // each artifact
                 for (artifactResource in model.listSubjects()) {
+                    if (artifactResource.toString().startsWith("urn:mms:auth")){
+                        continue
+                    }
                     // decode artifact
                     val decoded = decodeArtifact(artifactResource)
 

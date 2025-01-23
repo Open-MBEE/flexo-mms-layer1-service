@@ -2,12 +2,14 @@ package org.openmbee.flexo.mms
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.string.shouldMatch
 import io.ktor.http.*
+import io.ktor.server.application.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
-
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 open class ArtifactAny : RefAny() {
     override val logger = LoggerFactory.getLogger(LockAny::class.java)
@@ -66,19 +68,23 @@ open class ArtifactAny : RefAny() {
                     addHeader("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
+                    val locationFile1 =  response.headers["Location"]?.split("/")?.last()
                     httpPost("$artifactsPath/store") {
                         addHeader("Content-Type", "text/plain")
                         setBody("bar")
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.Created
-                        response.headers["Location"] shouldContain artifactsPath
-
-                        val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
-                        httpGet(uri) {
+                        val locationFile2 =  response.headers["Location"]?.split("/")?.last()
+                        httpGet("$artifactsPath/store") {
                         }.apply {
                             response shouldHaveStatus HttpStatusCode.OK
                             response.contentType() shouldBe ContentType.Application.Zip
-//                            response shouldHaveContent "foo"
+
+                            val zipBytes = response.byteContent ?: throw IllegalStateException("Response byteContent is null")
+                            val contents = readZipContents(zipBytes)
+                            contents.size shouldBe 2
+                            contents["$locationFile1.cc"] shouldBe "foo"
+                            contents["$locationFile2.cc"] shouldBe "bar"
+
                         }
                     }
                 }
@@ -141,9 +147,7 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        // Should be binary according to line 49, ArtifactWrite.kt - content-type is not text/...
-        // TODO: this isn't necessarily needed - I want to see if it's an xstring - ArtifactStoreRead.kt, line 77
-        "get an artifact by id - BINARY?" {
+        "get an artifact by id - binary" {
             withTest{
                 httpPost("$artifactsPath/store") {
                     addHeader("Content-Type", "application/octet-stream")
@@ -156,17 +160,34 @@ open class ArtifactAny : RefAny() {
                     httpGet(uri) {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType() shouldBe ContentType.Text.Plain
-                        //response shouldHaveContent "foo"
+                        response.contentType() shouldBe ContentType.Application.OctetStream
+                        response shouldHaveContent "foo"
                     }
                 }
             }
         }
 
-        // TODO: the URI test - needs work for that in the backend, not an option in ArtifactWrite
+        // TODO: the URI test - not an option in ArtifactWrite
+        "get an artifact by id - URI" {
+            withTest{
+                httpPost("$artifactsPath/store") {
+                    addHeader("Content-Type", "test/plain")
+//                    addHeader("Application", "")
+                    setBody("foo")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.Created
+                    response.headers["Location"] shouldContain artifactsPath
 
-        // Copy the above one for head, and test get for URI and Binary types of bodies - return when
-        // statement in ArtifactStoreRead.kt
+                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
+                    httpGet(uri) {
+                    }.apply {
+                        response shouldHaveStatus HttpStatusCode.OK
+                        response.contentType() shouldBe ContentType.Application.OctetStream
+                        response shouldHaveContent "foo"
+                    }
+                }
+            }
+        }
 
         "put getting an artifact failing" {
             withTest{
@@ -224,3 +245,20 @@ open class ArtifactAny : RefAny() {
     }
 }
 
+fun readZipContents(zipBytes: ByteArray): Map<String, String> {
+    val contents = mutableMapOf<String, String>()
+    ZipInputStream(ByteArrayInputStream(zipBytes)).use { zipInputStream ->
+        var entry: ZipEntry? = zipInputStream.nextEntry
+        while (entry != null) {
+            if (!entry.isDirectory) {
+                val fileName = entry.name
+                // Read the content of the current entry as a String
+                val fileContent = zipInputStream.bufferedReader(Charsets.UTF_8).readText()
+                contents[fileName] = fileContent
+            }
+            zipInputStream.closeEntry() // Close the current entry
+            entry = zipInputStream.nextEntry // Move to the next entry
+        }
+    }
+    return contents
+}
