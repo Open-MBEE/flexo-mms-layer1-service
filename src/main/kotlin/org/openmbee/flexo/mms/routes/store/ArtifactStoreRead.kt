@@ -101,6 +101,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             graph("mor-graph:Artifacts") {
                 raw(SPARQL_BIND_ARTIFACT)
             }
+            raw(permittedActionSparqlBgp(Permission.READ_ARTIFACT, Scope.REPO))
         }
     }
 

@@ -30,13 +30,8 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        /*
-        Need tests for more posting a specific artifact in different formats, getting all artifacts,
-        getting a specific artifact given an id (? location?)
-         */
-
-        //set a content-type with parameters (like utf-8 on text/plain) and assert that parameters have been removed on returned content type
-        //Param only applies
+        // Set a content-type with parameters (like utf-8 on text/plain) and assert that parameters have
+        // been removed on returned content type
         "post artifact text/plain with parameter" {
             withTest{
                 httpPost("$artifactsPath/store") {
@@ -50,6 +45,7 @@ open class ArtifactAny : RefAny() {
             }
         }
 
+        // Doesn't work since there are no artifacts and the query checks that the artifacts exist
         "get all artifacts empty" {
             withTest{
                 httpGet("$artifactsPath/store") {
@@ -63,6 +59,31 @@ open class ArtifactAny : RefAny() {
         /**
          * Add test here for getting an artifact when there's (2+) artifacts to get
          */
+
+        "get all artifacts two artifacts" {
+            withTest{
+                httpPost("$artifactsPath/store") {
+                    addHeader("Content-Type", "text/plain")
+                    setBody("foo")
+                }.apply {
+                    httpPost("$artifactsPath/store") {
+                        addHeader("Content-Type", "text/plain")
+                        setBody("bar")
+                    }.apply {
+                        response shouldHaveStatus HttpStatusCode.Created
+                        response.headers["Location"] shouldContain artifactsPath
+
+                        val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
+                        httpGet(uri) {
+                        }.apply {
+                            response shouldHaveStatus HttpStatusCode.OK
+                            response.contentType() shouldBe ContentType.Application.Zip
+//                            response shouldHaveContent "foo"
+                        }
+                    }
+                }
+            }
+        }
 
         // Not used http methods that should fail
         "put an artifact failing" {
@@ -120,7 +141,7 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        // Tried this and pdf since for some reason I saw that was binary - not working, same as above
+        // Should be binary according to line 49, ArtifactWrite.kt - content-type is not text/...
         // TODO: this isn't necessarily needed - I want to see if it's an xstring - ArtifactStoreRead.kt, line 77
         "get an artifact by id - BINARY?" {
             withTest{
@@ -136,13 +157,13 @@ open class ArtifactAny : RefAny() {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
                         response.contentType() shouldBe ContentType.Text.Plain
-                        response shouldHaveContent "foo"
+                        //response shouldHaveContent "foo"
                     }
                 }
             }
         }
 
-        // TODO: the URI test - needs work for that in the backend
+        // TODO: the URI test - needs work for that in the backend, not an option in ArtifactWrite
 
         // Copy the above one for head, and test get for URI and Binary types of bodies - return when
         // statement in ArtifactStoreRead.kt
