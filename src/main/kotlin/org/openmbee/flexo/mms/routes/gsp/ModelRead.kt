@@ -59,12 +59,14 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         }
     }
 
+    // finalize construct query and execute
     val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
         acceptReplicaLag = true
 
         prefixes(prefixes)
     }
 
+    // missing authorized IRI, auth failed
     if(!constructResponseText.contains(authorizedIri)) {
         log("Rejecting unauthorized request with 404\n${constructResponseText}")
 
