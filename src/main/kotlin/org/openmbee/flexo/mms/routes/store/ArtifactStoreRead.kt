@@ -106,9 +106,13 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             auth(Permission.READ_ARTIFACT.scope.id, ARTIFACT_QUERY_CONDITIONS)
 
             // provide artifact bind pattern
-            graph("mor-graph:Artifacts") {
-                raw(SPARQL_BIND_ARTIFACT)
-            }
+            raw("""
+                optional{
+                    graph mor-graph:Artifacts {
+                        $SPARQL_BIND_ARTIFACT
+                    }
+                }
+            """)
             raw(permittedActionSparqlBgp(Permission.READ_ARTIFACT, Scope.REPO))
         }
     }

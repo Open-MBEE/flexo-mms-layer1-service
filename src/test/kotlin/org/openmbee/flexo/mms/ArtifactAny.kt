@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
@@ -58,9 +59,6 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        /**
-         * Add test here for getting an artifact when there's (2+) artifacts to get
-         */
 
         "get all artifacts two artifacts" {
             withTest{
@@ -171,9 +169,8 @@ open class ArtifactAny : RefAny() {
         "get an artifact by id - URI" {
             withTest{
                 httpPost("$artifactsPath/store") {
-                    addHeader("Content-Type", "test/plain")
-//                    addHeader("Application", "")
-                    setBody("foo")
+                    addHeader("Content-Type", "text/turtle")
+                    setBody("<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> .")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
                     response.headers["Location"] shouldContain artifactsPath
@@ -182,8 +179,8 @@ open class ArtifactAny : RefAny() {
                     httpGet(uri) {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType() shouldBe ContentType.Application.OctetStream
-                        response shouldHaveContent "foo"
+                        response.contentType().toString() shouldBeEqual "text/turtle"
+                        response shouldHaveContent "<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> ."
                     }
                 }
             }
