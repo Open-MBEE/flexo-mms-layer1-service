@@ -163,6 +163,10 @@ val LOCK_UPDATE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_LOCK, Scope.LOCK)
 }
 
+val SCRATCH_DELETE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
+    permit(Permission.DELETE_SCRATCH, Scope.SCRATCH)
+}
+
 enum class ConditionType {
     INSPECT,
     REQUIRE,

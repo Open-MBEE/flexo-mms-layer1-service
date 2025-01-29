@@ -40,7 +40,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         prefixes["mor"] -> {
             "${prefixes["mor-graph"]}Metadata"
         }
-        "${prefixes["mor-graph"]}Scratch" -> {
+        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
             refIri
         }
         else -> {
@@ -473,4 +473,28 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
             )
         }
     }
+}
+
+/**
+ * Takes a Graph Store Protocol delete request and forwards it to Layer 0, optionally providing custom WHERE pattern
+ */
+suspend fun Layer1Context<GspRequest, *>.deleteGraph(deleteGraphUri: String, where: (WhereBuilder.() -> Unit)?) {
+    // create update string
+    val deleteUpdateString = buildSparqlUpdate {
+        delete {
+            graph(escapeIri(deleteGraphUri)) {
+                raw("?s ?p ?o")
+            }
+        }
+        where {
+            where?.let { it() }
+
+            graph(escapeIri(deleteGraphUri)) {
+                raw("?s ?p ?o")
+            }
+        }
+    }
+
+    // execute update
+    executeSparqlUpdate(deleteUpdateString)
 }

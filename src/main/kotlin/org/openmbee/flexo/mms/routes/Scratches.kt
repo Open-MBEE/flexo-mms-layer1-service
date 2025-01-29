@@ -124,10 +124,19 @@ fun Route.crudScratch() {
 //
 //        }
 
-//        // 5.4 DELETE: delete
-//        delete {
-//
-//        }
+        // 5.4 DELETE: delete (drop)
+        delete {
+            // delete the graph
+            deleteGraph("${prefixes["mor-graph"]}Scratch.$scratchId") {
+                // permissions check
+                graph("mor-graph:Metadata") {
+                    auth(Permission.DELETE_SCRATCH.scope.id, SCRATCH_DELETE_CONDITIONS)
+                }
+            }
+
+            // close response
+            call.respondText("", status = HttpStatusCode.NoContent)
+        }
 
         otherwiseNotAllowed("store scratch")
     }

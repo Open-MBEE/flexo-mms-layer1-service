@@ -101,6 +101,11 @@ class GspPutResponse(requestContext: GenericRequest): GspMutateResponse(requestC
  */
 class GspPatchResponse(requestContext: GenericRequest): GspMutateResponse(requestContext)
 
+/**
+ * Response context for DELETE to graph
+ */
+class GspDeleteResponse(requestContext: GenericRequest): GspMutateResponse(requestContext)
+
 
 /**
  * A Graph Store Protocol (GSP) endpoint
@@ -226,6 +231,11 @@ class GraphStoreProtocolRoute<TRequestContext: GenericRequest>(
             // create update request data instance
             SparqlUpdateRequest(call, updateString)
         }
+    }
+
+    // DELETE
+    fun delete(body: Layer1Handler<TRequestContext, GspDeleteResponse>) {
+        super.delete(body, { GspDeleteResponse(it) }, null)
     }
 }
 
