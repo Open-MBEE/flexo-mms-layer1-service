@@ -30,15 +30,22 @@ fun Application.configureHTTP() {
     }
     install(CallLogging)
     install(CORS) {
-        allowMethod(HttpMethod.Options)
-        allowMethod(HttpMethod.Put)
-        allowMethod(HttpMethod.Delete)
-        allowMethod(HttpMethod.Patch)
-        allowMethod(HttpMethod.Get)
-        allowMethod(HttpMethod.Post)
+        allowCredentials = true
+
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
-        allowCredentials = true
+        allowHeader(HttpHeaders.ETag)
+        allowHeader(HttpHeaders.IfMatch)
+        allowHeader(HttpHeaders.IfNoneMatch)
+        allowHeader(HttpHeaders.SLUG)
+
+        allowMethod(HttpMethod.Head)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Patch)
+        allowMethod(HttpMethod.Delete)
+
         anyHost() // @TODO: make configuration
     }
 

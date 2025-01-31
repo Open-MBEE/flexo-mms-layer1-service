@@ -8,6 +8,7 @@ import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
 import org.openmbee.flexo.mms.LEGAL_ID_REGEX
 import org.openmbee.flexo.mms.Layer1Context
+import org.openmbee.flexo.mms.MethodNotAllowedException
 import org.openmbee.flexo.mms.assertLegalId
 import java.net.URLDecoder
 import java.util.*
@@ -127,21 +128,16 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
         layer1: Layer1Context<TRequestContext, TResponseContext>
     ) {}
 
-    protected suspend fun checkAllowed(
+    protected fun checkAllowed(
         call: ApplicationCall,
-        resourcesLabel: String?=null
+        resourceLabel: String?=null
     ) {
         // set allowed methods
         call.response.headers.append("Allow", allowedMethods.joinToString(", ") { it.value })
 
-        // method not allowed
+        // method not allowed; reject request
         if(!allowedMethods.contains(call.request.httpMethod)) {
-            // reject request
-            call.respondText(
-                "${call.request.httpMethod.value} method not allowed on ${resourcesLabel ?: "this resource"}",
-                ContentType.Text.Plain,
-                HttpStatusCode.MethodNotAllowed
-            )
+            throw MethodNotAllowedException(call.request.httpMethod, resourceLabel)
         }
     }
 
@@ -268,7 +264,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
             val layer1 = eachCall(call, responseContextCreator)
 
             // get slug from header, otherwise generate one from uuid
-            val slug = call.request.headers["Slug"]
+            val slug = call.request.headers[HttpHeaders.SLUG]
                 ?: UUID.randomUUID().toString()
 //                ?: throw InvalidHeaderValue("missing required `Slug` header which will become new resource's id")
 
