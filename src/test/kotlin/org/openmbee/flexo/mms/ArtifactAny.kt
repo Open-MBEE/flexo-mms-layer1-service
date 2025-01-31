@@ -4,7 +4,6 @@ import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
-import io.ktor.server.application.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
@@ -165,7 +164,6 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        // TODO: the URI test - not an option in ArtifactWrite
         "get an artifact by id - URI" {
             withTest{
                 httpPost("$artifactsPath/store") {

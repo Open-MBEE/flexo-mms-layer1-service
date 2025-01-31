@@ -165,8 +165,8 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                     // decode artifact
                     val decoded = decodeArtifact(artifactResource)
 
-                    // create zip entry
-                    val entry = ZipEntry(artifactResource.localName+"."+decoded.extension)
+                    // create zip entry - can't use artifactResource.localName, it drops number characters from beginning of URI
+                    val entry = ZipEntry(artifactResource.toString().split("/").last()+"."+decoded.extension)
 
                     // open the entry
                     stream.putNextEntry(entry)

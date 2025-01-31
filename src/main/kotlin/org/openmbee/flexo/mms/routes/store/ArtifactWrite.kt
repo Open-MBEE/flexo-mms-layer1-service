@@ -38,7 +38,6 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             }
             setBody(object : OutgoingContent.WriteChannelContent() {
                 override val contentType = call.request.contentType()
-                override val contentLength = call.request.contentLength() ?: 0L //TODO make it so client isn't required to send this
                 override suspend fun writeTo(channel: ByteWriteChannel) {
                     call.request.receiveChannel().copyTo(channel)
                 }
