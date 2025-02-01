@@ -13,19 +13,13 @@ import org.openmbee.flexo.mms.server.LdpMutateResponse
 import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 
-fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
-    return {
-        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
-    }
-}
-
 fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
     return {
         if(it.subject.isVariable) {
             throw VariablesNotAllowedInUpdateException("subject")
         }
         else if(!it.subject.isURI || it.subject.uri != subjectIri) {
-            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
+            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evaluate ${it.subject}")
         }
         else if(it.predicate.isVariable) {
             throw VariablesNotAllowedInUpdateException("predicate")
@@ -61,14 +55,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     var whereString = ""
 
     // prepare quad filters
-    val dataFilter = quadDataFilter(baseIri)
     val patternFilter = quadPatternFilter(baseIri)
 
     // each operation
     for(update in sparqlUpdateAst.operations) {
         when(update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, dataFilter)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, dataFilter)
+            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, patternFilter)
             is UpdateDeleteWhere -> {
                 deleteBgpString = asSparqlGroup(update.quads, patternFilter)
                 whereString = deleteBgpString

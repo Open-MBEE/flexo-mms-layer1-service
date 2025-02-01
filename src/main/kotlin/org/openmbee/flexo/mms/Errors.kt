@@ -6,7 +6,7 @@ import io.ktor.server.response.*
 
 open class HttpException(msg: String, private val statusCode: HttpStatusCode): Exception(msg) {
     open suspend fun handle(call: ApplicationCall, text: String?=this.stackTraceToString()) {
-        call.respondText(text ?: "Unspecified error", status=statusCode)
+        call.respondText(text ?: "Unspecified error", contentType=ContentType.Text.Plain, status=statusCode)
     }
 }
 
@@ -49,7 +49,8 @@ open class Http404Exception(resource: String): HttpException("The requested reso
 
 open class Http405Exception(msg: String): HttpException(msg, HttpStatusCode.MethodNotAllowed)
 
-class MethodNotAllowedException(): Http405Exception("The requested method is not allow on this resource")
+class MethodNotAllowedException(method: HttpMethod?,  resourceLabel: String?):
+    Http405Exception("The requested method ${method?: "(?)"} is not allow on ${resourceLabel?: "this resource"}")
 
 
 open class Http406Exception(msg: String): HttpException(msg, HttpStatusCode.NotAcceptable)

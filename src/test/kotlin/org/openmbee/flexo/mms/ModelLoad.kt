@@ -89,6 +89,18 @@ class ModelLoad : ModelAny() {
             }
         }
 
+        "lock graph rejects other methods" {
+            commitModel(masterBranchPath, insertAliceRex)
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
+
+            withTest {
+                onlyAllowsMethods("$demoLockPath/graph", setOf(
+                    HttpMethod.Head,
+                    HttpMethod.Get,
+                ))
+            }
+        }
+
         "head branch graph" {
             commitModel(masterBranchPath, insertAliceRex)
 
@@ -150,18 +162,6 @@ class ModelLoad : ModelAny() {
                         }
                     }
                 }
-            }
-        }
-
-        "lock graph rejects other methods" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
-                onlyAllowsMethods("$demoLockPath/graph", setOf(
-                    HttpMethod.Head,
-                    HttpMethod.Get,
-                ))
             }
         }
     }

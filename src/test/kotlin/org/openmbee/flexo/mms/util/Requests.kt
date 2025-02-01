@@ -88,8 +88,9 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
                 }
 
                 response shouldHaveOneOfStatuses setOf(
-                    HttpStatusCode.NotFound,
+                    HttpStatusCode.BadRequest,
                     HttpStatusCode.Forbidden,
+                    HttpStatusCode.NotFound,
                     HttpStatusCode.MethodNotAllowed,
                     HttpStatusCode.NotImplemented,
                 )

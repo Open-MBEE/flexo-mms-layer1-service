@@ -1,12 +1,12 @@
 package org.openmbee.flexo.mms.routes.gsp
 
-import com.concurrentli.ManagedMultiBlocker.block
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.GspLayer1Context
 import org.openmbee.flexo.mms.server.GspReadResponse
+import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
 enum class RefType {
     BRANCH,
@@ -23,7 +23,6 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         }
     }
 
-    val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
 
     val constructString = buildSparqlQuery {
         construct {
@@ -77,15 +76,33 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
             throw Http403Exception(this, call.request.path())
         }
     }
+    
     // HEAD method
-    else if(call.request.httpMethod == HttpMethod.Head) {
+    if (call.request.httpMethod == HttpMethod.Head) {
+        when(refType) {
+            RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+                assertPreconditions(this)
+            })
+            RefType.LOCK -> checkModelQueryConditions(null, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+                assertPreconditions(this)
+            })
+        }
         call.respond(HttpStatusCode.OK)
     }
     // GET
     else {
-        // try to avoid parsing model for performance reasons
-        val modelText = constructResponseText.replace("""$authorizedIri\s+<${MMS_URNS.PREDICATE.policy}>\s+"(user|group)"\s+\.""".toRegex(), "")
+        val construct = """
+            construct { ?s ?p ?o } WHERE { ?s ?p ?o }
+        """.trimIndent()
+        val requestContext = SparqlQueryRequest(call, construct, setOf(), setOf())
+        when(refType) {
+            RefType.BRANCH -> processAndSubmitUserQuery(requestContext, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+                assertPreconditions(this)
+            })
+            RefType.LOCK -> processAndSubmitUserQuery(requestContext, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+                assertPreconditions(this)
+            })
+        }
 
-        call.respondText(modelText, contentType=RdfContentTypes.Turtle)
     }
 }

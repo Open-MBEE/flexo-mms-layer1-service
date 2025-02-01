@@ -155,13 +155,16 @@ fun Route.linkedDataPlatformResource(
     route(path) {
         // 4.2.1.6: all responses must contain the Link header
         intercept(ApplicationCallPipeline.Call) {
-            // apply to all response headers
-            call.response.headers.apply {
-                // prepend "Resource" to list
-                val linkTypes = listOf("Resource").plus(subtypes?: listOf())
+            // response headers have not yet been sent
+            if(!call.response.isCommitted) {
+                // apply to all response headers
+                call.response.headers.apply {
+                    // prepend "Resource" to list
+                    val linkTypes = listOf("Resource").plus(subtypes ?: listOf())
 
-                // add link resource header
-                append("Link", linkTypes.joinToString(", ") { "<${LINKED_DATA_PLATFORM_NS}${it}>; rel=\"type\"" })
+                    // add link resource header
+                    append("Link", linkTypes.joinToString(", ") { "<${LINKED_DATA_PLATFORM_NS}${it}>; rel=\"type\"" })
+                }
             }
 
             // continue with next middleware

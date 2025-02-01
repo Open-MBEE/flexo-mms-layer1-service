@@ -30,15 +30,32 @@ fun Application.configureHTTP() {
     }
     install(CallLogging)
     install(CORS) {
-        allowMethod(HttpMethod.Options)
-        allowMethod(HttpMethod.Put)
-        allowMethod(HttpMethod.Delete)
-        allowMethod(HttpMethod.Patch)
-        allowMethod(HttpMethod.Get)
-        allowMethod(HttpMethod.Post)
+        allowCredentials = true
+
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
-        allowCredentials = true
+        allowHeader(HttpHeaders.ETag)
+        allowHeader(HttpHeaders.IfMatch)
+        allowHeader(HttpHeaders.IfNoneMatch)
+        allowHeader(HttpHeaders.SLUG)
+
+        allowMethod(HttpMethod.Head)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Patch)
+        allowMethod(HttpMethod.Delete)
+
+        exposeHeader("Accept-Post")
+        exposeHeader("Accept-Patch")
+        exposeHeader("Accept-Put")
+        exposeHeader(HttpHeaders.Allow)
+        exposeHeader(HttpHeaders.ETag)
+        exposeHeader(HttpHeaders.Date)
+        exposeHeader(HttpHeaders.Location)
+        exposeHeader(HttpHeaders.Link)
+        exposeHeader("Flexo-Mms-Layer-1")
+
         anyHost() // @TODO: make configuration
     }
 
