@@ -46,6 +46,15 @@ fun Application.configureHTTP() {
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)
 
+        exposeHeader("Accept-Patch")
+        exposeHeader("Accept-Put")
+        exposeHeader(HttpHeaders.Allow)
+        exposeHeader(HttpHeaders.ETag)
+        exposeHeader(HttpHeaders.Date)
+        exposeHeader(HttpHeaders.Location)
+        exposeHeader(HttpHeaders.Link)
+        exposeHeader("Flexo-Mms-Layer-1")
+
         anyHost() // @TODO: make configuration
     }
 
