@@ -46,6 +46,7 @@ fun Application.configureHTTP() {
         allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)
 
+        exposeHeader("Accept-Post")
         exposeHeader("Accept-Patch")
         exposeHeader("Accept-Put")
         exposeHeader(HttpHeaders.Allow)
