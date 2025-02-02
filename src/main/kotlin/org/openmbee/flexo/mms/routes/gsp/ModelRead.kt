@@ -23,6 +23,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         }
     }
 
+    val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
 
     val constructString = buildSparqlQuery {
         construct {
@@ -76,7 +77,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
             throw Http403Exception(this, call.request.path())
         }
     }
-    
+
     // HEAD method
     if (call.request.httpMethod == HttpMethod.Head) {
         when(refType) {
