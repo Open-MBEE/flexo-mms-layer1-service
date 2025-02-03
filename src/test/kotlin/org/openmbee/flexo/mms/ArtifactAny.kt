@@ -47,7 +47,6 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        // Doesn't work since there are no artifacts and the query checks that the artifacts exist
         "get all artifacts empty" {
             withTest{
                 httpGet("$artifactsPath/store") {
@@ -240,6 +239,9 @@ open class ArtifactAny : RefAny() {
     }
 }
 
+/**
+ * Reads all files in a zip file and returns map of filename to file contents
+ */
 fun readZipContents(zipBytes: ByteArray): Map<String, String> {
     val contents = mutableMapOf<String, String>()
     ZipInputStream(ByteArrayInputStream(zipBytes)).use { zipInputStream ->
