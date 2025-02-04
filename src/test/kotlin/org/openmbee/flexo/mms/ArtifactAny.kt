@@ -14,7 +14,7 @@ import java.util.zip.ZipInputStream
 open class ArtifactAny : RefAny() {
     override val logger = LoggerFactory.getLogger(LockAny::class.java)
 
-    val artifactsPath = "$demoRepoPath/artifacts"   //orgs/open-mbee/repos/new-repo/artifacts
+    val artifactsPath = "$demoRepoPath/artifacts"
 
 
     init {

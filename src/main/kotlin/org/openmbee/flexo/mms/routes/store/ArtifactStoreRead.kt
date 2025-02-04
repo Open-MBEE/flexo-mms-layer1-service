@@ -159,7 +159,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             ZipOutputStream(this).use { stream ->
                 // each artifact
                 for (artifactResource in model.listSubjects()) {
-                    if (artifactResource.toString().startsWith("urn:mms:auth")){
+                    if (artifactResource.uri.contains(MMS_URNS.SUBJECT.auth)){
                         continue
                     }
                     // decode artifact
