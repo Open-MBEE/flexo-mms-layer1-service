@@ -2,10 +2,12 @@ package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.routes.gsp.readRepo
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 import org.openmbee.flexo.mms.routes.ldp.createOrReplaceRepo
 import org.openmbee.flexo.mms.routes.ldp.getRepos
 import org.openmbee.flexo.mms.routes.ldp.headRepos
+import org.openmbee.flexo.mms.server.graphStoreProtocol
 
 const val SPARQL_VAR_NAME_REPO = "_repo"
 
@@ -92,5 +94,20 @@ fun Route.crudRepos() {
                 preconditions = localConditions,
             )
         }
+    }
+
+    graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/graph") {
+        // 5.6 HEAD: check state of graph
+        head {
+            readRepo()
+        }
+
+        // 5.2 GET: read graph
+        get {
+            readRepo()
+        }
+
+        // otherwise, deny the method
+        otherwiseNotAllowed("repos")
     }
 }
