@@ -1,19 +1,42 @@
 package org.openmbee.flexo.mms
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldNotBeBlank
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.vocabulary.DCTerms
+import org.apache.jena.vocabulary.RDF
+import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 
 class ModelLoad : ModelAny() {
+    fun TestApplicationCall.validateModelLoadResponse() {
+        response shouldHaveStatus HttpStatusCode.OK
+        val commit = response.headers[HttpHeaders.Location]
+        commit.shouldNotBeBlank()
+        val etag = response.headers[HttpHeaders.ETag]
+        etag.shouldNotBeBlank()
+        response includesTriples {
+            subject(commit!!) {
+                includes(
+                    RDF.type exactly MMS.Commit,
+                    MMS.submitted hasDatatype XSD.dateTime,
+                    MMS.parent startsWith localIri("$demoCommitsPath/").iri,
+                    MMS.data startsWith localIri("$demoCommitsPath/").iri,
+                    MMS.createdBy exactly localIri("/users/root").iri
+                )
+            }
+        }
+    }
+
     init {
         "load all inserts on empty model" {
             withTest {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    validateModelLoadResponse()
                 }
             }
         }
@@ -23,9 +46,7 @@ class ModelLoad : ModelAny() {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    // TODO - should still return diff
+                    validateModelLoadResponse()
                 }
             }
         }
@@ -42,7 +63,7 @@ class ModelLoad : ModelAny() {
                             foaf:name "Xavier" .
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    validateModelLoadResponse()
                 }
             }
         }
@@ -54,7 +75,7 @@ class ModelLoad : ModelAny() {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    validateModelLoadResponse()
                 }
             }
         }
@@ -66,7 +87,7 @@ class ModelLoad : ModelAny() {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    validateModelLoadResponse()
                 }
             }
         }
@@ -84,7 +105,7 @@ class ModelLoad : ModelAny() {
                             foaf:name "Xavier" .
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    validateModelLoadResponse()
                 }
             }
         }
