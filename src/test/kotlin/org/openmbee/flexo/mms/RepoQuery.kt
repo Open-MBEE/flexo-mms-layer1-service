@@ -5,6 +5,8 @@ import io.kotest.assertions.json.shouldContainJsonKey
 import io.kotest.assertions.json.shouldContainJsonKeyValue
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
+import org.apache.jena.vocabulary.DCTerms
+import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 
 class RepoQuery : ModelAny() {
@@ -63,6 +65,25 @@ class RepoQuery : ModelAny() {
                     """.trimIndent())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
+
+        "get repo metadata graph" {
+            withTest {
+                httpGet("$demoRepoPath/graph") {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response includesTriples {
+                        val branchiri = localIri(masterBranchPath)
+
+                        subject(branchiri) {
+                            includes(
+                                RDF.type exactly MMS.Branch,
+                                MMS.id exactly "master",
+                                DCTerms.title exactly "Master".en,
+                            )
+                        }
+                    }
                 }
             }
         }
