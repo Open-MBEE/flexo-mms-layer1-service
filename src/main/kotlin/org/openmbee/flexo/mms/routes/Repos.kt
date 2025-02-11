@@ -96,7 +96,7 @@ fun Route.crudRepos() {
         }
     }
 
-    graphStoreProtocol("/orgs/{orgId}/repos/{repoId}/graph") {
+    graphStoreProtocol("$REPOS_PATH/{repoId}/graph") {
         // 5.6 HEAD: check state of graph
         head {
             readRepo()
