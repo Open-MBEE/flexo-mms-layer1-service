@@ -87,5 +87,14 @@ class RepoQuery : ModelAny() {
                 }
             }
         }
+
+        "repo metadata graph only allow head and get" {
+            withTest {
+                onlyAllowsMethods("$demoRepoPath/graph", setOf(
+                    HttpMethod.Head,
+                    HttpMethod.Get
+                ))
+            }
+        }
     }
 }
