@@ -37,7 +37,7 @@ private val SPARQL_CONSTRUCT_BRANCH = """
         
         ?_context a mms:Context ;
             mms:permit mms-object:Permission.ReadBranch ;
-            mms:policy ?policy ;
+            mms:appliedPolicy ?policy ;
             .
         
         

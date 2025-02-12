@@ -37,7 +37,7 @@ private val SPARQL_CONSTRUCT_LOCK = """
         
         ?_context a mms:Context ;
             mms:permit mms-object:Permission.ReadLock ;
-            mms:policy ?policy .
+            mms:appliedPolicy ?policy .
         
         ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
     } where {

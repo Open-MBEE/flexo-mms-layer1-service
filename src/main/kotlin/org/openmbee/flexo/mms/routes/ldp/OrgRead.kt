@@ -3,114 +3,63 @@ package org.openmbee.flexo.mms.routes.ldp
 import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpGetResponse
 import org.openmbee.flexo.mms.server.LdpHeadResponse
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
-
-private const val SPARQL_VAR_NAME_CONTEXT = "_context"
+import org.openmbee.flexo.mms.server.LdpReadResponse
 
 // reusable basic graph pattern for matching org(s)
-private val SPARQL_BGP_ORG = """
+private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData -> """
     graph m-graph:Cluster {
-        ?$SPARQL_VAR_NAME_ORG a mms:Org ;
-            mms:etag ?__mms_etag ;
-            ?org_p ?org_o .
-        
-        optional {
-            ?thing mms:org ?$SPARQL_VAR_NAME_ORG ;
-                ?thing_p ?thing_o .
-        }
+        ${"""
+            optional {
+                ?thing mms:org ?$SPARQL_VAR_NAME_ORG ;
+                    ?thing_p ?thing_o ;
+                    .
+            }
+        """.reindent(2) iff allData}
+
+        ${"optional {" iff allOrgs}${"""
+            ?$SPARQL_VAR_NAME_ORG a mms:Org ;
+                mms:etag ?__mms_etag ;
+                ${"?org_p ?org_o ;" iff allData}
+                .
+            
+        """.reindent(if(allOrgs) 3 else 2)}
+        ${"}" iff allOrgs}
     }
     
-    ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER)}
-"""
-
-// select ETag(s) of existing org(s)
-private val SPARQL_SELECT_ORG_ETAGS = """
-    select distinct ?__mms_etag {
-        $SPARQL_BGP_ORG
-    } order by asc(?__mms_etag)
-"""
+    ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER,
+        if(allOrgs) "^mo:?$".toRegex() else null,
+        if(allOrgs) "" else null)}
+""" }
 
 // construct graph of all relevant org metadata
-private val SPARQL_CONSTRUCT_ORG = """
+private val SPARQL_CONSTRUCT_ORG: (Boolean, Boolean) -> String = { allOrgs, allData ->  """
     construct {
         ?$SPARQL_VAR_NAME_ORG ?org_p ?org_o ;
-            mms:etag ?__mms_etag .
+            mms:etag ?__mms_etag ;
+            .
         
         ?thing ?thing_p ?thing_o .
         
-        ?$SPARQL_VAR_NAME_CONTEXT a mms:Context ;
-            mms:permit mms-object:Permission.ReadOrg ;
-            mms:policy ?policy ;
-            .
-        
-        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-        
-        ?orgPolicy ?orgPolicy_p ?orgPolicy_o .
+        ${generateReadContextBgp(Permission.READ_ORG).reindent(2)}
     } where {
-        $SPARQL_BGP_ORG
-        
-        graph m-graph:AccessControl.Policies {
-            #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-
-            optional {
-                ?orgPolicy a mms:Policy ;
-                    mms:scope ?$SPARQL_VAR_NAME_ORG ;
-                    ?orgPolicy_p ?orgPolicy_o .
-            }
-        }
+        ${SPARQL_BGP_ORG(allOrgs, allData).reindent(2)}
     }
-"""
-
-
-/**
- * Fetches the org(s) ETag
- */
-suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(allOrgs: Boolean=false) {
-    val orgIri = if(allOrgs) null else prefixes["mo"]!!
-
-    // fetch all orgs
-    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_ORG_ETAGS) {
-        acceptReplicaLag = true
-
-        // internal query, give it all the prefixes
-        prefixes(prefixes)
-
-        // get by orgId
-        orgIri?.let {
-            iri(
-                SPARQL_VAR_NAME_ORG to it,
-            )
-        }
-
-        // bind a context IRI
-        iri(
-            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
-        )
-    }
-
-    // parse the result bindings
-    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
-
-    // hash all the org etags
-    handleEtagAndPreconditions(bindings)
-
-    // respond
-    call.respond(HttpStatusCode.NoContent)
-}
+""" }
 
 
 /**
  * Fetches org(s) metadata
  */
-suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
+suspend fun LdpDcLayer1Context<LdpReadResponse>.fetchOrgs(allOrgs: Boolean=false, allData: Boolean=false): String {
     // cache whether this request is asking for all orgs
     val orgIri = if(allOrgs) null else prefixes["mo"]!!
 
     // fetch all org details
-    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG) {
+    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_ORG(allOrgs, allData)) {
         acceptReplicaLag = true
 
         // internal query, give it all the prefixes
@@ -122,11 +71,6 @@ suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
                 SPARQL_VAR_NAME_ORG to it,
             )
         }
-
-        // bind a context IRI
-        iri(
-            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
-        )
     }
 
     // parse the response
@@ -141,7 +85,25 @@ suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
         }
     }
 
+    return constructResponseText
+}
+
+/**
+ * Fetches org(s) metadata, ignoring unnecessary data to satisfy a HEAD request
+ */
+suspend fun LdpDcLayer1Context<LdpHeadResponse>.headOrgs(allOrgs: Boolean=false) {
+    fetchOrgs(allOrgs, false)
+
+    // respond
+    call.respond(HttpStatusCode.NoContent)
+}
+
+/**
+ * Fetches org(s) metadata and all relevant data to satisfy a GET request
+ */
+suspend fun LdpDcLayer1Context<LdpGetResponse>.getOrgs(allOrgs: Boolean=false) {
+    val constructResponseText = fetchOrgs(allOrgs, true)
+
     // respond
     call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
 }
-

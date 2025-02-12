@@ -29,11 +29,17 @@ fun TriplesAsserter.validateRepoTriples(
         )
     }
 
-    // inspect
+    // inspections
     optionalSubject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 
-    // aggregator
-    optionalSubject(MMS_URNS.SUBJECT.aggregator) { ignoreAll() }
+    // context
+    optionalSubject(MMS_URNS.SUBJECT.context) {
+        // remove linked policy triples
+        subject.listProperties(MMS.appliedPolicy).forEach {
+            optionalSubject(it.`object`.asResource().uri) { ignoreAll() }
+        }
+        ignoreAll()
+    }
 }
 
 // validates response triples for a repo and its master branch
@@ -71,13 +77,6 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 
     createResponse shouldHaveStatus HttpStatusCode.Created
     validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
-
-    // auto policy
-    matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
-        includes(
-            RDF.type exactly MMS.Policy,
-        )
-    }
 
     // snapshots staging & model, commit, commit data, and lock
     matchMultipleSubjectsByPrefix(localIri("${repoPath}/snapshots/")) { ignoreAll() }

@@ -300,6 +300,24 @@ class LinkedDataPlatformDirectContainerTests(
         vararg creators: () -> TestApplicationCall,
         validator: ((TestApplicationCreatedResponseBundle) -> Unit)
     ) {
+        "HEAD $basePath - empty" {
+            withTest {
+                httpHead(basePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NoContent
+                    response.headers["ETag"].shouldNotBeBlank()
+                }
+            }
+        }
+
+        "GET $basePath - empty" {
+            withTest {
+                httpGet(basePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response.headers["ETag"].shouldNotBeBlank()
+                }
+            }
+        }
+
         "HEAD $resourcePath - non-existent" {
             withTest {
                 httpHead(resourcePath) {}.apply {
@@ -312,6 +330,28 @@ class LinkedDataPlatformDirectContainerTests(
             withTest {
                 httpGet(resourcePath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
+        "HEAD $basePath - non-empty" {
+            resourceCreator()
+
+            withTest {
+                httpHead(basePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.NoContent
+                    response.headers["ETag"].shouldNotBeBlank()
+                }
+            }
+        }
+
+        "GET $basePath - non-empty" {
+            resourceCreator()
+
+            withTest {
+                httpGet(basePath) {}.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                    response.headers["ETag"].shouldNotBeBlank()
                 }
             }
         }
@@ -609,4 +649,9 @@ class LinkedDataPlatformDirectContainerTests(
             }
         }
     }
+}
+
+fun TriplesAsserter.validateLdpRead() {
+    // context
+
 }

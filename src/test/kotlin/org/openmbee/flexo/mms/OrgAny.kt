@@ -35,13 +35,6 @@ fun TriplesAsserter.validateCreatedOrgTriples(
 ) {
     validateOrgTriples(createResponse, orgId, orgName, extraPatterns)
 
-    // auto policy
-    matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {
-        includes(
-            RDF.type exactly MMS.Policy,
-        )
-    }
-
     // transaction
     validateTransaction(orgPath="/orgs/$orgId")
 

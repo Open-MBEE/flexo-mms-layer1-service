@@ -385,7 +385,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
         // compose output etag
         var outputEtag = if(bindings.size == 1) {
-            bindings[0]["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content
+            bindings[0]["__mms_etag"]?.let { it.jsonObject["value"]!!.jsonPrimitive.content }?: ""
         }  else {
             bindings.map { it["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
                 .distinct().joinToString(":").sha256()
@@ -397,8 +397,8 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 .sorted().joinToString(":").sha256()
         }
 
-        // set etag value in response header
-        call.response.header(HttpHeaders.ETag, outputEtag)
+        // set etag value in response header if present
+        if(outputEtag.isNotEmpty()) call.response.header(HttpHeaders.ETag, outputEtag)
 
         // check preconditions
         checkPreconditions(outputEtag)
@@ -485,7 +485,8 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             }
             // other
             else {
-                if(MMS_URNS.SUBJECT.aggregator === subject.uri) {
+                // etag of aggregation
+                if(MMS_URNS.SUBJECT.context === subject.uri) {
                     // add all etags to aggregator list
                     elementEtags.addAll(etagStmts.mapWith { statement ->
                         statement.`object`.asLiteral().string
@@ -521,68 +522,71 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-                runBlocking {
-                    val constructQuery = buildSparqlQuery {
-                        construct {
-                            raw("""
-                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o . 
-                                
-                                mt: ?mt_p ?mt_o .
-                                
-                                ${if(repoId != null) {
-                                    """
-                                        # outgoing repo properties
-                                        mor: ?mor_p ?mor_o .
-                                    
-                                        # properties of things that belong to this repo
-                                        ?thing ?thing_p ?thing_o .
-                                    
-                                        # all triples in metadata graph
-                                        ?m_s ?m_p ?m_o .
-                                    """
-                                } else ""}
-                            """)
-                        }
-                        where {
-                            raw("""
-                                {
-                                    optional {
-                                        graph m-graph:AccessControl.Policies {
-                                            ?__mms_policy mms:scope ${scope?: "mo"}: ;
-                                                ?__mms_policy_p ?__mms_policy_o .
-                                        }
-                                    }
-                                } union {
-                                    graph m-graph:Transactions {
-                                        mt: ?mt_p ?mt_o .
-                                    }
-                                } 
-                                ${if(repoId != null) {
-                                    """
-                                        union {
-                                            graph m-graph:Cluster {
-                                                mor: a mms:Repo ;
-                                                    ?mor_p ?mor_o .
-            
-                                                optional {
-                                                    ?thing mms:repo mor: ;
-                                                        ?thing_p ?thing_o .
-                                                }
-                                            }
-                                        } union {
-                                            graph mor-graph:Metadata {
-                                                ?m_s ?m_p ?m_o .
-                                            }
-                                        }
-                                    """
-                                } else ""}
-                            """)
-                        }
-                    }
-
-                    val described = executeSparqlConstructOrDescribe(constructQuery)
-                    log("Transaction failed.\n\n\tInpsect: ${described}\n\n\tResults: \n${results}")
-                }
+//                runBlocking {
+//                    val constructQuery = buildSparqlQuery {
+//                        construct {
+//                            raw("""
+//                                # transaction metadata
+//                                mt: ?mt_p ?mt_o .
+//
+//                                # which policy was applied
+//                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+//
+//                                ${if(repoId != null) {
+//                                    """
+//                                        # outgoing repo properties
+//                                        mor: ?mor_p ?mor_o .
+//
+//                                        # properties of things that belong to this repo
+//                                        ?thing ?thing_p ?thing_o .
+//
+//                                        # all triples in metadata graph
+//                                        ?m_s ?m_p ?m_o .
+//                                    """
+//                                } else ""}
+//                            """)
+//                        }
+//                        where {
+//                            raw("""
+//                                {
+//                                    graph m-graph:Transactions {
+//                                        mt: ?mt_p ?mt_o ;
+//                                            mms:policy ?__mms_policy ;
+//                                            .
+//                                    }
+//
+//                                    optional {
+//                                        graph m-graph:AccessControl.Policies {
+//                                            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+//                                        }
+//                                    }
+//                                }
+//                                ${if(repoId != null) {
+//                                    """
+//                                        union {
+//                                            graph m-graph:Cluster {
+//                                                mor: a mms:Repo ;
+//                                                    ?mor_p ?mor_o .
+//
+//                                                optional {
+//                                                    ?thing mms:repo mor: ;
+//                                                        ?thing_p ?thing_o .
+//                                                }
+//                                            }
+//                                        } union {
+//                                            graph mor-graph:Metadata {
+//                                                ?m_s ?m_p ?m_o .
+//                                            }
+//                                        }
+//                                    """
+//                                } else ""}
+//                            """)
+//                        }
+//                    }
+//
+//                    val described = executeSparqlConstructOrDescribe(constructQuery)
+//                    log("Transaction failed.\n\n\tInspect: ${described}\n\n\tResults: \n${results}")
+//                }
 
                 // use response to diagnose cause
                 conditions.handle(model, layer1);

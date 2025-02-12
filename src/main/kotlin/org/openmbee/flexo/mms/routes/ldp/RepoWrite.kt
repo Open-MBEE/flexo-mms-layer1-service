@@ -5,7 +5,6 @@ import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
-import java.util.*
 
 
 // require that the given repo does not exist before attempting to create it
@@ -104,6 +103,17 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
+    // resource is being replaced
+    val permission = if(replaceExisting) {
+        // require that the user has the ability to update repos on a repo-level scope (necessarily implies ability to create)
+        Permission.UPDATE_REPO
+    }
+    // resource is being created
+    else {
+        // require that the user has the ability to create repos on an org-level scope
+        Permission.CREATE_REPO
+    }
+
     // build conditions
     val localConditions = ORG_CRUD_CONDITIONS.append {
         // POST
@@ -146,16 +156,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
         }
 
-        // resource is being replaced
-        if(replaceExisting) {
-            // require that the user has the ability to update repos on a repo-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_REPO, Scope.ORG)
-        }
-        // resource is being created
-        else {
-            // require that the user has the ability to create repos on an org-level scope
-            permit(Permission.CREATE_REPO, Scope.ORG)
-        }
+        // apply relevant permission
+        permit(permission, Scope.ORG)
     }
 
     // prep SPARQL UPDATE string
@@ -169,13 +171,16 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // create a new txn object in the transactions graph
             txn {
                 // not replacing existing, create new policy
-                if(!replaceExisting) {
+                if (!replaceExisting) {
                     // create a new policy that grants this user admin over the new repo
                     autoPolicy(Scope.REPO, Role.ADMIN_REPO)
 
                     // create similar policy for master branch
                     autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
                 }
+
+                // write whether this action replaces an existing resource to the transaction
+                replacesExisting(replaceExisting)
             }
 
             // insert the triples about the new repo, including arbitrary metadata supplied by user
@@ -257,6 +262,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
             "_staging" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
             "_stagingGraph" to "${prefixes["mor-graph"]}Staging.${transactionId}",
+            "_requiredPermission" to "${prefixes["mms-object"]}Permission.${permission.id}",
         )
 
         // replace Literal substitution variables
@@ -285,20 +291,12 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 
                 # all triples in metadata graph
                 ?m_s ?m_p ?m_o .
-                
-                # metadata element etags
-                <${MMS_URNS.SUBJECT.aggregator}> mms:etag ?elementEtag .
             """)
         }
         where {
-            // first group in a series of unions fetches intended outputs
-            group {
-                txn(null, "mor")
-
-                // include the AutoBranchOwner policy
-                auth("morb")
-
+            txnOrInspections(null, localConditions) {
                 raw("""
+                    # extract the created/updated repo properties
                     graph m-graph:Cluster {
                         mor: a mms:Repo ;
                             ?mor_p ?mor_o .
@@ -309,6 +307,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                         }
                     }
                     
+                    # include all repo metadata triples
                     graph mor-graph:Metadata {
                         ?m_s ?m_p ?m_o .
                         
@@ -318,8 +317,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     }
                 """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 

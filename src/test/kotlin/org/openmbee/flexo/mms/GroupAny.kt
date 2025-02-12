@@ -38,13 +38,6 @@ fun TriplesAsserter.validateCreatedGroupTriples(
 
     validateGroupTriples(createResponse, groupId, groupName, extraPatterns)
 
-    // auto policy
-    matchOneSubjectTerseByPrefix("m-policy:AutoGroupOwner") {
-        includes(
-            RDF.type exactly MMS.Policy,
-        )
-    }
-
     // transaction
     validateTransaction()
 

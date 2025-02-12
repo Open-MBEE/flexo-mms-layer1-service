@@ -265,7 +265,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             // first group in a series of unions fetches intended outputs
             group {
-                txn(null, "morl")
+                txn()
 
                 raw("""
                     graph mor-graph:Metadata {

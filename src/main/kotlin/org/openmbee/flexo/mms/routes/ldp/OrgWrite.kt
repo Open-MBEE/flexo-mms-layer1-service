@@ -68,6 +68,17 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
+    // intent is ambiguous or resource is definitely being replaced
+    val permission = if(replaceExisting) {
+        // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
+        Permission.UPDATE_ORG
+    }
+    // resource is being created
+    else {
+        // require that the user has the ability to create orgs on a cluster-level scope
+        Permission.CREATE_ORG
+    }
+
     // build conditions
     val localConditions = GLOBAL_CRUD_CONDITIONS.append {
         // POST
@@ -104,16 +115,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
         }
 
-        // intent is ambiguous or resource is definitely being replaced
-        if(replaceExisting) {
-            // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_ORG, Scope.CLUSTER)
-        }
-        // resource is being created
-        else {
-            // require that the user has the ability to create orgs on a cluster-level scope
-            permit(Permission.CREATE_ORG, Scope.CLUSTER)
-        }
+        // apply relevant permission
+        permit(permission, Scope.CLUSTER)
     }
 
     // prep SPARQL UPDATE string
@@ -128,6 +131,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             txn {
                 // create a new policy that grants this user admin over the new org
                 if(!replaceExisting) autoPolicy(Scope.ORG, Role.ADMIN_ORG)
+
+                // write whether this action replaces an existing resource to the transaction
+                replacesExisting(replaceExisting)
             }
 
             // insert the triples about the org, including arbitrary metadata supplied by user
@@ -150,24 +156,21 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // all the details about this transaction
             txn()
 
-            // all the properties about this org
+            // resource-specific triples
             raw("""
+                # all properties about this org
                 mo: ?mo_p ?mo_o .
             """)
         }
         where {
-            // first group in a series of unions fetches intended outputs
-            group {
-                txn(null, "mo")
-
-                graph("m-graph:Cluster") {
-                    raw("""
+            txnOrInspections(null, localConditions) {
+                raw("""
+                    # all properties about this org
+                    graph m-graph:Cluster {
                         mo: ?mo_p ?mo_o .
-                    """)
-                }
+                    }
+                """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
