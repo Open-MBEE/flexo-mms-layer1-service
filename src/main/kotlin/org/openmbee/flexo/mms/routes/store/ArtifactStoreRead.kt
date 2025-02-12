@@ -30,7 +30,14 @@ data class DecodedArtifact(
 ) {
     val extension: String
         get() = try {
-            contentType.fileExtensions().first()
+            when (contentType) {
+                ContentType.Text.Plain -> "txt"
+                ContentType.Application.OctetStream -> "bin"
+                ContentType.Text.Html -> "html"
+                ContentType.Application.Zip -> "zip"
+                // Does not include content types like html/pdf/gz that only have one file extension in the list
+                else -> contentType.fileExtensions().first()
+            }
         } catch(e: NoSuchElementException) {
             "dat"
         }
@@ -154,6 +161,22 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         // set content disposition
         call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"$orgId - $repoId.artifacts.$time.zip\"")
 
+        // Return 204 if there are no artifacts
+        var count = 0
+        for (artifactResource in model.listSubjects()) {
+            if (artifactResource.uri.contains(MMS_URNS.SUBJECT.auth)){
+                continue
+            }
+            count += 1
+            break
+        }
+
+        // If there are no artifacts (auth triple doesn't count as one)
+        if (count == 0) {
+            return call.respond(HttpStatusCode.NoContent, "")
+        }
+
+
         // close the response with a ZIP file
         return call.respondOutputStream(contentType = ContentType.Application.Zip) {
             ZipOutputStream(this).use { stream ->
@@ -166,6 +189,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                     val decoded = decodeArtifact(artifactResource)
 
                     // create zip entry - can't use artifactResource.localName, it drops number characters from beginning of URI
+                    // TODO why is this a cc file - figure out where the default is set and how to override
                     val entry = ZipEntry(artifactResource.toString().split("/").last()+"."+decoded.extension)
 
                     // open the entry

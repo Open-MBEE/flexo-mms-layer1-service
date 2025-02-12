@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms
 
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldBeEmpty
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
 import io.ktor.server.testing.*
@@ -10,6 +11,8 @@ import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import org.openmbee.flexo.mms.ROOT_CONTEXT
+
 
 open class ArtifactAny : RefAny() {
     override val logger = LoggerFactory.getLogger(LockAny::class.java)
@@ -25,9 +28,8 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
                     response.contentType() shouldBe ContentType.Text.Plain
-                    //response shouldHaveContent "foo"      //Don't think this is right - shouldn't it be the id?
                 }
             }
         }
@@ -41,7 +43,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
                     response.contentType() shouldBe ContentType.Text.Plain
                 }
             }
@@ -51,8 +53,8 @@ open class ArtifactAny : RefAny() {
             withTest{
                 httpGet("$artifactsPath/store") {
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    // Get the rest of the conditions in here later
+                    response shouldHaveStatus HttpStatusCode.NoContent
+                    response.content.shouldBeEmpty()
                 }
             }
         }
@@ -64,12 +66,12 @@ open class ArtifactAny : RefAny() {
                     addHeader("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
-                    val locationFile1 =  response.headers["Location"]?.split("/")?.last()
+                    val locationFile1 = getURI(response.headers[HttpHeaders.Location].toString())
                     httpPost("$artifactsPath/store") {
-                        addHeader("Content-Type", "text/plain")
-                        setBody("bar")
+                        addHeader("Content-Type", "application/octet-stream")
+                        setBody("bar".toByteArray())
                     }.apply {
-                        val locationFile2 =  response.headers["Location"]?.split("/")?.last()
+                        val locationFile2 = getURI(response.headers[HttpHeaders.Location].toString())
                         httpGet("$artifactsPath/store") {
                         }.apply {
                             response shouldHaveStatus HttpStatusCode.OK
@@ -78,8 +80,8 @@ open class ArtifactAny : RefAny() {
                             val zipBytes = response.byteContent ?: throw IllegalStateException("Response byteContent is null")
                             val contents = readZipContents(zipBytes)
                             contents.size shouldBe 2
-                            contents["$locationFile1.cc"] shouldBe "foo"
-                            contents["$locationFile2.cc"] shouldBe "bar"
+                            contents["$locationFile1.txt"] shouldBe "foo"
+                            contents["$locationFile2.bin"] shouldBe "bar"
 
                         }
                     }
@@ -88,39 +90,17 @@ open class ArtifactAny : RefAny() {
         }
 
         // Not used http methods that should fail
-        "put an artifact failing" {
-            withTest{
-                httpPut("$artifactsPath/store") {
-                    addHeader("Content-Type", "text/plain")
-                    setBody("foo")
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                }
-            }
-        }
-
-        "patch an artifact failing" {
-            withTest{
-                httpPatch("$artifactsPath/store") {
-                    addHeader("Content-Type", "text/plain")
-                    setBody("foo")
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                }
-            }
-        }
-
-        "head of an artifact failing" {
-            withTest{
-                httpHead("$artifactsPath/store") {
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                }
+        "artifact/store rejects other methods" {
+            withTest {
+                onlyAllowsMethods("$artifactsPath/store", setOf(
+                    HttpMethod.Get,
+                    HttpMethod.Post
+                ))
             }
         }
 
         /*********************************************
-        /artifacts/store/{id} route
+        /artifacts/{id} route - gets artifacts
         *********************************************/
 
         "get an artifact by id - text" {
@@ -130,9 +110,9 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
 
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
+                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
@@ -150,9 +130,9 @@ open class ArtifactAny : RefAny() {
                     setBody("foo".toByteArray())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
 
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
+                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
@@ -170,9 +150,9 @@ open class ArtifactAny : RefAny() {
                     setBody("<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> .")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
 
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
+                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
                     }.apply {
                         response shouldHaveStatus HttpStatusCode.OK
@@ -183,59 +163,35 @@ open class ArtifactAny : RefAny() {
             }
         }
 
-        "put getting an artifact failing" {
-            withTest{
+        // Not used http methods that should fail
+        "artifact/{id} rejects other methods" {
+            withTest {
                 httpPost("$artifactsPath/store") {
                     addHeader("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
 
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
-                    httpPut(uri) {
-                    }.apply {
-                        response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                    }
+                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
+                    onlyAllowsMethods(
+                        uri, setOf(
+                            HttpMethod.Head,
+                            HttpMethod.Get
+                        )
+                    )
                 }
             }
         }
+    }
 
-        "patch getting an artifact failing" {
-            withTest{
-                httpPost("$artifactsPath/store") {
-                    addHeader("Content-Type", "text/plain")
-                    setBody("foo")
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
+    // Just gets the artifactsPath/{id} part of the location
+    fun getLocation(path: String): String{
+        return path.removePrefix(ROOT_CONTEXT)
+    }
 
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
-                    httpPatch(uri) {
-                    }.apply {
-                        response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                    }
-                }
-            }
-        }
-
-        "post an artifact failing" {
-            withTest{
-                httpPost("$artifactsPath/store") {
-                    addHeader("Content-Type", "text/plain")
-                    setBody("foo")
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers["Location"] shouldContain artifactsPath
-
-                    val uri = "$artifactsPath/store/${response.headers["Location"]?.split("/")?.last()}"
-                    httpPost(uri) {
-                    }.apply {
-                        response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-                    }
-                }
-            }
-        }
+    fun getURI(path: String): String{
+        return path.removePrefix("${ROOT_CONTEXT}$artifactsPath/")
     }
 }
 

@@ -42,7 +42,7 @@ fun Route.storeArtifacts() {
     }
 
     // specific artifact
-    storageAbstractionResource("$ARTIFACTS_PATH/store/{artifactId}") {
+    storageAbstractionResource("$ARTIFACTS_PATH/{artifactId}") {
         beforeEach = {
             parsePathParams {
                 org()
