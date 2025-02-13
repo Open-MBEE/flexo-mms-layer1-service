@@ -78,6 +78,13 @@ fun TriplesAsserter.validateCreatedRepoTriples(
     createResponse shouldHaveStatus HttpStatusCode.Created
     validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
 
+    // auto policy
+    matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
+        includes(
+            RDF.type exactly MMS.Policy,
+        )
+    }
+
     // snapshots staging & model, commit, commit data, and lock
     matchMultipleSubjectsByPrefix(localIri("${repoPath}/snapshots/")) { ignoreAll() }
     matchMultipleSubjectsByPrefix(localIri("${repoPath}/commits/")) { ignoreAll() }

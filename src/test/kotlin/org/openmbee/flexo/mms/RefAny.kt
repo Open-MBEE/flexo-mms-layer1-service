@@ -56,6 +56,12 @@ open class RefAny : RepoAny() {
                 )
             }
 
+            matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner") {
+                includes(
+                    RDF.type exactly MMS.Policy,
+                )
+            }
+
             validateTransaction(demoOrgPath, demoRepoPath, demoBranchPath, "root")
 
             // inspect

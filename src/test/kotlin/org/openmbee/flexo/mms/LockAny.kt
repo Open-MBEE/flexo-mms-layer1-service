@@ -35,6 +35,13 @@ fun TriplesAsserter.validateCreatedLockTriples(
 ) {
     validateLockTriples(lockId, etag)
 
+    // auto policy
+    matchOneSubjectTerseByPrefix("m-policy:AutoLockOwner") {
+        includes(
+            RDF.type exactly MMS.Policy,
+        )
+    }
+
     // transaction
     validateTransaction(orgPath=orgPath)
 

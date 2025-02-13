@@ -12,7 +12,6 @@ fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?
 
     subjectTerse("mt:") {
         linkedStatements.addAll(subject.listProperties(MMS.appliedPolicy).toList())
-        linkedStatements.addAll(subject.listProperties(MMS.createdPolicy).toList())
 
         includes(
             RDF.type exactly  MMS.Transaction,
