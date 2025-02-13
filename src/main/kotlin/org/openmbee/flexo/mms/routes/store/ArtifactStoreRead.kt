@@ -164,7 +164,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         // Return 204 if there are no artifacts
         var count = 0
         for (artifactResource in model.listSubjects()) {
-            if (artifactResource.uri.contains(MMS_URNS.SUBJECT.auth)){
+            if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)){
                 continue
             }
             count += 1
@@ -173,7 +173,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
 
         // If there are no artifacts (auth triple doesn't count as one)
         if (count == 0) {
-            return call.respond(HttpStatusCode.NoContent, "")
+            return call.respond(HttpStatusCode.NoContent)
         }
 
 
@@ -182,14 +182,13 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             ZipOutputStream(this).use { stream ->
                 // each artifact
                 for (artifactResource in model.listSubjects()) {
-                    if (artifactResource.uri.contains(MMS_URNS.SUBJECT.auth)){
+                    if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)){
                         continue
                     }
                     // decode artifact
                     val decoded = decodeArtifact(artifactResource)
 
                     // create zip entry - can't use artifactResource.localName, it drops number characters from beginning of URI
-                    // TODO why is this a cc file - figure out where the default is set and how to override
                     val entry = ZipEntry(artifactResource.toString().split("/").last()+"."+decoded.extension)
 
                     // open the entry

@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.kotest.matchers.equals.shouldBeEqual
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
 import io.kotest.matchers.string.shouldContain
@@ -28,7 +29,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
                     response.contentType() shouldBe ContentType.Text.Plain
                 }
             }
@@ -43,7 +44,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
                     response.contentType() shouldBe ContentType.Text.Plain
                 }
             }
@@ -54,7 +55,7 @@ open class ArtifactAny : RefAny() {
                 httpGet("$artifactsPath/store") {
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.NoContent
-                    response.content.shouldBeEmpty()
+                    response.content.shouldBeNull()
                 }
             }
         }
@@ -110,7 +111,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
 
                     val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
@@ -130,7 +131,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo".toByteArray())
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
 
                     val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
@@ -150,7 +151,7 @@ open class ArtifactAny : RefAny() {
                     setBody("<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> .")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
 
                     val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     httpGet(uri) {
@@ -171,7 +172,7 @@ open class ArtifactAny : RefAny() {
                     setBody("foo")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldContain "${ROOT_CONTEXT}$artifactsPath/"
+                    response.headers[HttpHeaders.Location] shouldContain localIri(artifactsPath)
 
                     val uri = getLocation(response.headers[HttpHeaders.Location].toString())
                     onlyAllowsMethods(
