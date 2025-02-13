@@ -38,7 +38,6 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             }
             setBody(object : OutgoingContent.WriteChannelContent() {
                 override val contentType = call.request.contentType()
-                override val contentLength = call.request.contentLength() ?: 0L //TODO make it so client isn't required to send this
                 override suspend fun writeTo(channel: ByteWriteChannel) {
                     call.request.receiveChannel().copyTo(channel)
                 }
@@ -135,6 +134,9 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
 
     // set location header
     call.response.headers.append(HttpHeaders.Location, artifactIri)
+
+    // Can't get just the content-type without the parameter, need to parse manually
+    call.response.headers.append(HttpHeaders.ContentType, call.request.contentType().withoutParameters().toString())
 
 //    // response in the requested format
 //    call.respondText(constructModel.stringify(), RdfContentTypes.Turtle, HttpStatusCode.Created)
