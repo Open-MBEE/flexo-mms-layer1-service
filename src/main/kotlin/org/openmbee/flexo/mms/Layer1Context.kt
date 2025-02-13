@@ -93,6 +93,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var repoId: String? = null
     var commitId: String = transactionId
     var lockId: String? = null
+    var artifactId: String? = null
     var branchId: String? = null
     var diffId: String? = null
     var policyId: String? = null
@@ -107,6 +108,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             branchId = branchId,
             commitId = commitId,
             lockId = lockId,
+            artifactId = artifactId,
             diffId = diffId,
             transactionId = transactionId,
             policyId = policyId,
@@ -121,7 +123,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     val requestPath = call.request.path()
     val requestMethod = call.request.httpMethod.value
-    val requestBodyContentType = call.request.contentType().toString()
+    val requestBodyContentType = call.request.contentType().withoutParameters().toString()
 
     val defaultHttpClient = call.httpClient()
 
@@ -157,6 +159,11 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         fun lock(legal: Boolean=false) {
             lockId = call.parameters["lockId"]
             if(legal) assertLegalId(lockId!!)
+        }
+
+        fun artifact(legal: Boolean=false) {
+            artifactId = call.parameters["artifactId"]
+            if(legal) assertLegalId(artifactId!!)
         }
 
         fun branch(legal: Boolean=false) {

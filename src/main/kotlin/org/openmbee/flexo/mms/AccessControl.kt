@@ -16,6 +16,7 @@ enum class Scope(val type: String, val id: String, vararg val extras: String) {
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morl"),
+    ARTIFACT("Artifact", "mora"),
     DIFF("Diff", "mord"),
 
     ACCESS_CONTROL_ANY("AccessControl", "ma", "ma:Agents", "ma:Policies"),
@@ -64,6 +65,11 @@ enum class Permission(
     UPDATE_LOCK(Crud.UPDATE, Scope.LOCK),
     DELETE_LOCK(Crud.DELETE, Scope.LOCK),
 
+    CREATE_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
+    READ_ARTIFACT(Crud.READ, Scope.ARTIFACT),
+    UPDATE_ARTIFACT(Crud.UPDATE, Scope.ARTIFACT),
+    DELETE_ARTIFACT(Crud.DELETE, Scope.ARTIFACT),
+
     CREATE_DIFF(Crud.CREATE, Scope.DIFF),
     READ_DIFF(Crud.READ, Scope.DIFF),
     UPDATE_DIFF(Crud.UPDATE, Scope.DIFF),
@@ -102,34 +108,25 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
             ?policy a mms:Policy ;
                 mms:scope ?scope ;
                 mms:role ?role ;
+                mms:subject ?__mms_policyAgent ;
                 .
         }
 
-        {   
-            # the policy applies to this user within an appropriate scope
-            graph m-graph:AccessControl.Policies {
-                # policy about user
-                ?policy mms:subject mu: .
-            }
-    
+        {
+            # set user as the agent
+            bind(mu: as ?__mms_policyAgent)
             bind("user" as ?__mms_authMethod)
         } union {
             # user belongs to some group
             graph m-graph:AccessControl.Agents {
-                ?group a mms:Group ;
+                ?__mms_policyAgent a mms:Group ;
                     mms:id ?__mms_groupId .
         
                 values ?__mms_groupId {
                     # @values groupId                
                 }
             }
-        
-            # a policy exists that applies to this group within an appropriate scope
-            graph m-graph:AccessControl.Policies {
-                # or policy about group user belongs to
-                ?policy mms:subject ?group .
-            }
-    
+
             bind("group" as ?__mms_authMethod)
         }
 
