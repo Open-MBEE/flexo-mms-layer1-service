@@ -18,6 +18,7 @@ private val SPARQL_BGP_BRANCH: (Boolean, Boolean) -> String = { allBranches, all
                 ${"?branch_p ?branch_o ;" iff allBranches}
                 .
         """.reindent(if(allBranches) 3 else 2)}
+        ${"}" iff allBranches}
         
         ${"""
             optional {
@@ -45,7 +46,7 @@ private val SPARQL_CONSTRUCT_BRANCH: (Boolean, Boolean) -> String = { allBranche
         
         ${generateReadContextBgp(Permission.READ_BRANCH).reindent(2)}
     } where {
-        ${SPARQL_BGP_BRANCH(allBranches, allData)}
+        ${SPARQL_BGP_BRANCH(allBranches, allData).reindent(2)}
     }
 """ }
 
