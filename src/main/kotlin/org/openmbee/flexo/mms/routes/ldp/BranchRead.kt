@@ -62,6 +62,7 @@ suspend fun LdpDcLayer1Context<LdpReadResponse>.fetchBranches(allBranches: Boole
     val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_BRANCH(allBranches, allData)) {
         acceptReplicaLag = true
 
+        // internal query, give it all the prefixes
         prefixes(prefixes)
 
         // get by branchId

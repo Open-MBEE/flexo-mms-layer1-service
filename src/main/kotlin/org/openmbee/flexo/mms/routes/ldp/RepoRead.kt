@@ -77,6 +77,7 @@ suspend fun LdpDcLayer1Context<LdpReadResponse>.fetchRepos(allRepos: Boolean=fal
     val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_REPO(allRepos, allData)) {
         acceptReplicaLag = true
 
+        // internal query, give it all the prefixes
         prefixes(prefixes)
 
         // always belongs to some org

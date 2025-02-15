@@ -377,33 +377,6 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }
     }
 
-    fun handleEtagAndPreconditions(bindings: List<JsonObject>) {
-        // resource does not exist
-        if(bindings.isEmpty()) {
-            throw Http404Exception(call.request.path())
-        }
-
-        // compose output etag
-        var outputEtag = if(bindings.size == 1) {
-            bindings[0]["__mms_etag"]?.let { it.jsonObject["value"]!!.jsonPrimitive.content }?: ""
-        }  else {
-            bindings.map { it["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
-                .distinct().joinToString(":").sha256()
-        }
-
-        // aggregation
-        if(bindings[0]["elementEtag"]?.jsonObject != null) {
-            outputEtag += ":"+bindings.map { it["elementEtag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
-                .sorted().joinToString(":").sha256()
-        }
-
-        // set etag value in response header if present
-        if(outputEtag.isNotEmpty()) call.response.header(HttpHeaders.ETag, outputEtag)
-
-        // check preconditions
-        checkPreconditions(outputEtag)
-    }
-
     fun extractResourceEtag(model: KModel, resourceNode: Resource, allEtags: Boolean=false): String {
         // resource etags
         val resourceEtags = model.listObjectsOfProperty(if(allEtags) null else resourceNode, MMS.etag).toList()
