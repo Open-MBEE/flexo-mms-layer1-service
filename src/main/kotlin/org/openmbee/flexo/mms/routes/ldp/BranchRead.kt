@@ -15,7 +15,7 @@ private val SPARQL_BGP_BRANCH: (Boolean, Boolean) -> String = { allBranches, all
         ${"optional {" iff allBranches}${"""
             ?$SPARQL_VAR_NAME_BRANCH a mms:Branch ;
                 mms:etag ?__mms_etag ;
-                ${"?branch_p ?branch_o ;" iff allBranches}
+                ${"?branch_p ?branch_o ;" iff allData}
                 .
         """.reindent(if(allBranches) 3 else 2)}
         ${"}" iff allBranches}

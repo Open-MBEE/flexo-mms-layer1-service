@@ -24,6 +24,7 @@ class BranchRead : RefAny() {
                 }
             }
         }
+
         "create and head new branch" {
             val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
 
