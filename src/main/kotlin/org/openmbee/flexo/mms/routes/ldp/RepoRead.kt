@@ -13,14 +13,6 @@ import org.openmbee.flexo.mms.server.LdpReadResponse
 // reusable basic graph pattern for matching repo(s)
 private val SPARQL_BGP_REPO: (Boolean, Boolean) -> String = { allRepos, allData -> """
     graph m-graph:Cluster {
-        ${"""
-            optional {
-                ?thing mms:repo ?$SPARQL_VAR_NAME_REPO ; 
-                    ?thing_p ?thing_o ;
-                    .
-            }
-        """.reindent(2) iff allData}
-
         ${"optional {" iff allRepos}${"""
             ?$SPARQL_VAR_NAME_REPO a mms:Repo ;
                 mms:etag ?__mms_etag ;
@@ -31,6 +23,14 @@ private val SPARQL_BGP_REPO: (Boolean, Boolean) -> String = { allRepos, allData 
             bind(iri(concat(str(?$SPARQL_VAR_NAME_REPO), "/graphs/Metadata")) as ?metadataGraph)
         """.reindent(if(allRepos) 3 else 2)}
         ${"}" iff allRepos}
+
+        ${"""
+            optional {
+                ?thing mms:repo ?$SPARQL_VAR_NAME_REPO ; 
+                    ?thing_p ?thing_o ;
+                    .
+            }
+        """.reindent(2) iff allData}
     }
         
     optional {

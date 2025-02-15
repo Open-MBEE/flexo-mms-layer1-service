@@ -12,6 +12,14 @@ import org.openmbee.flexo.mms.server.LdpReadResponse
 // reusable basic graph pattern for matching org(s)
 private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData -> """
     graph m-graph:Cluster {
+        ${"optional {" iff allOrgs}${"""
+            ?$SPARQL_VAR_NAME_ORG a mms:Org ;
+                mms:etag ?__mms_etag ;
+                ${"?org_p ?org_o ;" iff allData}
+                .
+        """.reindent(if(allOrgs) 3 else 2)}
+        ${"}" iff allOrgs}
+        
         ${"""
             optional {
                 ?thing mms:org ?$SPARQL_VAR_NAME_ORG ;
@@ -19,15 +27,6 @@ private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData ->
                     .
             }
         """.reindent(2) iff allData}
-
-        ${"optional {" iff allOrgs}${"""
-            ?$SPARQL_VAR_NAME_ORG a mms:Org ;
-                mms:etag ?__mms_etag ;
-                ${"?org_p ?org_o ;" iff allData}
-                .
-            
-        """.reindent(if(allOrgs) 3 else 2)}
-        ${"}" iff allOrgs}
     }
     
     ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER,

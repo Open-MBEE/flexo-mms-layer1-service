@@ -33,6 +33,7 @@ fun TriplesAsserter.validateCreatedOrgTriples(
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
+    // org-specific validation
     validateOrgTriples(createResponse, orgId, orgName, extraPatterns)
 
     // auto policy
@@ -44,9 +45,6 @@ fun TriplesAsserter.validateCreatedOrgTriples(
 
     // transaction
     validateTransaction(orgPath="/orgs/$orgId")
-
-    // inspect
-    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 open class OrgAny: CommonSpec() {

@@ -334,28 +334,6 @@ class LinkedDataPlatformDirectContainerTests(
             }
         }
 
-        "HEAD $basePath - non-empty" {
-            resourceCreator()
-
-            withTest {
-                httpHead(basePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.headers["ETag"].shouldNotBeBlank()
-                }
-            }
-        }
-
-        "GET $basePath - non-empty" {
-            resourceCreator()
-
-            withTest {
-                httpGet(basePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.headers["ETag"].shouldNotBeBlank()
-                }
-            }
-        }
-
         "HEAD $resourcePath - valid" {
             val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!

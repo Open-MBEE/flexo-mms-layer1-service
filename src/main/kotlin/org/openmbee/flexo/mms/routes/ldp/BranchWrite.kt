@@ -78,8 +78,7 @@ private val SPARQL_UPDATE_SEQUENCE = """
             # resolve to origin graph
             ?originSnapshot mms:graph ?originGraph .
         }
-    
-    
+
         # select contents of origin graph
         optional {
             graph ?originGraph {

@@ -22,6 +22,10 @@ private fun pp(insert: String, indentLevel: Int=2): String {
 }
 
 
+/**
+ * Order matters in SPARQL's OPTIONAL: https://github.com/blazegraph/database/wiki/SPARQL_Order_Matters
+ */
+
 private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null, subTxnId: String?=null): String {
     return """
         graph m-graph:Transactions {

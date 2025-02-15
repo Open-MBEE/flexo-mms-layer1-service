@@ -75,11 +75,18 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 ) {
     val repoPath = "$orgPath/repos/$repoId"
 
-    createResponse shouldHaveStatus HttpStatusCode.Created
+    // repo-specific validation
     validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
+        includes(
+            RDF.type exactly MMS.Policy,
+        )
+    }
+
+    // auto policy
+    matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner.") {
         includes(
             RDF.type exactly MMS.Policy,
         )

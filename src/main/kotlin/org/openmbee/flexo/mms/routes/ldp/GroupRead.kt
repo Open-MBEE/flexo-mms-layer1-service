@@ -9,27 +9,29 @@ import org.openmbee.flexo.mms.server.LdpGetResponse
 import org.openmbee.flexo.mms.server.LdpHeadResponse
 import org.openmbee.flexo.mms.server.LdpReadResponse
 
-private const val SPARQL_VAR_NAME_CONTEXT = "_context"
-
 // reusable basic graph pattern for matching group(s)
 private val SPARQL_BGP_GROUP: (Boolean, Boolean) -> String = { allGroups, allData -> """
     graph m-graph:AccessControl.Agents {
-        ${"""
-            optional {
-                ?thing mms:group ?$SPARQL_VAR_NAME_GROUP ;
-                    ?thing_p ?thing_o .
-            }            
-        """.reindent(2) iff allData}
-
         ${"optional {" iff allGroups}${"""
             ?$SPARQL_VAR_NAME_GROUP a mms:Group ;
                 mms:etag ?__mms_etag ;
-                ?group_p ?group_o .
+                ${"?group_p ?group_o ;" iff allData}
+                .
         """.reindent(if(allGroups) 3 else 2)}
         ${"}" iff allGroups}
+        
+        ${"""
+            optional {
+                ?thing mms:group ?$SPARQL_VAR_NAME_GROUP ;
+                    ?thing_p ?thing_o ;
+                    .
+            }            
+        """.reindent(2) iff allData}
     }
     
-    ${permittedActionSparqlBgp(Permission.READ_GROUP, Scope.CLUSTER)}
+    ${permittedActionSparqlBgp(Permission.READ_GROUP, Scope.CLUSTER,
+        if(allGroups) "^mg:?$".toRegex() else null,
+        if(allGroups) "" else null)}
 """}
 
 // construct graph of all relevant group metadata
@@ -47,8 +49,8 @@ private val SPARQL_CONSTRUCT_GROUP: (Boolean, Boolean) -> String = { allGroups, 
     } where {
         ${SPARQL_BGP_GROUP(allGroups, allData)}
         
-        graph m-graph:AccessControl.Policies {
-            optional {
+        optional {
+            graph m-graph:AccessControl.Policies {
                 ?groupPolicy a mms:Policy ;
                     mms:scope ?$SPARQL_VAR_NAME_GROUP ;
                     ?groupPolicy_p ?groupPolicy_o .

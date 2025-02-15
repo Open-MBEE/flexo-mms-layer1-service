@@ -43,8 +43,8 @@ private val SPARQL_CONSTRUCT_LOCK = """
     } where {
         $SPARQL_BGP_LOCK
         
-        graph m-graph:AccessControl.Policies {
-            optional {
+        optional {
+            graph m-graph:AccessControl.Policies {
                 ?lockPolicy a mms:Policy ;
                     mms:scope ?_lock ;
                     ?lockPolicy_p ?lockPolicy_o .
