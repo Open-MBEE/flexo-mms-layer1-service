@@ -62,12 +62,12 @@ fun Route.crudBranches() {
 
         // state of a branch
         head {
-            headBranches(branchId)
+            headBranches(false)
         }
 
         // read a branch
         get {
-            getBranches(branchId)
+            getBranches(true)
         }
 
         // create branch
