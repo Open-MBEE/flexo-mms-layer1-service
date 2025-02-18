@@ -92,6 +92,7 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                 "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:baseModel" to "?model",
                 "mms-txn:baseModelGraph" to "?modelGraph",
+                "mms-txn:success" to "true"
             )
 
             if(insert.isNotEmpty()) raw(insert)
