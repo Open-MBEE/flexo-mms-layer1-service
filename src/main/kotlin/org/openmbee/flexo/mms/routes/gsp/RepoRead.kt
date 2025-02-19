@@ -9,7 +9,7 @@ import org.openmbee.flexo.mms.server.GspReadResponse
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
 
-suspend fun GspLayer1Context<GspReadResponse>.readRepo() {
+suspend fun GspLayer1Context<GspReadResponse>.readRepo(head: Boolean) {
     parsePathParams {
         org()
         repo()
@@ -17,7 +17,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readRepo() {
 
 
     // HEAD method
-    if (call.request.httpMethod == HttpMethod.Head) {
+    if (head) {
         checkModelQueryConditions("${prefixes["mor-graph"]}Metadata", prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
             assertPreconditions(this)
         })
