@@ -271,7 +271,7 @@ object MMS {
     // access control properties
     val implies = prop("implies")
 
-
+    val defaultBranchId = prop("defaultBranchId")
     val srcRef = prop("srcRef")
     val dstRef = prop("dstRef")
 

@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms.routes
 
+import io.ktor.http.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
@@ -39,6 +40,11 @@ fun Route.crudRepos() {
             // set repo id on context
             repoId = slug
 
+            // parse additional parameters; client may specify default branch ID
+            parsePathParams {
+                defaultBranchId()
+            }
+
             // create new repo
             createOrReplaceRepo()
         }
@@ -65,6 +71,12 @@ fun Route.crudRepos() {
 
         // create or replace repo
         put {
+            // parse additional parameters; client may specify default branch ID
+            parsePathParams {
+                defaultBranchId()
+            }
+
+            // apply
             createOrReplaceRepo()
         }
 

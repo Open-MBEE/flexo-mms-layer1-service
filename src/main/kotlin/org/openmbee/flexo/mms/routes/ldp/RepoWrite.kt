@@ -79,12 +79,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 setProperty(MMS.id, repoId!!)
                 setProperty(MMS.etag, transactionId)
                 setProperty(MMS.org, orgNode())
+                setProperty(MMS.defaultBranchId, defaultBranchId)
             }
         }
     }
 
-    // set default branch
-    branchId = DEFAULT_BRANCH_ID
+    // set branch to create
+    branchId = defaultBranchId
 
     // resolve ambiguity
     if(intentIsAmbiguous) {
