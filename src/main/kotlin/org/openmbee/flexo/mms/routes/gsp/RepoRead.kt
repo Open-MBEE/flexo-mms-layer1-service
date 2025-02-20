@@ -8,30 +8,17 @@ import org.openmbee.flexo.mms.server.GspLayer1Context
 import org.openmbee.flexo.mms.server.GspReadResponse
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
-enum class RefType {
-    BRANCH,
-    LOCK,
-}
 
-suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allData: Boolean?=false) {
+suspend fun GspLayer1Context<GspReadResponse>.readRepo(allData: Boolean?=false) {
     parsePathParams {
         org()
         repo()
-        when(refType) {
-            RefType.BRANCH -> branch()
-            RefType.LOCK -> lock()
-        }
     }
 
     // check conditions
-    val targetGraphIri = when(refType) {
-        RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
-            assertPreconditions(this)
-        })
-        RefType.LOCK -> checkModelQueryConditions(null, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
-            assertPreconditions(this)
-        })
-    }
+    checkModelQueryConditions("${prefixes["mor-graph"]}Metadata", prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
+        assertPreconditions(this)
+    })
 
     // HEAD method
     if (allData != true) {
@@ -45,7 +32,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allDat
                 ?s ?p ?o
             }
             where {
-                graph <$targetGraphIri> {
+                graph mor-graph:Metadata {
                     ?s ?p ?o
                 }
             }

@@ -353,7 +353,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     private fun checkPreconditions(etag: String) {
         // preconditions not be used in POST operations; no-op
-        if(call.request.httpMethod == HttpMethod.Post) return
+        if(isPostMethod) return
 
         // check If-Match preconditions
         if(ifMatch != null && !ifMatch.isStar) {

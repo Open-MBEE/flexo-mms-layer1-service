@@ -16,7 +16,7 @@ import org.openmbee.flexo.mms.server.SparqlQueryRequest
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 
-suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, refIri: String, conditions: ConditionsGroup): JsonArray {
+suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, refIri: String, conditions: ConditionsGroup): String {
     // prepare a query to check required conditions and select the appropriate target graph if necessary
     val serviceQuery = """
         select ?targetGraph ?satisfied where {
@@ -99,7 +99,9 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, 
         // handler did not terminate connection
         throw ServerBugException("A required condition was not satisfied, but the condition did not handle the exception")
     }
-    return bindings
+
+    // return target graph IRI
+    return bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
 }
 
 /**
@@ -118,11 +120,11 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         }
     }
 
-    val bindings = checkModelQueryConditions(targetGraphIri, refIri, conditions)
+    val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
 
     // extract the target graph iri from query results
     if(targetGraphIri == null) {
-        targetGraphIri = bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        targetGraphIri = targetGraphIriResult
     }
 
     // parse user query
