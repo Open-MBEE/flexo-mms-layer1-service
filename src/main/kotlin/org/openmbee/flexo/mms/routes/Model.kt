@@ -69,7 +69,7 @@ fun Route.crudModel() {
 }
 
 
-fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
+fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
@@ -113,15 +113,19 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
             
                     # update branch pointer and etag
                     morb: mms:commit morc: ;
-                        mms:etag ?_txnId .
+                          mms:etag ?_txnId .
                 """)
             }
         }
         where {
-            // `conditions` must contain the patterns that bind ?baseCommit, ?branchEtag, ?model, ?stagingGraph, and so on
             raw("""
-                ${conditions.requiredPatterns().joinToString("\n")}
+                graph mor-graph:Metadata {
+                    morb: mms:etag ?branchEtag ;
+                         mms:commit ?baseCommit .
+                }
+            """)
 
+            raw("""
                 $where
             """)
         }

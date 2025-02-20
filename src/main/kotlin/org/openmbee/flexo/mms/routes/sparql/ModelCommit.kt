@@ -3,10 +3,6 @@ package org.openmbee.flexo.mms.routes.sparql
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
@@ -116,7 +112,7 @@ fun Route.commitModel() {
             // this is used for reconstructing graph from previous commit, ?__mms_model should be replaced with graph to apply to
             var patchString = updates.joinToString(";\n")
 
-            updates.add(genCommitUpdate(localConditions))
+            updates.add(genCommitUpdate())
             val commitUpdateString = updates.joinToString(";\n") //actual update that gets sent
 
             var patchStringDatatype = MMS_DATATYPE.sparql
@@ -177,9 +173,12 @@ fun Route.commitModel() {
             log("Triplestore responded with \n$constructResponseText")
 
             val constructModel = validateTransaction(constructResponseText, localConditions, null, "morc")
-
-            val transactionNode = constructModel.createResource(prefixes["mt"])
-
+            val success = constructModel.listObjectsOfProperty(
+                constructModel.createResource(prefixes["mt"]), MMS.TXN.success)
+                .next()?.asLiteral()?.boolean
+            if (success == null) {
+                throw HttpException("Sparql Update failed for some reason", HttpStatusCode.BadRequest)
+            }
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
 
@@ -226,9 +225,7 @@ fun Route.commitModel() {
                 }
             """) {
                 prefixes(prefixes)
-
                 iri(
-                    "_stagingGraph" to stagingGraphIri,
                     "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                 )

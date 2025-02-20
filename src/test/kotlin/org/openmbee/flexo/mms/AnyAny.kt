@@ -15,7 +15,7 @@ fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?
 
         includes(
             RDF.type exactly  MMS.Transaction,
-            //MMS.created hasDatatype  XSD.dateTime, // TODO fix dup transaction triples from modelcommit
+            MMS.created hasDatatype  XSD.dateTime,
             if(orgPath != null) MMS.org exactly localIri(orgPath).iri else null,
             if(repoPath != null) MMS.repo exactly localIri(repoPath).iri else null,
             if(branchPath != null) MMS.branch exactly localIri(branchPath).iri else null,

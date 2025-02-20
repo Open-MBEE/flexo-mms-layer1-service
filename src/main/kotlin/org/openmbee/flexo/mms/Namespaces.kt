@@ -309,6 +309,7 @@ object MMS {
         val baseModel = prop("baseModel")
         val baseModelGraph = prop("baseModelGraph")
         val sourceGraph = prop("sourceGraph")
+        val success = prop("success")
 
         val diff = prop("diff")
         val baseCommit = prop("baseCommit")

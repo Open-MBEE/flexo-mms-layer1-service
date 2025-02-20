@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.MMS.TXN.stagingGraph
 import org.openmbee.flexo.mms.routes.sparql.compressStringLiteral
 import org.openmbee.flexo.mms.routes.sparql.genCommitUpdate
 import org.openmbee.flexo.mms.routes.sparql.genDiffUpdate
@@ -203,7 +204,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // compute the delta
     run {
-        val updateString = genDiffUpdate("", localConditions, "")
+        val updateString = genDiffUpdate()
         executeSparqlUpdate(updateString) {
             prefixes(prefixes)
 
@@ -239,9 +240,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                     txn("diff", true)
                     etag("morb:")
                 }
-                raw("""
-                    union ${localConditions.unionInspectPatterns().reindent(5)}    
-                """)
             }
         }
 
@@ -367,20 +365,23 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // replace current staging graph with the already loaded model in load graph
     val commitUpdateString = genCommitUpdate(
-        localConditions,
         delete = """
             graph mor-graph:Metadata {
-                ?staging mms:graph ?stagingGraph .
+                ?staging mms:graph ?_stagingGraph .
             }
         """,
         insert = """
             graph mor-graph:Metadata {
                 ?staging mms:graph ?_loadGraph . 
             }
+        """,
+        where = """
+            graph mor-graph:Metadata {
+                morb: mms:snapshot ?staging .
+                ?staging a mms:Staging .
+            }
         """
     )
-
-    val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
 
     var patchString = """
         delete data {
@@ -435,6 +436,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
             "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph"),
             "_loadGraph" to loadGraphUri,
+            "_stagingGraph" to stagingGraphIri
         )
 
         datatyped(
