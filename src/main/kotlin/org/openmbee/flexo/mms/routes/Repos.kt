@@ -99,12 +99,12 @@ fun Route.crudRepos() {
     graphStoreProtocol("$REPOS_PATH/{repoId}/graph") {
         // 5.6 HEAD: check state of graph
         head {
-            readRepo(true)
+            readRepo()
         }
 
         // 5.2 GET: read graph
         get {
-            readRepo(false)
+            readRepo(true)
         }
 
         // otherwise, deny the method

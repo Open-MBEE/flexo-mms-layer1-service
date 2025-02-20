@@ -9,28 +9,40 @@ import org.openmbee.flexo.mms.server.GspReadResponse
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
 
-suspend fun GspLayer1Context<GspReadResponse>.readRepo(head: Boolean) {
+suspend fun GspLayer1Context<GspReadResponse>.readRepo(allData: Boolean?=false) {
     parsePathParams {
         org()
         repo()
     }
 
+    // check conditions
+    checkModelQueryConditions("${prefixes["mor-graph"]}Metadata", prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
+        assertPreconditions(this)
+    })
 
     // HEAD method
-    if (head) {
-        checkModelQueryConditions("${prefixes["mor-graph"]}Metadata", prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
-            assertPreconditions(this)
-        })
+    if (allData != true) {
         call.respond(HttpStatusCode.OK)
     }
     // GET
     else {
-        val construct = """
-            construct { ?s ?p ?o } WHERE { ?s ?p ?o }
-        """.trimIndent()
-        val requestContext = SparqlQueryRequest(call, construct, setOf(), setOf())
-        processAndSubmitUserQuery(requestContext, prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
-            assertPreconditions(this)
-        })
+        // select all triples from repo's metadata graph
+        val constructResponseText = executeSparqlConstructOrDescribe("""
+            construct {
+                ?s ?p ?o
+            }
+            where {
+                graph mor-graph:Metadata {
+                    ?s ?p ?o
+                }
+            }
+        """.trimIndent()) {
+            acceptReplicaLag = true
+
+            prefixes(prefixes)
+        }
+
+        // respond to client
+        call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
     }
 }

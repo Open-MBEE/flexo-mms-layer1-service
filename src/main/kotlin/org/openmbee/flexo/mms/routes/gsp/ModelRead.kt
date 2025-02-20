@@ -13,7 +13,7 @@ enum class RefType {
     LOCK,
 }
 
-suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
+suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allData: Boolean?=false) {
     parsePathParams {
         org()
         repo()
@@ -23,33 +23,39 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType) {
         }
     }
 
+    // check conditions
+    when(refType) {
+        RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+            assertPreconditions(this)
+        })
+        RefType.LOCK -> checkModelQueryConditions(null, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+            assertPreconditions(this)
+        })
+    }
 
     // HEAD method
-    if (call.request.httpMethod == HttpMethod.Head) {
-        when(refType) {
-            RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
-                assertPreconditions(this)
-            })
-            RefType.LOCK -> checkModelQueryConditions(null, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
-                assertPreconditions(this)
-            })
-        }
+    if (allData != true) {
         call.respond(HttpStatusCode.OK)
     }
     // GET
     else {
-        val construct = """
-            construct { ?s ?p ?o } WHERE { ?s ?p ?o }
-        """.trimIndent()
-        val requestContext = SparqlQueryRequest(call, construct, setOf(), setOf())
-        when(refType) {
-            RefType.BRANCH -> processAndSubmitUserQuery(requestContext, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
-                assertPreconditions(this)
-            })
-            RefType.LOCK -> processAndSubmitUserQuery(requestContext, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
-                assertPreconditions(this)
-            })
+        // select all triples from repo's metadata graph
+        val constructResponseText = executeSparqlConstructOrDescribe("""
+            construct {
+                ?s ?p ?o
+            }
+            where {
+                graph mor-graph:Metadata {
+                    ?s ?p ?o
+                }
+            }
+        """.trimIndent()) {
+            acceptReplicaLag = true
+
+            prefixes(prefixes)
         }
 
+        // respond to client
+        call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
     }
 }

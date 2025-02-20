@@ -27,7 +27,7 @@ fun Route.crudModel() {
 
         // 5.2 GET: read graph
         get {
-            readModel(RefType.BRANCH)
+            readModel(RefType.BRANCH, true)
         }
 
         // 5.3 PUT: overwrite (load)
@@ -60,7 +60,7 @@ fun Route.crudModel() {
 
         // 5.2 GET: read graph
         get {
-            readModel(RefType.LOCK)
+            readModel(RefType.LOCK, true)
         }
 
         // otherwise, deny the method
