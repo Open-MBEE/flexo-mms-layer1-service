@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms.util
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.*
+import java.net.URLEncoder
 
 
 fun createOrg(orgId: String, orgName: String): TestApplicationCall {
@@ -12,7 +13,8 @@ fun createOrg(orgId: String, orgName: String): TestApplicationCall {
                 <> dct:title "$orgName"@en .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
+
             // assert it exists
             httpGet("/orgs/$orgId") {}.apply {
                 response shouldHaveStatus 200
@@ -28,7 +30,12 @@ fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicati
                 <> dct:title "$repoName"@en .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
+
+            // assert it exists
+            httpGet("/$orgPath/repos/$repoId") {}.apply {
+                response shouldHaveStatus 200
+            }
         }
     }
 }
@@ -41,7 +48,12 @@ fun createBranch(repoPath: String, refId: String, branchId: String, branchName: 
                 <> mms:ref <./$refId> .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
+
+            // assert it exists
+            httpGet("/$repoPath/branches/$branchId") {}.apply {
+                this.response shouldHaveStatus 200
+            }
         }
     }
 }
@@ -53,7 +65,19 @@ fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicati
                 <> mms:ref <$refPath> .
             """.trimIndent())
         }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
+            response shouldHaveStatus HttpStatusCode.Created
+        }
+    }
+}
+
+fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
+    return withTest {
+        httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
+            setTurtleBody("""
+                <> dct:title "${groupTitle}"@en .
+            """.trimIndent())
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.Created
         }
     }
 }
@@ -70,7 +94,7 @@ fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
 
 fun loadModel(refPath: String, turtle: String): TestApplicationCall {
     return withTest {
-        httpPost("$refPath/graph") {
+        httpPut("$refPath/graph") {
             setTurtleBody(turtle)
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK

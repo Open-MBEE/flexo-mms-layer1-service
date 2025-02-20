@@ -29,7 +29,7 @@ docker-compose -f src/test/resources/docker-compose.yml up -d
 Apache Jena's Fuseki quadstore will bind locally on port 3030. Should you want to issue SPARQL queries directly against the quadstore itself, Fuseki exposes the following HTTP APIs by default:
 
 | Endpoint                          | Purpose                                                                            |
-| --------------------------------- | ---------------------------------------------------------------------------------- |
+|-----------------------------------|------------------------------------------------------------------------------------|
 | `http://localhost:3030/ds/sparql` | [SPARQL 1.1 Query](https://www.w3.org/TR/sparql11-query/)                          |
 | `http://localhost:3030/ds/update` | [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/)                        |
 | `http://localhost:3030/ds/data`   | [SPARQL 1.1 Graph Store Protocol](https://www.w3.org/TR/sparql11-http-rdf-update/) |

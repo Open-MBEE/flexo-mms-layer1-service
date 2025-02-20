@@ -1,6 +1,6 @@
 package org.openmbee.flexo.mms
 
-import io.ktor.server.application.*
+val LDAP_COMPATIBLE_SLUG_REGEX = """[/?&=,._\pL0-9-]{3,256}""".toRegex()
 
 enum class Crud(val id: String) {
     CREATE("Create"),
@@ -70,6 +70,9 @@ enum class Permission(
     DELETE_DIFF(Crud.DELETE, Scope.DIFF),
 
     CREATE_GROUP(Crud.CREATE, Scope.GROUP),
+    READ_GROUP(Crud.READ, Scope.GROUP),
+    UPDATE_GROUP(Crud.UPDATE, Scope.GROUP),
+    DELETE_GROUP(Crud.DELETE, Scope.GROUP),
 
     CREATE_POLICY(Crud.CREATE, Scope.POLICY),
     READ_POLICY(Crud.READ, Scope.POLICY),
@@ -96,25 +99,29 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
     return """
         # some policy exists
         graph m-graph:AccessControl.Policies {
-            ?policy a mms:Policy ;
-                mms:scope ?scope ;
-                mms:role ?role ;
+            ?__mms_policy a mms:Policy ;
+                mms:scope ?__mms_scope ;
+                mms:role ?__mms_role ;
+                ?__mms_policy_p ?__mms_policy_o ;
                 .
         }
 
+        # deduce `?__mms_authMethod`
         {   
             # the policy applies to this user within an appropriate scope
             graph m-graph:AccessControl.Policies {
                 # policy about user
-                ?policy mms:subject mu: .
+                ?__mms_policy mms:subject mu: .
             }
     
+            # indicate method for authentication was against user
             bind("user" as ?__mms_authMethod)
         } union {
             # user belongs to some group
             graph m-graph:AccessControl.Agents {
-                ?group a mms:Group ;
-                    mms:id ?__mms_groupId .
+                ?__mms_group a mms:Group ;
+                    mms:id ?__mms_groupId ;
+                    .
         
                 values ?__mms_groupId {
                     # @values groupId                
@@ -124,15 +131,16 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
             # a policy exists that applies to this group within an appropriate scope
             graph m-graph:AccessControl.Policies {
                 # or policy about group user belongs to
-                ?policy mms:subject ?group .
+                ?__mms_policy mms:subject ?__mms_group .
             }
     
+            # indicate method for authentication was against group
             bind("group" as ?__mms_authMethod)
         }
 
 
         # intersect scopes relevant to context
-        values ?scope {
+        values ?__mms_scope {
             ${scope.values().joinToString(" ") { it.run {
                 if(find != null && replace != null) this.replace(find, replace) else this
             } } }
@@ -140,20 +148,34 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
     
         # lookup scope's class
         graph m-graph:Cluster {
-            ?scope rdf:type ?scopeType .
+            ?__mms_scope rdf:type ?__mms_scopeType .
         }
         
         # lookup scope class, role, and permissions
         graph m-graph:AccessControl.Definitions {
-            ?scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
+            ?__mms_scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
 
-            ?role a mms:Role ;
-                mms:permits ?directRolePermissions ;
+            ?__mms_role a mms:Role ;
+                mms:permits ?__mms_directRolePermissions ;
                 .
             
-            ?directRolePermissions a mms:Permission ;
+            ?__mms_directRolePermissions a mms:Permission ;
                 mms:implies* mms-object:Permission.${permission.id} ;
                 .
         }
-    """.trimIndent()
+    """
+}
+
+fun generateReadContextBgp(permission: Permission, id: String?=null): String {
+    return """ 
+        # context conveys metadata such as etag and how access control was applied 
+        <${MMS_URNS.SUBJECT.context}${id?.let { ":$it" }?: ""}> a mms:Context ;
+            mms:etag ?__mms_etag, ?elementEtag ;
+            mms:appliedPolicy ?__mms_policy ;
+            mms:permit mms-object:Permission.${permission.id} ;
+            .
+
+        # details the policy that was applied
+        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+    """
 }

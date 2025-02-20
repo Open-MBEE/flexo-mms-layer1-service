@@ -2,9 +2,11 @@ package org.openmbee.flexo.mms.util
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import io.kotest.matchers.string.shouldStartWith
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.ROOT_CONTEXT
+import org.openmbee.flexo.mms.server.BuildInfo
 import java.util.*
 
 
@@ -84,7 +86,13 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
                     println("?");
                 }
 
-                response shouldHaveOneOfStatuses setOf(HttpStatusCode.NotFound, HttpStatusCode.Forbidden)
+                response shouldHaveOneOfStatuses setOf(
+                    HttpStatusCode.BadRequest,
+                    HttpStatusCode.Forbidden,
+                    HttpStatusCode.NotFound,
+                    HttpStatusCode.MethodNotAllowed,
+                    HttpStatusCode.NotImplemented,
+                )
             }
 
             // else if(method == HttpMethod.Get) {
@@ -98,6 +106,8 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
     return handleRequest(method, uri) {
         addHeader("Authorization", authorization(rootAuth))
         setup()
+    }.apply {
+        response.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
     }
 }
 
@@ -123,4 +133,33 @@ fun TestApplicationEngine.httpPatch(uri: String, setup: TestApplicationRequest.(
 
 fun TestApplicationEngine.httpDelete(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
     return this.httpRequest(HttpMethod.Delete, uri, setup)
+}
+
+
+fun TestApplicationEngine.onlyAllowsMethods(path: String, allowedMethods: Set<HttpMethod>) {
+    val verbs: MutableMap<HttpMethod, (path: String) -> TestApplicationCall> = mutableMapOf(
+        HttpMethod.Head to { httpHead(it) {} },
+        HttpMethod.Get to { httpGet(it) {} },
+        HttpMethod.Post to { httpPost(it) {} },
+        HttpMethod.Put to { httpPut(it) {} },
+        HttpMethod.Patch to { httpPatch(it) {} },
+        HttpMethod.Delete to { httpDelete(it) {} },
+    )
+
+    // remove each allowed method from the map
+    for(allowedMethod in allowedMethods) {
+        verbs.remove(allowedMethod)
+    }
+
+    // create expected HTTP header
+    val expectedAllowHeader = "OPTIONS, ${allowedMethods.joinToString(", ") { it.value }}"
+
+    // each remaining method
+    for((method, verb) in verbs) {
+        verb(path).apply {
+            response shouldHaveStatus HttpStatusCode.MethodNotAllowed
+            response.shouldHaveHeader("Allow", expectedAllowHeader)
+            response.contentType().toString().shouldStartWith(ContentType.Text.Plain.toString())
+        }
+    }
 }

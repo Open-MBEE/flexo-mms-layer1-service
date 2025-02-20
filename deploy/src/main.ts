@@ -194,6 +194,7 @@ ds_writer.write({
 			'm-group:SuperAdmins': {
 				a: 'mms:Group',
 				'mms:id': '"super_admins',
+				'mms:etag': '"mms-init-etag-value-group-SuperAdmins',
 			},
 		},
 
@@ -426,6 +427,13 @@ ds_writer.write({
 				Repo: {
 					crud: {
 						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadRepo',
+								'UpdateBranch',  // PATCH for updating repo metadata
+								'UpdateLock',  // PATCH for updating repo metadata
+							],
+						},
 						Delete: {
 							implies: [
 								'UpdateRepo',
@@ -445,13 +453,7 @@ ds_writer.write({
 				},
 
 				Lock: {
-					crud: {
-						Create: {},
-						Read: {},
-						Delete: {
-							implies: ['ReadLock'],
-						},
-					},
+					crud: H_CRUD_DEFAULT,
 				},
 
 				AccessControlAny: {

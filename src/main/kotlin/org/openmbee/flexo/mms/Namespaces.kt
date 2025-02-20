@@ -5,6 +5,7 @@ import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
+import java.net.URLEncoder
 
 class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.() -> PrefixMapBuilder)?=null) {
     var map = HashMap<String, String>()
@@ -109,7 +110,7 @@ fun prefixesFor(
         }
 
         if(null != groupId) {
-            with("$ROOT_CONTEXT/groups/$groupId") {
+            with("$ROOT_CONTEXT/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
                 add(
                     "mg" to this,
                 )
@@ -155,6 +156,9 @@ fun prefixesFor(
                                 )
                             }
                         }
+                        else {
+                            add("morl" to MMS_URNS.never)
+                        }
 
                         if(null !== diffId) {
                             with("$this/diffs/$diffId") {
@@ -162,6 +166,9 @@ fun prefixesFor(
                                     "mord" to this,
                                 )
                             }
+                        }
+                        else {
+                            add("morl" to MMS_URNS.never)
                         }
 
                         if(null != lockId) {
@@ -171,6 +178,9 @@ fun prefixesFor(
                                 )
                             }
                         }
+                        else {
+                            add("morl" to MMS_URNS.never)
+                        }
 
                         if(null != commitId) {
                             with("$this/commits/$commitId") {
@@ -179,6 +189,9 @@ fun prefixesFor(
                                     "morc-data" to "$this/data/",
                                 )
                             }
+                        }
+                        else {
+                            add("morl" to MMS_URNS.never)
                         }
                     }
                 }
@@ -201,7 +214,7 @@ fun prefixesFor(
 object MMS {
     private val BASE = SPARQL_PREFIXES["mms"]!!
     val uri = BASE
-    
+
     private fun res(id: String): Resource {
         return ResourceFactory.createResource("${BASE}${id}")
     }
@@ -224,6 +237,7 @@ object MMS {
     val Group = res("Group")
     val Policy = res("Policy")
 
+    val Context = res("Context")
     val Transaction = res("Transaction")
 
 
@@ -233,7 +247,7 @@ object MMS {
 
     // object properties
     val id  = ResourceFactory.createProperty(BASE, "id")
-    
+
     private fun prop(id: String): Property {
         return ResourceFactory.createProperty(BASE, id)
     }
@@ -252,12 +266,14 @@ object MMS {
     val completed = prop("completed")
     val requestBody = prop("requestBody")
     val requestPath = prop("requestPath")
+    val replacesExisting = prop("replacesExisting")
+    val createdPolicy = prop("createdPolicy")
+    val appliedPolicy = prop("appliedPolicy")
 
     val commitId = prop("commitId")
     val submitted = prop("submitted")
     // access control properties
     val implies = prop("implies")
-
 
     val srcRef = prop("srcRef")
     val dstRef = prop("dstRef")
@@ -336,5 +352,28 @@ object MMS_OBJECT {
         val AdminAccessControl = res("AdminAccessControl")
         val WriteAccessControl = res("WriteAccessControl")
         val ReadAccessControl = res("ReadAccessControl")
+    }
+
+    private val BASE_PERMISSION = "${BASE}Permission."
+    object PERMISSION {
+
+    }
+}
+
+object MMS_URNS {
+    private val mms = "urn:mms"
+
+    val never = "$mms:never"
+
+    object SUBJECT {
+        val aggregator = "$mms:aggregator"
+        val auth = "$mms:auth"
+        val context = "$mms:context"
+        val inspect = "$mms:inspect"
+    }
+
+    object PREDICATE {
+        val pass = "$mms:pass"
+        val policy = "$mms:policy"
     }
 }

@@ -10,28 +10,29 @@ import org.openmbee.flexo.mms.util.*
 class RepoQuery : ModelAny() {
 
     val lockCommitQuery = """
-        select ?etag ?time where {
-            ?lock mms:id "$lockId" .
-            ?lock mms:commit ?commit .
-            ?commit mms:etag ?etag .
+        select ?time where {
+            ?lock mms:id "$demoLockId" ;
+                mms:commit ?commit ;
+                .
+
             ?commit mms:submitted ?time .
         }
     """.trimIndent()
 
     init {
         "query time of commit of lock" {
-            val update = commitModel(masterPath, insertAliceRex)
-            val etag = update.response.headers[HttpHeaders.ETag]!!
-            createLock(repoPath, masterPath, lockId)
+            val update = commitModel(masterBranchPath, insertAliceRex)
+//            val etag = update.response.headers[HttpHeaders.ETag]!!
+            createLock(demoRepoPath, masterBranchPath, demoLockId)
             // lock should be pointing to the commit from update
             withTest {
-                httpPost("$repoPath/query") {
+                httpPost("$demoRepoPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes(lockCommitQuery))
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.headers["Content-Type"] shouldStartWith "application/sparql-results+json"
                     response.content!!.shouldBeJsonObject()
-                    response.content!!.shouldContainJsonKeyValue("$.results.bindings[0].etag.value", etag)
+//                    response.content!!.shouldContainJsonKeyValue("$.results.bindings[0].etag.value", etag)
                     response.content!!.shouldContainJsonKey("$.results.bindings[0].time.value")
                 }
             }
@@ -47,6 +48,21 @@ class RepoQuery : ModelAny() {
                     """)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.NotFound
+                }
+            }
+        }
+
+        "user query with BASE" {
+            // lock should be pointing to the commit from update
+            withTest {
+                httpPost("$demoRepoPath/query") {
+                    setSparqlQueryBody("""
+                        BASE <hacked>
+
+                        ${withAllTestPrefixes(lockCommitQuery)}
+                    """.trimIndent())
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }

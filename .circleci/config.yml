@@ -28,7 +28,7 @@ jobs:
             - flexo-mms-layer1-service/*
   build_and_test:
     machine:
-      image: ubuntu-2204:2022.04.1
+      image: default
     working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - attach_workspace:
@@ -42,7 +42,7 @@ jobs:
           shell: /bin/bash
           command: |
             docker-compose -f src/test/resources/docker-compose.yml up -d quad-store-server
-            docker build --network=flexo-mms-test-network -t flexo-mms-test:latest -f Dockerfile-Test .
+            docker build -t flexo-mms-test:latest -f Dockerfile-Test .
             docker run --network=flexo-mms-test-network --name flexo-mms-test-container flexo-mms-test:latest
             SIG_INT=$?
             docker cp flexo-mms-test-container:/application/build /home/circleci/flexo-mms-layer1-service/build

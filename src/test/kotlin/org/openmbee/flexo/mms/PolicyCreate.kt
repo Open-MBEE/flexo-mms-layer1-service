@@ -43,6 +43,7 @@ fun TriplesAsserter.validateCreatedPolicyTriples(
     roleNodes: List<Resource>,
     extraPatterns: List<PairPattern> = listOf()
 ) {
+    createResponse shouldHaveStatus HttpStatusCode.Created
     validatePolicyTriples(createResponse, policyId, subjectPath, scopePath, roleNodes, extraPatterns)
 
     // // auto policy
@@ -115,7 +116,7 @@ class PolicyCreate : CommonSpec() {
                 httpPut(policyPath) {
                     setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.Created
                     response.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
                     response exclusivelyHasTriples {
