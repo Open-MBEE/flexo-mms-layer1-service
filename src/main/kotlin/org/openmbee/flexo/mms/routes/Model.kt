@@ -79,21 +79,17 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                         # replace branch pointer and etag
                         mms:commit ?baseCommit ;
                         mms:etag ?branchEtag ;
-                        # branch will require a new model snapshot; interim lock will now point to previous one
-                        mms:snapshot ?model ;
                         .
                 }
-
                 $delete
             """)
         }
         insert {
-            txn(
-                "mms-txn:stagingGraph" to "?stagingGraph",
-                "mms-txn:baseModel" to "?model",
-                "mms-txn:baseModelGraph" to "?modelGraph",
-                "mms-txn:success" to "true"
-            )
+            raw("""
+                graph m-graph:Transactions {
+                    mt: mms-txn:success true .
+                }
+            """.trimIndent())
 
             if(insert.isNotEmpty()) raw(insert)
 
@@ -118,14 +114,6 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                     # update branch pointer and etag
                     morb: mms:commit morc: ;
                         mms:etag ?_txnId .
-            
-                    # convert previous snapshot to isolated lock
-                    ?_interim a mms:InterimLock ;
-                        mms:created ?_now ;
-                        mms:commit ?baseCommit ;
-                        # interim lock now points to model snapshot 
-                        mms:snapshot ?model ;
-                        .
                 """)
             }
         }
@@ -144,8 +132,6 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(
-//                TODO: delete-below; redundant with ?srcGraph ?
-//                "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:srcGraph" to "?srcGraph",
                 "mms-txn:dstGraph" to "?dstGraph",
                 "mms-txn:insGraph" to "?insGraph",

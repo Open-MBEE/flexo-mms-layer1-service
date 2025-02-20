@@ -44,38 +44,15 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             """
         }
     }
-
-    // before loading the model, create new transaction and verify conditions
-    run {
-        val txnUpdateString = buildSparqlUpdate {
-            insert {
-                subtxn("load")
-            }
-            where {
-                raw(*localConditions.requiredPatterns())
-            }
-        }
-
-        executeSparqlUpdate(txnUpdateString)
-
-        val txnConstructString = buildSparqlQuery {
-            construct {
-                txn("load")
-            }
-            where {
-                group {
-                    txn("load")
-                }
-                raw("""
-                    union ${localConditions.unionInspectPatterns()}    
-                """)
-            }
-        }
-
-        val txnConstructResponseText = executeSparqlConstructOrDescribe(txnConstructString)
-
-        validateTransaction(txnConstructResponseText, localConditions, "load")
-    }
+    createBranchModifyingTransaction(localConditions)
+    try {
+        val txnModel = validateBranchModifyingTransaction(localConditions)
+        val stagingGraphIri = txnModel.listObjectsOfProperty(
+            txnModel.createResource(prefixes["mt"]), MMS.TXN.stagingGraph)
+            .next().asResource().uri
+        val baseCommitIri = txnModel.listObjectsOfProperty(
+            txnModel.createResource(prefixes["mt"]), MMS.TXN.baseCommit)
+            .next().asResource().uri
 
     // prepare IRI for named graph to hold loaded model
     val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
@@ -226,55 +203,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // compute the delta
     run {
-        val selectQueryString = """
-            select distinct ?srcGraph ?srcCommit {
-                graph mor-graph:Metadata {
-                    # select the latest commit from the current named ref
-                    ?srcRef mms:commit ?srcCommit .
-
-                    # get the latest snapshot associated with the source commit
-                    ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                    {
-                        # prefer the model snapshot
-                        ?srcSnapshot a mms:Model ;
-                            mms:graph ?srcGraph  .
-                    } union {
-                        # settle for staging...
-                        ?srcSnapshot a mms:Staging ;
-                            mms:graph ?srcGraph .
-
-                        # ...if model is not available
-                        filter not exists {
-                            ?srcSnapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
-                        }
-                    }
-                }
-            }
-        """.trimIndent()
-
-        val selectResponseText = executeSparqlSelectOrAsk(selectQueryString) {
-            prefixes(prefixes)
-
-            iri(
-                // use current branch as ref source
-                "srcRef" to prefixes["morb"]!!,
-            )
-        }
-
-        // parse the JSON response
-        val bindings = Json.parseToJsonElement(selectResponseText)
-            .jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
-
-        if (bindings.size != 1) {
-            throw ServerBugException("Failed to resolve source graph")
-        }
-
-        val sourceGraphIri = bindings[0].jsonObject["srcGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
-
-        val sourceCommitri = bindings[0].jsonObject["srcCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
-
         val updateString = genDiffUpdate("", localConditions, "")
-
         executeSparqlUpdate(updateString) {
             prefixes(prefixes)
 
@@ -289,10 +218,10 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                 "dstCommit" to prefixes["morc"]!!,
 
                 // use explicit srcGraph
-                "srcGraph" to sourceGraphIri,
+                "srcGraph" to stagingGraphIri,
 
                 // use explicit srcCommit
-                "srcCommit" to sourceCommitri,
+                "srcCommit" to baseCommitIri,
             )
         }
     }
@@ -455,10 +384,14 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     var patchString = """
         delete data {
-            $deleteDataResponseText
+            graph ?__mms_model {
+                $deleteDataResponseText
+            }
         } ;
         insert data {
-            $insertDataResponseText
+            graph ?__mms_model {
+                $insertDataResponseText
+            }
         }
     """.trimIndent()
 
@@ -499,7 +432,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         prefixes(prefixes)
 
         iri(
-            "_interim" to interimIri,
             "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
             "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph"),
             "_loadGraph" to loadGraphUri,
@@ -518,37 +450,28 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     val constructCommitString = buildSparqlQuery {
         construct {
-            txn("load")
-            txn("diff")
             raw("""
                 morc: ?commit_p ?commit_o .
             """)
         }
         where {
-            group {
-                txn("load")
-                txn("diff")
-                raw("""
-                    graph mor-graph:Metadata {
-                        morc: ?commit_p ?commit_o .
-                    }
-                """)
-            }
             raw("""
-                union ${localConditions.unionInspectPatterns()}
+                graph mor-graph:Metadata {
+                   morc: ?commit_p ?commit_o .
+                }
             """)
         }
     }
     val constructCommitResponseText = executeSparqlConstructOrDescribe(constructCommitString)
 
     // sanity check
-    log("Sending commit construct response text to client: \n$constructCommitResponseText")
+    log("Sending construct response text to client: \n$constructCommitResponseText\n$diffConstructResponseText")
 
     //log("Sending commit construct response text to client: \n$diffConstructResponseText")
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
     call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
-    call.respondText(constructCommitResponseText, RdfContentTypes.Turtle)
+    call.respondText("$constructCommitResponseText\n$diffConstructResponseText", RdfContentTypes.Turtle)
 
     //
     // ==== Response closed ====
@@ -556,7 +479,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // start copying staging to new model
     executeSparqlUpdate("""
-        copy graph ?_stagingGraph to graph ?_modelGraph ;
+        copy graph ?_loadGraph to graph ?_modelGraph ;
 
         insert data {
             graph m-graph:Graphs {
@@ -577,7 +500,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         prefixes(prefixes)
 
         iri(
-            "_stagingGraph" to loadGraphUri,
+            "_loadGraph" to loadGraphUri,
             "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
             "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
         )
@@ -587,47 +510,20 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // now that response has been sent to client, perform "clean up" work on quad-store
     run {
-        // delete both transactions
+        // delete orphaned previous staging graph
+        executeSparqlUpdate("""
+            drop graph <$stagingGraphIri>;
+        """)
+    }
+    } finally {
         executeSparqlUpdate("""
             delete where {
                 graph m-graph:Transactions {
-                    mt:load ?load_p ?load_o .
                     mt:diff ?diff_p ?diff_o .
+                    mt: ?p ?o .
                 }
             }
         """)
-
-        // delete interim lock
-        executeSparqlUpdate("""
-            delete {
-                graph ?model {
-                    ?model_s ?model_p ?model_o .
-                }
-            } where {
-                graph mor-graph:Metadata {
-                    ?_interim mms:snapshot/mms:graph ?model .
-                }
-                
-                optional {
-                    graph ?model {
-                        ?model_s ?model_p ?model_o .
-                    }
-                }
-            };
-            delete where {
-                graph mor-graph:Metadata {
-                    ?_interim ?lock_p ?lock_o ;
-                        mms:snapshot ?snapshot .
-                    
-                    ?snapshot mms:graph ?model ;
-                        ?snapshot_p ?snapshot_o .
-                }
-            }
-        """) {
-            iri(
-                "_interim" to interimIri,
-            )
-        }
     }
 }
 
