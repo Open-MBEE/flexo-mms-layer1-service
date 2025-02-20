@@ -11,6 +11,8 @@ import org.openmbee.flexo.mms.routes.ldp.getLocks
 import org.openmbee.flexo.mms.routes.ldp.headLocks
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
+const val SPARQL_VAR_NAME_LOCK = "_lock"
+
 private const val LOCKS_PATH = "/orgs/{orgId}/repos/{repoId}/locks"
 
 /**

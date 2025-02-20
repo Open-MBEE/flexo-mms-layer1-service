@@ -17,8 +17,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // execute construct
     val constructResponseText = executeSparqlConstructOrDescribe(constructString, setup)
 
-    // log
-    log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
+//    // log
+//    log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
 
     // validate whether the transaction succeeded
     val constructModel = validateTransaction(constructResponseText, localConditions, null, resourceSymbol)

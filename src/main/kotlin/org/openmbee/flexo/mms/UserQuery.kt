@@ -74,7 +74,7 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, 
         // prep access-control check
         val checkQuery = buildSparqlQuery {
             construct {
-                auth()
+                inspections()
             }
             where {
                 raw(conditions.unionInspectPatterns())

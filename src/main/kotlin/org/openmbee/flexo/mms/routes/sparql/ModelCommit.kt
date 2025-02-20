@@ -233,7 +233,7 @@ fun Route.commitModel() {
             }
             where {
                 group {
-                    txn(null, "morc")
+                    txn(null, true)
 
                     raw("""
                         graph mor-graph:Metadata {
