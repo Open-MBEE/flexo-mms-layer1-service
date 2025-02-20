@@ -101,7 +101,7 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, 
     }
 
     // return target graph IRI
-    return bindings[0].jsonObject["targetGraph"]!!.jsonPrimitive.content
+    return bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
 }
 
 /**
@@ -120,11 +120,11 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         }
     }
 
-    val bindings = checkModelQueryConditions(targetGraphIri, refIri, conditions)
+    val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
 
     // extract the target graph iri from query results
     if(targetGraphIri == null) {
-        targetGraphIri = bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        targetGraphIri = targetGraphIriResult
     }
 
     // parse user query
