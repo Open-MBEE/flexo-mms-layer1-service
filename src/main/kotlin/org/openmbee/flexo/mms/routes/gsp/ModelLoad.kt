@@ -262,8 +262,8 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         }
 
         // parse the JSON response
-        val bindings =
-            Json.parseToJsonElement(selectResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
+        val bindings = Json.parseToJsonElement(selectResponseText)
+            .jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
 
         if (bindings.size != 1) {
             throw ServerBugException("Failed to resolve source graph")
@@ -307,11 +307,11 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             }
             where {
                 group {
-                    txn("diff")
+                    txn("diff", true)
                     etag("morb:")
                 }
                 raw("""
-                    union ${localConditions.unionInspectPatterns()}    
+                    union ${localConditions.unionInspectPatterns().reindent(5)}    
                 """)
             }
         }

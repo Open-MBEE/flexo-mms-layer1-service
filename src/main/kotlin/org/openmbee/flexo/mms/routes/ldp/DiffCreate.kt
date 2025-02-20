@@ -119,7 +119,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.createDiff() {
         where {
             // first group in a series of unions fetches intended outputs
             group {
-                txn("diff", "mord")
+                txn("diff")
 
                 raw("""
                     graph mor-graph:Metadata {

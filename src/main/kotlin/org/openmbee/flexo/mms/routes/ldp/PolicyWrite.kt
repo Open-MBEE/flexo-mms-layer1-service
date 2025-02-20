@@ -172,7 +172,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             // first group in a series of unions fetches intended outputs
             group {
-                txn(null, "mp")
+                txn()
 
                 raw("""
                     graph m-graph:AccessControl.Policies {
