@@ -516,12 +516,39 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
-    // sanity check
-    log("Sending diff construct response text to client: \n$diffConstructResponseText")
+    val constructCommitString = buildSparqlQuery {
+        construct {
+            txn("load")
+            txn("diff")
+            raw("""
+                morc: ?commit_p ?commit_o .
+            """)
+        }
+        where {
+            group {
+                txn("load")
+                txn("diff")
+                raw("""
+                    graph mor-graph:Metadata {
+                        morc: ?commit_p ?commit_o .
+                    }
+                """)
+            }
+            raw("""
+                union ${localConditions.unionInspectPatterns()}
+            """)
+        }
+    }
+    val constructCommitResponseText = executeSparqlConstructOrDescribe(constructCommitString)
 
+    // sanity check
+    log("Sending commit construct response text to client: \n$constructCommitResponseText")
+
+    //log("Sending commit construct response text to client: \n$diffConstructResponseText")
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
-    call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
+    call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
+    call.respondText(constructCommitResponseText, RdfContentTypes.Turtle)
 
     //
     // ==== Response closed ====
