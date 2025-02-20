@@ -24,7 +24,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allDat
     }
 
     // check conditions
-    when(refType) {
+    val targetGraphIri = when(refType) {
         RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
             assertPreconditions(this)
         })
@@ -45,7 +45,7 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allDat
                 ?s ?p ?o
             }
             where {
-                graph mor-graph:Metadata {
+                graph <$targetGraphIri> {
                     ?s ?p ?o
                 }
             }
