@@ -145,10 +145,10 @@ suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
     client.post(updateUrl) {
         contentType(ContentType.Application.FormUrlEncoded)
         parameter("update", """
-             prefix m-graph: <http://layer1-service/graphs/>
+             prefix m-graph: <$ROOT_CONTEXT/graphs/>
              prefix mms: <https://mms.openmbee.org/rdf/ontology/>
-             prefix mt: <http://layer1-service/transactions/some-other-transaction> 
-             prefix morb: <http://layer1-service$branchPath> 
+             prefix mt: <$ROOT_CONTEXT/transactions/some-other-transaction> 
+             prefix morb: <$ROOT_CONTEXT$branchPath> 
              insert data {
                  graph m-graph:Transactions {
                      mt: a mms:Transaction ;
