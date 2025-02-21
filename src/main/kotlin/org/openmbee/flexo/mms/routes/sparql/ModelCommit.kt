@@ -118,7 +118,7 @@ fun Route.commitModel() {
             var patchStringDatatype = MMS_DATATYPE.sparql
 
             // approximate patch string size in bytes by assuming each character is 1 byte
-            if (application.gzipLiteralsLargerThanKib?.let { patchString.length > it } == true) {
+            if (application.gzipLiteralsLargerThanKib?.let { patchString.length/1024f > it } == true) {
                 compressStringLiteral(patchString)?.let {
                     patchString = it
                     patchStringDatatype = MMS_DATATYPE.sparqlGz

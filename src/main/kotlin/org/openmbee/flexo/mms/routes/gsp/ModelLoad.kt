@@ -328,30 +328,16 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     """.trimIndent()
 
     var patchStringDatatype = MMS_DATATYPE.sparql
-
-    val originalKiB = patchString.length / 1024f;
-    if (call.application.gzipLiteralsLargerThanKib?.let { originalKiB > it } == true) {
-        val originalMiB = originalKiB / 1024f
-
-        // compress string
-        val patchStringCompressed = compressStringLiteral(patchString)
-
-        // compression accepted
-        if (patchStringCompressed != null) {
-            // verbose
-            log(
-                "Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
-                    "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
-                } MiB"
-            )
-
-            patchString = patchStringCompressed
+    // approximate patch string size in bytes by assuming each character is 1 byte
+    if (call.application.gzipLiteralsLargerThanKib?.let { patchString.length/1024f > it } == true) {
+        compressStringLiteral(patchString)?.let {
+            patchString = it
             patchStringDatatype = MMS_DATATYPE.sparqlGz
         }
     }
 
     // still greater than safe maximum
-    if (call.application.maximumLiteralSizeKib?.let { patchString.length > it } == true) {
+    if (call.application.maximumLiteralSizeKib?.let { patchString.length/1024f > it } == true) {
         log("Compressed patch string still too large")
 
         // TODO: store as delete and insert graphs...

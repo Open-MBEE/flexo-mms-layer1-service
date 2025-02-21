@@ -271,9 +271,6 @@ fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
     }
 }
 
-
-private val MIGZ_BLOCK_SIZE = 1536 * 1024
-
 val COMPRESSION_TIME_BUDGET = 3 * 1000L  // algorithm is allowed up to 3 seconds max to further optimize compression
 val COMPRESSION_NO_RETRY_THRESHOLD = 12 * 1024 * 1024  // do not attempt to retry if compressed output is >12 MiB
 // val COMPRESSION_MIN_REDUCTION = 0.05  // each successful trail must improve compression by at least 5%
