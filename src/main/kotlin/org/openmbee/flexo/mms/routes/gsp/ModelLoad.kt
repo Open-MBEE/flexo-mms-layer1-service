@@ -386,7 +386,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // sanity check
     log("Sending construct response text to client: \n$constructCommitResponseText\n$diffConstructResponseText")
 
-    //log("Sending commit construct response text to client: \n$diffConstructResponseText")
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
     call.response.header(HttpHeaders.Location, prefixes["morc"]!!)

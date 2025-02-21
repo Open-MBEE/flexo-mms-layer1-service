@@ -116,6 +116,19 @@ class ModelLoad : ModelAny() {
             }
         }
 
+        "model load conflict" {
+            //manually add a transaction into backend
+            val updateUrl = backend.getUpdateUrl()
+            addDummyTransaction(updateUrl, masterBranchPath)
+            withTest {
+                httpPut("$masterBranchPath/graph") {
+                    setTurtleBody(loadAliceRex)
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.Conflict
+                }
+            }
+        }
+
         "lock graph rejects other methods" {
             commitModel(masterBranchPath, insertAliceRex)
             createLock(demoRepoPath, masterBranchPath, demoLockId)

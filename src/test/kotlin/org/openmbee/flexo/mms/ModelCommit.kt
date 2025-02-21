@@ -108,7 +108,7 @@ class ModelCommit: ModelAny() {
             }
         }
 
-        "commit model on non-empty master" {
+        "commit model on non-empty branch" {
             commitModel(masterBranchPath, insertAliceRex)
             createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
             val updateBody = """
@@ -125,6 +125,51 @@ class ModelCommit: ModelAny() {
             }
             withTest {
                 httpGet("$demoBranchPath/graph") {}.apply {
+                    response.includesTriples {
+                        subject("urn:this") {
+                            exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
+                        }
+                    }
+                }
+            }
+        }
+
+        "model commit conflict" {
+            //manually add a transaction into backend
+            val updateUrl = backend.getUpdateUrl()
+            addDummyTransaction(updateUrl, masterBranchPath)
+            withTest {
+                httpPost("$masterBranchPath/update") {
+                    setSparqlUpdateBody("""insert data {<urn:this> <urn:is> <urn:inserted> .}""")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.Conflict
+                }
+            }
+        }
+
+        "where optional clause doesn't match" {
+            val updateBody = """
+                delete {
+                    ?s ?p ?o .
+                } where {
+                    optional {
+                        ?s ?p ?o .
+                    }
+                    values ?s { <urn:this> }
+                };
+                insert data {
+                    <urn:this> <urn:is> <urn:inserted> .
+                }
+            """.trimIndent()
+            withTest {
+                httpPost("$masterBranchPath/update") {
+                    setSparqlUpdateBody(updateBody)
+                }.apply {
+                    validateCommitResult(masterBranchPath)
+                }
+            }
+            withTest {
+                httpGet("$masterBranchPath/graph") {}.apply {
                     response.includesTriples {
                         subject("urn:this") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
