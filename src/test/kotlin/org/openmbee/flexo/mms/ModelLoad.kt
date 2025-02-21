@@ -30,6 +30,12 @@ class ModelLoad : ModelAny() {
         }
     }
 
+    fun TestApplicationCall.validateModelLoadNoChangeResponse() {
+        response shouldHaveStatus HttpStatusCode.OK
+        val etag = response.headers[HttpHeaders.ETag]
+        etag.shouldNotBeBlank()
+    }
+
     init {
         "load all inserts on empty model" {
             withTest {
@@ -46,7 +52,7 @@ class ModelLoad : ModelAny() {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    validateModelLoadResponse()
+                    validateModelLoadNoChangeResponse()
                 }
             }
         }
@@ -87,7 +93,7 @@ class ModelLoad : ModelAny() {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    validateModelLoadResponse()
+                    validateModelLoadNoChangeResponse()
                 }
             }
         }

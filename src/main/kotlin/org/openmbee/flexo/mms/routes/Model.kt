@@ -107,6 +107,7 @@ suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: Cond
         throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
     }
 }
+
 fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
