@@ -68,7 +68,45 @@ fun Route.crudModel() {
     }
 }
 
+suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: ConditionsGroup): String {
+    val update = buildSparqlUpdate {
+        insert {
+            txn("mms-txn:stagingGraph" to "?stagingGraph",
+                "mms-txn:baseCommit" to "?baseCommit")
+        }
+        where {
+            raw("""
+                    filter not exists {
+                        graph m-graph:Transactions { 
+                            ?t a mms:Transaction ;
+                               mms:branch morb:  .  #TODO check if other operations besides model commit/load has this
+                        }    
+                    }
+                """)
+            raw(conditions.requiredPatterns().joinToString("\n"))
+        }
+    }
+    return executeSparqlUpdate(update)
+}
 
+suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: ConditionsGroup): KModel {
+    val query = buildSparqlQuery {
+        construct {
+            txn()
+        }
+        where {
+            txnOrInspections(null, conditions) {}
+        }
+    }
+    val result = executeSparqlConstructOrDescribe(query)
+    try {
+        return validateTransaction(result, conditions)
+    } catch (ex: ServerBugException) {
+        // the conditions passed but there's no transaction, means some other transaction is in progress
+        // throw 409
+        throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
+    }
+}
 fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
@@ -224,6 +262,13 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
     }
 }
 
+fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
+    return KModel().apply {
+        parseRdfByContentType(contentType, body, this)
+        // clear the prefix map so that stringified version uses full IRIs
+        clearNsPrefixMap()
+    }
+}
 
 
 private val MIGZ_BLOCK_SIZE = 1536 * 1024

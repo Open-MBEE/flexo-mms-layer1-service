@@ -5,17 +5,10 @@ import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.MMS.TXN.stagingGraph
-import org.openmbee.flexo.mms.routes.sparql.compressStringLiteral
-import org.openmbee.flexo.mms.routes.sparql.genCommitUpdate
-import org.openmbee.flexo.mms.routes.sparql.genDiffUpdate
+import org.openmbee.flexo.mms.routes.sparql.*
 import org.openmbee.flexo.mms.server.GspLayer1Context
 import org.openmbee.flexo.mms.server.GspMutateResponse
 
@@ -67,8 +60,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         // client did not explicitly provide a URL and the store service is configured
         if (loadUrl == null && storeServiceUrl != null) {
             // submit a POST request to the store service endpoint
-            val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
-                // TODO: verify store service request is correct and complete
+            val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$diffId.ttl") {
                 // Pass received authorization to internal service
                 headers {
                     call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
@@ -168,32 +160,22 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         else {
             // fully load request body
             val body = call.receiveText()
-
-            // parse it into a model
-            val model = KModel(prefixes).apply {
-                parseRdfByContentType(requestContext.requestContentType!!, body, this)
-
-                // clear the prefix map so that stringified version uses full IRIs
-                clearNsPrefixMap()
-            }
-
+            val model = parseModelStripPrefixes(requestContext.requestContentType!!, body)
             // serialize model into turtle
             val loadUpdateString = buildSparqlUpdate {
-                insert {
-                    // embed the model in a triples block within the update
-                    raw("""
+                // embed the model in a triples block within the update
+                raw("""
+                    insert data {
                         # user model
                         graph ?_loadGraph {
                             ${model.stringify()}
                         }
-                    """)
-                }
+                    }
+                """)
             }
 
             // execute
             executeSparqlUpdate(loadUpdateString) {
-                prefixes(prefixes)
-
                 iri(
                     "_loadGraph" to loadGraphUri,
                 )
@@ -250,7 +232,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         validateTransaction(diffConstructResponseText, localConditions, "diff")
     }
 
-
     // shortcut lambda for fetching properties in returned model
     val propertyUriAt = { res: Resource, prop: Property ->
         diffConstructModel.listObjectsOfProperty(res, prop).let {
@@ -261,76 +242,11 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // locate transaction node
     val transactionNode = diffConstructModel.createResource(prefixes["mt"] + "diff")
 
-
     // get ins/del graphs
     val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
     val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
 
-    // parse the result value
-    val changeCount = if (diffInsGraph == null && diffDelGraph == null) {
-        0uL
-    } else {
-        log("Changes detected between previous commit and uploaded model")
-
-        // count the number of changes in the diff
-        val selectDiffResponseText = executeSparqlSelectOrAsk("""
-            select (count(*) as ?changeCount) {
-                {
-                    graph ?_insGraph {
-                        ?ins_s ?ins_p ?ins_o .
-                    }
-                } union {
-                    graph ?_delGraph {
-                        ?del_s ?del_p ?del_o .
-                    }
-                }
-            }
-        """) {
-            prefixes(prefixes)
-
-            iri(
-                "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
-                "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph"),
-            )
-        }
-
-        log("Change count select response:\n$selectDiffResponseText")
-
-        // parse the JSON response
-        val bindings =
-            Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
-
-        // query error
-        if (0 == bindings.size) {
-            throw ServerBugException("Query to count the number of triples in the diff graphs failed to return any results")
-        }
-
-        // bind result to outer assignment
-        bindings[0].jsonObject["changeCount"]!!.jsonObject["value"]!!.jsonPrimitive.content.toULong()
-    }
-
-    // empty delta (no changes)
-    /*  ignored for now for neptune workaround
-    if(changeCount == 0uL) {
-        // locate branch node
-        val branchNode = diffConstructModel.createResource(prefixes["morb"])
-
-        // get its etag value
-        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
-
-        // set etag header
-        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
-
-        // sanity check
-        log.info("Sending data-less construct response text to client: \n$prefixes")
-
-        // respond
-        call.respondText("$prefixes", RdfContentTypes.Turtle)
-    }
-    else {
-    */
-    // TODO add condition to update that the selected staging has not changed since diff creation using etag value
-
+        //for some reason, on fuseki, even if the construct is empty, it still returns prefixes...
     val deleteDataResponseText = executeSparqlConstructOrDescribe("""
         construct {
             ?del_s ?del_p ?del_o .
@@ -346,7 +262,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
-    // create patch string
     val insertDataResponseText = executeSparqlConstructOrDescribe("""
         construct {
             ?ins_s ?ins_p ?ins_o .
@@ -361,7 +276,23 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             "_insGraph" to diffInsGraph!!,
         )
     }
-
+    val insertModel = parseModelStripPrefixes(RdfContentTypes.Turtle, insertDataResponseText)
+    val deleteModel = parseModelStripPrefixes(RdfContentTypes.Turtle, deleteDataResponseText)
+    // empty delta (no changes)
+    if (insertModel.isEmpty && deleteModel.isEmpty) {
+        // locate branch node
+        val branchNode = diffConstructModel.createResource(prefixes["morb"])
+        // get its etag value
+        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+        // set etag header
+        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
+        // sanity check
+        log.info("Sending data-less construct response text to client: \n$prefixes")
+        // respond
+        call.respondText("$prefixes", RdfContentTypes.Turtle)
+        // should this be some other response code to indicate no change..,
+        return
+    }
 
     // replace current staging graph with the already loaded model in load graph
     val commitUpdateString = genCommitUpdate(
@@ -382,16 +313,16 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             }
         """
     )
-
+    //create patch string to get from previous commit to loaded graph
     var patchString = """
         delete data {
             graph ?__mms_model {
-                $deleteDataResponseText
+                ${deleteModel.stringify()}
             }
         } ;
         insert data {
             graph ?__mms_model {
-                $insertDataResponseText
+                ${insertModel.stringify()}
             }
         }
     """.trimIndent()

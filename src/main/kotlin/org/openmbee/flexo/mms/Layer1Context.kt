@@ -490,46 +490,6 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }.stringify(emitPrefixes=false)
     }
 
-    suspend fun createBranchModifyingTransaction(conditions: ConditionsGroup): String {
-        val update = buildSparqlUpdate {
-            insert {
-                txn("mms-txn:stagingGraph" to "?stagingGraph",
-                            "mms-txn:baseCommit" to "?baseCommit")
-            }
-            where {
-                raw("""
-                    filter not exists {
-                        graph m-graph:Transactions { 
-                            ?t a mms:Transaction ;
-                               mms:branch morb:  .  #TODO check if other operations besides model commit/load has this
-                        }    
-                    }
-                """)
-                raw(conditions.requiredPatterns().joinToString("\n"))
-            }
-        }
-        return executeSparqlUpdate(update)
-    }
-
-    suspend fun validateBranchModifyingTransaction(conditions: ConditionsGroup): KModel {
-        val query = buildSparqlQuery {
-            construct {
-                txn()
-            }
-            where {
-                txnOrInspections(null, conditions) {}
-            }
-        }
-        val result = executeSparqlConstructOrDescribe(query)
-        try {
-            return validateTransaction(result, conditions)
-        } catch (ex: ServerBugException) {
-            // the conditions passed but there's no transaction, means some other transaction is in progress
-            // throw 409
-            throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
-        }
-    }
-
     fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
