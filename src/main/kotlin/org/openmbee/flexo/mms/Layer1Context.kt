@@ -490,80 +490,12 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }.stringify(emitPrefixes=false)
     }
 
-
     fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-//                runBlocking {
-//                    val constructQuery = buildSparqlQuery {
-//                        construct {
-//                            raw("""
-//                                # transaction metadata
-//                                mt: ?mt_p ?mt_o .
-//
-//                                # which policy was applied
-//                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-//
-//                                ${if(repoId != null) {
-//                                    """
-//                                        # outgoing repo properties
-//                                        mor: ?mor_p ?mor_o .
-//
-//                                        # properties of things that belong to this repo
-//                                        ?thing ?thing_p ?thing_o .
-//
-//                                        # all triples in metadata graph
-//                                        ?m_s ?m_p ?m_o .
-//                                    """
-//                                } else ""}
-//                            """)
-//                        }
-//                        where {
-//                            raw("""
-//                                {
-//                                    graph m-graph:Transactions {
-//                                        mt: ?mt_p ?mt_o ;
-//                                            mms:policy ?__mms_policy ;
-//                                            .
-//                                    }
-//
-//                                    optional {
-//                                        graph m-graph:AccessControl.Policies {
-//                                            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-//                                        }
-//                                    }
-//                                }
-//                                ${if(repoId != null) {
-//                                    """
-//                                        union {
-//                                            graph m-graph:Cluster {
-//                                                mor: a mms:Repo ;
-//                                                    ?mor_p ?mor_o .
-//
-//                                                optional {
-//                                                    ?thing mms:repo mor: ;
-//                                                        ?thing_p ?thing_o .
-//                                                }
-//                                            }
-//                                        } union {
-//                                            graph mor-graph:Metadata {
-//                                                ?m_s ?m_p ?m_o .
-//                                            }
-//                                        }
-//                                    """
-//                                } else ""}
-//                            """)
-//                        }
-//                    }
-//
-//                    val described = executeSparqlConstructOrDescribe(constructQuery)
-//                    log("Transaction failed.\n\n\tInspect: ${described}\n\n\tResults: \n${results}")
-//                }
-
                 // use response to diagnose cause
                 conditions.handle(model, layer1);
-
                 // the above always throws, so this is unreachable
             }
         }
