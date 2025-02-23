@@ -148,11 +148,12 @@ suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
              prefix m-graph: <$ROOT_CONTEXT/graphs/>
              prefix mms: <https://mms.openmbee.org/rdf/ontology/>
              prefix mt: <$ROOT_CONTEXT/transactions/some-other-transaction> 
+             prefix mms-txn: <https://mms.openmbee.org/rdf/ontology/txn.>
              prefix morb: <$ROOT_CONTEXT$branchPath> 
              insert data {
                  graph m-graph:Transactions {
                      mt: a mms:Transaction ;
-                         mms:branch morb: .
+                         mms-txn:mutex morb: .
                  }
              }
         """.trimIndent())

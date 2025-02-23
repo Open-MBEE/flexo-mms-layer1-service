@@ -179,6 +179,7 @@ fun Route.commitModel() {
             if (success == null) {
                 throw HttpException("Sparql Update failed for some reason", HttpStatusCode.BadRequest)
             }
+            deleteTransaction()
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
 
@@ -192,7 +193,6 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
-            //TODO remove transaction here or let finally do it? think it should be done after copy
             //
             // ==== Response closed ====
             //
@@ -231,14 +231,7 @@ fun Route.commitModel() {
                 )
             }
         } finally {
-            val dropTransactionResponseText = executeSparqlUpdate("""
-                delete where {
-                    graph m-graph:Transactions {
-                        mt: ?p ?o .
-                    }
-                }
-            """)
-            log("Transaction drop response: $dropTransactionResponseText")
+            deleteTransaction()
         }
     }
 }

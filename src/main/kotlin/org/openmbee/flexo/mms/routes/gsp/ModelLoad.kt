@@ -385,11 +385,12 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // sanity check
     log("Sending construct response text to client: \n$constructCommitResponseText\n$diffConstructResponseText")
-
+    deleteTransaction()
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
     call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
     call.respondText("$constructCommitResponseText\n$diffConstructResponseText", RdfContentTypes.Turtle)
+
 
     //
     // ==== Response closed ====
@@ -424,9 +425,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
-    //}
-
-    // now that response has been sent to client, perform "clean up" work on quad-store
     run {
         // delete orphaned previous staging graph
         executeSparqlUpdate("""
@@ -434,14 +432,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         """)
     }
     } finally {
-        executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt:diff ?diff_p ?diff_o .
-                    mt: ?p ?o .
-                }
-            }
-        """)
+        deleteTransaction()
     }
 }
 

@@ -72,14 +72,15 @@ suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: Condit
     val update = buildSparqlUpdate {
         insert {
             txn("mms-txn:stagingGraph" to "?stagingGraph",
-                "mms-txn:baseCommit" to "?baseCommit")
+                "mms-txn:baseCommit" to "?baseCommit",
+                "mms-txn:mutex" to "morb:")
         }
         where {
             raw("""
                     filter not exists {
                         graph m-graph:Transactions { 
                             ?t a mms:Transaction ;
-                               mms:branch morb:  .  #TODO check if other operations besides model commit/load has this
+                                mms-txn:mutex morb: .
                         }    
                     }
                 """)
@@ -106,6 +107,21 @@ suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: Cond
         // throw 409
         throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
     }
+}
+
+suspend fun AnyLayer1Context.deleteTransaction(): String {
+    return executeSparqlUpdate("""
+        with m-graph:Transactions
+        delete {
+            mt: ?p ?o .
+            mt:diff ?diff_p ?diff_o .
+        } where {           
+            mt: ?p ?o .
+            optional {
+                mt:diff ?diff_p ?diff_o .
+            }
+        }
+    """)
 }
 
 fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {

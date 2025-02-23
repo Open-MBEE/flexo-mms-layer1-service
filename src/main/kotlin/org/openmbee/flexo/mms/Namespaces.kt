@@ -313,6 +313,7 @@ object MMS {
 
         val diff = prop("diff")
         val baseCommit = prop("baseCommit")
+        val commitSource = prop("commitSource")
         val insGraph = prop("insGraph")
         val delGraph = prop("delGraph")
     }
