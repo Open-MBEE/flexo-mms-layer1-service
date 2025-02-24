@@ -291,6 +291,10 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         // respond
         call.respondText("$prefixes", RdfContentTypes.Turtle)
         // should this be some other response code to indicate no change..,
+        deleteTransaction()
+        executeSparqlUpdate("""
+            drop graph <$loadGraphUri>;
+        """)
         return
     }
 
