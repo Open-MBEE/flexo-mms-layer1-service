@@ -137,6 +137,10 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
+val COMMIT_UPDATE_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+    permit(Permission.UPDATE_COMMIT, Scope.COMMIT)
+}
+
 val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("lockExists") {
         handler = { layer1 -> "Lock <${layer1.prefixes["morl"]}> does not exist." to HttpStatusCode.NotFound }
@@ -218,6 +222,21 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
                 graph m-graph:Cluster {
                     mor: a mms:Repo ;
                         ?repoExisting_p ?repoExisting_o .
+                }
+            """
+        }
+    }
+
+    fun commitExists() {
+        require("commitExists") {
+            handler = { layer1 -> "Commit <${layer1.prefixes["morc"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+            """
+                # commit must exist
+                graph mor-graph:Metadata {
+                    morc: a mms:Commit ;
+                        ?commitExisting_p ?commitExisting_o .
                 }
             """
         }

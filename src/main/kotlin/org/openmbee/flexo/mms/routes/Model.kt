@@ -105,6 +105,8 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                         mms:submitted ?_now ;
                         mms:data morc-data: ;
                         mms:createdBy mu: ;
+                        mms:id ?_txnId ;
+                        mms:etag ?_txnId ;
                         .
             
                     # commit data
