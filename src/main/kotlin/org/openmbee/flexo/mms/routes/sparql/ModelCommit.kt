@@ -179,7 +179,6 @@ fun Route.commitModel() {
             if (success == null) {
                 throw HttpException("Sparql Update failed for some reason", HttpStatusCode.BadRequest)
             }
-            deleteTransaction()
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
 
@@ -196,7 +195,7 @@ fun Route.commitModel() {
             //
             // ==== Response closed ====
             //
-
+            deleteTransaction()
             log("copy graph <$stagingGraphIri> to graph ${prefixes["mor-graph"]}Model.${transactionId} ;")
 
             // begin copying staging to model
@@ -230,8 +229,9 @@ fun Route.commitModel() {
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                 )
             }
-        } finally {
+        } catch(e: Exception) {
             deleteTransaction()
+            throw e
         }
     }
 }

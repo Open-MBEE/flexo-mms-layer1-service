@@ -389,17 +389,16 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // sanity check
     log("Sending construct response text to client: \n$constructCommitResponseText\n$diffConstructResponseText")
-    deleteTransaction()
+
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
     call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
     call.respondText("$constructCommitResponseText\n$diffConstructResponseText", RdfContentTypes.Turtle)
 
-
     //
     // ==== Response closed ====
     //
-
+    deleteTransaction()
     // start copying staging to new model
     executeSparqlUpdate("""
         copy graph ?_loadGraph to graph ?_modelGraph ;
@@ -435,8 +434,9 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             drop graph <$stagingGraphIri>;
         """)
     }
-    } finally {
+    } catch(e: Exception) {
         deleteTransaction()
+        throw e
     }
 }
 
