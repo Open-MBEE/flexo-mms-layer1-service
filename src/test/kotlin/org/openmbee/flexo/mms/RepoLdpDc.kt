@@ -39,7 +39,7 @@ class RepoLdpDc : RepoAny() {
                 { createRepo(demoOrgPath, barRepoId, barRepoName) },
             ) {
                 if(it.createdOthers.isEmpty()) {
-                    it.response exclusivelyHasTriples {
+                    it.response includesTriples {
                         validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
                     }
                 }

@@ -227,21 +227,6 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
         }
     }
 
-    fun commitExists() {
-        require("commitExists") {
-            handler = { layer1 -> "Commit <${layer1.prefixes["morc"]}> does not exist." to
-                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
-
-            """
-                # commit must exist
-                graph mor-graph:Metadata {
-                    morc: a mms:Commit ;
-                        ?commitExisting_p ?commitExisting_o .
-                }
-            """
-        }
-    }
-
     fun groupExists() {
         require("groupExists") {
             handler = { layer1 -> "Group <${layer1.prefixes["mg"]}> does not exist." to
