@@ -185,7 +185,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
 
     // compute the delta
-    run {
+
         val updateString = genDiffUpdate()
         executeSparqlUpdate(updateString) {
             prefixes(prefixes)
@@ -207,7 +207,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                 "srcCommit" to baseCommitIri,
             )
         }
-    }
+
 
     // validate diff creation
     lateinit var diffConstructResponseText: String
@@ -398,7 +398,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     //
     // ==== Response closed ====
     //
-    deleteTransaction()
     // start copying staging to new model
     executeSparqlUpdate("""
         copy graph ?_loadGraph to graph ?_modelGraph ;
@@ -428,13 +427,13 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
-    run {
+        deleteTransaction()
         // delete orphaned previous staging graph
         executeSparqlUpdate("""
             drop graph <$stagingGraphIri>;
         """)
-    }
     } catch(e: Exception) {
+        // finally is not used here since deleteTransaction is manually called before graph deletion in the try block
         deleteTransaction()
         throw e
     }

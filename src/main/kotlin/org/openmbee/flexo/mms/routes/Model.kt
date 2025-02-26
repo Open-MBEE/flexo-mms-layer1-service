@@ -68,6 +68,13 @@ fun Route.crudModel() {
     }
 }
 
+/**
+ *   Used by ModelCommit and ModelLoad
+ *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb: triple
+ *   and all the conditions pass
+ *
+ *   ?baseCommit and ?stagingGraph should be part of the conditions pattern
+*/
 suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: ConditionsGroup): String {
     val update = buildSparqlUpdate {
         insert {
@@ -90,6 +97,13 @@ suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: Condit
     return executeSparqlUpdate(update)
 }
 
+/**
+ *   Used by ModelCommit and ModelLoad
+ *   Get back the transaction added in createBranchModifyingTransaction - if transaction doesn't exist, check conditions
+ *   validateTransaction will throw ServerBugException if no transaction is returned but all conditions pass -
+ *     the only way this can happen is if there's another transaction that prevented the create function from inserting
+ *     a transaction in the first place
+ */
 suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: ConditionsGroup): KModel {
     val query = buildSparqlQuery {
         construct {
@@ -109,6 +123,10 @@ suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: Cond
     }
 }
 
+/**
+ *   Delete transaction for model commit/model load - mt:diff is optional since it only happens for model load and may
+ *   not have started yet in model load
+ */
 suspend fun AnyLayer1Context.deleteTransaction(): String {
     return executeSparqlUpdate("""
         with m-graph:Transactions
@@ -124,6 +142,12 @@ suspend fun AnyLayer1Context.deleteTransaction(): String {
     """)
 }
 
+/**
+ *   Used by ModelCommit and ModelLoad to do the finishing step of the transaction
+ *   - update branch metadata to point to new commit
+ *   - insert new commit data
+ *   - for model load additional params are passed to replace staging graph with newly loaded graph
+ */
 fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
@@ -187,6 +211,9 @@ fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where
     }
 }
 
+/**
+ *   Used by ModelLoad to get difference between current staging graph and newly loaded graph in the form of delete/insert graphs
+ */
 fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {

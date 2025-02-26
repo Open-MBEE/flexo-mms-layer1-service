@@ -195,7 +195,6 @@ fun Route.commitModel() {
             //
             // ==== Response closed ====
             //
-            deleteTransaction()
             log("copy graph <$stagingGraphIri> to graph ${prefixes["mor-graph"]}Model.${transactionId} ;")
 
             // begin copying staging to model
@@ -229,9 +228,8 @@ fun Route.commitModel() {
                     "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
                 )
             }
-        } catch(e: Exception) {
+        } finally {
             deleteTransaction()
-            throw e
         }
     }
 }
