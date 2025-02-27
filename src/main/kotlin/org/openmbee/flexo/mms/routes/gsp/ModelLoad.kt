@@ -60,7 +60,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         // client did not explicitly provide a URL and the store service is configured
         if (loadUrl == null && storeServiceUrl != null) {
             // submit a POST request to the store service endpoint
-            val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$diffId.ttl") {
+            val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$orgId/$repoId/$branchId/$diffId.ttl") {
                 // Pass received authorization to internal service
                 headers {
                     call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
