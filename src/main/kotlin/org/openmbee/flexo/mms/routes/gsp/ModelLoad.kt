@@ -429,6 +429,8 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
         deleteTransaction()
         // delete orphaned previous staging graph
+        // TODO should delete delGraph and insGraph too but may need them if patch is too big to store
+        // or maybe just keep and use them instead of trying to store patch and have branch write handle it
         executeSparqlUpdate("""
             drop graph <$stagingGraphIri>;
         """)
