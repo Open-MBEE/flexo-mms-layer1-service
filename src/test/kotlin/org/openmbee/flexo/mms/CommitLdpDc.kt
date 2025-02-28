@@ -17,8 +17,22 @@ class CommitLdpDc : CommitAny() {
             },
             useCreatorLocationForResource = true,
         ) {
-            read() {
-
+            read({ commitModel("$demoRepoPath/branches/master", """
+                    insert data { <urn:some1> <urn:thing1> <urn:here1> . }
+                """.trimIndent())}
+            ) { bundle ->
+                if(bundle.createdOthers.isEmpty()) {
+                    bundle.response includesTriples {
+                        validateCommitTriples(basePathCommits, bundle.createdBase.headers[HttpHeaders.Location]!!)
+                    }
+                }
+                else {
+                    bundle.response includesTriples {
+                        bundle.createdOthers.forEach {
+                            validateCommitTriples(basePathCommits, it.headers[HttpHeaders.Location]!!)
+                        }
+                    }
+                }
             }
 
             patch()
