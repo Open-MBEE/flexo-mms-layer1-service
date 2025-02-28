@@ -51,14 +51,21 @@ class LinkedDataPlatformDirectContainerTests(
     var resourceId: String,
     var validBodyForCreate: String = "",
     val resourceCreator: () -> TestApplicationCall,
+    val useCreatorLocationForResource: Boolean = false,
     body: LinkedDataPlatformDirectContainerTests.() -> Unit
 ) {
-    val resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
+    var resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
+
+    fun setResource(call: TestApplicationCall) {
+        if (useCreatorLocationForResource) {
+            resourceId = call.response.headers[HttpHeaders.Location]!!.removePrefix("$ROOT_CONTEXT$basePath/")
+            resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
+        }
+    }
 
     init {
         body()
     }
-
 
     // overloaded version of below
     fun TestApplicationCall.validateCreatedLdpResource(
@@ -337,7 +344,7 @@ class LinkedDataPlatformDirectContainerTests(
         "HEAD $resourcePath - valid" {
             val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-
+            setResource(createdBase)
             withTest {
                 httpHead(resourcePath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.NoContent
@@ -349,7 +356,7 @@ class LinkedDataPlatformDirectContainerTests(
         "GET $resourcePath - valid" {
             val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-
+            setResource(createdBase)
             withTest {
                 httpGet(resourcePath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -363,7 +370,7 @@ class LinkedDataPlatformDirectContainerTests(
         "GET $resourcePath - if-match etag" {
             val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-
+            setResource(createdBase)
             withTest {
                 httpGet(resourcePath) {
                     addHeader(HttpHeaders.IfMatch, "\"$etag\"")
@@ -375,7 +382,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "GET $resourcePath - if-match random" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpGet(resourcePath) {
                     addHeader(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
@@ -388,7 +395,7 @@ class LinkedDataPlatformDirectContainerTests(
         "GET $resourcePath - if-none-match etag" {
             val createdBase = resourceCreator()
             val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-
+            setResource(createdBase)
             withTest {
                 httpGet(resourcePath) {
                     addHeader(HttpHeaders.IfNoneMatch, "\"$etag\"")
@@ -400,7 +407,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "GET $resourcePath - if-none-match star" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpGet(resourcePath) {
                     addHeader(HttpHeaders.IfNoneMatch, "*")
@@ -413,7 +420,7 @@ class LinkedDataPlatformDirectContainerTests(
         "GET $basePath - all resources" {
             val createdBase = resourceCreator()
             val createdOthers = creators.map { it() }
-
+            setResource(createdBase)
             withTest {
                 httpGet(basePath) {}.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -447,7 +454,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - Turtle: insert 1 triple unconditionally" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setTurtleBody(withAllTestPrefixes("""
@@ -461,7 +468,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple unconditionally" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
@@ -477,7 +484,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally passing" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
@@ -496,7 +503,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally failing" {
             val createdBase = resourceCreator()
-
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
@@ -515,6 +522,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete data" {
             val createdBase = resourceCreator()     // This creates a tuple
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
@@ -532,6 +540,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert data" {
             val createdBase = resourceCreator()
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
@@ -547,6 +556,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete pattern" {
             val createdBase = resourceCreator()     // This creates a tuple
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
@@ -567,6 +577,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert pattern" {
             val createdBase = resourceCreator()     // This creates a tuple
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
@@ -587,6 +598,7 @@ class LinkedDataPlatformDirectContainerTests(
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete predicate variable" {
             val createdBase = resourceCreator()     // This creates a tuple
+            setResource(createdBase)
             withTest {
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
