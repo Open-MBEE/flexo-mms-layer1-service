@@ -199,6 +199,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                             mms:submitted ?_now ;
                             mms:message ?_commitMessage ;
                             mms:data morc-data: ;
+                            mms:etag ?_commitEtag ;
+                            mms:id "$transactionId" ;
                             .
                 
                         # root commit data

@@ -17,6 +17,7 @@ enum class Scope(val type: String, val id: String, vararg val extras: String) {
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morl"),
     DIFF("Diff", "mord"),
+    COMMIT("Commit", "morc"),
 
     ACCESS_CONTROL_ANY("AccessControl", "ma", "ma:Agents", "ma:Policies"),
     USER("User", "mu"),
@@ -63,6 +64,9 @@ enum class Permission(
     READ_LOCK(Crud.READ, Scope.LOCK),
     UPDATE_LOCK(Crud.UPDATE, Scope.LOCK),
     DELETE_LOCK(Crud.DELETE, Scope.LOCK),
+
+    READ_COMMIT(Crud.READ, Scope.COMMIT),
+    UPDATE_COMMIT(Crud.UPDATE, Scope.COMMIT),
 
     CREATE_DIFF(Crud.CREATE, Scope.DIFF),
     READ_DIFF(Crud.READ, Scope.DIFF),

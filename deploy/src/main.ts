@@ -314,7 +314,10 @@ ds_writer.write({
 					],
 				},
 				Repo: {
-					implies: 'Ref',
+					implies: [
+						'Ref',
+						'Commit'
+					],
 				},
 				Collection: {},
 				Ref: {
@@ -430,8 +433,10 @@ ds_writer.write({
 						Update: {
 							implies: [
 								'ReadRepo',
+								'ReadCommit',
 								'UpdateBranch',  // PATCH for updating repo metadata
 								'UpdateLock',  // PATCH for updating repo metadata
+								'UpdateCommit', //PATCH for updating commit metadata
 							],
 						},
 						Delete: {
@@ -453,6 +458,10 @@ ds_writer.write({
 				},
 
 				Lock: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Commit: {
 					crud: H_CRUD_DEFAULT,
 				},
 

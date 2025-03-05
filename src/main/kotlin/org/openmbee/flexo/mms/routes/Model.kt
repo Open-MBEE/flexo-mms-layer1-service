@@ -181,6 +181,8 @@ fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where
                         mms:submitted ?_now ;
                         mms:data morc-data: ;
                         mms:createdBy mu: ;
+                        mms:id ?_txnId ;
+                        mms:etag ?_txnId ;
                         .
             
                     # commit data

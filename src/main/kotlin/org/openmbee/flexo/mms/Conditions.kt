@@ -137,6 +137,10 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
+val COMMIT_UPDATE_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+    permit(Permission.UPDATE_COMMIT, Scope.COMMIT)
+}
+
 val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     require("lockExists") {
         handler = { layer1 -> "Lock <${layer1.prefixes["morl"]}> does not exist." to HttpStatusCode.NotFound }
