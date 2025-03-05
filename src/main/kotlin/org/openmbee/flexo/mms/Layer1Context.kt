@@ -115,6 +115,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         )
 
     var inspectOnly: Boolean = false
+    var download: Boolean = false
 
     var refSource: String? = null
     var commitSource: String? = null
@@ -187,6 +188,20 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                     throw Http404Exception(call.request.path())
                 } else true
             } else false
+        }
+    }
+
+    /**
+     * Allows caller to specify which query params are expected
+     */
+    inner class QueryParamNormalizer {
+        fun download() {
+            val downloadValue = call.request.queryParameters["download"]?: ""
+
+            // present as `?download`, or `?download=1` or `?download=true`
+            if(downloadValue == "true" || downloadValue == "1" || downloadValue == "") {
+                download = true
+            }
         }
     }
 
@@ -265,6 +280,15 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
      */
     fun parsePathParams(setup: PathParamNormalizer.()->Unit): PathParamNormalizer {
         return PathParamNormalizer().apply{
+            setup()
+        }
+    }
+
+    /**
+     * Validates query parameters and saves their values to the corresponding field on this instance
+     */
+    fun parseQueryParams(setup: QueryParamNormalizer.()->Unit): QueryParamNormalizer {
+        return QueryParamNormalizer().apply{
             setup()
         }
     }
@@ -493,7 +517,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             // other
             else {
                 if(MMS_URNS.SUBJECT.aggregator === subject.uri) {
-                    // add all etags to aggregator list
+                    // add all etags to aggregator listr
                     elementEtags.addAll(etagStmts.mapWith { statement ->
                         statement.`object`.asLiteral().string
                     }.toList())

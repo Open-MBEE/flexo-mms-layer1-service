@@ -95,7 +95,10 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
     }
 }
 
-suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(allArtifacts: Boolean?=false) {
+suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionReadResponse>.getArtifactsStore(
+    allArtifacts: Boolean?=false,
+    allData: Boolean?=false,
+) {
     val authorizedIri = "<${MMS_URNS.SUBJECT.auth}:${transactionId}>"
 
     // build the construct query
@@ -150,21 +153,38 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         }
     }
 
+    // not requesting data; done
+    if(allData == false) {
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    // enumerate all artifacts
+    if(allArtifacts == true && !download) {
+        // forward response turtle
+        call.respondText(constructResponseText, RdfContentTypes.Turtle)
+
+        // done
+        return
+    }
+
     // parse construct response
     val model = parseConstructResponse(constructResponseText) {}
 
-    // all artifacts
+    // download all artifacts
     if(allArtifacts == true) {
         // timestamp for download name
         val time = Instant.now().toString().replace(":", "-")
 
         // set content disposition
-        call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"$orgId - $repoId.artifacts.$time.zip\"")
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            "attachment; filename=\"$orgId - $repoId.artifacts.$time.zip\""
+        )
 
         // Return 204 if there are no artifacts
         var count = 0
         for (artifactResource in model.listSubjects()) {
-            if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)){
+            if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)) {
                 continue
             }
             count += 1
@@ -176,20 +196,19 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             return call.respond(HttpStatusCode.NoContent)
         }
 
-
         // close the response with a ZIP file
         return call.respondOutputStream(contentType = ContentType.Application.Zip) {
             ZipOutputStream(this).use { stream ->
                 // each artifact
                 for (artifactResource in model.listSubjects()) {
-                    if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)){
+                    if (artifactResource.uri.startsWith(MMS_URNS.SUBJECT.auth)) {
                         continue
                     }
                     // decode artifact
                     val decoded = decodeArtifact(artifactResource)
 
                     // create zip entry - can't use artifactResource.localName, it drops number characters from beginning of URI
-                    val entry = ZipEntry(artifactResource.toString().split("/").last()+"."+decoded.extension)
+                    val entry = ZipEntry(artifactResource.toString().split("/").last() + "." + decoded.extension)
 
                     // open the entry
                     stream.putNextEntry(entry)

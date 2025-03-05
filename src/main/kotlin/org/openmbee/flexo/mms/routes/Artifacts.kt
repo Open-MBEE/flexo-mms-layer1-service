@@ -12,6 +12,8 @@ import org.openmbee.flexo.mms.server.storageAbstractionResource
 
 const val SPARQL_VAR_NAME_ARTIFACT = "_artifact"
 
+const val QUERY_PARAMETER_ID_DOWNLOAD = "download"
+
 private const val ARTIFACTS_PATH = "/orgs/{orgId}/repos/{repoId}/artifacts"
 
 /**
@@ -19,17 +21,26 @@ private const val ARTIFACTS_PATH = "/orgs/{orgId}/repos/{repoId}/artifacts"
  */
 fun Route.storeArtifacts() {
     // all artifacts
-    storageAbstractionResource("$ARTIFACTS_PATH/store") {
+    storageAbstractionResource(ARTIFACTS_PATH) {
         beforeEach = {
             parsePathParams {
                 org()
                 repo()
             }
+
+            parseQueryParams {
+                download()
+            }
+        }
+
+        // state of artifacts
+        head {
+            getArtifactsStore(allArtifacts = true)
         }
 
         // get all artifacts
         get {
-            getArtifactsStore(true)
+            getArtifactsStore(allArtifacts = true, allData = true)
         }
 
         // create new artifact
@@ -53,12 +64,12 @@ fun Route.storeArtifacts() {
 
         // state of an artifact
         head {
-//            headArtifact()
+            getArtifactsStore()
         }
 
         // read an artifact
         get {
-            getArtifactsStore(false)
+            getArtifactsStore(allData = true)
         }
 
         // method not allowed
