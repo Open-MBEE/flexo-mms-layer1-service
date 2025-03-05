@@ -68,8 +68,87 @@ fun Route.crudModel() {
     }
 }
 
+/**
+ *   Used by ModelCommit and ModelLoad
+ *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb: triple
+ *   and all the conditions pass
+ *
+ *   ?baseCommit and ?stagingGraph should be part of the conditions pattern
+*/
+suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: ConditionsGroup): String {
+    val update = buildSparqlUpdate {
+        insert {
+            txn("mms-txn:stagingGraph" to "?stagingGraph",
+                "mms-txn:baseCommit" to "?baseCommit",
+                "mms-txn:mutex" to "morb:")
+        }
+        where {
+            raw("""
+                    filter not exists {
+                        graph m-graph:Transactions { 
+                            ?t a mms:Transaction ;
+                                mms-txn:mutex morb: .
+                        }    
+                    }
+                """)
+            raw(conditions.requiredPatterns().joinToString("\n"))
+        }
+    }
+    return executeSparqlUpdate(update)
+}
 
-fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String="", insert: String="", where: String=""): String {
+/**
+ *   Used by ModelCommit and ModelLoad
+ *   Get back the transaction added in createBranchModifyingTransaction - if transaction doesn't exist, check conditions
+ *   validateTransaction will throw ServerBugException if no transaction is returned but all conditions pass -
+ *     the only way this can happen is if there's another transaction that prevented the create function from inserting
+ *     a transaction in the first place
+ */
+suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: ConditionsGroup): KModel {
+    val query = buildSparqlQuery {
+        construct {
+            txn()
+        }
+        where {
+            txnOrInspections(null, conditions) {}
+        }
+    }
+    val result = executeSparqlConstructOrDescribe(query)
+    try {
+        return validateTransaction(result, conditions)
+    } catch (ex: ServerBugException) {
+        // the conditions passed but there's no transaction, means some other transaction is in progress
+        // throw 409
+        throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
+    }
+}
+
+/**
+ *   Delete transaction for model commit/model load - mt:diff is optional since it only happens for model load and may
+ *   not have started yet in model load
+ */
+suspend fun AnyLayer1Context.deleteTransaction(): String {
+    return executeSparqlUpdate("""
+        with m-graph:Transactions
+        delete {
+            mt: ?p ?o .
+            mt:diff ?diff_p ?diff_o .
+        } where {           
+            mt: ?p ?o .
+            optional {
+                mt:diff ?diff_p ?diff_o .
+            }
+        }
+    """)
+}
+
+/**
+ *   Used by ModelCommit and ModelLoad to do the finishing step of the transaction
+ *   - update branch metadata to point to new commit
+ *   - insert new commit data
+ *   - for model load additional params are passed to replace staging graph with newly loaded graph
+ */
+fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where: String=""): String {
     // generate sparql update
     return buildSparqlUpdate {
         delete {
@@ -79,20 +158,17 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
                         # replace branch pointer and etag
                         mms:commit ?baseCommit ;
                         mms:etag ?branchEtag ;
-                        # branch will require a new model snapshot; interim lock will now point to previous one
-                        mms:snapshot ?model ;
                         .
                 }
-
                 $delete
             """)
         }
         insert {
-            txn(
-                "mms-txn:stagingGraph" to "?stagingGraph",
-                "mms-txn:baseModel" to "?model",
-                "mms-txn:baseModelGraph" to "?modelGraph",
-            )
+            raw("""
+                graph m-graph:Transactions {
+                    mt: mms-txn:success true .
+                }
+            """.trimIndent())
 
             if(insert.isNotEmpty()) raw(insert)
 
@@ -116,35 +192,32 @@ fun AnyLayer1Context.genCommitUpdate(conditions: ConditionsGroup, delete: String
             
                     # update branch pointer and etag
                     morb: mms:commit morc: ;
-                        mms:etag ?_txnId .
-            
-                    # convert previous snapshot to isolated lock
-                    ?_interim a mms:InterimLock ;
-                        mms:created ?_now ;
-                        mms:commit ?baseCommit ;
-                        # interim lock now points to model snapshot 
-                        mms:snapshot ?model ;
-                        .
+                          mms:etag ?_txnId .
                 """)
             }
         }
         where {
-            // `conditions` must contain the patterns that bind ?baseCommit, ?branchEtag, ?model, ?stagingGraph, and so on
             raw("""
-                ${conditions.requiredPatterns().joinToString("\n")}
+                graph mor-graph:Metadata {
+                    morb: mms:etag ?branchEtag ;
+                         mms:commit ?baseCommit .
+                }
+            """)
 
+            raw("""
                 $where
             """)
         }
     }
 }
 
+/**
+ *   Used by ModelLoad to get difference between current staging graph and newly loaded graph in the form of delete/insert graphs
+ */
 fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null): String {
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(
-//                TODO: delete-below; redundant with ?srcGraph ?
-//                "mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:srcGraph" to "?srcGraph",
                 "mms-txn:dstGraph" to "?dstGraph",
                 "mms-txn:insGraph" to "?insGraph",
@@ -233,9 +306,13 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
     }
 }
 
-
-
-private val MIGZ_BLOCK_SIZE = 1536 * 1024
+fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
+    return KModel().apply {
+        parseRdfByContentType(contentType, body, this)
+        // clear the prefix map so that stringified version uses full IRIs
+        clearNsPrefixMap()
+    }
+}
 
 val COMPRESSION_TIME_BUDGET = 3 * 1000L  // algorithm is allowed up to 3 seconds max to further optimize compression
 val COMPRESSION_NO_RETRY_THRESHOLD = 12 * 1024 * 1024  // do not attempt to retry if compressed output is >12 MiB
