@@ -5,16 +5,10 @@ import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.openmbee.flexo.mms.*
-import org.openmbee.flexo.mms.routes.sparql.compressStringLiteral
-import org.openmbee.flexo.mms.routes.sparql.genCommitUpdate
-import org.openmbee.flexo.mms.routes.sparql.genDiffUpdate
+import org.openmbee.flexo.mms.routes.sparql.*
 import org.openmbee.flexo.mms.server.GspLayer1Context
 import org.openmbee.flexo.mms.server.GspMutateResponse
 
@@ -44,38 +38,15 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             """
         }
     }
-
-    // before loading the model, create new transaction and verify conditions
-    run {
-        val txnUpdateString = buildSparqlUpdate {
-            insert {
-                subtxn("load")
-            }
-            where {
-                raw(*localConditions.requiredPatterns())
-            }
-        }
-
-        executeSparqlUpdate(txnUpdateString)
-
-        val txnConstructString = buildSparqlQuery {
-            construct {
-                txn("load")
-            }
-            where {
-                group {
-                    txn("load")
-                }
-                raw("""
-                    union ${localConditions.unionInspectPatterns()}    
-                """)
-            }
-        }
-
-        val txnConstructResponseText = executeSparqlConstructOrDescribe(txnConstructString)
-
-        validateTransaction(txnConstructResponseText, localConditions, "load")
-    }
+    createBranchModifyingTransaction(localConditions)
+    try {
+        val txnModel = validateBranchModifyingTransaction(localConditions)
+        val stagingGraphIri = txnModel.listObjectsOfProperty(
+            txnModel.createResource(prefixes["mt"]), MMS.TXN.stagingGraph)
+            .next().asResource().uri
+        val baseCommitIri = txnModel.listObjectsOfProperty(
+            txnModel.createResource(prefixes["mt"]), MMS.TXN.baseCommit)
+            .next().asResource().uri
 
     // prepare IRI for named graph to hold loaded model
     val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
@@ -89,8 +60,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         // client did not explicitly provide a URL and the store service is configured
         if (loadUrl == null && storeServiceUrl != null) {
             // submit a POST request to the store service endpoint
-            val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
-                // TODO: verify store service request is correct and complete
+            val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$orgId/$repoId/$branchId/$diffId.ttl") {
                 // Pass received authorization to internal service
                 headers {
                     call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
@@ -190,32 +160,22 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         else {
             // fully load request body
             val body = call.receiveText()
-
-            // parse it into a model
-            val model = KModel(prefixes).apply {
-                parseRdfByContentType(requestContext.requestContentType!!, body, this)
-
-                // clear the prefix map so that stringified version uses full IRIs
-                clearNsPrefixMap()
-            }
-
+            val model = parseModelStripPrefixes(requestContext.requestContentType!!, body)
             // serialize model into turtle
             val loadUpdateString = buildSparqlUpdate {
-                insert {
-                    // embed the model in a triples block within the update
-                    raw("""
+                // embed the model in a triples block within the update
+                raw("""
+                    insert data {
                         # user model
                         graph ?_loadGraph {
                             ${model.stringify()}
                         }
-                    """)
-                }
+                    }
+                """)
             }
 
             // execute
             executeSparqlUpdate(loadUpdateString) {
-                prefixes(prefixes)
-
                 iri(
                     "_loadGraph" to loadGraphUri,
                 )
@@ -225,56 +185,8 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
 
     // compute the delta
-    run {
-        val selectQueryString = """
-            select distinct ?srcGraph ?srcCommit {
-                graph mor-graph:Metadata {
-                    # select the latest commit from the current named ref
-                    ?srcRef mms:commit ?srcCommit .
 
-                    # get the latest snapshot associated with the source commit
-                    ?srcCommit ^mms:commit/mms:snapshot ?srcSnapshot .
-                    {
-                        # prefer the model snapshot
-                        ?srcSnapshot a mms:Model ;
-                            mms:graph ?srcGraph  .
-                    } union {
-                        # settle for staging...
-                        ?srcSnapshot a mms:Staging ;
-                            mms:graph ?srcGraph .
-
-                        # ...if model is not available
-                        filter not exists {
-                            ?srcSnapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
-                        }
-                    }
-                }
-            }
-        """.trimIndent()
-
-        val selectResponseText = executeSparqlSelectOrAsk(selectQueryString) {
-            prefixes(prefixes)
-
-            iri(
-                // use current branch as ref source
-                "srcRef" to prefixes["morb"]!!,
-            )
-        }
-
-        // parse the JSON response
-        val bindings =
-            Json.parseToJsonElement(selectResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
-
-        if (bindings.size != 1) {
-            throw ServerBugException("Failed to resolve source graph")
-        }
-
-        val sourceGraphIri = bindings[0].jsonObject["srcGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
-
-        val sourceCommitri = bindings[0].jsonObject["srcCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
-
-        val updateString = genDiffUpdate("", localConditions, "")
-
+        val updateString = genDiffUpdate()
         executeSparqlUpdate(updateString) {
             prefixes(prefixes)
 
@@ -289,13 +201,13 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                 "dstCommit" to prefixes["morc"]!!,
 
                 // use explicit srcGraph
-                "srcGraph" to sourceGraphIri,
+                "srcGraph" to stagingGraphIri,
 
                 // use explicit srcCommit
-                "srcCommit" to sourceCommitri,
+                "srcCommit" to baseCommitIri,
             )
         }
-    }
+
 
     // validate diff creation
     lateinit var diffConstructResponseText: String
@@ -307,12 +219,9 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             }
             where {
                 group {
-                    txn("diff")
+                    txn("diff", true)
                     etag("morb:")
                 }
-                raw("""
-                    union ${localConditions.unionInspectPatterns()}    
-                """)
             }
         }
 
@@ -322,7 +231,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
         validateTransaction(diffConstructResponseText, localConditions, "diff")
     }
-
 
     // shortcut lambda for fetching properties in returned model
     val propertyUriAt = { res: Resource, prop: Property ->
@@ -334,76 +242,11 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // locate transaction node
     val transactionNode = diffConstructModel.createResource(prefixes["mt"] + "diff")
 
-
     // get ins/del graphs
     val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
     val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
 
-    // parse the result value
-    val changeCount = if (diffInsGraph == null && diffDelGraph == null) {
-        0uL
-    } else {
-        log("Changes detected between previous commit and uploaded model")
-
-        // count the number of changes in the diff
-        val selectDiffResponseText = executeSparqlSelectOrAsk("""
-            select (count(*) as ?changeCount) {
-                {
-                    graph ?_insGraph {
-                        ?ins_s ?ins_p ?ins_o .
-                    }
-                } union {
-                    graph ?_delGraph {
-                        ?del_s ?del_p ?del_o .
-                    }
-                }
-            }
-        """) {
-            prefixes(prefixes)
-
-            iri(
-                "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
-                "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph"),
-            )
-        }
-
-        log("Change count select response:\n$selectDiffResponseText")
-
-        // parse the JSON response
-        val bindings =
-            Json.parseToJsonElement(selectDiffResponseText).jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
-
-        // query error
-        if (0 == bindings.size) {
-            throw ServerBugException("Query to count the number of triples in the diff graphs failed to return any results")
-        }
-
-        // bind result to outer assignment
-        bindings[0].jsonObject["changeCount"]!!.jsonObject["value"]!!.jsonPrimitive.content.toULong()
-    }
-
-    // empty delta (no changes)
-    /*  ignored for now for neptune workaround
-    if(changeCount == 0uL) {
-        // locate branch node
-        val branchNode = diffConstructModel.createResource(prefixes["morb"])
-
-        // get its etag value
-        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
-
-        // set etag header
-        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
-
-        // sanity check
-        log.info("Sending data-less construct response text to client: \n$prefixes")
-
-        // respond
-        call.respondText("$prefixes", RdfContentTypes.Turtle)
-    }
-    else {
-    */
-    // TODO add condition to update that the selected staging has not changed since diff creation using etag value
-
+        //for some reason, on fuseki, even if the construct is empty, it still returns prefixes...
     val deleteDataResponseText = executeSparqlConstructOrDescribe("""
         construct {
             ?del_s ?del_p ?del_o .
@@ -419,7 +262,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
-    // create patch string
     val insertDataResponseText = executeSparqlConstructOrDescribe("""
         construct {
             ?ins_s ?ins_p ?ins_o .
@@ -434,59 +276,72 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             "_insGraph" to diffInsGraph!!,
         )
     }
-
+    val insertModel = parseModelStripPrefixes(RdfContentTypes.Turtle, insertDataResponseText)
+    val deleteModel = parseModelStripPrefixes(RdfContentTypes.Turtle, deleteDataResponseText)
+    // empty delta (no changes)
+    if (insertModel.isEmpty && deleteModel.isEmpty) {
+        // locate branch node
+        val branchNode = diffConstructModel.createResource(prefixes["morb"])
+        // get its etag value
+        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+        // set etag header
+        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
+        // sanity check
+        log.info("Sending data-less construct response text to client: \n$prefixes")
+        // respond
+        call.respondText("$prefixes", RdfContentTypes.Turtle)
+        // should this be some other response code to indicate no change..,
+        deleteTransaction()
+        executeSparqlUpdate("""
+            drop graph <$loadGraphUri>;
+        """)
+        return
+    }
 
     // replace current staging graph with the already loaded model in load graph
     val commitUpdateString = genCommitUpdate(
-        localConditions,
         delete = """
             graph mor-graph:Metadata {
-                ?staging mms:graph ?stagingGraph .
+                ?staging mms:graph ?_stagingGraph .
             }
         """,
         insert = """
             graph mor-graph:Metadata {
                 ?staging mms:graph ?_loadGraph . 
             }
+        """,
+        where = """
+            graph mor-graph:Metadata {
+                morb: mms:snapshot ?staging .
+                ?staging a mms:Staging .
+            }
         """
     )
-
-    val interimIri = "${prefixes["mor-lock"]}Interim.${transactionId}"
-
+    //create patch string to get from previous commit to loaded graph
     var patchString = """
         delete data {
-            $deleteDataResponseText
+            graph ?__mms_model {
+                ${deleteModel.stringify()}
+            }
         } ;
         insert data {
-            $insertDataResponseText
+            graph ?__mms_model {
+                ${insertModel.stringify()}
+            }
         }
     """.trimIndent()
 
     var patchStringDatatype = MMS_DATATYPE.sparql
-
-    val originalKiB = patchString.length / 1024f;
-    if (call.application.gzipLiteralsLargerThanKib?.let { originalKiB > it } == true) {
-        val originalMiB = originalKiB / 1024f
-
-        // compress string
-        val patchStringCompressed = compressStringLiteral(patchString)
-
-        // compression accepted
-        if (patchStringCompressed != null) {
-            // verbose
-            log(
-                "Patch string compressed from ${"%.2f".format(originalMiB)} MiB to ${
-                    "%.2f".format(patchStringCompressed.length / 1024f / 1024f)
-                } MiB"
-            )
-
-            patchString = patchStringCompressed
+    // approximate patch string size in bytes by assuming each character is 1 byte
+    if (call.application.gzipLiteralsLargerThanKib?.let { patchString.length/1024f > it } == true) {
+        compressStringLiteral(patchString)?.let {
+            patchString = it
             patchStringDatatype = MMS_DATATYPE.sparqlGz
         }
     }
 
     // still greater than safe maximum
-    if (call.application.maximumLiteralSizeKib?.let { patchString.length > it } == true) {
+    if (call.application.maximumLiteralSizeKib?.let { patchString.length/1024f > it } == true) {
         log("Compressed patch string still too large")
 
         // TODO: store as delete and insert graphs...
@@ -499,10 +354,10 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         prefixes(prefixes)
 
         iri(
-            "_interim" to interimIri,
             "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
             "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph"),
             "_loadGraph" to loadGraphUri,
+            "_stagingGraph" to stagingGraphIri
         )
 
         datatyped(
@@ -516,20 +371,36 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         )
     }
 
+    val constructCommitString = buildSparqlQuery {
+        construct {
+            raw("""
+                morc: ?commit_p ?commit_o .
+            """)
+        }
+        where {
+            raw("""
+                graph mor-graph:Metadata {
+                   morc: ?commit_p ?commit_o .
+                }
+            """)
+        }
+    }
+    val constructCommitResponseText = executeSparqlConstructOrDescribe(constructCommitString)
+
     // sanity check
-    log("Sending diff construct response text to client: \n$diffConstructResponseText")
+    log("Sending construct response text to client: \n$constructCommitResponseText\n$diffConstructResponseText")
 
     // response
     call.response.header(HttpHeaders.ETag, transactionId)
-    call.respondText(diffConstructResponseText, RdfContentTypes.Turtle)
+    call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
+    call.respondText("$constructCommitResponseText\n$diffConstructResponseText", RdfContentTypes.Turtle)
 
     //
     // ==== Response closed ====
     //
-
     // start copying staging to new model
     executeSparqlUpdate("""
-        copy graph ?_stagingGraph to graph ?_modelGraph ;
+        copy graph ?_loadGraph to graph ?_modelGraph ;
 
         insert data {
             graph m-graph:Graphs {
@@ -550,57 +421,23 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         prefixes(prefixes)
 
         iri(
-            "_stagingGraph" to loadGraphUri,
+            "_loadGraph" to loadGraphUri,
             "_model" to "${prefixes["mor-snapshot"]}Model.${transactionId}",
             "_modelGraph" to "${prefixes["mor-graph"]}Model.${transactionId}",
         )
     }
 
-    //}
-
-    // now that response has been sent to client, perform "clean up" work on quad-store
-    run {
-        // delete both transactions
+        deleteTransaction()
+        // delete orphaned previous staging graph
+        // TODO should delete delGraph and insGraph too but may need them if patch is too big to store
+        // or maybe just keep and use them instead of trying to store patch and have branch write handle it
         executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt:load ?load_p ?load_o .
-                    mt:diff ?diff_p ?diff_o .
-                }
-            }
+            drop graph <$stagingGraphIri>;
         """)
-
-        // delete interim lock
-        executeSparqlUpdate("""
-            delete {
-                graph ?model {
-                    ?model_s ?model_p ?model_o .
-                }
-            } where {
-                graph mor-graph:Metadata {
-                    ?_interim mms:snapshot/mms:graph ?model .
-                }
-                
-                optional {
-                    graph ?model {
-                        ?model_s ?model_p ?model_o .
-                    }
-                }
-            };
-            delete where {
-                graph mor-graph:Metadata {
-                    ?_interim ?lock_p ?lock_o ;
-                        mms:snapshot ?snapshot .
-                    
-                    ?snapshot mms:graph ?model ;
-                        ?snapshot_p ?snapshot_o .
-                }
-            }
-        """) {
-            iri(
-                "_interim" to interimIri,
-            )
-        }
+    } catch(e: Exception) {
+        // finally is not used here since deleteTransaction is manually called before graph deletion in the try block
+        deleteTransaction()
+        throw e
     }
 }
 

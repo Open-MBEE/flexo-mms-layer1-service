@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.net.URI
 
 plugins {
@@ -140,4 +141,9 @@ tasks.register("generateBuildInfo") {
 
 tasks.named("processResources") {
     finalizedBy("generateBuildInfo")
+}
+
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.compilerOptions {
+    freeCompilerArgs.add("-Xdebug")
 }

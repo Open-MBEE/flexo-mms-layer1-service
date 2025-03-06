@@ -384,7 +384,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     private fun checkPreconditions(etag: String) {
         // preconditions not be used in POST operations; no-op
-        if(call.request.httpMethod == HttpMethod.Post) return
+        if(isPostMethod) return
 
         // check If-Match preconditions
         if(ifMatch != null && !ifMatch.isStar) {
@@ -406,33 +406,6 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 throw PreconditionFailedException("If-None-Match")
             }
         }
-    }
-
-    fun handleEtagAndPreconditions(bindings: List<JsonObject>) {
-        // resource does not exist
-        if(bindings.isEmpty()) {
-            throw Http404Exception(call.request.path())
-        }
-
-        // compose output etag
-        var outputEtag = if(bindings.size == 1) {
-            bindings[0]["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content
-        }  else {
-            bindings.map { it["__mms_etag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
-                .distinct().joinToString(":").sha256()
-        }
-
-        // aggregation
-        if(bindings[0]["elementEtag"]?.jsonObject != null) {
-            outputEtag += ":"+bindings.map { it["elementEtag"]!!.jsonObject["value"]!!.jsonPrimitive.content }
-                .sorted().joinToString(":").sha256()
-        }
-
-        // set etag value in response header
-        call.response.header(HttpHeaders.ETag, outputEtag)
-
-        // check preconditions
-        checkPreconditions(outputEtag)
     }
 
     fun extractResourceEtag(model: KModel, resourceNode: Resource, allEtags: Boolean=false): String {
@@ -516,8 +489,9 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             }
             // other
             else {
-                if(MMS_URNS.SUBJECT.aggregator === subject.uri) {
-                    // add all etags to aggregator listr
+                // etag of aggregation
+                if(MMS_URNS.SUBJECT.context === subject.uri) {
+                    // add all etags to aggregator list
                     elementEtags.addAll(etagStmts.mapWith { statement ->
                         statement.`object`.asLiteral().string
                     }.toList())
@@ -547,77 +521,12 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }.stringify(emitPrefixes=false)
     }
 
-
     fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-                runBlocking {
-                    val constructQuery = buildSparqlQuery {
-                        construct {
-                            raw("""
-                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o . 
-                                
-                                mt: ?mt_p ?mt_o .
-                                
-                                ${if(repoId != null) {
-                                    """
-                                        # outgoing repo properties
-                                        mor: ?mor_p ?mor_o .
-                                    
-                                        # properties of things that belong to this repo
-                                        ?thing ?thing_p ?thing_o .
-                                    
-                                        # all triples in metadata graph
-                                        ?m_s ?m_p ?m_o .
-                                    """
-                                } else ""}
-                            """)
-                        }
-                        where {
-                            raw("""
-                                {
-                                    optional {
-                                        graph m-graph:AccessControl.Policies {
-                                            ?__mms_policy mms:scope ${scope?: "mo"}: ;
-                                                ?__mms_policy_p ?__mms_policy_o .
-                                        }
-                                    }
-                                } union {
-                                    graph m-graph:Transactions {
-                                        mt: ?mt_p ?mt_o .
-                                    }
-                                } 
-                                ${if(repoId != null) {
-                                    """
-                                        union {
-                                            graph m-graph:Cluster {
-                                                mor: a mms:Repo ;
-                                                    ?mor_p ?mor_o .
-            
-                                                optional {
-                                                    ?thing mms:repo mor: ;
-                                                        ?thing_p ?thing_o .
-                                                }
-                                            }
-                                        } union {
-                                            graph mor-graph:Metadata {
-                                                ?m_s ?m_p ?m_o .
-                                            }
-                                        }
-                                    """
-                                } else ""}
-                            """)
-                        }
-                    }
-
-                    val described = executeSparqlConstructOrDescribe(constructQuery)
-                    log("Transaction failed.\n\n\tInpsect: ${described}\n\n\tResults: \n${results}")
-                }
-
                 // use response to diagnose cause
                 conditions.handle(model, layer1);
-
                 // the above always throws, so this is unreachable
             }
         }
