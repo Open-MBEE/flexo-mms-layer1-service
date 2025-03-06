@@ -78,20 +78,20 @@ fun Route.storeArtifacts() {
 }
 
 
-/**
- * Artifact query routing
- */
-fun Route.queryArtifacts() {
-    // query all artifacts
-    sparqlQuery("$ARTIFACTS_PATH/query/{inspect?}") {
-        parsePathParams {
-            org()
-            repo()
-            inspect()
-        }
-
-        processAndSubmitUserQuery(requestContext, prefixes["mor-artifact"]!!, ARTIFACT_QUERY_CONDITIONS.append {
-            assertPreconditions(this)
-        })
-    }
-}
+///**
+// * Artifact query routing
+// */
+//fun Route.queryArtifacts() {
+//    // query all artifacts
+//    sparqlQuery("$ARTIFACTS_PATH-query/{inspect?}") {
+//        parsePathParams {
+//            org()
+//            repo()
+//            inspect()
+//        }
+//
+//        processAndSubmitUserQuery(requestContext, prefixes["mor-artifact"]!!, ARTIFACT_QUERY_CONDITIONS.append {
+//            assertPreconditions(this)
+//        })
+//    }
+//}
