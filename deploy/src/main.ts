@@ -317,6 +317,7 @@ ds_writer.write({
 				Repo: {
 					implies: [
 						'Ref',
+						'Artifact',
 						'Commit'
 					],
 				},

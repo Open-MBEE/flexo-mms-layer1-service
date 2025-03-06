@@ -123,6 +123,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                     }
                 }
             """)
+
             raw(permittedActionSparqlBgp(Permission.READ_ARTIFACT, Scope.REPO))
         }
     }

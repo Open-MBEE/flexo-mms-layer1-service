@@ -102,9 +102,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             """)
         }
         where {
-            group {
-                txn(null, "mora")
-
+            txnOrInspections(null, localConditions) {
                 raw("""
                     graph mor-graph:Artifacts {
                         ?$SPARQL_VAR_NAME_ARTIFACT a mms:Artifact ;
@@ -112,10 +110,9 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                     }
                 """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
+
 
     // execute construct
     val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
@@ -125,9 +122,6 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             SPARQL_VAR_NAME_ARTIFACT to artifactIri
         )
     }
-
-    // log
-    log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
 
     // validate whether the transaction succeeded
     val constructModel = validateTransaction(constructResponseText, localConditions, null, "mora")
