@@ -96,7 +96,7 @@ fun Application.configureRouting() {
             crudDiffs()
 
             storeArtifacts()
-            queryArtifacts()
+//            queryArtifacts()
 
             crudModel()
 
