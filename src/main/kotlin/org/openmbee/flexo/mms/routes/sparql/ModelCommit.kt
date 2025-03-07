@@ -111,7 +111,8 @@ fun Route.commitModel() {
                     else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
                 }
             }
-            // this is used for reconstructing graph from previous commit, ?__mms_model should be replaced with graph to apply to
+            // this is used for reconstructing graph from previous commit,
+            // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
             var patchString = clientPrefixes.map {
                 entry -> "PREFIX ${entry.key}: <${entry.value}>"
             }.joinToString("\n")

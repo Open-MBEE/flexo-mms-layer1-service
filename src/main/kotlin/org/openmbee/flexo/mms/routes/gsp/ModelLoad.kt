@@ -317,6 +317,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         """
     )
     //create patch string to get from previous commit to loaded graph
+    // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
     var patchString = """
         delete data {
             graph ?__mms_model {
