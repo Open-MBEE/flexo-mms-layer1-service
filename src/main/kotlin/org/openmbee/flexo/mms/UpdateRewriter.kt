@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms
 import io.ktor.http.*
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.shared.PrefixMapping
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.syntax.*
 
@@ -95,21 +96,23 @@ fun assertNoQuads(elements: List<Element>?) {
 }
 
 
-fun asSparqlGroup(vararg elements: Element): String {
+fun asSparqlGroup(clientPrefixMapping: Map<String, String>, vararg elements: Element): String {
     return QueryFactory.make().apply {
         setQueryAskType()
-
+        clientPrefixMapping.forEach {
+            setPrefix(it.key, it.value)
+        }
         queryPattern = ElementGroup().apply {
             for(element in elements) {
                 addElement(element)
             }
         }
-    }.serialize().replace("""^\s*ASK\s+WHERE\s*\{|}$""".toRegex(), "")
+    }.serialize().replace("""^\s*(PREFIX.*\s*)*\s*ASK\s+WHERE\s*\{|}$""".toRegex(), "")
         .trim().replace("([^.])$".toRegex(), "$1 .")
 }
 
-fun asSparqlGroup(quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): String {
-    return asSparqlGroup(ElementTriplesBlock().apply {
+fun asSparqlGroup(clientPrefixMapping: Map<String, String>, quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): String {
+    return asSparqlGroup(clientPrefixMapping, ElementTriplesBlock().apply {
         for(quad in quads) {
             if(quad.graph != null && !quad.isDefaultGraph) {
                 throw QuadsNotAllowedException(quad.graph.toString())

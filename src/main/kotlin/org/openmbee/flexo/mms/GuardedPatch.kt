@@ -56,26 +56,27 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // prepare quad filters
     val patternFilter = quadPatternFilter(baseIri)
-
+    // get the client prefixes map, except any flexo internal prefixes
+    val clientPrefixes = sparqlUpdateAst.prefixMapping.nsPrefixMap.minus(prefixes.map.keys)
     // each operation
     for(update in sparqlUpdateAst.operations) {
         when(update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, patternFilter)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, patternFilter)
+            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
+            is UpdateDataInsert -> insertBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
             is UpdateDeleteWhere -> {
-                deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                deleteBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
                 whereString = deleteBgpString
             }
             is UpdateModify -> {
                 if(update.hasDeleteClause()) {
-                    deleteBgpString = asSparqlGroup(update.deleteQuads, patternFilter)
+                    deleteBgpString = asSparqlGroup(clientPrefixes, update.deleteQuads, patternFilter)
                 }
 
                 if(update.hasInsertClause()) {
-                    insertBgpString = asSparqlGroup(update.insertQuads, patternFilter)
+                    insertBgpString = asSparqlGroup(clientPrefixes, update.insertQuads, patternFilter)
                 }
 
-                whereString = asSparqlGroup(update.wherePattern.apply {
+                whereString = asSparqlGroup(clientPrefixes, update.wherePattern.apply {
                     visit(NoQuadsElementVisitor)
                 })
             }
@@ -156,7 +157,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
 
     executeSparqlUpdate(updateString) {
-        prefixes(prefixes)
+        val p = prefixes
+        p.map.putAll(clientPrefixes)
+        prefixes(p)
 
         literal(
             "_txnId" to transactionId

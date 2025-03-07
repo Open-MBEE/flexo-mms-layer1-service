@@ -48,13 +48,15 @@ fun Route.commitModel() {
                 .next().asResource().uri
 
             val updates = mutableListOf<String>()
+            // get the client prefixes map, except any flexo internal prefixes
+            val clientPrefixes = sparqlUpdateAst.prefixMapping.nsPrefixMap.minus(prefixes.map.keys)
             for (update in sparqlUpdateAst.operations) {
                 when (update) {
                     is UpdateDataDelete -> updates.add(
                         """
                         DELETE DATA {
                             graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
+                                ${asSparqlGroup(clientPrefixes, update.quads)}
                             }
                         }
                         """.trimIndent()
@@ -64,7 +66,7 @@ fun Route.commitModel() {
                         """
                         INSERT DATA {
                             graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
+                                ${asSparqlGroup(clientPrefixes, update.quads)}
                             }
                         }
                         """.trimIndent()
@@ -74,7 +76,7 @@ fun Route.commitModel() {
                         """
                         DELETE WHERE {
                             graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
+                                ${asSparqlGroup(clientPrefixes, update.quads)}
                             }
                         }
                         """.trimIndent()
@@ -85,20 +87,20 @@ fun Route.commitModel() {
                         if (update.hasDeleteClause()) {
                             modify += """
                             DELETE {
-                                ${asSparqlGroup(update.deleteQuads)}
+                                ${asSparqlGroup(clientPrefixes, update.deleteQuads)}
                             }
                             """.trimIndent()
                         }
                         if (update.hasInsertClause()) {
                             modify += """
                             INSERT {
-                                ${asSparqlGroup(update.insertQuads)}
+                                ${asSparqlGroup(clientPrefixes, update.insertQuads)}
                             }
                             """.trimIndent()
                         }
                         modify += """
                         WHERE {
-                            ${asSparqlGroup(update.wherePattern.apply {
+                            ${asSparqlGroup(clientPrefixes, update.wherePattern.apply {
                                 visit(NoQuadsElementVisitor)
                             })}
                         }
@@ -110,7 +112,10 @@ fun Route.commitModel() {
                 }
             }
             // this is used for reconstructing graph from previous commit, ?__mms_model should be replaced with graph to apply to
-            var patchString = updates.joinToString(";\n")
+            var patchString = clientPrefixes.map {
+                entry -> "PREFIX ${entry.key}: <${entry.value}>"
+            }.joinToString("\n")
+            patchString += "\n\n" + updates.joinToString(";\n")
 
             updates.add(genCommitUpdate())
             val commitUpdateString = updates.joinToString(";\n") //actual update that gets sent
@@ -126,7 +131,9 @@ fun Route.commitModel() {
             }
 
             executeSparqlUpdate(commitUpdateString) {
-                prefixes(prefixes)
+                val p = prefixes
+                p.map.putAll(clientPrefixes)
+                prefixes(p)
 
                 iri(
                     "__mms_model" to stagingGraphIri
