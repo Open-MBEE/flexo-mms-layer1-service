@@ -95,6 +95,7 @@ fun prefixesFor(
     branchId: String?=null,
     commitId: String?=null,
     lockId: String?=null,
+    artifactId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
     policyId: String?=null,
@@ -145,6 +146,7 @@ fun prefixesFor(
                             "mor-commit" to "$this/commits/",
                             "mor-branch" to "$this/branches/",
                             "mor-lock" to "$this/locks/",
+                            "mor-artifact" to "$this/artifacts/",
                             "mor-snapshot" to "$this/snapshots/",
                             "mor-graph" to "$this/graphs/",
                         )
@@ -157,7 +159,7 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("morb" to MMS_URNS.never)
                         }
 
                         if(null !== diffId) {
@@ -168,7 +170,7 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("mord" to MMS_URNS.never)
                         }
 
                         if(null != lockId) {
@@ -191,7 +193,18 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("morc" to MMS_URNS.never)
+                        }
+
+                        if(null != artifactId) {
+                            with("$this/artifacts/$artifactId") {
+                                add(
+                                    "mora" to this,
+                                )
+                            }
+                        }
+                        else {
+                            add("mora" to MMS_URNS.never)
                         }
                     }
                 }
@@ -232,6 +245,7 @@ object MMS {
     val Branch = res("Branch")
     val Lock = res("Lock")
     val Diff = res("Diff")
+    val Artifact = res("Artifact")
 
     val User = res("User")
     val Group = res("Group")
@@ -295,6 +309,8 @@ object MMS {
     val delete = prop("delete")
     val insert = prop("insert")
     val where = prop("where")
+
+    val contentType = prop("contentType")
 
     val diffSrc = prop("diffSrc")
     val diffDst = prop("diffDst")

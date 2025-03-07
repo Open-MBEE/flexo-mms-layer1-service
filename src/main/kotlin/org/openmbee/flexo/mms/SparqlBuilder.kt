@@ -230,6 +230,19 @@ open class WhereBuilder(
         """)
     }
 
+    fun auth(scope: String?="mo", conditions: ConditionsGroup?=null): WhereBuilder {
+        return raw("""
+            ${conditions?.requiredPatterns()?.joinToString("\n") ?: ""}
+
+            optional {
+                graph m-graph:AccessControl.Policies {
+                    ?__mms_policy mms:scope ${scope?: "mo"}: ;
+                        ?__mms_policy_p ?__mms_policy_o .
+                }
+            }
+        """)
+    }
+
     fun etag(subject: String): WhereBuilder {
         return raw("""
             graph mor-graph:Metadata {

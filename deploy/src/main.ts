@@ -253,6 +253,7 @@ ds_writer.write({
 				InterimLock: {
 					super: 'Lock',
 				},
+				Artifact: {},
 
 				Snapshot: {},
 				Model: {
@@ -316,10 +317,12 @@ ds_writer.write({
 				Repo: {
 					implies: [
 						'Ref',
+						'Artifact',
 						'Commit'
 					],
 				},
 				Collection: {},
+				Artifact: {},
 				Ref: {
 					implies: [
 						'Branch',
@@ -437,17 +440,39 @@ ds_writer.write({
 								'UpdateBranch',  // PATCH for updating repo metadata
 								'UpdateLock',  // PATCH for updating repo metadata
 								'UpdateCommit', //PATCH for updating commit metadata
+								'UpdateRef',
 							],
 						},
 						Delete: {
 							implies: [
 								'UpdateRepo',
+								'CreateRef',
+								'DeleteRef',
+								'CreateArtifact',
+								'DeleteArtifact',
+								'CreateDiff',
+								'DeleteDiff',
+							],
+						},
+					},
+				},
+
+				Ref: {
+					crud: {
+						...H_CRUD_DEFAULT,
+						Update: {
+							implies: [
+								'ReadRef',
+								'UpdateBranch',  // PATCH for updating branch metadata
+								'UpdateLock',  // PATCH for updating lock metadata
+							],
+						},
+						Delete: {
+							implies: [
 								'CreateBranch',
 								'DeleteBranch',
 								'CreateLock',
 								'DeleteLock',
-								'CreateDiff',
-								'DeleteDiff',
 							],
 						},
 					},
@@ -458,6 +483,10 @@ ds_writer.write({
 				},
 
 				Lock: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Artifact: {
 					crud: H_CRUD_DEFAULT,
 				},
 

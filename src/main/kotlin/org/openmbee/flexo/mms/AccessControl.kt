@@ -16,6 +16,7 @@ enum class Scope(val type: String, val id: String, vararg val extras: String) {
     REPO("Repo", "mor"),
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morl"),
+    ARTIFACT("Artifact", "mora"),
     DIFF("Diff", "mord"),
     COMMIT("Commit", "morc"),
 
@@ -65,6 +66,11 @@ enum class Permission(
     UPDATE_LOCK(Crud.UPDATE, Scope.LOCK),
     DELETE_LOCK(Crud.DELETE, Scope.LOCK),
 
+    CREATE_ARTIFACT(Crud.CREATE, Scope.ARTIFACT),
+    READ_ARTIFACT(Crud.READ, Scope.ARTIFACT),
+    UPDATE_ARTIFACT(Crud.UPDATE, Scope.ARTIFACT),
+    DELETE_ARTIFACT(Crud.DELETE, Scope.ARTIFACT),
+    
     READ_COMMIT(Crud.READ, Scope.COMMIT),
     UPDATE_COMMIT(Crud.UPDATE, Scope.COMMIT),
 
@@ -131,6 +137,7 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
                     # @values groupId                
                 }
             }
+
         
             # a policy exists that applies to this group within an appropriate scope
             graph m-graph:AccessControl.Policies {

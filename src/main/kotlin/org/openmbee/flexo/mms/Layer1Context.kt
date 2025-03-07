@@ -93,6 +93,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var repoId: String? = null
     var commitId: String = transactionId
     var lockId: String? = null
+    var artifactId: String? = null
     var branchId: String? = null
     var diffId: String? = null
     var policyId: String? = null
@@ -107,12 +108,14 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             branchId = branchId,
             commitId = commitId,
             lockId = lockId,
+            artifactId = artifactId,
             diffId = diffId,
             transactionId = transactionId,
             policyId = policyId,
         )
 
     var inspectOnly: Boolean = false
+    var download: Boolean = false
 
     var refSource: String? = null
     var commitSource: String? = null
@@ -121,7 +124,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     val requestPath = call.request.path()
     val requestMethod = call.request.httpMethod.value
-    val requestBodyContentType = call.request.contentType().toString()
+    val requestBodyContentType = call.request.contentType().withoutParameters().toString()
 
     val defaultHttpClient = call.httpClient()
 
@@ -159,6 +162,11 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             if(legal) assertLegalId(lockId!!)
         }
 
+        fun artifact(legal: Boolean=false) {
+            artifactId = call.parameters["artifactId"]
+            if(legal) assertLegalId(artifactId!!)
+        }
+
         fun branch(legal: Boolean=false) {
             branchId = call.parameters["branchId"]
             if(legal) assertLegalId(branchId!!)
@@ -180,6 +188,23 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                     throw Http404Exception(call.request.path())
                 } else true
             } else false
+        }
+    }
+
+    /**
+     * Allows caller to specify which query params are expected
+     */
+    inner class QueryParamNormalizer {
+        fun download() {
+            // if query param doesn't have a value there's no entry in queryParameters map...
+            var downloadValue = call.request.queryParameters["download"]?: "none"
+            if (downloadValue == "none" && call.request.queryString().contains("download")) {
+                downloadValue = ""
+            }
+            // present as `?download`, or `?download=1` or `?download=true`
+            if(downloadValue == "true" || downloadValue == "1" || downloadValue == "") {
+                download = true
+            }
         }
     }
 
@@ -258,6 +283,15 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
      */
     fun parsePathParams(setup: PathParamNormalizer.()->Unit): PathParamNormalizer {
         return PathParamNormalizer().apply{
+            setup()
+        }
+    }
+
+    /**
+     * Validates query parameters and saves their values to the corresponding field on this instance
+     */
+    fun parseQueryParams(setup: QueryParamNormalizer.()->Unit): QueryParamNormalizer {
+        return QueryParamNormalizer().apply{
             setup()
         }
     }
