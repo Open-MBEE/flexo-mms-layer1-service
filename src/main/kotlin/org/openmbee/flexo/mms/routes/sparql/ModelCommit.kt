@@ -129,6 +129,13 @@ fun Route.commitModel() {
                     patchStringDatatype = MMS_DATATYPE.sparqlGz
                 }
             }
+            // still greater than safe maximum
+            if (call.application.maximumLiteralSizeKib?.let { patchString.length/1024f > it } == true) {
+                log("Compressed patch string still too large")
+                // otherwise, just give up
+                patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
+                patchStringDatatype = MMS_DATATYPE.sparql
+            }
 
             executeSparqlUpdate(commitUpdateString) {
                 val p = prefixes
@@ -140,9 +147,9 @@ fun Route.commitModel() {
                 )
 
                 datatyped(
-                    "_updateBody" to (requestContext.update to MMS_DATATYPE.sparql),
+                    "_updateBody" to ("" to MMS_DATATYPE.sparql), //find some other way to store if needed
                     "_patchString" to (patchString to patchStringDatatype),
-                    "_whereString" to ("" to MMS_DATATYPE.sparql), //not needed?
+                    "_whereString" to ("" to MMS_DATATYPE.sparql),
                 )
 
                 literal(
