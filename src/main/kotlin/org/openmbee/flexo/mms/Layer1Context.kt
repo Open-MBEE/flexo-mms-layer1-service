@@ -196,8 +196,11 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
      */
     inner class QueryParamNormalizer {
         fun download() {
-            val downloadValue = call.request.queryParameters["download"]?: ""
-
+            // if query param doesn't have a value there's no entry in queryParameters map...
+            var downloadValue = call.request.queryParameters["download"]?: "none"
+            if (downloadValue == "none" && call.request.queryString().contains("download")) {
+                downloadValue = ""
+            }
             // present as `?download`, or `?download=1` or `?download=true`
             if(downloadValue == "true" || downloadValue == "1" || downloadValue == "") {
                 download = true
