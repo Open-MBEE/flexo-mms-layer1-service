@@ -71,7 +71,6 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                 // TODO: Handle exceptions
                 setBody(object : OutgoingContent.WriteChannelContent() {
                     override val contentType = call.request.contentType()
-                    override val contentLength = call.request.contentLength() ?: 0L
                     override suspend fun writeTo(channel: ByteWriteChannel) {
                         call.request.receiveChannel().copyTo(channel)
                     }
