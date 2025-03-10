@@ -56,33 +56,39 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // prepare quad filters
     val patternFilter = quadPatternFilter(baseIri)
-    // get the client prefixes map, except any flexo internal prefixes
-    val clientPrefixes = sparqlUpdateAst.prefixMapping.nsPrefixMap.minus(prefixes.map.keys)
-    // each operation
-    for(update in sparqlUpdateAst.operations) {
-        when(update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
-            is UpdateDeleteWhere -> {
-                deleteBgpString = asSparqlGroup(clientPrefixes, update.quads, patternFilter)
-                whereString = deleteBgpString
-            }
-            is UpdateModify -> {
-                if(update.hasDeleteClause()) {
-                    deleteBgpString = asSparqlGroup(clientPrefixes, update.deleteQuads, patternFilter)
-                }
 
-                if(update.hasInsertClause()) {
-                    insertBgpString = asSparqlGroup(clientPrefixes, update.insertQuads, patternFilter)
-                }
+    // merge the client prefixes with internal ones
+    val mergedPrefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
+    mergedPrefixMap.putAll(prefixes.map)
 
-                whereString = asSparqlGroup(clientPrefixes, update.wherePattern.apply {
-                    visit(NoQuadsElementVisitor)
-                })
+    val mergedPrefixes = withPrefixMap(mergedPrefixMap) {
+        // each operation
+        for(update in sparqlUpdateAst.operations) {
+            when(update) {
+                is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, patternFilter)
+                is UpdateDeleteWhere -> {
+                    deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                    whereString = deleteBgpString
+                }
+                is UpdateModify -> {
+                    if(update.hasDeleteClause()) {
+                        deleteBgpString = asSparqlGroup(update.deleteQuads, patternFilter)
+                    }
+
+                    if(update.hasInsertClause()) {
+                        insertBgpString = asSparqlGroup(update.insertQuads, patternFilter)
+                    }
+
+                    whereString = asSparqlGroup(update.wherePattern.apply {
+                        visit(NoQuadsElementVisitor)
+                    })
+                }
+                else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
-            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
         }
     }
+
 
     log("Guarded patch update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
@@ -157,9 +163,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
 
     executeSparqlUpdate(updateString) {
-        val p = prefixes
-        p.map.putAll(clientPrefixes)
-        prefixes(p)
+        prefixes(mergedPrefixes)
 
         literal(
             "_txnId" to transactionId

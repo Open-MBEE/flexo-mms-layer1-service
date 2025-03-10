@@ -3,9 +3,12 @@ package org.openmbee.flexo.mms
 import io.ktor.http.*
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.riot.system.PrefixMap
 import org.apache.jena.shared.PrefixMapping
+import org.apache.jena.shared.impl.PrefixMappingImpl
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.syntax.*
+import org.checkerframework.checker.units.qual.Prefix
 
 class RequirementsNotMetException(conditions: List<String>): Http400Exception("The following conditions failed after the transaction attempt:\n"
     +conditions.mapIndexed { i, v -> "${i}. $v" }.joinToString("\n"))
@@ -96,12 +99,10 @@ fun assertNoQuads(elements: List<Element>?) {
 }
 
 
-fun asSparqlGroup(clientPrefixMapping: Map<String, String>, vararg elements: Element): String {
+fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): String {
     return QueryFactory.make().apply {
         setQueryAskType()
-        clientPrefixMapping.forEach {
-            setPrefix(it.key, it.value)
-        }
+        if(mapping != null) prefixMapping = mapping
         queryPattern = ElementGroup().apply {
             for(element in elements) {
                 addElement(element)
@@ -111,8 +112,12 @@ fun asSparqlGroup(clientPrefixMapping: Map<String, String>, vararg elements: Ele
         .trim().replace("([^.])$".toRegex(), "$1 .")
 }
 
-fun asSparqlGroup(clientPrefixMapping: Map<String, String>, quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): String {
-    return asSparqlGroup(clientPrefixMapping, ElementTriplesBlock().apply {
+fun asSparqlGroup(
+    mapping: PrefixMapping?=null,
+    quads: List<Quad>,
+    quadFilter: ((Quad)->Boolean)?=null
+): String {
+    return asSparqlGroup(mapping, ElementTriplesBlock().apply {
         for(quad in quads) {
             if(quad.graph != null && !quad.isDefaultGraph) {
                 throw QuadsNotAllowedException(quad.graph.toString())
@@ -123,4 +128,19 @@ fun asSparqlGroup(clientPrefixMapping: Map<String, String>, quads: List<Quad>, q
             addTriple(Triple.create(quad.subject, quad.predicate, quad.`object`))
         }
     })
+}
+
+fun withPrefixMap(prefixMap: HashMap<String, String>, setup: PrefixMapBuilder.()->Unit): PrefixMapBuilder {
+    val prefixes = PrefixMapBuilder()
+    prefixes.map = prefixMap
+    setup(prefixes)
+    return prefixes
+}
+
+fun PrefixMapBuilder.asSparqlGroup(vararg elements: Element): String {
+    return asSparqlGroup(this.toPrefixMappings(), *elements)
+}
+
+fun PrefixMapBuilder.asSparqlGroup(quads: List<Quad>, quadFilter: ((Quad)->Boolean)?=null): String {
+    return asSparqlGroup(this.toPrefixMappings(), quads, quadFilter)
 }
