@@ -220,6 +220,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     
                     morl: mms:commit ?__mms_commitSource ;
                         mms:snapshot ?__mms_commitSnapshot ;
+                        mms:created ?_now ;
                         .
                 """)
             }
