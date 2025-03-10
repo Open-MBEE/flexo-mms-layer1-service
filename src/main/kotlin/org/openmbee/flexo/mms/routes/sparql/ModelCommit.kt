@@ -48,69 +48,80 @@ fun Route.commitModel() {
                 .next().asResource().uri
 
             val updates = mutableListOf<String>()
-            for (update in sparqlUpdateAst.operations) {
-                when (update) {
-                    is UpdateDataDelete -> updates.add(
-                        """
-                        DELETE DATA {
-                            graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
-                            }
-                        }
-                        """.trimIndent()
-                    )
 
-                    is UpdateDataInsert -> updates.add(
-                        """
-                        INSERT DATA {
-                            graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
-                            }
-                        }
-                        """.trimIndent()
-                    )
+            // merge the client prefixes with internal ones
+            val mergedPrefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
+            mergedPrefixMap.putAll(prefixes.map)
 
-                    is UpdateDeleteWhere -> updates.add(
-                        """
-                        DELETE WHERE {
-                            graph ?__mms_model {
-                                ${asSparqlGroup(update.quads)}
-                            }
-                        }
-                        """.trimIndent()
-                    )
-
-                    is UpdateModify -> {
-                        var modify = "WITH ?__mms_model\n"
-                        if (update.hasDeleteClause()) {
-                            modify += """
-                            DELETE {
-                                ${asSparqlGroup(update.deleteQuads)}
+            val mergedPrefixes = withPrefixMap(mergedPrefixMap) {
+                for (update in sparqlUpdateAst.operations) {
+                    when (update) {
+                        is UpdateDataDelete -> updates.add(
+                            """
+                            DELETE DATA {
+                                graph ?__mms_model {
+                                    ${asSparqlGroup(update.quads)}
+                                }
                             }
                             """.trimIndent()
-                        }
-                        if (update.hasInsertClause()) {
-                            modify += """
-                            INSERT {
-                                ${asSparqlGroup(update.insertQuads)}
+                        )
+
+                        is UpdateDataInsert -> updates.add(
+                            """
+                            INSERT DATA {
+                                graph ?__mms_model {
+                                    ${asSparqlGroup(update.quads)}
+                                }
                             }
                             """.trimIndent()
+                        )
+
+                        is UpdateDeleteWhere -> updates.add(
+                            """
+                            DELETE WHERE {
+                                graph ?__mms_model {
+                                    ${asSparqlGroup(update.quads)}
+                                }
+                            }
+                            """.trimIndent()
+                        )
+
+                        is UpdateModify -> {
+                            var modify = "WITH ?__mms_model\n"
+                            if (update.hasDeleteClause()) {
+                                modify += """
+                                DELETE {
+                                    ${asSparqlGroup(update.deleteQuads)}
+                                }
+                                """.trimIndent()
+                            }
+                            if (update.hasInsertClause()) {
+                                modify += """
+                                INSERT {
+                                    ${asSparqlGroup(update.insertQuads)}
+                                }
+                                """.trimIndent()
+                            }
+                            modify += """
+                            WHERE {
+                                ${asSparqlGroup(update.wherePattern.apply {
+                                    visit(NoQuadsElementVisitor)
+                                })}
+                            }
+                            """.trimIndent()
+                            updates.add(modify)
                         }
-                        modify += """
-                        WHERE {
-                            ${asSparqlGroup(update.wherePattern.apply {
-                                visit(NoQuadsElementVisitor)
-                            })}
-                        }
-                        """.trimIndent()
-                        updates.add(modify)
+
+                        else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
                     }
-
-                    else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
                 }
             }
-            // this is used for reconstructing graph from previous commit, ?__mms_model should be replaced with graph to apply to
-            var patchString = updates.joinToString(";\n")
+
+            // this is used for reconstructing graph from previous commit,
+            // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
+            var patchString = sparqlUpdateAst.prefixMapping.nsPrefixMap.minus(prefixes.map.keys).entries.joinToString("\n") {
+                "PREFIX ${it.key}: <${it.value}>"
+            } + "\n\n" + updates.joinToString(";\n")
 
             updates.add(genCommitUpdate())
             val commitUpdateString = updates.joinToString(";\n") //actual update that gets sent
@@ -118,24 +129,32 @@ fun Route.commitModel() {
             var patchStringDatatype = MMS_DATATYPE.sparql
 
             // approximate patch string size in bytes by assuming each character is 1 byte
+            // TODO this is producing an empty string, need to debug/find alternative to store
             if (application.gzipLiteralsLargerThanKib?.let { patchString.length/1024f > it } == true) {
                 compressStringLiteral(patchString)?.let {
                     patchString = it
                     patchStringDatatype = MMS_DATATYPE.sparqlGz
                 }
             }
+            // still greater than safe maximum
+            if (call.application.maximumLiteralSizeKib?.let { patchString.length/1024f > it } == true) {
+                log("Compressed patch string still too large")
+                // otherwise, just give up
+                patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
+                patchStringDatatype = MMS_DATATYPE.sparql
+            }
 
             executeSparqlUpdate(commitUpdateString) {
-                prefixes(prefixes)
+                prefixes(mergedPrefixes)
 
                 iri(
                     "__mms_model" to stagingGraphIri
                 )
 
                 datatyped(
-                    "_updateBody" to (requestContext.update to MMS_DATATYPE.sparql),
+                    "_updateBody" to ("" to MMS_DATATYPE.sparql), //find some other way to store if needed
                     "_patchString" to (patchString to patchStringDatatype),
-                    "_whereString" to ("" to MMS_DATATYPE.sparql), //not needed?
+                    "_whereString" to ("" to MMS_DATATYPE.sparql),
                 )
 
                 literal(

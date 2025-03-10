@@ -317,6 +317,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         """
     )
     //create patch string to get from previous commit to loaded graph
+    // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
     var patchString = """
         delete data {
             graph ?__mms_model {
@@ -342,11 +343,10 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     // still greater than safe maximum
     if (call.application.maximumLiteralSizeKib?.let { patchString.length/1024f > it } == true) {
         log("Compressed patch string still too large")
-
         // TODO: store as delete and insert graphs...
-
         // otherwise, just give up
         patchString = "<urn:mms:omitted> <urn:mms:too-large> <urn:mms:to-handle> ."
+        patchStringDatatype = MMS_DATATYPE.sparql
     }
     log("Prepared commit update string:")
     executeSparqlUpdate(commitUpdateString) {
