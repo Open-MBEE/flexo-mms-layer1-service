@@ -19,12 +19,13 @@ fun TriplesAsserter.validateRepoTriples(
 
     // repo triples
     subject(localIri(repoPath)) {
-        exclusivelyHas(
+        includes(
             RDF.type exactly MMS.Repo,
             MMS.id exactly repoId,
             MMS.org exactly localIri(orgPath).iri,
             DCTerms.title exactly repoName.en,
             MMS.etag startsWith "",
+            MMS.created startsWith "",
             *extraPatterns.toTypedArray()
         )
     }
