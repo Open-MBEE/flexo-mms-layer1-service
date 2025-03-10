@@ -119,7 +119,7 @@ fun Route.commitModel() {
 
             // this is used for reconstructing graph from previous commit,
             // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
-            var patchString = sparqlUpdateAst.prefixMapping.nsPrefixMap.entries.joinToString("\n") {
+            var patchString = sparqlUpdateAst.prefixMapping.nsPrefixMap.minus(prefixes.map.keys).entries.joinToString("\n") {
                 "PREFIX ${it.key}: <${it.value}>"
             } + "\n\n" + updates.joinToString(";\n")
 
