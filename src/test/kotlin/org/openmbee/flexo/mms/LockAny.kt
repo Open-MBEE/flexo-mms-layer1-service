@@ -15,13 +15,14 @@ fun TriplesAsserter.validateLockTriples(
 ) {
     // lock triples
     subjectTerse("mor-lock:$lockId") {
-        exclusivelyHas(
+        includes(
             RDF.type exactly MMS.Lock,
             MMS.id exactly lockId,
             if(etag != null) MMS.etag exactly etag else MMS.etag startsWith "",
             MMS.commit startsWith model.expandPrefix("mor-commit:").iri,
             MMS.snapshot startsWith model.expandPrefix("mor-snapshot:Model.").iri,
             MMS.createdBy exactly model.expandPrefix("mu:").iri,
+            MMS.created startsWith "",
             *extraPatterns.toTypedArray(),
         )
     }

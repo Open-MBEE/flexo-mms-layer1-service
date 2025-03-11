@@ -73,6 +73,7 @@ class BranchRead : RefAny() {
                                 MMS.id exactly demoBranchId,
                                 DCTerms.title exactly demoBranchName.en,
                                 MMS.etag startsWith "",
+                                MMS.created startsWith ""
                             )
                         }
 
@@ -80,7 +81,8 @@ class BranchRead : RefAny() {
                             includes(
                                 RDF.type exactly MMS.Branch,
                                 MMS.id exactly "master",
-                                DCTerms.title exactly "Master".en
+                                DCTerms.title exactly "Master".en,
+                                MMS.created startsWith ""
                             )
                         }
                     }

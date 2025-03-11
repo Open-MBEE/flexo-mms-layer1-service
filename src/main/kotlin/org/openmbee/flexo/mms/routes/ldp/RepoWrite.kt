@@ -186,6 +186,10 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // insert the triples about the new repo, including arbitrary metadata supplied by user
             graph("m-graph:Cluster") {
                 raw(repoTriples)
+                raw("""
+                    mor: mms:created ?_now ;
+                         mms:createdBy mu: .
+                """)
             }
 
             // not replacing existing
@@ -197,6 +201,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                         morc: a mms:Commit ;
                             mms:parent rdf:nil ;
                             mms:submitted ?_now ;
+                            mms:createdBy mu: ;
                             mms:message ?_commitMessage ;
                             mms:data morc-data: ;
                             mms:etag ?_commitEtag ;
@@ -215,6 +220,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                             mms:commit morc: ;
                             mms:snapshot ?_staging ;
                             dct:title "Master"@en ;
+                            mms:createdBy mu: ;
+                            mms:created ?_now ;
                             .
                             
                         # model snapshot
