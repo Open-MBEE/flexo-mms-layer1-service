@@ -225,9 +225,11 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                             .
                             
                         # model snapshot
-                        mor-lock:Commit.root a mms:Lock ;
+                        mor-lock:Commit.$transactionId a mms:Lock ;
                             mms:commit morc: ;
                             mms:snapshot ?_model ;
+                            mms:created ?_now ;
+                            mms:createBy mu: ;
                             .
                         
                         # initial model graph
