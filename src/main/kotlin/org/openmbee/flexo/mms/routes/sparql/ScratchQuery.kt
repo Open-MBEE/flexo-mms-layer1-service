@@ -62,6 +62,7 @@ fun Route.queryScratch() {
                     raw(whereString)
                 }
             }
+            //TODO add the auth here?
         }
 
         // execute the SPARQL UPDATE

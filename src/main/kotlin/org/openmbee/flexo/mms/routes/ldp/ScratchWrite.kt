@@ -46,6 +46,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             sanitizeCrudObject {
                 setProperty(RDF.type, MMS.Scratch)
                 setProperty(MMS.id, scratchId!!)
+                // add etag as txn id and org as orgNode()? I think I need this since it keeps saying I don't have an etag
+                setProperty(MMS.etag, transactionId)
+                setProperty(MMS.org, orgNode())
             }
         }
     }

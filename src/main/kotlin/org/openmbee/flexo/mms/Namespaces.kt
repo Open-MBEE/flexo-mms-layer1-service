@@ -289,6 +289,7 @@ object MMS {
     val org = prop("org")
     val repo = prop("repo")
     val branch = prop("branch")
+    val scratch = prop("scratch")
     val collection = prop("collection")
     val user = prop("user")
     val completed = prop("completed")

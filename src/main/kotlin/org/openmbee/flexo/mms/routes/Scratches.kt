@@ -22,6 +22,13 @@ const val SCRATCHES_PATH = "/orgs/{orgId}/repos/{repoId}/scratches"
 fun Route.crudScratch() {
     // all scratches
     linkedDataPlatformDirectContainer(SCRATCHES_PATH) {
+         beforeEach = {
+            parsePathParams {
+                org()
+                repo()
+            }
+        }
+
         // state of all scratches
         head {
             headScratches(true)
@@ -46,12 +53,20 @@ fun Route.crudScratch() {
 
     // specific scratch
     linkedDataPlatformDirectContainer("$SCRATCHES_PATH/{scratchId}") {
-        // state of all scratches
+        beforeEach = {
+            parsePathParams {
+                org()
+                repo()
+                scratch()
+            }
+        }
+
+        // state of a scratch
         head {
             headScratches()
         }
 
-        // read all scratches
+        // read a scratch
         get {
             getScratches()
         }
@@ -95,6 +110,14 @@ fun Route.crudScratch() {
 
     // GSP specific scratch
     graphStoreProtocol("$SCRATCHES_PATH/{scratchId}/graph") {
+        beforeEach = {
+            parsePathParams {
+                org()
+                repo()
+                scratch()
+            }
+        }
+
         // 5.6 HEAD: check state of scratch graph
         head {
             readModel(RefType.SCRATCH)
