@@ -153,7 +153,7 @@ fun Route.commitModel() {
 
                 datatyped(
                     "_updateBody" to ("" to MMS_DATATYPE.sparql), //find some other way to store if needed
-                    "_patchString" to (patchString to patchStringDatatype),
+                    "_patchString" to ("" to patchStringDatatype), //TODO possible neptune bug with having PREFIX in strings???
                     "_whereString" to ("" to MMS_DATATYPE.sparql),
                 )
 
