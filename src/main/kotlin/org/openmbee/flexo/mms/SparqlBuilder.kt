@@ -24,6 +24,10 @@ private fun pp(insert: String, indentLevel: Int=2): String {
 }
 
 
+/**
+ * Order matters in SPARQL's OPTIONAL: https://github.com/blazegraph/database/wiki/SPARQL_Order_Matters
+ */
+
 private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null, subTxnId: String?=null): String {
     return """
         graph m-graph:Transactions {
@@ -34,12 +38,23 @@ private fun SPARQL_INSERT_TRANSACTION(customProperties: String?=null, subTxnId: 
                 mms:requestMethod ?_requestMethod ;
                 mms:authMethod ?__mms_authMethod ;
                 mms:appliedGroupId ?__mms_groupId ;
+                mms:permit ?_requiredPermission ;
+                mms:appliedPolicy ?__mms_policy ;
                 # mms:requestBody ?_requestBody ;
                 mms:requestBodyContentType ?_requestBodyContentType ;
                 ${pp(customProperties?: "", 4)}
                 .
         }
     """.trimIndent()
+}
+
+
+/**
+ * Returns the string if the given condition is true, otherwise empty string (or supplied value).
+ * Equivalent to `if(condition) "$this" else ""`
+ */
+infix fun String.iff(condition: Boolean): String {
+    return if(condition) this else ""
 }
 
 fun escapeLiteral(value: String): String {
@@ -162,25 +177,71 @@ open class WhereBuilder(
     private val layer1: AnyLayer1Context,
     private val indentLevel: Int,
 ): PatternBuilder<WhereBuilder>(layer1, indentLevel) {
-    fun txn(subTxnId: String?=null, scope: String?=null): WhereBuilder {
-        auth(scope)
+    fun txnOrInspections(subTxnId: String?=null, localConditions: ConditionsGroup, setup: SparqlBuilder<WhereBuilder>.() -> Unit): WhereBuilder {
+        // first group in a series of unions fetches intended outputs
+        group {
+            // all the details about this transaction
+            txn(subTxnId)
+
+            // details relevant to resource
+            setup()
+        }
+        // all subsequent unions are for inspecting what if any conditions failed
         return raw("""
-            graph m-graph:Transactions {
-                mt:${subTxnId?: ""} ?mt_p ?mt_o .
+            # in case the transaction failed, deduce which conditions did not pass
+            union {
+                # only match inspections if transaction failed
+                filter not exists {
+                    graph m-graph:Transactions {
+                        mt: ?mt_p ?mt_o .
+                    }
+                }
+
+                # inspections to deduce which condition(s) failed
+                ${localConditions.unionInspectPatterns().reindent(4)}
             }
+        """)
+    }
+
+    fun txn(subTxnId: String?=null, noAccessControl: Boolean=false): WhereBuilder {
+        return raw("""
+            # match a successful transaction and its details
+            graph m-graph:Transactions {
+                mt:${subTxnId?: ""} ?mt_p ?mt_o ;
+                    ${"mms:appliedPolicy ?__mms_policy ;" iff !noAccessControl}
+                    .
+                
+                # a policy might have been created during this transaction
+                optional {
+                    mt:${subTxnId?: ""} mms:createdPolicy ?__mms_createdPolicy .
+                }
+            }
+            
+            ${"""
+                # include the applied policy details
+                graph m-graph:AccessControl.Policies {
+                    ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+                    
+                    # in case a policy was also created during this transaction
+                    optional {
+                        ?__mms_createdPolicy ?__mms_createdPolicy_p ?__mms_createdPolicy_o .
+                    }
+                }
+            """.reindent(3) iff !noAccessControl}
+            
         """)
     }
 
     fun auth(scope: String?="mo", conditions: ConditionsGroup?=null): WhereBuilder {
         return raw("""
+            ${conditions?.requiredPatterns()?.joinToString("\n") ?: ""}
+
             optional {
                 graph m-graph:AccessControl.Policies {
                     ?__mms_policy mms:scope ${scope?: "mo"}: ;
                         ?__mms_policy_p ?__mms_policy_o .
                 }
             }
-            
-            ${conditions?.requiredPatterns()?.joinToString("\n") ?: ""}
         """)
     }
 
@@ -207,16 +268,32 @@ class TxnBuilder(
 ) {
     fun autoPolicy(scope: Scope, vararg roles: Role) {
         insertBuilder.run {
+            val policyCurie = "m-policy:Auto${scope.type}Owner.${UUID.randomUUID()}"
+
+            graph("m-graph:Transactions") {
+                raw("""
+                    mt: mms:createdPolicy $policyCurie .
+                """)
+            }
+
             graph("m-graph:AccessControl.Policies") {
-                raw(
-                    """
-                    m-policy:Auto${scope.type}Owner.${UUID.randomUUID()} a mms:Policy ;
+                raw("""
+                    $policyCurie a mms:Policy ;
                         mms:subject mu: ;
                         mms:scope ${scope.id}: ;
                         mms:role ${roles.joinToString(",") { "mms-object:Role.${it.id}" }}  ;
                         .
-                """
-                )
+                """)
+            }
+        }
+    }
+
+    fun replacesExisting(replacesExisting: Boolean) {
+        insertBuilder.run {
+            graph("m-graph:Transactions") {
+                raw("""
+                    mt: mms:replacesExisting $replacesExisting .
+                """)
             }
         }
     }
@@ -249,7 +326,7 @@ class InsertBuilder(
     }
 
     fun values(setup: ValuesBuilder.() -> Unit): ValuesBuilder {
-        return ValuesBuilder(layer1, indentLevel).apply { setup }
+        return ValuesBuilder(layer1, indentLevel).apply(setup)
     }
 }
 
@@ -263,17 +340,31 @@ class ConstructBuilder(
     indentLevel: Int,
 ): PatternBuilder<ConstructBuilder>(layer1, indentLevel) {
     fun txn(subTxnId: String?=null): ConstructBuilder {
-        auth()
-        return raw("""
+        // complete transaction and access control details
+        raw("""
+            # transaction metadata
             mt:${subTxnId?: ""} ?mt_p ?mt_o .
-        """)
-    }
-
-    fun auth(): ConstructBuilder {
-        return raw("""
+            
+            # details which policy was applied
             ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
             
+            # details about created policy
+            ?__mms_createdPolicy ?__mms_createdPolicy_p ?__mms_createdPolicy_o .
+            
+        """)
+
+        // inspect which conditions passed
+        inspections()
+
+        // chain
+        return this
+    }
+
+    fun inspections(): ConstructBuilder {
+        return raw("""
+            # inspections allow deducing which, if any, conditions failed
             <${MMS_URNS.SUBJECT.inspect}> <${MMS_URNS.PREDICATE.pass}> ?__mms_inspect_pass .
+            
         """)
     }
 

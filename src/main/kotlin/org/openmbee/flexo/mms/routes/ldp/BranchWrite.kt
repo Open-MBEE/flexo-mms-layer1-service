@@ -78,8 +78,7 @@ private val SPARQL_UPDATE_SEQUENCE = """
             # resolve to origin graph
             ?originSnapshot mms:graph ?originGraph .
         }
-    
-    
+
         # select contents of origin graph
         optional {
             graph ?originGraph {
@@ -163,9 +162,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             graph("mor-graph:Metadata") {
                 raw("""
                     $branchTriples
-
                     # set branch pointer
-                    morb: mms:commit ?__mms_commitSource .
+                    morb: mms:commit ?__mms_commitSource ;
+                          mms:created ?_now .
                 """)
             }
         }
@@ -211,7 +210,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             // first group in a series of unions fetches intended outputs
             group {
-                txn(null, "morb")
+                txn()
 
                 raw("""
                     graph mor-graph:Metadata {

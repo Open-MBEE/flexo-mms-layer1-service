@@ -6,11 +6,7 @@ import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
-import io.ktor.utils.io.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
@@ -29,25 +25,7 @@ import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 
-/**
- * Checks that all necessary conditions are met (i.e., branch state, access control, etc.) before parsing and transforming
- * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
- * transformed user query, handling any condition failures, and returns the results to the client.
- */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
-    // for certain sparql, point user query at a predetermined graph
-    var targetGraphIri = when(refIri) {
-        prefixes["mor"] -> {
-            "${prefixes["mor-graph"]}Metadata"
-        }
-        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
-            refIri
-        }
-        else -> {
-            null
-        }
-    }
-
+suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, refIri: String, conditions: ConditionsGroup): String {
     // prepare a query to check required conditions and select the appropriate target graph if necessary
     val serviceQuery = """
         select ?targetGraph ?satisfied where {
@@ -68,7 +46,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
                     union {
                         ?snapshot a mms:Staging .
                         filter not exists {
-                            ?commit ^mms:commit/mms:snapshot/a mms:Model .
+                            ?snapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
                 }
@@ -105,7 +83,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         // prep access-control check
         val checkQuery = buildSparqlQuery {
             construct {
-                auth()
+                inspections()
             }
             where {
                 raw(conditions.unionInspectPatterns())
@@ -124,16 +102,41 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
 
         // parse check response and route to appropriate handler
         parseConstructResponse(checkResponseText) {
-            conditions.handle(model, this@processAndSubmitUserQuery)
+            conditions.handle(model, this@checkModelQueryConditions)
         }
 
         // handler did not terminate connection
         throw ServerBugException("A required condition was not satisfied, but the condition did not handle the exception")
     }
 
+    // return target graph IRI
+    return bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+}
+
+/**
+ * Checks that all necessary conditions are met (i.e., branch state, access control, etc.) before parsing and transforming
+ * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
+ * transformed user query, handling any condition failures, and returns the results to the client.
+ */
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+    // for certain sparql, point user query at a predetermined graph
+    var targetGraphIri = when(refIri) {
+        prefixes["mor"] -> {
+            "${prefixes["mor-graph"]}Metadata"
+        }
+        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
+            refIri
+        }
+        else -> {
+            null
+        }
+    }
+
+    val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
+
     // extract the target graph iri from query results
     if(targetGraphIri == null) {
-        targetGraphIri = bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        targetGraphIri = targetGraphIriResult
     }
 
     // parse user query

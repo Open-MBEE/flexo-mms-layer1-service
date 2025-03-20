@@ -319,12 +319,12 @@ ds_writer.write({
 					implies: [
 						'Ref',
 						'Artifact',
+						'Commit'
 						'Scratch',
-					]
+					],
 				},
-				Artifact: {},
-				Scratch: {},
 				Collection: {},
+				Artifact: {},
 				Ref: {
 					implies: [
 						'Branch',
@@ -438,6 +438,10 @@ ds_writer.write({
 						Update: {
 							implies: [
 								'ReadRepo',
+								'ReadCommit',
+								'UpdateBranch',  // PATCH for updating repo metadata
+								'UpdateLock',  // PATCH for updating repo metadata
+								'UpdateCommit', //PATCH for updating commit metadata
 								'UpdateRef',
 								'UpdateArtifact',  // PATCH for updating artifact metadata
 							],
@@ -492,6 +496,10 @@ ds_writer.write({
 				},
 
 				Scratch: {
+					crud: H_CRUD_DEFAULT,
+				},
+
+				Commit: {
 					crud: H_CRUD_DEFAULT,
 				},
 

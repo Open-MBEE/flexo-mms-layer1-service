@@ -34,8 +34,7 @@ fun TriplesAsserter.validateCreatedGroupTriples(
     groupName: String,
     extraPatterns: List<PairPattern> = listOf()
 ) {
-    createResponse shouldHaveStatus HttpStatusCode.Created
-
+    // group-specific validation
     validateGroupTriples(createResponse, groupId, groupName, extraPatterns)
 
     // auto policy
@@ -59,10 +58,7 @@ open class GroupAny : CommonSpec() {
     val basePathGroups = "/groups"
 
     val demoGroupId = "ldap/cn=all.personnel,ou=personnel"
-    val demoGroupPath = "/groups/${URLEncoder.encode(demoGroupId, "UTF-8")}"
     val demoGroupTitle = "Test Group"
-
-//    val fooGroupId = ""
 
     val validGroupBody = withAllTestPrefixes("""
         <>

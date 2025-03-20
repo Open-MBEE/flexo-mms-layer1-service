@@ -93,6 +93,7 @@ fun Application.configureRouting() {
             crudRepos()
             crudBranches()
             crudLocks()
+            crudCommits()
             crudDiffs()
 
             storeArtifacts()

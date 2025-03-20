@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms.server
 
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.MethodNotAllowedException
@@ -160,7 +161,7 @@ class StorageAbstractionRoute<TRequestContext: GenericRequest>(
     // PATCH
     fun patch(body: suspend Layer1Context<TRequestContext, StorageAbstractionPatchResponse>.(updateRequest: GenericRequest) -> Unit) {
         super.patch(body, { StorageAbstractionPatchResponse(it) },) { updateRequest ->
-            throw MethodNotAllowedException()
+            throw MethodNotAllowedException(call.request.httpMethod, updateRequest.requestPath)
         }
     }
 
