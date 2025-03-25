@@ -19,6 +19,7 @@ fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?
             if(orgPath != null) MMS.org exactly localIri(orgPath).iri else null,
             if(repoPath != null) MMS.repo exactly localIri(repoPath).iri else null,
             if(branchPath != null) MMS.branch exactly localIri(branchPath).iri else null,
+            if(scratchPath != null) MMS.scratch exactly localIri(scratchPath).iri else null,
             if(user != null) MMS.user exactly userIri("root").iri else null
         )
     }
