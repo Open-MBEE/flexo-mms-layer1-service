@@ -86,7 +86,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headScratches(allScratches: Bool
         )
     }
 
-//    TODO: where are the access-control checks?
+//    TODO: where are the access-control checks? Not convinced on this - repo read doesn't have this, add to SPARQL_SELECT_SCRATCH_IDS above?
 
 //    // parse the result bindings
 //    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
