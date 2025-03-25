@@ -6,26 +6,30 @@ import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
-import kotlinx.serialization.json.*
+import io.ktor.utils.io.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
-import org.apache.jena.update.UpdateFactory
-import org.openmbee.flexo.mms.routes.sparql.assertOperationsAllowed
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
-import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 
-suspend fun AnyLayer1Context.checkModelQueryConditions(targetGraphIri: String?, refIri: String, conditions: ConditionsGroup): String {
+suspend fun AnyLayer1Context.checkModelQueryConditions(
+    targetGraphIri: String?=null,
+    refIri: String?=null,
+    conditions: ConditionsGroup
+): String {
     // prepare a query to check required conditions and select the appropriate target graph if necessary
     val serviceQuery = """
         select ?targetGraph ?satisfied where {
@@ -263,75 +267,6 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         throw Http400Exception("Query operation not supported")
     }
 }
-
-
-/**
- * Struct for parsed SPARQL UPDATE components
- */
-data class UpdateContext(
-    var deleteBgpString: String = "",
-    var insertBgpString: String = "",
-    var whereString: String = "",
-)
-
-/**
- * Parses a SPARQL UPDATE request from the user
- */
-fun Layer1Context<SparqlUpdateRequest, *>.parseUserUpdateString(updateString: String?=null): UpdateContext {
-    // parse query
-    val sparqlUpdateAst = try {
-        UpdateFactory.create(updateString?: requestContext.update)
-    } catch (parse: Exception) {
-        throw UpdateSyntaxException(parse)
-    }
-
-    var deleteBgpString = ""
-    var insertBgpString = ""
-    var whereString = ""
-
-    val operations = sparqlUpdateAst.operations
-
-    assertOperationsAllowed(operations)
-
-    for (update in operations) {
-        when (update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
-            is UpdateDeleteWhere -> {
-                deleteBgpString = asSparqlGroup(update.quads)
-                whereString = deleteBgpString
-            }
-
-            is UpdateModify -> {
-                if (update.hasDeleteClause()) {
-                    deleteBgpString = asSparqlGroup(update.deleteQuads)
-                }
-
-                if (update.hasInsertClause()) {
-                    insertBgpString = asSparqlGroup(update.insertQuads)
-                }
-
-                whereString = asSparqlGroup(update.wherePattern.apply {
-                    visit(NoQuadsElementVisitor)
-                })
-            }
-
-            is UpdateAdd -> {
-                throw UpdateOperationNotAllowedException("SPARQL ADD not allowed here")
-            }
-
-            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
-        }
-    }
-
-
-    return UpdateContext(
-        deleteBgpString = deleteBgpString,
-        insertBgpString = insertBgpString,
-        whereString = whereString,
-    )
-}
-
 
 /**
  * Takes a Graph Store Protocol load request and forwards it to Layer 0

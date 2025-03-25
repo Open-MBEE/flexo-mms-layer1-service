@@ -97,10 +97,11 @@ fun Application.configureRouting() {
             crudDiffs()
 
             storeArtifacts()
-            queryArtifacts()
+//            queryArtifacts()
 
             crudScratch()
             queryScratch()
+            updateScratch()
 
             crudModel()
 

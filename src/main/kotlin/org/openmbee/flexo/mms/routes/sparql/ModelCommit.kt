@@ -6,6 +6,7 @@ import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.sparql.modify.request.*
+import org.apache.jena.update.Update
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.sparqlUpdate

@@ -27,18 +27,14 @@ suspend fun GspLayer1Context<GspReadResponse>.readModel(refType: RefType, allDat
 
     // check conditions
     val targetGraphIri = when(refType) {
-        RefType.BRANCH -> checkModelQueryConditions(null, prefixes["morb"]!!, BRANCH_QUERY_CONDITIONS.append {
+        RefType.BRANCH -> checkModelQueryConditions(refIri = prefixes["morb"]!!, conditions = BRANCH_QUERY_CONDITIONS.append {
             assertPreconditions(this)
         })
-        RefType.LOCK -> checkModelQueryConditions(null, prefixes["morl"]!!, LOCK_QUERY_CONDITIONS.append {
+        RefType.LOCK -> checkModelQueryConditions(refIri = prefixes["morl"]!!, conditions = LOCK_QUERY_CONDITIONS.append {
             assertPreconditions(this)
         })
-        RefType.SCRATCH -> checkModelQueryConditions("${prefixes["mor-graph"]}Scratch.$scratchId", null, SCRATCH_QUERY_CONDITIONS.append {
+        RefType.SCRATCH -> checkModelQueryConditions(targetGraphIri = "${prefixes["mor-graph"]}Scratch.$scratchId", conditions = SCRATCH_QUERY_CONDITIONS.append {
             assertPreconditions(this)
-            // 
-            //    graph("mor-graph:Scratch.$scratchId") {
-            //        raw("?s ?p ?o")
-            //    }
         })
     }
 

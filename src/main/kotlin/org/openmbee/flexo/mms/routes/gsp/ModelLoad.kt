@@ -184,28 +184,27 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
 
     // compute the delta
+    val updateString = genDiffUpdate()
+    executeSparqlUpdate(updateString) {
+        prefixes(prefixes)
 
-        val updateString = genDiffUpdate()
-        executeSparqlUpdate(updateString) {
-            prefixes(prefixes)
+        iri(
+            // use current branch as ref source
+            "srcRef" to prefixes["morb"]!!,
 
-            iri(
-                // use current branch as ref source
-                "srcRef" to prefixes["morb"]!!,
+            // set dst graph
+            "dstGraph" to loadGraphUri,
 
-                // set dst graph
-                "dstGraph" to loadGraphUri,
+            // set dst commit (this commit)
+            "dstCommit" to prefixes["morc"]!!,
 
-                // set dst commit (this commit)
-                "dstCommit" to prefixes["morc"]!!,
+            // use explicit srcGraph
+            "srcGraph" to stagingGraphIri,
 
-                // use explicit srcGraph
-                "srcGraph" to stagingGraphIri,
-
-                // use explicit srcCommit
-                "srcCommit" to baseCommitIri,
-            )
-        }
+            // use explicit srcCommit
+            "srcCommit" to baseCommitIri,
+        )
+    }
 
 
     // validate diff creation
