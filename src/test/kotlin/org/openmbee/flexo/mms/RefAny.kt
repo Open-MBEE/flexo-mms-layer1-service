@@ -38,10 +38,7 @@ open class RefAny : RepoAny() {
     }
 
     fun TestApplicationCall.validateCreateBranchResponse(fromCommit: String) {
-        response shouldHaveStatus HttpStatusCode.Created
-
-        response.headers[HttpHeaders.ETag].shouldNotBeBlank()
-
+        // branch-specific validation
         response exclusivelyHasTriples {
             modelName = "CreateBranch"
 
@@ -52,20 +49,23 @@ open class RefAny : RepoAny() {
                     DCTerms.title exactly demoBranchName.en,
                     MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
                     MMS.commit startsWith localIri("$demoCommitsPath/").iri,  // TODO: incorporate fromCommit ?
-                    MMS.createdBy exactly userIri("root").iri
+                    MMS.createdBy exactly userIri("root").iri,
+                    MMS.created startsWith ""
                 )
             }
 
+            // auto policy
             matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner") {
                 includes(
                     RDF.type exactly MMS.Policy,
                 )
             }
 
+            // transaction
             validateTransaction(demoOrgPath, demoRepoPath, demoBranchPath, "root")
 
             // inspect
-            subject("urn:mms:inspect") { ignoreAll() }
+            subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
         }
     }
 }

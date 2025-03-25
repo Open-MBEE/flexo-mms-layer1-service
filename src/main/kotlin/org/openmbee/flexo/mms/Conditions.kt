@@ -2,13 +2,13 @@ package org.openmbee.flexo.mms
 
 import io.ktor.http.*
 import org.apache.jena.rdf.model.impl.PropertyImpl
-import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 
 val GLOBAL_CRUD_CONDITIONS = conditions {
     inspect("agentExists") {
         handler = { layer1 -> "User <${layer1.prefixes["mu"]}> does not exist or does not belong to any authorized groups." to HttpStatusCode.Forbidden }
 
         """
+            # deduce `?agentExists`
             {
                 # user exists
                 graph m-graph:AccessControl.Agents {
@@ -19,7 +19,7 @@ val GLOBAL_CRUD_CONDITIONS = conditions {
             } union {
                 # user belongs to some group
                 graph m-graph:AccessControl.Agents {
-                    ?group a mms:Group ;
+                    ?__mms_group a mms:Group ;
                         mms:id ?__mms_groupId .
             
                     values ?__mms_groupId {
@@ -143,6 +143,10 @@ val COMMIT_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {
             }
         """
     }
+}
+
+val COMMIT_UPDATE_CONDITIONS = COMMIT_CRUD_CONDITIONS.append {
+    permit(Permission.UPDATE_COMMIT, Scope.COMMIT)
 }
 
 val LOCK_CRUD_CONDITIONS = REPO_CRUD_CONDITIONS.append {

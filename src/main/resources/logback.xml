@@ -6,13 +6,13 @@
             <pattern>%date{"yyyy-MM-dd'T'HH:mm:ss,SSSXXX", UTC} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="TRACE">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
     <logger name="org.apache.jena.sparql" level="WARN"/>
     <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
-    <logger name="io.ktor.server" level="TRACE"/>
+    <logger name="io.ktor.server" level="DEBUG"/>
     <!-- Import loggers configuration from external file -->
     <include file="/mnt/config/logback/loggers-include.xml"/>
 </configuration>

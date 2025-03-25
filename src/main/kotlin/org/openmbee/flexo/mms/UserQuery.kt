@@ -15,39 +15,21 @@ import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
-import org.apache.jena.update.UpdateFactory
-import org.openmbee.flexo.mms.routes.sparql.assertOperationsAllowed
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
-import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 class QuerySyntaxException(parse: Exception): Exception(parse.stackTraceToString())
 
 
-/**
- * Checks that all necessary conditions are met (i.e., branch state, access control, etc.) before parsing and transforming
- * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
- * transformed user query, handling any condition failures, and returns the results to the client.
- */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
-    // for certain sparql, point user query at a predetermined graph
-    var targetGraphIri = when(refIri) {
-        prefixes["mor"] -> {
-            "${prefixes["mor-graph"]}Metadata"
-        }
-        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
-            refIri
-        }
-        else -> {
-            null
-        }
-    }
-
+suspend fun AnyLayer1Context.checkModelQueryConditions(
+    targetGraphIri: String?=null,
+    refIri: String?=null,
+    conditions: ConditionsGroup
+): String {
     // prepare a query to check required conditions and select the appropriate target graph if necessary
     val serviceQuery = """
         select ?targetGraph ?satisfied where {
@@ -68,7 +50,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
                     union {
                         ?snapshot a mms:Staging .
                         filter not exists {
-                            ?commit ^mms:commit/mms:snapshot/a mms:Model .
+                            ?snapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
                         }
                     }
                 }
@@ -105,7 +87,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         // prep access-control check
         val checkQuery = buildSparqlQuery {
             construct {
-                auth()
+                inspections()
             }
             where {
                 raw(conditions.unionInspectPatterns())
@@ -124,16 +106,41 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
 
         // parse check response and route to appropriate handler
         parseConstructResponse(checkResponseText) {
-            conditions.handle(model, this@processAndSubmitUserQuery)
+            conditions.handle(model, this@checkModelQueryConditions)
         }
 
         // handler did not terminate connection
         throw ServerBugException("A required condition was not satisfied, but the condition did not handle the exception")
     }
 
+    // return target graph IRI
+    return bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+}
+
+/**
+ * Checks that all necessary conditions are met (i.e., branch state, access control, etc.) before parsing and transforming
+ * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
+ * transformed user query, handling any condition failures, and returns the results to the client.
+ */
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+    // for certain sparql, point user query at a predetermined graph
+    var targetGraphIri = when(refIri) {
+        prefixes["mor"] -> {
+            "${prefixes["mor-graph"]}Metadata"
+        }
+        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
+            refIri
+        }
+        else -> {
+            null
+        }
+    }
+
+    val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
+
     // extract the target graph iri from query results
     if(targetGraphIri == null) {
-        targetGraphIri = bindings[0].jsonObject["targetGraph"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        targetGraphIri = targetGraphIriResult
     }
 
     // parse user query
@@ -260,75 +267,6 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         throw Http400Exception("Query operation not supported")
     }
 }
-
-
-/**
- * Struct for parsed SPARQL UPDATE components
- */
-data class UpdateContext(
-    var deleteBgpString: String = "",
-    var insertBgpString: String = "",
-    var whereString: String = "",
-)
-
-/**
- * Parses a SPARQL UPDATE request from the user
- */
-fun Layer1Context<SparqlUpdateRequest, *>.parseUserUpdateString(updateString: String?=null): UpdateContext {
-    // parse query
-    val sparqlUpdateAst = try {
-        UpdateFactory.create(updateString?: requestContext.update)
-    } catch (parse: Exception) {
-        throw UpdateSyntaxException(parse)
-    }
-
-    var deleteBgpString = ""
-    var insertBgpString = ""
-    var whereString = ""
-
-    val operations = sparqlUpdateAst.operations
-
-    assertOperationsAllowed(operations)
-
-    for (update in operations) {
-        when (update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads)
-            is UpdateDeleteWhere -> {
-                deleteBgpString = asSparqlGroup(update.quads)
-                whereString = deleteBgpString
-            }
-
-            is UpdateModify -> {
-                if (update.hasDeleteClause()) {
-                    deleteBgpString = asSparqlGroup(update.deleteQuads)
-                }
-
-                if (update.hasInsertClause()) {
-                    insertBgpString = asSparqlGroup(update.insertQuads)
-                }
-
-                whereString = asSparqlGroup(update.wherePattern.apply {
-                    visit(NoQuadsElementVisitor)
-                })
-            }
-
-            is UpdateAdd -> {
-                throw UpdateOperationNotAllowedException("SPARQL ADD not allowed here")
-            }
-
-            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
-        }
-    }
-
-
-    return UpdateContext(
-        deleteBgpString = deleteBgpString,
-        insertBgpString = insertBgpString,
-        whereString = whereString,
-    )
-}
-
 
 /**
  * Takes a Graph Store Protocol load request and forwards it to Layer 0

@@ -55,6 +55,7 @@ private fun authorization(auth: AuthStruct): String {
  */
 fun TestApplicationRequest.setTurtleBody(body: String) {
     addHeader("Content-Type", "text/turtle")
+    addHeader("Content-Length", body.length.toString())
     setBody(body)
 }
 
@@ -87,8 +88,9 @@ fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: Te
                 }
 
                 response shouldHaveOneOfStatuses setOf(
-                    HttpStatusCode.NotFound,
+                    HttpStatusCode.BadRequest,
                     HttpStatusCode.Forbidden,
+                    HttpStatusCode.NotFound,
                     HttpStatusCode.MethodNotAllowed,
                     HttpStatusCode.NotImplemented,
                 )

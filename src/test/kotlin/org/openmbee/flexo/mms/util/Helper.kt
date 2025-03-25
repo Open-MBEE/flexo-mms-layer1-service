@@ -1,5 +1,7 @@
 package org.openmbee.flexo.mms.util
 
+import io.ktor.client.*
+import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.*
@@ -167,4 +169,24 @@ fun withAllTestPrefixes(body: String): String {
         
         $body
     """.trimIndent()
+}
+
+suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        parameter("update", """
+             prefix m-graph: <$ROOT_CONTEXT/graphs/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             prefix mt: <$ROOT_CONTEXT/transactions/some-other-transaction> 
+             prefix mms-txn: <https://mms.openmbee.org/rdf/ontology/txn.>
+             prefix morb: <$ROOT_CONTEXT$branchPath> 
+             insert data {
+                 graph m-graph:Transactions {
+                     mt: a mms:Transaction ;
+                         mms-txn:mutex morb: .
+                 }
+             }
+        """.trimIndent())
+    }
 }

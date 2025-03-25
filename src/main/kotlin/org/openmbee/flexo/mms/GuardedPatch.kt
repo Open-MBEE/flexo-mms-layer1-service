@@ -13,19 +13,13 @@ import org.openmbee.flexo.mms.server.LdpMutateResponse
 import org.openmbee.flexo.mms.server.SparqlUpdateRequest
 
 
-fun quadDataFilter(subjectIri: String): (Quad)->Boolean {
-    return {
-        it.subject.isURI && it.subject.uri == subjectIri && !it.predicate.uri.contains(FORBIDDEN_PREDICATES_REGEX)
-    }
-}
-
 fun quadPatternFilter(subjectIri: String): (Quad)->Boolean {
     return {
         if(it.subject.isVariable) {
             throw VariablesNotAllowedInUpdateException("subject")
         }
         else if(!it.subject.isURI || it.subject.uri != subjectIri) {
-            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evalute ${it.subject}")
+            throw Http400Exception("All subjects must be exactly <${subjectIri}>. Refusing to evaluate ${it.subject}")
         }
         else if(it.predicate.isVariable) {
             throw VariablesNotAllowedInUpdateException("predicate")
@@ -61,34 +55,40 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     var whereString = ""
 
     // prepare quad filters
-    val dataFilter = quadDataFilter(baseIri)
     val patternFilter = quadPatternFilter(baseIri)
 
-    // each operation
-    for(update in sparqlUpdateAst.operations) {
-        when(update) {
-            is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, dataFilter)
-            is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, dataFilter)
-            is UpdateDeleteWhere -> {
-                deleteBgpString = asSparqlGroup(update.quads, patternFilter)
-                whereString = deleteBgpString
-            }
-            is UpdateModify -> {
-                if(update.hasDeleteClause()) {
-                    deleteBgpString = asSparqlGroup(update.deleteQuads, patternFilter)
-                }
+    // merge the client prefixes with internal ones
+    val mergedPrefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
+    mergedPrefixMap.putAll(prefixes.map)
 
-                if(update.hasInsertClause()) {
-                    insertBgpString = asSparqlGroup(update.insertQuads, patternFilter)
+    val mergedPrefixes = withPrefixMap(mergedPrefixMap) {
+        // each operation
+        for(update in sparqlUpdateAst.operations) {
+            when(update) {
+                is UpdateDataDelete -> deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                is UpdateDataInsert -> insertBgpString = asSparqlGroup(update.quads, patternFilter)
+                is UpdateDeleteWhere -> {
+                    deleteBgpString = asSparqlGroup(update.quads, patternFilter)
+                    whereString = deleteBgpString
                 }
+                is UpdateModify -> {
+                    if(update.hasDeleteClause()) {
+                        deleteBgpString = asSparqlGroup(update.deleteQuads, patternFilter)
+                    }
 
-                whereString = asSparqlGroup(update.wherePattern.apply {
-                    visit(NoQuadsElementVisitor)
-                })
+                    if(update.hasInsertClause()) {
+                        insertBgpString = asSparqlGroup(update.insertQuads, patternFilter)
+                    }
+
+                    whereString = asSparqlGroup(update.wherePattern.apply {
+                        visit(NoQuadsElementVisitor)
+                    })
+                }
+                else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
-            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
         }
     }
+
 
     log("Guarded patch update:\n\n\tINSERT: $insertBgpString\n\n\tDELETE: $deleteBgpString\n\n\tWHERE: $whereString")
 
@@ -163,7 +163,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
 
     executeSparqlUpdate(updateString) {
-        prefixes(prefixes)
+        prefixes(mergedPrefixes)
 
         literal(
             "_txnId" to transactionId

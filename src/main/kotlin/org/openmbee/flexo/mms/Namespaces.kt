@@ -266,6 +266,7 @@ object MMS {
     val Group = res("Group")
     val Policy = res("Policy")
 
+    val Context = res("Context")
     val Transaction = res("Transaction")
 
 
@@ -295,12 +296,14 @@ object MMS {
     val completed = prop("completed")
     val requestBody = prop("requestBody")
     val requestPath = prop("requestPath")
+    val replacesExisting = prop("replacesExisting")
+    val createdPolicy = prop("createdPolicy")
+    val appliedPolicy = prop("appliedPolicy")
 
     val commitId = prop("commitId")
     val submitted = prop("submitted")
     // access control properties
     val implies = prop("implies")
-
 
     val srcRef = prop("srcRef")
     val dstRef = prop("dstRef")
@@ -338,8 +341,10 @@ object MMS {
         val baseModel = prop("baseModel")
         val baseModelGraph = prop("baseModelGraph")
         val sourceGraph = prop("sourceGraph")
+        val success = prop("success")
 
         val diff = prop("diff")
+        val baseCommit = prop("baseCommit")
         val commitSource = prop("commitSource")
         val insGraph = prop("insGraph")
         val delGraph = prop("delGraph")
@@ -381,6 +386,11 @@ object MMS_OBJECT {
         val AdminAccessControl = res("AdminAccessControl")
         val WriteAccessControl = res("WriteAccessControl")
         val ReadAccessControl = res("ReadAccessControl")
+    }
+
+    private val BASE_PERMISSION = "${BASE}Permission."
+    object PERMISSION {
+
     }
 }
 

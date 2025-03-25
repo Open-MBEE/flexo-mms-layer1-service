@@ -19,21 +19,28 @@ fun TriplesAsserter.validateRepoTriples(
 
     // repo triples
     subject(localIri(repoPath)) {
-        exclusivelyHas(
+        includes(
             RDF.type exactly MMS.Repo,
             MMS.id exactly repoId,
             MMS.org exactly localIri(orgPath).iri,
             DCTerms.title exactly repoName.en,
             MMS.etag startsWith "",
+            MMS.created startsWith "",
             *extraPatterns.toTypedArray()
         )
     }
 
-    // inspect
+    // inspections
     optionalSubject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 
-    // aggregator
-    optionalSubject(MMS_URNS.SUBJECT.aggregator) { ignoreAll() }
+    // context
+    optionalSubject(MMS_URNS.SUBJECT.context) {
+        // remove linked policy triples
+        subject.listProperties(MMS.appliedPolicy).forEach {
+            optionalSubject(it.`object`.asResource().uri) { ignoreAll() }
+        }
+        ignoreAll()
+    }
 }
 
 // validates response triples for a repo and its master branch
@@ -69,11 +76,18 @@ fun TriplesAsserter.validateCreatedRepoTriples(
 ) {
     val repoPath = "$orgPath/repos/$repoId"
 
-    createResponse shouldHaveStatus HttpStatusCode.Created
+    // repo-specific validation
     validateRepoTriplesWithMasterBranch(repoId, repoName, orgPath, extraPatterns)
 
     // auto policy
     matchOneSubjectTerseByPrefix("m-policy:AutoRepoOwner.") {
+        includes(
+            RDF.type exactly MMS.Policy,
+        )
+    }
+
+    // auto policy
+    matchOneSubjectTerseByPrefix("m-policy:AutoBranchOwner.") {
         includes(
             RDF.type exactly MMS.Policy,
         )

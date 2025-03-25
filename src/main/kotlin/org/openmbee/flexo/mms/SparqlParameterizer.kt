@@ -5,7 +5,11 @@ import org.apache.jena.query.ParameterizedSparqlString
 
 
 class SparqlParameterizer(sparql: String, prefixes: PrefixMapBuilder?=null) {
-    private val pss = if(null != prefixes) ParameterizedSparqlString(sparql, prefixes.toPrefixMappings()) else ParameterizedSparqlString(sparql)
+    private val pss = if(null != prefixes) {
+        ParameterizedSparqlString(sparql, prefixes.toPrefixMappings())
+    } else {
+        ParameterizedSparqlString(sparql)
+    }
 
     var acceptReplicaLag = false
 

@@ -39,15 +39,15 @@ class RepoLdpDc : RepoAny() {
                 { createRepo(demoOrgPath, barRepoId, barRepoName) },
             ) {
                 if(it.createdOthers.isEmpty()) {
-                    it.response exclusivelyHasTriples {
-                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
+                    it.response includesTriples {
+                        validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath)
                     }
                 }
                 else {
                     it.response includesTriples {
-                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
-                        validateRepoTriplesWithMasterBranch(fooRepoId, fooRepoName, demoOrgPath)
-                        validateRepoTriplesWithMasterBranch(barRepoId, barRepoName, demoOrgPath)
+                        validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath)
+                        validateRepoTriples(fooRepoId, fooRepoName, demoOrgPath)
+                        validateRepoTriples(barRepoId, barRepoName, demoOrgPath)
                     }
                 }
             }

@@ -1,12 +1,17 @@
 package org.openmbee.flexo.mms.routes.store
 
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.utils.io.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ARTIFACT
 import org.openmbee.flexo.mms.server.GenericRequest
 import org.openmbee.flexo.mms.server.StorageAbstractionPostResponse
+import java.util.*
 
 suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, StorageAbstractionPostResponse>.createArtifact() {
     // forbid wildcards
@@ -14,14 +19,47 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         throw UnsupportedMediaType("Wildcards not allowed")
     }
 
-    // extend the default conditions with requirements for user-specified ref or commit
+    // extend the default conditions
     val localConditions = REPO_CRUD_CONDITIONS.append {
-        // require that the user has the ability to create objects on a repo-level scope
+        // require that the user has the ability to create artifacts on a repo-level scope
         permit(Permission.CREATE_ARTIFACT, Scope.REPO)
     }
 
-    // fully load request body
-    val body = call.receiveText()
+    // prep storage triple fragment
+    var storageFragment = ""
+
+    // use store service
+    val storeServiceUrl: String? = call.application.storeServiceUrl
+    if (storeServiceUrl != null) {
+        val path = "$orgId/$repoId/$transactionId"
+
+        // submit to store service
+        val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/$path") {
+            headers {
+                // add auth header
+                call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
+                    append(HttpHeaders.Authorization, auth)
+                }
+            }
+            setBody(object : OutgoingContent.WriteChannelContent() {
+                override val contentType = call.request.contentType()
+                override suspend fun writeTo(channel: ByteWriteChannel) {
+                    call.request.receiveChannel().copyTo(channel)
+                }
+            })
+        }
+
+        // set storage details
+        storageFragment = "mms:body ${escapeLiteral(path)}^^xsd:anyURI"
+    } else {
+        if (requestBodyContentType.startsWith("text")) {
+            val body = call.receiveText()
+            storageFragment = "mms:body ${escapeLiteral(body)}"
+        } else {
+            val body = Base64.getEncoder().encodeToString(call.receive<ByteArray>())
+            storageFragment = "mms:body ${escapeLiteral(body)}^^xsd:base64Binary"
+        }
+    }
 
     // create update SPARQL
     val updateString = buildSparqlUpdate {
@@ -35,7 +73,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                         mms:created ?_now ;
                         mms:createdBy mu: ;
                         mms:contentType ${escapeLiteral(requestBodyContentType)} ;
-                        mms:body ${escapeLiteral(body)} ; 
+                        $storageFragment ; 
                         .
                 """)
             }
@@ -44,7 +82,6 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             raw(*localConditions.requiredPatterns())
         }
     }
-
 
     // create object IRI
     val artifactIri = "${prefixes["mor-artifact"]}$transactionId"
@@ -71,9 +108,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             """)
         }
         where {
-            group {
-                txn(null, "mora")
-
+            txnOrInspections(null, localConditions) {
                 raw("""
                     graph mor-graph:Artifacts {
                         ?$SPARQL_VAR_NAME_ARTIFACT a mms:Artifact ;
@@ -81,10 +116,9 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                     }
                 """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
+
 
     // execute construct
     val constructResponseText = executeSparqlConstructOrDescribe(constructString) {
@@ -95,14 +129,14 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         )
     }
 
-    // log
-    log.info("Finalizing write transaction...\n######## request: ########\n$constructString\n\n######## response: ########\n$constructResponseText")
-
     // validate whether the transaction succeeded
     val constructModel = validateTransaction(constructResponseText, localConditions, null, "mora")
 
     // set location header
     call.response.headers.append(HttpHeaders.Location, artifactIri)
+
+    // Can't get just the content-type without the parameter, need to parse manually
+    call.response.headers.append(HttpHeaders.ContentType, call.request.contentType().withoutParameters().toString())
 
 //    // response in the requested format
 //    call.respondText(constructModel.stringify(), RdfContentTypes.Turtle, HttpStatusCode.Created)

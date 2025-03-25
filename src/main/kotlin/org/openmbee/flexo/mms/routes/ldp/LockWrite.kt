@@ -220,6 +220,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     
                     morl: mms:commit ?__mms_commitSource ;
                         mms:snapshot ?__mms_commitSnapshot ;
+                        mms:created ?_now ;
                         .
                 """)
             }
@@ -265,7 +266,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             // first group in a series of unions fetches intended outputs
             group {
-                txn(null, "morl")
+                txn()
 
                 raw("""
                     graph mor-graph:Metadata {
