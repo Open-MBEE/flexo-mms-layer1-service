@@ -1,8 +1,10 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
+import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
@@ -176,4 +178,43 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // finalize transaction
     finalizeMutateTransaction(constructString, localConditions, "mors", !replaceExisting)
+}
+
+
+/**
+ * Overwrites the scratch graph
+ */
+suspend fun Layer1Context<GspRequest, *>.loadScratch() {
+    // auth check
+    checkModelQueryConditions(targetGraphIri = "${prefixes["mor-graph"]}Scratch.$scratchId", conditions = SCRATCH_QUERY_CONDITIONS.append {
+        assertPreconditions(this)
+    })
+
+    // load triples directly into mor-graph:Scratch
+    loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId")
+
+    // close response
+    call.respondText("", status = HttpStatusCode.NoContent)
+}
+
+
+/**
+ * Deletes the scratch graph
+ */
+suspend fun Layer1Context<GspRequest, *>.deleteScratch() {
+    // auth check
+    checkModelQueryConditions(targetGraphIri = "${prefixes["mor-graph"]}Scratch.$scratchId", conditions = SCRATCH_QUERY_CONDITIONS.append {
+        assertPreconditions(this)
+    })
+
+    // delete the graph
+    deleteGraph("${prefixes["mor-graph"]}Scratch.$scratchId") {
+        // permissions check
+        graph("mor-graph:Metadata") {
+            auth(Permission.DELETE_SCRATCH.scope.id, SCRATCH_DELETE_CONDITIONS)
+        }
+    }
+
+    // close response
+    call.respondText("", status = HttpStatusCode.NoContent)
 }

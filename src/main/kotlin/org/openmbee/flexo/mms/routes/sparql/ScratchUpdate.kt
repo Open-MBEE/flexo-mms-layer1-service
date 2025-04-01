@@ -50,22 +50,58 @@ fun Route.updateScratch() {
 
                 // assert that no GRAPH keywords are present in the update (no quad patterns)
                 when (update) {
-                    is UpdateDataDelete -> opString = asSparqlGroup(update.quads)
-                    is UpdateDataInsert -> opString = asSparqlGroup(update.quads)
-                    is UpdateDeleteWhere -> opString = asSparqlGroup(update.quads)
+                    is UpdateDataDelete -> opString += """
+                        DELETE DATA {
+                            graph ?__mms_model {
+                                ${asSparqlGroup(update.quads)}
+                            }
+                        }
+                    """.trimIndent()
+
+                    is UpdateDataInsert -> opString += """
+                        INSERT DATA {
+                            graph ?__mms_model {
+                                ${asSparqlGroup(update.quads)}
+                            }
+                        }
+                    """.trimIndent()
+
+                    is UpdateDeleteWhere -> opString += """
+                        DELETE WHERE {
+                            graph ?__mms_model {
+                                ${asSparqlGroup(update.quads)}
+                            }
+                        }
+                    """.trimIndent()
 
                     is UpdateModify -> {
+                        var modify = "WITH ?__mms_model\n"
+
                         if (update.hasDeleteClause()) {
-                            opString += asSparqlGroup(update.deleteQuads)
+                            modify += """
+                                DELETE {
+                                    ${asSparqlGroup(update.deleteQuads)}
+                                }
+                            """.trimIndent()
                         }
 
                         if (update.hasInsertClause()) {
-                            opString += asSparqlGroup(update.insertQuads)
+                            modify += """
+                                INSERT {
+                                    ${asSparqlGroup(update.insertQuads)}
+                                }
+                            """.trimIndent()
                         }
 
-                        opString += asSparqlGroup(update.wherePattern.apply {
-                            visit(NoQuadsElementVisitor)
-                        })
+                        modify += """
+                            WHERE {
+                                ${asSparqlGroup(update.wherePattern.apply {
+                                    visit(NoQuadsElementVisitor)
+                                })}
+                            }
+                        """.trimIndent()
+
+                        opString += modify
                     }
 
                     is UpdateAdd -> {
@@ -76,13 +112,17 @@ fun Route.updateScratch() {
                 }
 
                 // put WITH clause before operation
-                updateString = "WITH <$scratchGraph> $opString"
+                updateString += "$opString ;\n"
             }
         }
 
         // execute the SPARQL UPDATE
         val responseText = executeSparqlUpdate(updateString) {
             prefixes(prefixes)
+
+            iri(
+                "__mms_model" to scratchGraph
+            )
         }
 
         // forward response to client

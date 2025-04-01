@@ -18,7 +18,6 @@ open class ScratchAny: RefAny() {
     val demoScratchName = "New Scratch"
     val demoScratchPath = "$basePathScratches/$demoScratchId"
 
-    // I think this is right but it might not be
     val validScratchBody = """
         <> dct:title "$demoScratchName"@en .
     """.trimIndent()
@@ -34,10 +33,9 @@ open class ScratchAny: RefAny() {
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        // Creates an empty scratch (demoScratchPath includes demoScratchId
-        createScratch(demoScratchPath, demoScratchName)
 
-        // don't need to create orgs/repos here - orgs created in RepoAny and repo created in RefAny
+        // creates an empty scratch (demoScratchPath includes demoScratchId)
+        createScratch(demoScratchPath, demoScratchName)
     }
 
     val demoPrefixes = PrefixMapBuilder().apply {
@@ -61,22 +59,6 @@ open class ScratchAny: RefAny() {
                 :owner :Alice ;
                 :likes :PeanutButter ;
                 foaf:name "Rex" ;
-                .
-        }
-    """.trimIndent()
-
-    val insertBobFluffy = """
-        $demoPrefixesStr
-
-        insert data {
-            :Bob a :Person ;
-                foaf:name "Bob" ;
-                .
-
-            :Fluffy a :Cat ;
-                :owner :Bob ;
-                :likes :Jelly ;
-                foaf:name "Fluffy" ;
                 .
         }
     """.trimIndent()
@@ -206,7 +188,11 @@ fun TriplesAsserter.validateCreatedScratchTriples(
     }
 
     // transaction
-    validateTransaction(orgPath="/orgs/$orgId", repoPath = "/orgs/$orgId/repos/$repoId", scratchPath = "/orgs/$orgId/repos/$repoId/scratches/$scratchId")
+    validateTransaction(
+        orgPath="/orgs/$orgId",
+        repoPath = "/orgs/$orgId/repos/$repoId",
+        scratchPath = "/orgs/$orgId/repos/$repoId/scratches/$scratchId"
+    )
 
     // inspect  // FIXME why did you put this here
     subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }

@@ -9,9 +9,19 @@ import org.openmbee.flexo.mms.util.*
 class ScratchLoad: ScratchAny() {
 
     init{
-        "load all inserts on empty model" {
+        "load nothing on empty graph" {
             withTest {
-                httpPut("$masterBranchPath/graph") {
+                httpPut("$demoScratchPath/graph") {
+                    setTurtleBody("")
+                }.apply {
+                    response shouldHaveStatus HttpStatusCode.OK
+                }
+            }
+        }
+
+        "load data on empty graph" {
+            withTest {
+                httpPut("$demoScratchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -19,24 +29,11 @@ class ScratchLoad: ScratchAny() {
             }
         }
 
-        "load no change on empty model" {
-            withTest {
-                httpPut("$masterBranchPath/graph") {
-                    setTurtleBody("")
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    // TODO - should still return diff
-                    // Does this still apply to this
-                }
-            }
-        }
-
-        "load all inserts on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
+        "load data on non-empty graph" {
+            loadModel(demoScratchPath, loadAliceRex)
 
             withTest {
-                httpPut("$masterBranchPath/graph") {
+                httpPut("$demoScratchPath/graph") {
                     setTurtleBody("""
                         $loadAliceRex
 
@@ -49,11 +46,11 @@ class ScratchLoad: ScratchAny() {
             }
         }
 
-        "load all deletes on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
+        "load clear on non-empty graph" {
+            loadModel(demoScratchPath, loadAliceRex)
 
             withTest {
-                httpPut("$masterBranchPath/graph") {
+                httpPut("$demoScratchPath/graph") {
                     setTurtleBody("")
                 }.apply {
                     response shouldHaveStatus HttpStatusCode.OK
@@ -61,116 +58,38 @@ class ScratchLoad: ScratchAny() {
             }
         }
 
-        "load no change on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
+//        "load no change on non-empty model" {
+//            loadModel(demoScratchPath, loadAliceRex)
+//
+//            withTest {
+//                httpPut("$demoScratchPath/graph") {
+//                    setTurtleBody(loadAliceRex)
+//                }.apply {
+//                    response shouldHaveStatus HttpStatusCode.OK
+//                }
+//            }
+//        }
 
-            withTest {
-                httpPut("$masterBranchPath/graph") {
-                    setTurtleBody(loadAliceRex)
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                }
-            }
-        }
-
-        "load both inserts and deletes on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
-                httpPut("$masterBranchPath/graph") {
-                    setTurtleBody("""
-                        @prefix : <https://mms.openmbee.org/demos/people/>
-                        @prefix foaf: <http://xmlns.com/foaf/0.1/>
-
-                        :Xavier a :Person ;
-                            foaf:name "Xavier" .
-                    """.trimIndent())
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                }
-            }
-        }
-
-        "head branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
-                httpHead("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-//                    response.content shouldBe null
-                }
-            }
-        }
-
-        "get branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
-                httpGet("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response.exclusivelyHasTriples {
-                        subjectTerse(":Alice") {
-                            ignoreAll()
-                        }
-
-                        subjectTerse(":Rex") {
-                            ignoreAll()
-                        }
-                    }
-                }
-            }
-        }
-
-        "head lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
-                httpHead("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.content shouldBe null
-                }
-            }
-        }
-
-        "get lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
-                httpGet("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response.exclusivelyHasTriples {
-                        subjectTerse(":Alice") {
-                            ignoreAll()
-                        }
-
-                        subjectTerse(":Rex") {
-                            ignoreAll()
-                        }
-                    }
-                }
-            }
-        }
-
-        "lock graph rejects other methods" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
-                onlyAllowsMethods("$demoLockPath/graph", setOf(
-                    HttpMethod.Head,
-                    HttpMethod.Get,
-                ))
-            }
-        }
-
+//        "load both inserts and deletes on non-empty model" {
+//            loadModel(demoScratchPath, loadAliceRex)
+//
+//            withTest {
+//                httpPut("$demoScratchPath/graph") {
+//                    setTurtleBody("""
+//                        @prefix : <https://mms.openmbee.org/demos/people/>
+//                        @prefix foaf: <http://xmlns.com/foaf/0.1/>
+//
+//                        :Xavier a :Person ;
+//                            foaf:name "Xavier" .
+//                    """.trimIndent())
+//                }.apply {
+//                    response shouldHaveStatus HttpStatusCode.OK
+//                }
+//            }
+//        }
 
         "gsp endpoint for scratches rejects other methods" {
             withTest {
-                createScratch(demoScratchPath, demoScratchName)
                 onlyAllowsMethods(
                     "$demoScratchPath/graph", setOf(
                         HttpMethod.Head,

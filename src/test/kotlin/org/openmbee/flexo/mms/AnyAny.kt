@@ -7,7 +7,13 @@ import org.openmbee.flexo.mms.util.*
 
 
 @JvmOverloads
-fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?=null, branchPath: String?=null, user: String?=null) {
+fun TriplesAsserter.validateTransaction(
+    orgPath: String?=null,
+    repoPath: String?=null,
+    branchPath: String?=null,
+    user: String?=null,
+    scratchPath: String?=null,
+) {
     val linkedStatements = mutableSetOf<Statement>()
 
     subjectTerse("mt:") {

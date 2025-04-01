@@ -319,7 +319,7 @@ ds_writer.write({
 					implies: [
 						'Ref',
 						'Artifact',
-						'Commit'
+						'Commit',
 						'Scratch',
 					],
 				},

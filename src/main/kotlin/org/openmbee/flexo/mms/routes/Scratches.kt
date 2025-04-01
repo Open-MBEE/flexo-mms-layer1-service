@@ -6,9 +6,7 @@ import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.routes.gsp.readModel
-import org.openmbee.flexo.mms.routes.ldp.createOrReplaceScratch
-import org.openmbee.flexo.mms.routes.ldp.getScratches
-import org.openmbee.flexo.mms.routes.ldp.headScratches
+import org.openmbee.flexo.mms.routes.ldp.*
 import org.openmbee.flexo.mms.server.graphStoreProtocol
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
@@ -125,16 +123,12 @@ fun Route.crudScratch() {
 
         // 5.2 GET: read graph
         get {
-            readModel(RefType.SCRATCH)
+            readModel(RefType.SCRATCH, true)
         }
 
         // 5.3 PUT: overwrite (load)
         put {
-            // load triples directly into mor-graph:Scratch
-            loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId")
-
-            // close response
-            call.respondText("", status = HttpStatusCode.NoContent)
+            loadScratch()
         }
 
 //        // 5.5 POST: merge
@@ -149,16 +143,7 @@ fun Route.crudScratch() {
 
         // 5.4 DELETE: delete (drop)
         delete {
-            // delete the graph
-            deleteGraph("${prefixes["mor-graph"]}Scratch.$scratchId") {
-                // permissions check
-                graph("mor-graph:Metadata") {
-                    auth(Permission.DELETE_SCRATCH.scope.id, SCRATCH_DELETE_CONDITIONS)
-                }
-            }
-
-            // close response
-            call.respondText("", status = HttpStatusCode.NoContent)
+            deleteScratch()
         }
 
         otherwiseNotAllowed("store scratch")

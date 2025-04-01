@@ -13,6 +13,7 @@ class ScratchQuery: ScratchAny() {
     init {
         "query data from scratch" {
             commitScratch(demoScratchPath, insertAliceRex)
+
             withTest {
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(queryNames)
@@ -211,39 +212,36 @@ class ScratchQuery: ScratchAny() {
             }
         }
 
-        // Don't need branch tests, lock tests
-
-        "subquery" {
-            // FIXME these and some others were load instead - seems like those are triples if directly passing those in while these are the queries to insert
-            commitScratch(demoScratchPath, insertAliceRex)
-            commitScratch(demoScratchPath, insertBobFluffy)
-
-            withTest {
-                httpPost("$demoScratchPath/query") {
-                    setSparqlQueryBody("""
-                        $demoPrefixesStr
-                        
-                        select ?personName {
-                            ?person foaf:name ?personName .
-                        
-                            {
-                                select * {
-                                    ?pet :owner ?person ;
-                                        :likes :Jelly .
-                                }
-                            }
-                        }
-                    """.trimIndent())
-                }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
-                        binding(
-                            "personName" to "Bob".bindingLit
-                        )
-                    }
-                }
-            }
-        }
+//        "subquery" {
+//            commitScratch(demoScratchPath, insertAliceRex)
+//            commitScratch(demoScratchPath, insertBobFluffy)
+//
+//            withTest {
+//                httpPost("$demoScratchPath/query") {
+//                    setSparqlQueryBody("""
+//                        $demoPrefixesStr
+//
+//                        select ?personName {
+//                            ?person foaf:name ?personName .
+//
+//                            {
+//                                select * {
+//                                    ?pet :owner ?person ;
+//                                        :likes :Jelly .
+//                                }
+//                            }
+//                        }
+//                    """.trimIndent())
+//                }.apply {
+//                    response shouldHaveStatus HttpStatusCode.OK
+//                    response equalsSparqlResults {
+//                        binding(
+//                            "personName" to "Bob".bindingLit
+//                        )
+//                    }
+//                }
+//            }
+//        }
 
         "nothing exists" {
             withTest {

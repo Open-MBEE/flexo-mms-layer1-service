@@ -46,11 +46,9 @@ fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicati
 fun createScratch(path: String, scratchName: String): TestApplicationCall {
     return withTest {
         httpPut(path) {
-            setTurtleBody(
-                """
+            setTurtleBody("""
                 <> dct:title "$scratchName"@en .
-            """.trimIndent()
-            )
+            """)
         }.apply {
             response shouldHaveStatus HttpStatusCode.Created
 
