@@ -142,6 +142,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
         }
         where {
+            if (replaceExisting) {
+                existingOrg()
+            }
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
         }
