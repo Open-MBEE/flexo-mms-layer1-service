@@ -27,7 +27,7 @@ fun TriplesAsserter.validateRepoTriples(
             DCTerms.title exactly repoName.en,
             MMS.etag startsWith "",
             MMS.created startsWith "",
-            MMS.createdBy exactly ResourceFactory.createResource("http://layer1-service/users/root"),
+            MMS.createdBy exactly ResourceFactory.createResource(userIri("root")),
             *extraPatterns.toTypedArray()
         )
     }

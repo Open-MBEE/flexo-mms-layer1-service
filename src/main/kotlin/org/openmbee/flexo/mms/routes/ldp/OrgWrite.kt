@@ -23,11 +23,17 @@ private fun ConditionsBuilder.orgNotExists() {
 }
 
 // selects all properties of an existing org
-private fun PatternBuilder<*>.existingOrg() {
+private fun PatternBuilder<*>.existingOrg(filterCreate: Boolean = false) {
     graph("m-graph:Cluster") {
         raw("""
             mo: ?orgExisting_p ?orgExisting_o .
         """)
+        if (filterCreate) {
+            raw("""
+                filter(?orgExisting_p != mms:created)
+                filter(?orgExisting_p != mms:createdBy)
+            """.trimIndent())
+        }
     }
 }
 
@@ -139,11 +145,18 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // insert the triples about the org, including arbitrary metadata supplied by user
             graph("m-graph:Cluster") {
                 raw(orgTriples)
+                if (!replaceExisting) {
+                    raw("""
+                        mo: mms:created ?_now ;
+                            mms:createdBy mu: .
+                    """
+                    )
+                }
             }
         }
         where {
             if (replaceExisting) {
-                existingOrg()
+                existingOrg(true)
             }
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
