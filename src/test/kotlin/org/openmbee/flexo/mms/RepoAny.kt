@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms
 import io.kotest.core.test.TestCase
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
@@ -19,13 +20,14 @@ fun TriplesAsserter.validateRepoTriples(
 
     // repo triples
     subject(localIri(repoPath)) {
-        includes(
+        exclusivelyHas(
             RDF.type exactly MMS.Repo,
             MMS.id exactly repoId,
             MMS.org exactly localIri(orgPath).iri,
             DCTerms.title exactly repoName.en,
             MMS.etag startsWith "",
             MMS.created startsWith "",
+            MMS.createdBy exactly ResourceFactory.createResource("http://layer1-service/users/root"),
             *extraPatterns.toTypedArray()
         )
     }
