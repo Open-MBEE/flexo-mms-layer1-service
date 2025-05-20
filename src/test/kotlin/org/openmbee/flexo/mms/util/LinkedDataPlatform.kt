@@ -435,6 +435,18 @@ class LinkedDataPlatformDirectContainerTests(
         }
     }
 
+    fun CommonSpec.replaceExisting(validator: ((TestApplicationResponse) -> Unit)) {
+        "PUT $resourcePath - replace resource" {
+            resourceCreator()
+            withTest {
+                httpPut(resourcePath) {
+                    setTurtleBody(validBodyForCreate)
+                }.apply {
+                    validator(response)
+                }
+            }
+        }
+    }
 
     /**
      * Checks that the LDP direct container responds correctly to various patch calls
