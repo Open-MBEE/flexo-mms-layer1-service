@@ -34,6 +34,15 @@ class RepoLdpDc : RepoAny() {
                 }
             }
 
+            replaceExisting {
+                it includesTriples {
+                    // will error if etag have multiple values or created/createdBy doesn't exist
+                    validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath, listOf(
+                        arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                    ))
+                }
+            }
+
             read(
                 { createRepo(demoOrgPath, fooRepoId, fooRepoName) },
                 { createRepo(demoOrgPath, barRepoId, barRepoName) },

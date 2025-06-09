@@ -379,7 +379,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             "groupId" to groups,
         )
 
-        log("Executing SPARQL Update:\n$sparql")
+        log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
         return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
             headers {

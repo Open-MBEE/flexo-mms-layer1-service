@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
@@ -22,6 +23,8 @@ fun TriplesAsserter.validateOrgTriples(
             DCTerms.title exactly orgName.en,
             // MMS.etag exactly createResponse.headers[HttpHeaders.ETag]!!,
             MMS.etag startsWith "",
+            MMS.created startsWith "",
+            MMS.createdBy exactly ResourceFactory.createResource(userIri("root")),
             *extraPatterns.toTypedArray()
         )
     }

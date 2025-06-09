@@ -22,6 +22,13 @@ class OrgLdpDc : OrgAny() {
                 response shouldHaveStatus HttpStatusCode.BadRequest
             }
 
+            replaceExisting {
+                it includesTriples {
+                    // will error if etag have multiple values or created/createdBy doesn't exist
+                    validateOrgTriples(it, demoOrgId, demoOrgName)
+                }
+            }
+
             read(
                 { createOrg(fooOrgId, fooOrgName) },
                 { createOrg(barOrgId, barOrgName) },
