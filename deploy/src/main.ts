@@ -349,6 +349,7 @@ ds_writer.write({
 					// TODO: add subtype for each type of policy that can be CRUD'd
 					// implies: []
 				},
+				Scratch: {}
 			}),
 
 			// ...classes({
@@ -439,11 +440,13 @@ ds_writer.write({
 							implies: [
 								'ReadRepo',
 								'ReadCommit',
+								'ReadScratch',
 								'UpdateBranch',  // PATCH for updating repo metadata
 								'UpdateLock',  // PATCH for updating repo metadata
 								'UpdateCommit', //PATCH for updating commit metadata
 								'UpdateRef',
 								'UpdateArtifact',  // PATCH for updating artifact metadata
+								'UpdateScratch'
 							],
 						},
 						Delete: {
