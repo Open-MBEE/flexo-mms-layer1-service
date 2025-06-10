@@ -313,6 +313,7 @@ class InsertBuilder(
         if(null != layer1.orgId) properties["mms:org"] = "mo:"
         if(null != layer1.repoId) properties["mms:repo"] = "mor:"
         if(null != layer1.branchId) properties["mms:branch"] = "morb:"
+        if(null != layer1.scratchId) properties["mms:scratch"] = "mors:"
 
         val propertiesSparql = properties.entries.fold("") { out, (pred, obj) -> "$out$pred $obj ;\n" }
 

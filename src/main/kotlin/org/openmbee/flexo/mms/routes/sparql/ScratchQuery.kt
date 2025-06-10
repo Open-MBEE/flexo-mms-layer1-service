@@ -11,7 +11,7 @@ import org.openmbee.flexo.mms.server.sparqlQuery
  * User submitted SPARQL Query to a scratch space
  */
 fun Route.queryScratch() {
-    sparqlQuery("$SCRATCHES_PATH/{scratchId}/query") {
+    sparqlQuery("$SCRATCHES_PATH/{scratchId}/query/{inspect?}") {
         parsePathParams {
             org()
             repo()
@@ -19,6 +19,6 @@ fun Route.queryScratch() {
             inspect()
         }
 
-        processAndSubmitUserQuery(requestContext, "${prefixes["mor-graph"]}Scratch.$scratchId", SCRATCH_QUERY_CONDITIONS)
+        processAndSubmitUserQuery(requestContext, prefixes["mors"]!!, SCRATCH_QUERY_CONDITIONS)
     }
 }

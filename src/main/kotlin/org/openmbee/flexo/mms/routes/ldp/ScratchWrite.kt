@@ -12,7 +12,7 @@ import org.openmbee.flexo.mms.server.LdpMutateResponse
 // require that the given scratch does not exist before attempting to create it
 private fun ConditionsBuilder.scratchNotExists() {
     require("scratchNotExists") {
-        handler = { layer1 -> "The provided scratch <${layer1.prefixes["mors"]}> already exists." to HttpStatusCode.BadRequest }
+        handler = { layer1 -> "The provided scratch <${layer1.prefixes["mors"]}> already exists." to HttpStatusCode.Conflict }
 
         """
             # scratch must not yet exist
@@ -26,11 +26,17 @@ private fun ConditionsBuilder.scratchNotExists() {
 }
 
 // selects all properties of an existing scratch
-private fun PatternBuilder<*>.existingScratch() {
+private fun PatternBuilder<*>.existingScratch(filterCreate: Boolean = false) {
     graph("mor-graph:Metadata") {
         raw("""
             mors: ?scratchExisting_p ?scratchExisting_o .
         """)
+        if (filterCreate) {
+            raw("""
+                filter(?scratchExisting_p != mms:created)
+                filter(?scratchExisting_p != mms:createdBy)
+            """.trimIndent())
+        }
     }
 }
 
@@ -48,9 +54,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             sanitizeCrudObject {
                 setProperty(RDF.type, MMS.Scratch)
                 setProperty(MMS.id, scratchId!!)
-                // add etag as txn id and org as orgNode()? I think I need this since it keeps saying I don't have an etag
-                setProperty(MMS.etag, transactionId)
-                setProperty(MMS.org, orgNode())
+                setProperty(MMS.etag, transactionId, true)
             }
         }
     }
@@ -72,14 +76,29 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             replaceExisting = false
         }
     }
-
+    // resource is being replaced
+    val permission = if(replaceExisting) {
+        // require that the user has the ability to update scratches on a scratch-level scope (necessarily implies ability to create)
+        Permission.UPDATE_SCRATCH
+    }
+    // resource is being created
+    else {
+        // require that the user has the ability to create scratches on an org-level scope
+        Permission.CREATE_SCRATCH
+    }
 
     // build conditions
-    val localConditions = GLOBAL_CRUD_CONDITIONS.append {
+    val localConditions = REPO_CRUD_CONDITIONS.append {
         if(isPostMethod) {
             // reject preconditions
-            if(ifMatch != null || ifNoneMatch != null) {
-                throw PreconditionsForbidden("when creating scratch via POST")
+            appendPreconditions { values ->
+                """
+                    graph m-graph:Cluster {
+                        mor: mms:etag ?__mms_etag .
+
+                        $values
+                    }
+                """
             }
         }
         // not POST
@@ -95,30 +114,21 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
             // resource may exist
             else {
-//                // enforce preconditions if present
-//                appendPreconditions { values ->
-//                    """
-//                        graph mor-graph:Metadata {
-//                            ${if(mustExist) "" else "optional {"}
-//                                mors: mms:id ?__mms_id .
-//                                ${values.reindent(8)}
-//                            ${if(mustExist) "" else "}"}
-//                        }
-//                    """
-//                }
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph mor-graph:Metadata {
+                            ${if(mustExist) "" else "optional {"}
+                                mors: mms:etag ?__mms_etag .
+                                $values
+                            ${if(mustExist) "" else "}"}
+                        }
+                    """
+                }
             }
         }
 
-        // intent is ambiguous or resource is definitely being replaced
-        if(replaceExisting) {
-            // require that the user has the ability to update scratches on a repo-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_SCRATCH, Scope.REPO)
-        }
-        // resource is being created
-        else {
-            // require that the user has the ability to create scratches on a repo-level scope
-            permit(Permission.CREATE_SCRATCH, Scope.REPO)
-        }
+        permit(permission, Scope.REPO)
     }
 
     // prep SPARQL UPDATE string
@@ -132,15 +142,28 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // create a new txn object in the transactions graph
             txn {
                 // create a new policy that grants this user admin over the new scratch
-                if(!replaceExisting) autoPolicy(Scope.SCRATCH, Role.ADMIN_SCRATCH)
+                if (!replaceExisting) {
+                    autoPolicy(Scope.SCRATCH, Role.ADMIN_SCRATCH)
+                }
+                replacesExisting(replaceExisting)
             }
 
             // insert the triples about the scratch, including arbitrary metadata supplied by user
             graph("mor-graph:Metadata") {
                 raw(scratchTriples)
+                if (!replaceExisting) {
+                    raw("""
+                        mors: mms:created ?_now ;
+                            mms:createdBy mu: .
+                    """
+                    )
+                }
             }
         }
         where {
+            if (replaceExisting) {
+                existingScratch(true)
+            }
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
         }
@@ -161,42 +184,20 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             """)
         }
         where {
-            // first group in a series of unions fetches intended outputs
-            group {
-                txn()
-
-                graph("mor-graph:Metadata") {
-                    raw("""
+            txnOrInspections(null, localConditions) {
+                raw("""
+                    # extract the created/updated repo properties
+                    graph mor-graph:Metadata {
                         mors: ?mors_p ?mors_o .
-                    """)
-                }
+                    }
+                """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
     // finalize transaction
     finalizeMutateTransaction(constructString, localConditions, "mors", !replaceExisting)
 }
-
-
-/**
- * Overwrites the scratch graph
- */
-suspend fun Layer1Context<GspRequest, *>.loadScratch() {
-    // auth check
-    checkModelQueryConditions(targetGraphIri = "${prefixes["mor-graph"]}Scratch.$scratchId", conditions = SCRATCH_QUERY_CONDITIONS.append {
-        assertPreconditions(this)
-    })
-
-    // load triples directly into mor-graph:Scratch
-    loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId")
-
-    // close response
-    call.respondText("", status = HttpStatusCode.NoContent)
-}
-
 
 /**
  * Deletes the scratch graph

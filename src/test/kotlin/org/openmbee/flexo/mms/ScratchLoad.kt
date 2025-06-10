@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.core.test.TestCase
 import io.kotest.matchers.shouldBe
 import io.ktor.http.*
 
@@ -8,13 +9,19 @@ import org.openmbee.flexo.mms.util.*
 //just tests, for the gsp endpoint in scratches.kt
 class ScratchLoad: ScratchAny() {
 
+    // create a scratch before each test
+    override suspend fun beforeEach(testCase: TestCase) {
+        super.beforeEach(testCase)
+        createScratch(demoScratchPath, demoScratchName)
+    }
+
     init{
         "load nothing on empty graph" {
             withTest {
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
@@ -24,13 +31,13 @@ class ScratchLoad: ScratchAny() {
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "load data on non-empty graph" {
-            loadModel(demoScratchPath, loadAliceRex)
+            loadScratch(demoScratchPath, loadAliceRex)
 
             withTest {
                 httpPut("$demoScratchPath/graph") {
@@ -41,19 +48,19 @@ class ScratchLoad: ScratchAny() {
                             foaf:name "Xavier" .
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "load clear on non-empty graph" {
-            loadModel(demoScratchPath, loadAliceRex)
+            loadScratch(demoScratchPath, loadAliceRex)
 
             withTest {
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    response shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
@@ -95,7 +102,6 @@ class ScratchLoad: ScratchAny() {
                         HttpMethod.Head,
                         HttpMethod.Get,
                         HttpMethod.Put,
-                        HttpMethod.Delete
                     )
                 )
             }

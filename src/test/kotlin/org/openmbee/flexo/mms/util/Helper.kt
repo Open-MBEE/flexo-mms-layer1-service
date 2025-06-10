@@ -103,12 +103,12 @@ fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
 }
 
 // For inserting things into already created scratches, sparql should be a query
-fun commitScratch(scratchPath: String, sparql: String): TestApplicationCall {
+fun updateScratch(scratchPath: String, sparql: String): TestApplicationCall {
     return withTest {
-        httpPut(scratchPath) {
+        httpPost("$scratchPath/update") {
             setSparqlUpdateBody(sparql)
         }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
+            response shouldHaveStatus HttpStatusCode.OK
         }
     }
 }
@@ -129,6 +129,16 @@ fun loadModel(refPath: String, turtle: String): TestApplicationCall {
             setTurtleBody(turtle)
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
+fun loadScratch(scratchPath: String, turtle: String): TestApplicationCall {
+    return withTest {
+        httpPut("$scratchPath/graph") {
+            setTurtleBody(turtle)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.NoContent
         }
     }
 }

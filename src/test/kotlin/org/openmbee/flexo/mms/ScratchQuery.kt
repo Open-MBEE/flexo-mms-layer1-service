@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.*
 import org.openmbee.flexo.mms.util.*
@@ -8,11 +9,17 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-// just tests, but need more than modelQuery since there's an update route - lie - there's a separate ModelCommit file
 class ScratchQuery: ScratchAny() {
+
+    // create an org before each repo test
+    override suspend fun beforeEach(testCase: TestCase) {
+        super.beforeEach(testCase)
+        createScratch(demoScratchPath, demoScratchName)
+    }
+
     init {
         "query data from scratch" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 httpPost("$demoScratchPath/query") {
@@ -25,7 +32,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "query scratch with graph var" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
@@ -42,7 +49,7 @@ class ScratchQuery: ScratchAny() {
                         .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
                         .jsonPrimitive.content
 
-                    graphVal shouldContain "/graphs/Model."
+                    graphVal shouldContain "/graphs/Scratch."
 
                     response shouldHaveStatus HttpStatusCode.OK
                     response equalsSparqlResults {
@@ -55,7 +62,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "query scratch with from default not authorized" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 // scratch is updated??
@@ -74,7 +81,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "query scratch with from named not authorized" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
@@ -95,7 +102,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "query scratch graph not there" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 // master model is updated
@@ -119,10 +126,10 @@ class ScratchQuery: ScratchAny() {
         }
 
         "ask scratch: true" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
-                httpPost("$masterBranchPath/query") {
+                httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -143,10 +150,10 @@ class ScratchQuery: ScratchAny() {
         }
 
         "ask scratch: false" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
-                httpPost("$demoScratchPath'/query") {
+                httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
                         
@@ -167,7 +174,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "describe scratch explicit" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 httpPost("$demoScratchPath/query") {
@@ -188,7 +195,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "describe scratch where" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 httpPost("$demoScratchPath/query") {
@@ -254,7 +261,7 @@ class ScratchQuery: ScratchAny() {
         }
 
         "concat" {
-            commitScratch(demoScratchPath, insertAliceRex)
+            updateScratch(demoScratchPath, insertAliceRex)
 
             withTest {
                 httpPost("$demoScratchPath/query") {

@@ -1,8 +1,7 @@
 package org.openmbee.flexo.mms.routes
 
-import io.ktor.http.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import loadScratch
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.routes.gsp.readModel
@@ -142,9 +141,9 @@ fun Route.crudScratch() {
 //        }
 
         // 5.4 DELETE: delete (drop)
-        delete {
-            deleteScratch()
-        }
+        // delete {
+        //     deleteScratch()
+        // }
 
         otherwiseNotAllowed("store scratch")
     }

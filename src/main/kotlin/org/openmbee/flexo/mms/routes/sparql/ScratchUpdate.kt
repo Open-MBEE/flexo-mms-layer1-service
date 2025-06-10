@@ -18,11 +18,11 @@ fun Route.updateScratch() {
             org()
             repo()
             scratch()
-            branch()
         }
 
         // construct the scratch's named graph IRI
-        val scratchGraph = "mor-graph:Scratch.$scratchId"
+        val scratchGraph = "${prefixes["mor-graph"]}Scratch.$scratchId"
+        //val scratchGraph = "mor-graph:Scratch.$scratchId"
 
         // parse query
         val sparqlUpdateAst = try {
@@ -31,52 +31,51 @@ fun Route.updateScratch() {
             throw UpdateSyntaxException(parse)
         }
 
-        val operations = sparqlUpdateAst.operations
+        val localConditions = SCRATCH_UPDATE_CONDITIONS.append {
+            assertPreconditions(this) {
+                """
+                    graph mor-graph:Metadata {
+                        mors: mms:etag ?__mms_etag .
+                        $it
+                    }
+                """
+            }
+        }
+        checkModelQueryConditions(targetGraphIri=prefixes["mors"], conditions=localConditions)
+        val updates = mutableListOf<String>()
+        val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
 
-        assertOperationsAllowed(operations)
-
-        // merge the client prefixes with internal ones
-        val mergedPrefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
-        mergedPrefixMap.putAll(prefixes.map)
-
-        // prep SPARQL update string
-        var updateString = ""
-
-        withPrefixMap(mergedPrefixMap) {
+        val userPrefixes = withPrefixMap(prefixMap) {
             // each update operation
-            for (update in operations) {
-                // prep operation string
-                var opString = ""
-
+            for (update in sparqlUpdateAst.operations) {
                 // assert that no GRAPH keywords are present in the update (no quad patterns)
                 when (update) {
-                    is UpdateDataDelete -> opString += """
+                    is UpdateDataDelete -> updates.add("""
                         DELETE DATA {
                             graph ?__mms_model {
                                 ${asSparqlGroup(update.quads)}
                             }
                         }
                     """.trimIndent()
-
-                    is UpdateDataInsert -> opString += """
+                    )
+                    is UpdateDataInsert -> updates.add("""
                         INSERT DATA {
                             graph ?__mms_model {
                                 ${asSparqlGroup(update.quads)}
                             }
                         }
                     """.trimIndent()
-
-                    is UpdateDeleteWhere -> opString += """
+                    )
+                    is UpdateDeleteWhere -> updates.add("""
                         DELETE WHERE {
                             graph ?__mms_model {
                                 ${asSparqlGroup(update.quads)}
                             }
                         }
                     """.trimIndent()
-
+                    )
                     is UpdateModify -> {
                         var modify = "WITH ?__mms_model\n"
-
                         if (update.hasDeleteClause()) {
                             modify += """
                                 DELETE {
@@ -84,7 +83,6 @@ fun Route.updateScratch() {
                                 }
                             """.trimIndent()
                         }
-
                         if (update.hasInsertClause()) {
                             modify += """
                                 INSERT {
@@ -92,7 +90,6 @@ fun Route.updateScratch() {
                                 }
                             """.trimIndent()
                         }
-
                         modify += """
                             WHERE {
                                 ${asSparqlGroup(update.wherePattern.apply {
@@ -100,25 +97,17 @@ fun Route.updateScratch() {
                                 })}
                             }
                         """.trimIndent()
-
-                        opString += modify
-                    }
-
-                    is UpdateAdd -> {
-                        throw UpdateOperationNotAllowedException("SPARQL ADD not allowed here")
+                        updates.add(modify)
                     }
 
                     else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
                 }
-
-                // put WITH clause before operation
-                updateString += "$opString ;\n"
             }
         }
-
+        val updateString = updates.joinToString(";\n")
         // execute the SPARQL UPDATE
         val responseText = executeSparqlUpdate(updateString) {
-            prefixes(prefixes)
+            prefixes(userPrefixes)
 
             iri(
                 "__mms_model" to scratchGraph

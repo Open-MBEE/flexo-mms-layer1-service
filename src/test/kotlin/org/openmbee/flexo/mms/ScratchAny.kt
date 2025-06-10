@@ -3,14 +3,16 @@ package org.openmbee.flexo.mms
 import org.slf4j.LoggerFactory
 import org.openmbee.flexo.mms.util.*
 import io.kotest.core.test.TestCase
+import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 
 // used as data for the rest of the files
-open class ScratchAny: RefAny() {
+open class ScratchAny: RepoAny() {
     // build demo prefixes and queries
-    override val logger = LoggerFactory.getLogger(RepoAny::class.java)
+    override val logger = LoggerFactory.getLogger(ScratchAny::class.java)
 
     val basePathScratches = "$demoRepoPath/scratches"
 
@@ -28,14 +30,17 @@ open class ScratchAny: RefAny() {
 
     val barScratchId = "bar-scratch"
     val barScratchName = "bar-scratch"
-    val barScratchPath = "$demoRepoPath/repos/$barScratchId"
+    val barScratchPath = "$demoRepoPath/scratches/$barScratchId"
+
+    var repoEtag = ""
 
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
 
-        // creates an empty scratch (demoScratchPath includes demoScratchId)
-        createScratch(demoScratchPath, demoScratchName)
+        // creates an empty repo
+        repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).response.headers[HttpHeaders.ETag]!!
+
     }
 
     val demoPrefixes = PrefixMapBuilder().apply {
@@ -156,17 +161,13 @@ fun TriplesAsserter.validateScratchTriples(
         exclusivelyHas(
             RDF.type exactly MMS.Scratch,
             MMS.id exactly scratchId,
-            // Added these to check org and repo
-            MMS.org exactly localIri("/orgs/$orgId").iri,
-            MMS.repo exactly localIri("/orgs/$orgId/repos/$repoId").iri,
             DCTerms.title exactly scratchName.en,
-            // MMS.etag exactly createResponse.headers[HttpHeaders.ETag]!!,
             MMS.etag startsWith "",
+            MMS.created startsWith "",
+            MMS.createdBy exactly ResourceFactory.createResource(userIri("root")),
             *extraPatterns.toTypedArray()
         )
     }
-
-    // FIXME add the inspect and aggregator lines 33-36 of RepoAny.kt? Whatever it takes to make it work
 
 }
 
@@ -193,7 +194,4 @@ fun TriplesAsserter.validateCreatedScratchTriples(
         repoPath = "/orgs/$orgId/repos/$repoId",
         scratchPath = "/orgs/$orgId/repos/$repoId/scratches/$scratchId"
     )
-
-    // inspect  // FIXME why did you put this here
-    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }

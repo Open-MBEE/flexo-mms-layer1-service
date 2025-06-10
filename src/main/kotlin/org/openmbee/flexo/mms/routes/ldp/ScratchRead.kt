@@ -7,67 +7,48 @@ import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_SCRATCH
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpGetResponse
 import org.openmbee.flexo.mms.server.LdpHeadResponse
+import org.openmbee.flexo.mms.server.LdpReadResponse
 
-
-private const val SPARQL_VAR_NAME_CONTEXT = "_context"
 
 // reusable basic graph pattern for matching scratch(es)
-private val SPARQL_BGP_SCRATCH = """
+private val SPARQL_BGP_SCRATCH: (Boolean, Boolean) -> String = { allScratches, allData -> """
     graph mor-graph:Metadata {
-        ?$SPARQL_VAR_NAME_SCRATCH a mms:Scratch ;
-            mms:id ?__mmd_id ;
-            ?scratch_p ?scratch_o .
+        ${"optional {" iff allScratches}${"""
+            ?$SPARQL_VAR_NAME_SCRATCH a mms:Scratch ;
+                mms:etag ?__mms_etag ;
+                ${"?scratch_p ?scratch_o ;" iff allData}
+                .
+        """.reindent(if(allScratches) 3 else 2)}
+        ${"}" iff allScratches}
     }
     
-    ${permittedActionSparqlBgp(Permission.READ_SCRATCH, Scope.REPO)}
-"""
-
-// select ID(s) of existing scratch(es)
-private val SPARQL_SELECT_SCRATCH_IDS = """
-    select distinct ?__mms_id {
-        $SPARQL_BGP_SCRATCH
-    } order by asc(?__mms_id)
-"""
+    ${permittedActionSparqlBgp(Permission.READ_SCRATCH, Scope.SCRATCH,
+        if(allScratches) "^mors:?$".toRegex() else null,
+        if(allScratches) "" else null)}
+""" }
 
 // construct graph of all relevant scratch metadata
-private val SPARQL_CONSTRUCT_SCRATCH = """
+private val SPARQL_CONSTRUCT_SCRATCH: (Boolean, Boolean) -> String = { allScratches, allData -> """
     construct {
-        ?$SPARQL_VAR_NAME_SCRATCH ?scratch_p ?scratch_o ;
-            mms:id ?__mmd_id ;
+        ?$SPARQL_VAR_NAME_SCRATCH a mms:Scratch ;
+            mms:etag ?__mms_etag ;
+            ?scratch_p ?scratch_o ;
             .
-        
-        ?$SPARQL_VAR_NAME_CONTEXT a mms:Context ;
-            mms:permit mms-object:Permission.ReadScratch ;
-            mms:policy ?policy ;
-            .
-        
-        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-        
-        ?scratchPolicy ?scratchPolicy_p ?scratchPolicy_o .
+        ${generateReadContextBgp(Permission.READ_SCRATCH).reindent(2)}
     } where {
-        $SPARQL_BGP_SCRATCH
-        
-        graph m-graph:AccessControl.Policies {
-            #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-
-            optional {
-                ?scratchPolicy a mms:Policy ;
-                    mms:scope ?$SPARQL_VAR_NAME_SCRATCH ;
-                    ?scratchPolicy_p ?scratchPolicy_o .
-            }
-        }
+        ${SPARQL_BGP_SCRATCH(allScratches, allData).reindent(2)}
     }
-"""
-
+""" }
 
 /**
- * Tests access to the scratch(es)
+ * Fetches scratches(s) metadata
  */
-suspend fun LdpDcLayer1Context<LdpHeadResponse>.headScratches(allScratches: Boolean=false) {
+suspend fun LdpDcLayer1Context<LdpReadResponse>.fetchScratches(allScratches: Boolean=false, allData: Boolean=false): String {
+    // cache whether this request is asking for all scratches
     val scratchIri = if(allScratches) null else prefixes["mors"]!!
 
-    // fetch all scratches
-    val selectResponseText = executeSparqlSelectOrAsk(SPARQL_SELECT_SCRATCH_IDS) {
+    // fetch all scratch details
+    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SCRATCH(allScratches, allData)) {
         acceptReplicaLag = true
 
         // internal query, give it all the prefixes
@@ -79,20 +60,27 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headScratches(allScratches: Bool
                 SPARQL_VAR_NAME_SCRATCH to it,
             )
         }
-
-        // bind a context IRI
-        iri(
-            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
-        )
     }
 
-//    TODO: where are the access-control checks? Not convinced on this - repo read doesn't have this, add to SPARQL_SELECT_SCRATCH_IDS above?
+    // parse the response
+    parseConstructResponse(constructResponseText) {
+        // hash all the scratch etags
+        if(allScratches) {
+            handleEtagAndPreconditions(model, MMS.Scratch)
+        }
+        // just the individual scratch
+        else {
+            handleEtagAndPreconditions(model, scratchIri)
+        }
+    }
 
-//    // parse the result bindings
-//    val bindings = parseSparqlResultsJsonSelect(selectResponseText)
-//
-//    // hash all the scratch etags
-//    handleEtagAndPreconditions(bindings)
+    return constructResponseText
+}
+/**
+ * Tests access to the scratch(es)
+ */
+suspend fun LdpDcLayer1Context<LdpHeadResponse>.headScratches(allScratches: Boolean=false) {
+    fetchScratches(allScratches, false)
 
     // respond
     call.respond(HttpStatusCode.NoContent)
@@ -103,28 +91,7 @@ suspend fun LdpDcLayer1Context<LdpHeadResponse>.headScratches(allScratches: Bool
  * Fetches scratch(es) metadata
  */
 suspend fun LdpDcLayer1Context<LdpGetResponse>.getScratches(allScratches: Boolean=false) {
-    // cache whether this request is asking for all scratches
-    val scratchIri = if(allScratches) null else prefixes["mors"]!!
-
-    // fetch all scratch details
-    val constructResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_SCRATCH) {
-        acceptReplicaLag = true
-
-        // internal query, give it all the prefixes
-        prefixes(prefixes)
-
-        // get by scratchId
-        scratchIri?.let {
-            iri(
-                SPARQL_VAR_NAME_SCRATCH to it,
-            )
-        }
-
-        // bind a context IRI
-        iri(
-            SPARQL_VAR_NAME_CONTEXT to "${MMS_URNS.SUBJECT.context}:$transactionId",
-        )
-    }
+    val constructResponseText = fetchScratches(allScratches, true)
 
     // respond
     call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)

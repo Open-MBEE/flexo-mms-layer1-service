@@ -13,25 +13,6 @@ import org.openmbee.flexo.mms.server.sparqlUpdate
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
 
-
-fun Resource.iriAt(property: Property): String? {
-    return this.listProperties(property).next()?.`object`?.asResource()?.uri
-}
-
-fun assertOperationsAllowed(operations: List<Update>) {
-    if(operations.size > 1) {
-        if(operations.size == 2) {
-            // special case operations can be combined
-            if((operations[0] is UpdateDeleteWhere || operations[0] is UpdateDataDelete) && operations[1] is UpdateDataInsert) {
-                return
-            }
-        }
-
-        throw ServerBugException("MMS currently only supports a single SPARQL Update operation at a time, except for DELETE WHERE followed by INSERT DATA")
-    }
-}
-
-
 fun Route.commitModel() {
     sparqlUpdate("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
         parsePathParams {

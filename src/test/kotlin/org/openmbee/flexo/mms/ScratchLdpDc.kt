@@ -34,6 +34,15 @@ class ScratchLdpDc: ScratchAny() {
                 }
             }
 
+            replaceExisting {
+                it includesTriples {
+                    // will error if etag have multiple values or created/createdBy doesn't exist
+                    validateScratchTriples(demoScratchId, demoRepoId, demoOrgId, demoScratchName, listOf(
+                        arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                    ))
+                }
+            }
+
             read(
                 { createScratch(fooScratchPath, fooScratchName) },
                 { createScratch(barScratchPath, barScratchName) },
@@ -46,9 +55,8 @@ class ScratchLdpDc: ScratchAny() {
                 else {
                     it.response includesTriples {
                         validateScratchTriples(demoScratchId, demoRepoId, demoOrgId, demoScratchName)
-                        validateScratchTriples(fooScratchId, fooRepoId, demoOrgId, fooScratchName)
-                        validateScratchTriples(barScratchId, barRepoName, demoOrgId, barScratchName)
-                        // FIXME these might all be in the demo repo
+                        validateScratchTriples(fooScratchId, demoRepoId, demoOrgId, fooScratchName)
+                        validateScratchTriples(barScratchId, demoRepoId, demoOrgId, barScratchName)
                     }
                 }
             }

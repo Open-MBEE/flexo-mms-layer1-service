@@ -19,6 +19,7 @@ import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
+import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
 
@@ -128,8 +129,8 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
         prefixes["mor"] -> {
             "${prefixes["mor-graph"]}Metadata"
         }
-        "${prefixes["mor-graph"]}Scratch.$scratchId" -> {
-            refIri
+        prefixes["mors"] -> {
+            "${prefixes["mor-graph"]}Scratch.$scratchId"
         }
         else -> {
             null
@@ -279,8 +280,7 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
     // client did not explicitly provide a URL and the store service is configured
     if (loadUrl == null && storeServiceUrl != null) {
         // submit a POST request to the store service endpoint
-        val response: HttpResponse = defaultHttpClient.post("$storeServiceUrl/$diffId") {
-            // TODO: verify store service request is correct and complete
+        val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$orgId/$repoId/Scratch.$scratchId.ttl") {
             // Pass received authorization to internal service
             headers {
                 call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
@@ -291,7 +291,6 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
             // TODO: Handle exceptions
             setBody(object : OutgoingContent.WriteChannelContent() {
                 override val contentType = call.request.contentType()
-                override val contentLength = call.request.contentLength() ?: 0L
                 override suspend fun writeTo(channel: ByteWriteChannel) {
                     call.request.receiveChannel().copyTo(channel)
                 }
@@ -380,32 +379,22 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
     else {
         // fully load request body
         val body = call.receiveText()
-
-        // parse it into a model
-        val model = KModel(prefixes).apply {
-            parseRdfByContentType(requestContext.requestContentType!!, body, this)
-
-            // clear the prefix map so that stringified version uses full IRIs
-            clearNsPrefixMap()
-        }
-
+        val model = parseModelStripPrefixes(requestContext.requestContentType!!, body)
         // serialize model into turtle
         val loadUpdateString = buildSparqlUpdate {
-            insert {
-                // embed the model in a triples block within the update
-                raw("""
-                    # user model
-                    graph ?_loadGraph {
-                        ${model.stringify()}
+            // embed the model in a triples block within the update
+            raw("""
+                    insert data {
+                        # user model
+                        graph ?_loadGraph {
+                            ${model.stringify()}
+                        }
                     }
                 """)
-            }
         }
 
         // execute
         executeSparqlUpdate(loadUpdateString) {
-            prefixes(prefixes)
-
             iri(
                 "_loadGraph" to loadGraphUri,
             )
