@@ -272,7 +272,7 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
 /**
  * Takes a Graph Store Protocol load request and forwards it to Layer 0
  */
-suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
+suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String, storeServiceLoadPath: String) {
     // allow client to manually pass in URL to remote file
     var loadUrl: String? = call.request.queryParameters["url"]
     val storeServiceUrl: String? = call.application.storeServiceUrl
@@ -280,7 +280,7 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String) {
     // client did not explicitly provide a URL and the store service is configured
     if (loadUrl == null && storeServiceUrl != null) {
         // submit a POST request to the store service endpoint
-        val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$orgId/$repoId/Scratch.$scratchId.ttl") {
+        val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/load/$storeServiceLoadPath") {
             // Pass received authorization to internal service
             headers {
                 call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->

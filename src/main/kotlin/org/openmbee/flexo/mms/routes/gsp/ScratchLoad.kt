@@ -19,7 +19,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadScratch() {
     })
 
     // load triples directly into mor-graph:Scratch
-    loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId")
+    loadGraph("${prefixes["mor-graph"]}Scratch.$scratchId", "$orgId/$repoId/Scratch.$scratchId.ttl")
 
     // close response
     call.respondText("", status = HttpStatusCode.NoContent)
