@@ -48,7 +48,7 @@ class ScratchLdpDc: ScratchAny() {
                 { createScratch(barScratchPath, barScratchName) },
             ) {
                 if(it.createdOthers.isEmpty()) {
-                    it.response exclusivelyHasTriples {
+                    it.response includesTriples {
                         validateScratchTriples(demoScratchId, demoRepoId, demoOrgId, demoScratchName)
                     }
                 }
