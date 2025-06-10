@@ -15,10 +15,15 @@ import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
+import org.apache.jena.sparql.modify.request.UpdateDataDelete
+import org.apache.jena.sparql.modify.request.UpdateDataInsert
+import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
+import org.apache.jena.sparql.modify.request.UpdateModify
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
+import org.apache.jena.update.UpdateRequest
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
@@ -424,4 +429,75 @@ suspend fun Layer1Context<GspRequest, *>.deleteGraph(deleteGraphUri: String, whe
 
     // execute update
     executeSparqlUpdate(deleteUpdateString)
+}
+
+/**
+ * Rewrites a user update so it includes the correct graph to update, and to reject unauthorized graph access
+ * caller should replace ?__mms_model by the graph to be updated
+ */
+fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): MutableList<String>  {
+    val updates = mutableListOf<String>()
+    withPrefixMap(prefixMap) {
+        for (update in sparqlUpdateAst.operations) {
+            when (update) {
+                is UpdateDataDelete -> updates.add(
+                    """
+                     DELETE DATA {
+                         graph ?__mms_model {
+                             ${asSparqlGroup(update.quads)}
+                         }
+                     }
+                     """.trimIndent()
+                )
+
+                is UpdateDataInsert -> updates.add(
+                    """
+                    INSERT DATA {
+                        graph ?__mms_model {
+                            ${asSparqlGroup(update.quads)}
+                        }
+                    }
+                    """.trimIndent()
+                )
+
+                is UpdateDeleteWhere -> updates.add(
+                    """
+                    DELETE WHERE {
+                        graph ?__mms_model {
+                            ${asSparqlGroup(update.quads)}
+                        }
+                    }
+                    """.trimIndent()
+                )
+
+                is UpdateModify -> {
+                    var modify = "WITH ?__mms_model\n"
+                    if (update.hasDeleteClause()) {
+                        modify += """
+                                DELETE {
+                                    ${asSparqlGroup(update.deleteQuads)}
+                                }
+                                """.trimIndent()
+                    }
+                    if (update.hasInsertClause()) {
+                        modify += """
+                                INSERT {
+                                    ${asSparqlGroup(update.insertQuads)}
+                                }
+                                """.trimIndent()
+                    }
+                    modify += """
+                            WHERE {
+                                ${asSparqlGroup(update.wherePattern.apply {
+                                    visit(NoQuadsElementVisitor)
+                                })}
+                            }
+                            """.trimIndent()
+                    updates.add(modify)
+                }
+                else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+            }
+        }
+    }
+    return updates
 }
