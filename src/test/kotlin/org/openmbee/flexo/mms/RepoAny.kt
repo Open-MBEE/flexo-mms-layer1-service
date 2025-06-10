@@ -134,4 +134,124 @@ open class RepoAny : OrgAny() {
         createOrg(fooOrgId, fooOrgName)
         createOrg(barOrgId, barOrgName)
     }
+
+    //
+    // sparql/rdf test data for loading/updating graphs
+    val demoPrefixes = PrefixMapBuilder().apply {
+        add(
+            "" to "https://mms.openmbee.org/demos/people/",
+            "foaf" to "http://xmlns.com/foaf/0.1/",
+        )
+    }
+
+    val demoPrefixesStr = demoPrefixes.toString()
+
+    val insertAliceRex = """
+        $demoPrefixesStr
+
+        insert data {
+            :Alice a :Person ;
+                foaf:name "Alice" ;
+                .
+
+            :Rex a :Dog ;
+                :owner :Alice ;
+                :likes :PeanutButter ;
+                foaf:name "Rex" ;
+                .
+        }
+    """.trimIndent()
+
+    val insertBobFluffy = """
+        $demoPrefixesStr
+
+        insert data {
+            :Bob a :Person ;
+                foaf:name "Bob" ;
+                .
+
+            :Fluffy a :Cat ;
+                :owner :Bob ;
+                :likes :Jelly ;
+                foaf:name "Fluffy" ;
+                .
+        }
+    """.trimIndent()
+
+    val queryNames = """
+        $demoPrefixesStr
+
+        select ?name where {
+            ?s a :Person .
+            ?s foaf:name ?name .
+        } order by asc(?name)
+    """.trimIndent()
+
+    val queryNamesAliceResult = """
+        {
+            "head": {
+                "vars": [
+                    "name"
+                ]
+            },
+            "results": {
+                "bindings": [
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Alice"
+                        }
+                    }
+                ]
+            }
+        }
+    """.trimIndent()
+
+    val queryNamesAliceBobResult = """
+        {
+            "head": {
+                "vars": [
+                    "name"
+                ]
+            },
+            "results": {
+                "bindings": [
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Alice"
+                        }
+                    },
+                    {
+                        "name": {
+                            "type": "literal",
+                            "value": "Bob"
+                        }
+                    }
+                ]
+            }
+        }
+    """.trimIndent()
+
+    val loadAliceRex = """
+        $demoPrefixesStr
+
+        :Alice a :Person ;
+            foaf:name "Alice" .
+        :Rex a :Dog ;
+            :owner :Alice ;
+            :likes :PeanutButter ;
+            foaf:name "Rex" .
+    """.trimIndent()
+
+    val loadBobFluffy = """
+        $demoPrefixesStr
+
+        :Bob a :Person ;
+            foaf:name "Bob" .
+        :Fluffy a :Cat ;
+            :owner :Bob ;
+            :likes :Jelly ;
+            foaf:name "Fluffy" .
+    """.trimIndent()
 }
