@@ -18,17 +18,12 @@ fun Route.updateScratch() {
             repo()
             scratch()
         }
-
-        // construct the scratch's named graph IRI
-        val scratchGraph = "${prefixes["mor-graph"]}Scratch.$scratchId"
-
         // parse query
         val sparqlUpdateAst = try {
             UpdateFactory.create(requestContext.update)
         } catch (parse: Exception) {
             throw UpdateSyntaxException(parse)
         }
-
         val localConditions = SCRATCH_UPDATE_CONDITIONS.append {
             assertPreconditions(this) {
                 """
@@ -46,6 +41,8 @@ fun Route.updateScratch() {
         userPrefixes.map = prefixMap
         val updateString = updates.joinToString(";\n")
         // execute the SPARQL UPDATE
+        // construct the scratch's named graph IRI
+        val scratchGraph = "${prefixes["mor-graph"]}Scratch.$scratchId"
         val responseText = executeSparqlUpdate(updateString) {
             prefixes(userPrefixes)
 
