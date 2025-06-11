@@ -189,16 +189,24 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
     //create patch string to get from previous commit to loaded graph
     // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
     var patchString = """
-        delete data {
+        delete {
             graph ?__mms_model {
-                ${deleteModel.stringify()}
+                ?s ?p ?o .
             }
-        } ;
-        insert data {
+        } where {
+            graph <$diffDelGraph> {
+                ?s ?p ?o .
+            }
+        };
+        insert {
             graph ?__mms_model {
-                ${insertModel.stringify()}
+                ?s ?p ?o .
             }
-        }
+        } where {
+            graph <$diffInsGraph> {
+                ?s ?p ?o .
+            }
+        } 
     """.trimIndent()
 
     var patchStringDatatype = MMS_DATATYPE.sparql
