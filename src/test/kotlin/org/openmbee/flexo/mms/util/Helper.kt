@@ -42,6 +42,24 @@ fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicati
     }
 }
 
+// Creates an empty scratch
+fun createScratch(path: String, scratchName: String): TestApplicationCall {
+    return withTest {
+        httpPut(path) {
+            setTurtleBody("""
+                <> dct:title "$scratchName"@en .
+            """)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.Created
+
+            // assert it exists
+            httpGet(path) {}.apply {
+                response shouldHaveStatus 200
+            }
+        }
+    }
+}
+
 fun createBranch(repoPath: String, refId: String, branchId: String, branchName: String): TestApplicationCall {
     return withTest {
         httpPut("$repoPath/branches/$branchId") {
@@ -84,6 +102,17 @@ fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
     }
 }
 
+// For inserting things into already created scratches, sparql should be a query
+fun updateScratch(scratchPath: String, sparql: String): TestApplicationCall {
+    return withTest {
+        httpPost("$scratchPath/update") {
+            setSparqlUpdateBody(sparql)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
 fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
     return withTest {
         httpPost("$refPath/update") {
@@ -100,6 +129,16 @@ fun loadModel(refPath: String, turtle: String): TestApplicationCall {
             setTurtleBody(turtle)
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
+fun loadScratch(scratchPath: String, turtle: String): TestApplicationCall {
+    return withTest {
+        httpPut("$scratchPath/graph") {
+            setTurtleBody(turtle)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.NoContent
         }
     }
 }

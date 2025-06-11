@@ -275,6 +275,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     }
                 """
                 ) {
+                    prefixes(prefixes)
                     iri(
                         "_stgGraph" to stagingGraph,
                         "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",

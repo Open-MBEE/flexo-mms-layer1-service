@@ -7,6 +7,8 @@ import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
 import java.net.URLEncoder
 
+val OPENMBEE_MMS_RDF = "https://mms.openmbee.org/rdf"
+
 class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.() -> PrefixMapBuilder)?=null) {
     var map = HashMap<String, String>()
 
@@ -61,7 +63,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
         "dct" to "http://purl.org/dc/terms/",
     )
 
-    with("https://mms.openmbee.org/rdf") {
+    with(OPENMBEE_MMS_RDF) {
         add(
             "mms" to "$this/ontology/",
             "mms-txn" to "$this/ontology/txn.",
@@ -91,11 +93,12 @@ fun prefixesFor(
     orgId: String?=null,
     collectionId: String?=null,
     repoId: String?=null,
-    refId: String?=null,
-    branchId: String?=null,
     commitId: String?=null,
-    lockId: String?=null,
     artifactId: String?=null,
+    refId: String?=null,
+    lockId: String?=null,
+    branchId: String?=null,
+    scratchId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
     policyId: String?=null,
@@ -206,6 +209,17 @@ fun prefixesFor(
                         else {
                             add("mora" to MMS_URNS.never)
                         }
+
+                        if(null != scratchId) {
+                            with("$this/scratches/$scratchId") {
+                                add(
+                                    "mors" to this,
+                                )
+                            }
+                        }
+                        else {
+                            add("mors" to MMS_URNS.never)
+                        }
                     }
                 }
             }
@@ -246,6 +260,7 @@ object MMS {
     val Lock = res("Lock")
     val Diff = res("Diff")
     val Artifact = res("Artifact")
+    val Scratch = res("Scratch")
 
     val User = res("User")
     val Group = res("Group")
@@ -275,6 +290,7 @@ object MMS {
     val org = prop("org")
     val repo = prop("repo")
     val branch = prop("branch")
+    val scratch = prop("scratch")
     val collection = prop("collection")
     val user = prop("user")
     val completed = prop("completed")

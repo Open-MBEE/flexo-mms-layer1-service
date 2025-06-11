@@ -7,7 +7,13 @@ import org.openmbee.flexo.mms.util.*
 
 
 @JvmOverloads
-fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?=null, branchPath: String?=null, user: String?=null) {
+fun TriplesAsserter.validateTransaction(
+    orgPath: String?=null,
+    repoPath: String?=null,
+    branchPath: String?=null,
+    user: String?=null,
+    scratchPath: String?=null,
+) {
     val linkedStatements = mutableSetOf<Statement>()
 
     subjectTerse("mt:") {
@@ -19,6 +25,7 @@ fun TriplesAsserter.validateTransaction(orgPath: String?=null, repoPath: String?
             if(orgPath != null) MMS.org exactly localIri(orgPath).iri else null,
             if(repoPath != null) MMS.repo exactly localIri(repoPath).iri else null,
             if(branchPath != null) MMS.branch exactly localIri(branchPath).iri else null,
+            if(scratchPath != null) MMS.scratch exactly localIri(scratchPath).iri else null,
             if(user != null) MMS.user exactly userIri("root").iri else null
         )
     }

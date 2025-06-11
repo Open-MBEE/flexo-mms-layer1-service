@@ -17,6 +17,7 @@ enum class Scope(val type: String, val id: String, vararg val extras: String) {
     BRANCH("Branch", "morb"),
     LOCK("Lock", "morl"),
     ARTIFACT("Artifact", "mora"),
+    SCRATCH("Scratch", "mors"),
     DIFF("Diff", "mord"),
     COMMIT("Commit", "morc"),
 
@@ -70,6 +71,11 @@ enum class Permission(
     READ_ARTIFACT(Crud.READ, Scope.ARTIFACT),
     UPDATE_ARTIFACT(Crud.UPDATE, Scope.ARTIFACT),
     DELETE_ARTIFACT(Crud.DELETE, Scope.ARTIFACT),
+
+    CREATE_SCRATCH(Crud.CREATE, Scope.SCRATCH),
+    READ_SCRATCH(Crud.READ, Scope.SCRATCH),
+    UPDATE_SCRATCH(Crud.UPDATE, Scope.SCRATCH),
+    DELETE_SCRATCH(Crud.DELETE, Scope.SCRATCH),
     
     READ_COMMIT(Crud.READ, Scope.COMMIT),
     UPDATE_COMMIT(Crud.UPDATE, Scope.COMMIT),
@@ -99,6 +105,7 @@ enum class Role(val id: String) {
     ADMIN_MODEL("AdminModel"),
     ADMIN_LOCK("AdminLock"),
     ADMIN_BRANCH("AdminBranch"),
+    ADMIN_SCRATCH("AdminScratch"),
     ADMIN_DIFF("AdminDiff"),
     ADMIN_GROUP("AdminGroup"),
     ADMIN_POLICY("AdminPolicy"),

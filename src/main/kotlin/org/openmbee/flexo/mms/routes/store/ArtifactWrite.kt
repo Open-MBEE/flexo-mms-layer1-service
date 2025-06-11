@@ -4,7 +4,6 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.http.headers
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
@@ -20,18 +19,24 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
         throw UnsupportedMediaType("Wildcards not allowed")
     }
 
-    // extend the default conditions with requirements for user-specified ref or commit
+    // extend the default conditions
     val localConditions = REPO_CRUD_CONDITIONS.append {
-        // require that the user has the ability to create objects on a repo-level scope
+        // require that the user has the ability to create artifacts on a repo-level scope
         permit(Permission.CREATE_ARTIFACT, Scope.REPO)
     }
 
-    var storage = ""
-    if (call.application.artifactUseStore) { //use store service
+    // prep storage triple fragment
+    var storageFragment = ""
+
+    // use store service
+    val storeServiceUrl: String? = call.application.storeServiceUrl
+    if (storeServiceUrl != null) {
         val path = "$orgId/$repoId/$transactionId"
-        var storeServiceUrl: String? = call.application.storeServiceUrl
+
+        // submit to store service
         val response: HttpResponse = defaultHttpClient.put("$storeServiceUrl/$path") {
             headers {
+                // add auth header
                 call.request.headers[HttpHeaders.Authorization]?.let { auth: String ->
                     append(HttpHeaders.Authorization, auth)
                 }
@@ -43,17 +48,19 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                 }
             })
         }
-        storage = "mms:body ${escapeLiteral(path)}^^xsd:anyURI"
+
+        // set storage details
+        storageFragment = "mms:body ${escapeLiteral(path)}^^xsd:anyURI"
     } else {
         if (requestBodyContentType.startsWith("text")) {
             val body = call.receiveText()
-            storage = "mms:body ${escapeLiteral(body)}"
+            storageFragment = "mms:body ${escapeLiteral(body)}"
         } else {
             val body = Base64.getEncoder().encodeToString(call.receive<ByteArray>())
-            storage = "mms:body ${escapeLiteral(body)}^^xsd:base64Binary"
-
+            storageFragment = "mms:body ${escapeLiteral(body)}^^xsd:base64Binary"
         }
     }
+
     // create update SPARQL
     val updateString = buildSparqlUpdate {
         insert {
@@ -66,7 +73,7 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
                         mms:created ?_now ;
                         mms:createdBy mu: ;
                         mms:contentType ${escapeLiteral(requestBodyContentType)} ;
-                        $storage ; 
+                        $storageFragment ; 
                         .
                 """)
             }
@@ -75,7 +82,6 @@ suspend fun<TRequestContext: GenericRequest> Layer1Context<TRequestContext, Stor
             raw(*localConditions.requiredPatterns())
         }
     }
-
 
     // create object IRI
     val artifactIri = "${prefixes["mor-artifact"]}$transactionId"

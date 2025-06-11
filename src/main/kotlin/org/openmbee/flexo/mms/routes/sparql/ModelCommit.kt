@@ -3,19 +3,11 @@ package org.openmbee.flexo.mms.routes.sparql
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.apache.jena.rdf.model.Property
-import org.apache.jena.rdf.model.Resource
-import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.update.UpdateFactory
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.sparqlUpdate
 
 private val DEFAULT_UPDATE_CONDITIONS = BRANCH_COMMIT_CONDITIONS
-
-
-fun Resource.iriAt(property: Property): String? {
-    return this.listProperties(property).next()?.`object`?.asResource()?.uri
-}
 
 fun Route.commitModel() {
     sparqlUpdate("/orgs/{orgId}/repos/{repoId}/branches/{branchId}/update") {
@@ -47,75 +39,13 @@ fun Route.commitModel() {
                 txnModel.createResource(prefixes["mt"]), MMS.TXN.stagingGraph)
                 .next().asResource().uri
 
-            val updates = mutableListOf<String>()
-
             // merge the client prefixes with internal ones
             val mergedPrefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
             mergedPrefixMap.putAll(prefixes.map)
+            val updates = prepareUserUpdate(sparqlUpdateAst, mergedPrefixMap)
+            val mergedPrefixes = PrefixMapBuilder()
+            mergedPrefixes.map = mergedPrefixMap
 
-            val mergedPrefixes = withPrefixMap(mergedPrefixMap) {
-                for (update in sparqlUpdateAst.operations) {
-                    when (update) {
-                        is UpdateDataDelete -> updates.add(
-                            """
-                            DELETE DATA {
-                                graph ?__mms_model {
-                                    ${asSparqlGroup(update.quads)}
-                                }
-                            }
-                            """.trimIndent()
-                        )
-
-                        is UpdateDataInsert -> updates.add(
-                            """
-                            INSERT DATA {
-                                graph ?__mms_model {
-                                    ${asSparqlGroup(update.quads)}
-                                }
-                            }
-                            """.trimIndent()
-                        )
-
-                        is UpdateDeleteWhere -> updates.add(
-                            """
-                            DELETE WHERE {
-                                graph ?__mms_model {
-                                    ${asSparqlGroup(update.quads)}
-                                }
-                            }
-                            """.trimIndent()
-                        )
-
-                        is UpdateModify -> {
-                            var modify = "WITH ?__mms_model\n"
-                            if (update.hasDeleteClause()) {
-                                modify += """
-                                DELETE {
-                                    ${asSparqlGroup(update.deleteQuads)}
-                                }
-                                """.trimIndent()
-                            }
-                            if (update.hasInsertClause()) {
-                                modify += """
-                                INSERT {
-                                    ${asSparqlGroup(update.insertQuads)}
-                                }
-                                """.trimIndent()
-                            }
-                            modify += """
-                            WHERE {
-                                ${asSparqlGroup(update.wherePattern.apply {
-                                    visit(NoQuadsElementVisitor)
-                                })}
-                            }
-                            """.trimIndent()
-                            updates.add(modify)
-                        }
-
-                        else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
-                    }
-                }
-            }
 
             // this is used for reconstructing graph from previous commit,
             // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
