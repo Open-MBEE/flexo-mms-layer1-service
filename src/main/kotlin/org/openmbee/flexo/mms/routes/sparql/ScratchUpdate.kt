@@ -34,7 +34,7 @@ fun Route.updateScratch() {
                 """
             }
         }
-        checkModelQueryConditions(targetGraphIri=prefixes["mors"], conditions=localConditions)
+        val scratchGraph = checkModelQueryConditions(targetGraphIri="${prefixes["mor-graph"]}Scratch.$scratchId", conditions=localConditions)
         val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
         val updates = prepareUserUpdate(sparqlUpdateAst, prefixMap)
         val userPrefixes = PrefixMapBuilder()
@@ -42,7 +42,6 @@ fun Route.updateScratch() {
         val updateString = updates.joinToString(";\n")
         // execute the SPARQL UPDATE
         // construct the scratch's named graph IRI
-        val scratchGraph = "${prefixes["mor-graph"]}Scratch.$scratchId"
         val responseText = executeSparqlUpdate(updateString) {
             prefixes(userPrefixes)
 

@@ -372,7 +372,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     suspend fun executeSparqlUpdate(pattern: String, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
         var sparql = SparqlParameterizer(pattern.trimIndent()).apply {
             if(setup != null) setup()
-            prefixes(prefixes)
+            else prefixes(prefixes)
         }.toString()
 
         sparql = replaceValuesDirectives(sparql,
