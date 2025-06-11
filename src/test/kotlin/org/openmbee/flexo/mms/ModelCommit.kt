@@ -8,10 +8,9 @@ import org.openmbee.flexo.mms.util.*
 
 class ModelCommit: ModelAny() {
     fun TestApplicationCall.validateCommitResult(branchPath: String) {
+        response shouldHaveStatus HttpStatusCode.Created
         val etag = response.headers[HttpHeaders.ETag]
         etag.shouldNotBeBlank()
-
-        response shouldHaveStatus HttpStatusCode.Created
         response.exclusivelyHasTriples {
             validateModelCommitResponse(branchPath, etag!!)
         }
@@ -25,8 +24,7 @@ class ModelCommit: ModelAny() {
                 }.apply {
                     validateCommitResult(masterBranchPath)
                 }
-            }
-            withTest {
+
                 httpGet("$masterBranchPath/graph") {}.apply {
                     response.exclusivelyHasTriples {
                         val people = demoPrefixes.get("")
@@ -93,8 +91,7 @@ class ModelCommit: ModelAny() {
                 }.apply {
                     validateCommitResult(masterBranchPath)
                 }
-            }
-            withTest {
+
                 httpGet("$masterBranchPath/graph") {}.apply {
                     response.exclusivelyHasTriples {
                         subject("urn:these") {
@@ -122,8 +119,7 @@ class ModelCommit: ModelAny() {
                 }.apply {
                     validateCommitResult(demoBranchPath)
                 }
-            }
-            withTest {
+         
                 httpGet("$demoBranchPath/graph") {}.apply {
                     response.includesTriples {
                         subject("urn:this") {
@@ -167,8 +163,7 @@ class ModelCommit: ModelAny() {
                 }.apply {
                     validateCommitResult(masterBranchPath)
                 }
-            }
-            withTest {
+
                 httpGet("$masterBranchPath/graph") {}.apply {
                     response.includesTriples {
                         subject("urn:this") {
