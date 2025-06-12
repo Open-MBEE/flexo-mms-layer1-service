@@ -72,7 +72,7 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
-    val logbackVersion = "1.4.11"
+    val logbackVersion = "1.5.18"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
