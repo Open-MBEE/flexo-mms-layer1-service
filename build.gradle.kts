@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "org.openmbee.flexo.mms"
-version = "0.2.0-ALPHA"
+version = "0.2.0"
 
 sonar {
     properties {
