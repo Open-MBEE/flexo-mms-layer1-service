@@ -86,6 +86,4 @@ val Application.requestTimeout: Long?
     get() = environment.config.propertyOrNull("mms.application.request-timeout")?.getString()?.toLongOrNull()
         ?.let { it * 1000 }
 
-val Application.artifactUseStore: Boolean
-    get() = "true" == environment.config.propertyOrNull("mms.artifact.use-store-service")?.getString()
 class AuthorizationRequiredException(message: String): Exception(message) {}

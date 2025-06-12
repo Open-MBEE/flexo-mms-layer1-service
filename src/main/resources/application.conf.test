@@ -27,11 +27,6 @@ mms {
         graph-store-protocol-accepts = "text/turtle, application/n-triples"
         graph-store-protocol-accepts = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_ACCEPTS}
     }
-
-    artifact {
-        use-store-service = "false"
-        use-store-service = ${?FLEXO_MMS_ARTIFACT_USE_STORE}
-    }
 }
 
 ktor {
