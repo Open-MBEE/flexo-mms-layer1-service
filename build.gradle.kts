@@ -3,7 +3,7 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.1.21"
     kotlin("plugin.serialization") version "1.9.24"
     jacoco
     id("org.sonarqube") version "4.4.1.3373"
