@@ -78,7 +78,7 @@ dependencies {
     val systemLambdaVersion = "1.2.1"
     testImplementation("com.github.stefanbirkner:system-lambda:$systemLambdaVersion")
 
-    val junitVersion = "5.10.1"
+    val junitVersion = "5.13.1"
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 
     val migzVersion = "2.0.beta-1"
