@@ -13,6 +13,8 @@ mms {
     store-service {
         url = ""
         url = ${?FLEXO_MMS_STORE_SERVICE_URL}
+        accepts = "text/turtle, application/ld+json, application/rdf+xml"
+        accepts = ${?FLEXO_MMS_STORE_SERVICE_ACCEPTS}
     }
 
     quad-store {

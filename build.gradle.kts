@@ -3,14 +3,14 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "1.9.24"
-    kotlin("plugin.serialization") version "1.9.24"
+    kotlin("jvm") version "2.1.21"
+    kotlin("plugin.serialization") version "2.1.21"
     jacoco
-    id("org.sonarqube") version "4.4.1.3373"
+    id("org.sonarqube") version "6.2.0.5505"
 }
 
 group = "org.openmbee.flexo.mms"
-version = "0.2.0-ALPHA"
+version = "0.2.0"
 
 sonar {
     properties {
@@ -43,10 +43,10 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
 
-    val commonsCliVersion = "1.6.0"
+    val commonsCliVersion = "1.9.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
-    val kotlinxJsonVersion = "1.6.0"
+    val kotlinxJsonVersion = "1.8.1"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
     val jenaVersion = "4.10.0"
@@ -72,13 +72,13 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
 
-    val logbackVersion = "1.4.11"
+    val logbackVersion = "1.5.18"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
     testImplementation("com.github.stefanbirkner:system-lambda:$systemLambdaVersion")
 
-    val junitVersion = "5.10.1"
+    val junitVersion = "5.13.1"
     testImplementation("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
 
     val migzVersion = "2.0.beta-1"
@@ -97,7 +97,6 @@ dependencies {
 tasks {
     test {
         useJUnitPlatform()
-        dependsOn("copy-test-fuseki-server")
         this.testLogging {
             this.showStandardStreams = true
         }
@@ -107,11 +106,6 @@ tasks {
         environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
         if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
             environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
-    }
-    register<Copy>("copy-test-fuseki-server") {
-        // Copy fuseki-server jar to known location (build/test-fuseki-server)
-        from(testFuseki.resolvedConfiguration.files)
-        destinationDir = project.buildDir.resolve("test-fuseki-server")
     }
 }
 tasks.test {
@@ -142,4 +136,8 @@ tasks.named("processResources") {
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.compilerOptions {
     freeCompilerArgs.add("-Xdebug")
+}
+
+kotlin {
+    jvmToolchain(17)
 }

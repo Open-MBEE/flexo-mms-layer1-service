@@ -1,5 +1,7 @@
 package org.openmbee.flexo.mms.util
 
+import io.ktor.client.*
+import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.*
@@ -34,6 +36,24 @@ fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicati
 
             // assert it exists
             httpGet("/$orgPath/repos/$repoId") {}.apply {
+                response shouldHaveStatus 200
+            }
+        }
+    }
+}
+
+// Creates an empty scratch
+fun createScratch(path: String, scratchName: String): TestApplicationCall {
+    return withTest {
+        httpPut(path) {
+            setTurtleBody("""
+                <> dct:title "$scratchName"@en .
+            """)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.Created
+
+            // assert it exists
+            httpGet(path) {}.apply {
                 response shouldHaveStatus 200
             }
         }
@@ -82,6 +102,17 @@ fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
     }
 }
 
+// For inserting things into already created scratches, sparql should be a query
+fun updateScratch(scratchPath: String, sparql: String): TestApplicationCall {
+    return withTest {
+        httpPost("$scratchPath/update") {
+            setSparqlUpdateBody(sparql)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
 fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
     return withTest {
         httpPost("$refPath/update") {
@@ -98,6 +129,16 @@ fun loadModel(refPath: String, turtle: String): TestApplicationCall {
             setTurtleBody(turtle)
         }.apply {
             response shouldHaveStatus HttpStatusCode.OK
+        }
+    }
+}
+
+fun loadScratch(scratchPath: String, turtle: String): TestApplicationCall {
+    return withTest {
+        httpPut("$scratchPath/graph") {
+            setTurtleBody(turtle)
+        }.apply {
+            response shouldHaveStatus HttpStatusCode.NoContent
         }
     }
 }
@@ -136,4 +177,24 @@ fun withAllTestPrefixes(body: String): String {
         
         $body
     """.trimIndent()
+}
+
+suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        parameter("update", """
+             prefix m-graph: <$ROOT_CONTEXT/graphs/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             prefix mt: <$ROOT_CONTEXT/transactions/some-other-transaction> 
+             prefix mms-txn: <https://mms.openmbee.org/rdf/ontology/txn.>
+             prefix morb: <$ROOT_CONTEXT$branchPath> 
+             insert data {
+                 graph m-graph:Transactions {
+                     mt: a mms:Transaction ;
+                         mms-txn:mutex morb: .
+                 }
+             }
+        """.trimIndent())
+    }
 }

@@ -34,20 +34,29 @@ class RepoLdpDc : RepoAny() {
                 }
             }
 
+            replaceExisting {
+                it includesTriples {
+                    // will error if etag have multiple values or created/createdBy doesn't exist
+                    validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath, listOf(
+                        arbitraryPropertyIri.toPredicate exactly arbitraryPropertyValue,
+                    ))
+                }
+            }
+
             read(
                 { createRepo(demoOrgPath, fooRepoId, fooRepoName) },
                 { createRepo(demoOrgPath, barRepoId, barRepoName) },
             ) {
                 if(it.createdOthers.isEmpty()) {
-                    it.response exclusivelyHasTriples {
-                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
+                    it.response includesTriples {
+                        validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath)
                     }
                 }
                 else {
                     it.response includesTriples {
-                        validateRepoTriplesWithMasterBranch(demoRepoId, demoRepoName, demoOrgPath)
-                        validateRepoTriplesWithMasterBranch(fooRepoId, fooRepoName, demoOrgPath)
-                        validateRepoTriplesWithMasterBranch(barRepoId, barRepoName, demoOrgPath)
+                        validateRepoTriples(demoRepoId, demoRepoName, demoOrgPath)
+                        validateRepoTriples(fooRepoId, fooRepoName, demoOrgPath)
+                        validateRepoTriples(barRepoId, barRepoName, demoOrgPath)
                     }
                 }
             }

@@ -86,3 +86,4 @@ results/*
 *.test.ttl
 *.test.trig
 *.test.rw
+.kotlin

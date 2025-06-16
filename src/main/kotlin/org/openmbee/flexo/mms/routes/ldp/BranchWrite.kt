@@ -162,9 +162,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             graph("mor-graph:Metadata") {
                 raw("""
                     $branchTriples
-
                     # set branch pointer
-                    morb: mms:commit ?__mms_commitSource .
+                    morb: mms:commit ?__mms_commitSource ;
+                          mms:created ?_now .
                 """)
             }
         }
@@ -275,6 +275,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     }
                 """
                 ) {
+                    prefixes(prefixes)
                     iri(
                         "_stgGraph" to stagingGraph,
                         "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",

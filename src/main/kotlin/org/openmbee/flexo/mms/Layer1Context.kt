@@ -93,7 +93,9 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     var repoId: String? = null
     var commitId: String = transactionId
     var lockId: String? = null
+    var artifactId: String? = null
     var branchId: String? = null
+    var scratchId: String? = null
     var diffId: String? = null
     var policyId: String? = null
 
@@ -104,15 +106,18 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             orgId = orgId,
             collectionId = collectionId,
             repoId = repoId,
-            branchId = branchId,
             commitId = commitId,
             lockId = lockId,
+            artifactId = artifactId,
+            branchId = branchId,
+            scratchId = scratchId,
             diffId = diffId,
             transactionId = transactionId,
             policyId = policyId,
         )
 
     var inspectOnly: Boolean = false
+    var download: Boolean = false
 
     var refSource: String? = null
     var commitSource: String? = null
@@ -121,7 +126,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     val requestPath = call.request.path()
     val requestMethod = call.request.httpMethod.value
-    val requestBodyContentType = call.request.contentType().toString()
+    val requestBodyContentType = call.request.contentType().withoutParameters().toString()
 
     val defaultHttpClient = call.httpClient()
 
@@ -159,9 +164,19 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
             if(legal) assertLegalId(lockId!!)
         }
 
+        fun artifact(legal: Boolean=false) {
+            artifactId = call.parameters["artifactId"]
+            if(legal) assertLegalId(artifactId!!)
+        }
+
         fun branch(legal: Boolean=false) {
             branchId = call.parameters["branchId"]
             if(legal) assertLegalId(branchId!!)
+        }
+
+        fun scratch(legal: Boolean=false) {
+            scratchId = call.parameters["scratchId"]
+            if(legal) assertLegalId(scratchId!!)
         }
 
         fun diff() {
@@ -180,6 +195,23 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                     throw Http404Exception(call.request.path())
                 } else true
             } else false
+        }
+    }
+
+    /**
+     * Allows caller to specify which query params are expected
+     */
+    inner class QueryParamNormalizer {
+        fun download() {
+            // if query param doesn't have a value there's no entry in queryParameters map...
+            var downloadValue = call.request.queryParameters["download"]?: "none"
+            if (downloadValue == "none" && call.request.queryString().contains("download")) {
+                downloadValue = ""
+            }
+            // present as `?download`, or `?download=1` or `?download=true`
+            if(downloadValue == "true" || downloadValue == "1" || downloadValue == "") {
+                download = true
+            }
         }
     }
 
@@ -263,6 +295,15 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     }
 
     /**
+     * Validates query parameters and saves their values to the corresponding field on this instance
+     */
+    fun parseQueryParams(setup: QueryParamNormalizer.()->Unit): QueryParamNormalizer {
+        return QueryParamNormalizer().apply{
+            setup()
+        }
+    }
+
+    /**
      * Build a SPARQL Query string using a DSL
      */
     fun buildSparqlQuery(setup: QueryBuilder.() -> Unit): String {
@@ -331,14 +372,14 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     suspend fun executeSparqlUpdate(pattern: String, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
         var sparql = SparqlParameterizer(pattern.trimIndent()).apply {
             if(setup != null) setup()
-            prefixes(prefixes)
+            else prefixes(prefixes)
         }.toString()
 
         sparql = replaceValuesDirectives(sparql,
             "groupId" to groups,
         )
 
-        log("Executing SPARQL Update:\n$sparql")
+        log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
         return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
             headers {
@@ -353,7 +394,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
 
     private fun checkPreconditions(etag: String) {
         // preconditions not be used in POST operations; no-op
-        if(call.request.httpMethod == HttpMethod.Post) return
+        if(isPostMethod) return
 
         // check If-Match preconditions
         if(ifMatch != null && !ifMatch.isStar) {
@@ -490,80 +531,12 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         }.stringify(emitPrefixes=false)
     }
 
-
     fun validateTransaction(results: String, conditions: ConditionsGroup, subTxnId: String?=null, scope: String?=null): KModel {
         return parseConstructResponse(results) {
             // transaction failed
             if(!transactionNode(subTxnId).listProperties().hasNext()) {
-//                runBlocking {
-//                    val constructQuery = buildSparqlQuery {
-//                        construct {
-//                            raw("""
-//                                # transaction metadata
-//                                mt: ?mt_p ?mt_o .
-//
-//                                # which policy was applied
-//                                ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-//
-//                                ${if(repoId != null) {
-//                                    """
-//                                        # outgoing repo properties
-//                                        mor: ?mor_p ?mor_o .
-//
-//                                        # properties of things that belong to this repo
-//                                        ?thing ?thing_p ?thing_o .
-//
-//                                        # all triples in metadata graph
-//                                        ?m_s ?m_p ?m_o .
-//                                    """
-//                                } else ""}
-//                            """)
-//                        }
-//                        where {
-//                            raw("""
-//                                {
-//                                    graph m-graph:Transactions {
-//                                        mt: ?mt_p ?mt_o ;
-//                                            mms:policy ?__mms_policy ;
-//                                            .
-//                                    }
-//
-//                                    optional {
-//                                        graph m-graph:AccessControl.Policies {
-//                                            ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-//                                        }
-//                                    }
-//                                }
-//                                ${if(repoId != null) {
-//                                    """
-//                                        union {
-//                                            graph m-graph:Cluster {
-//                                                mor: a mms:Repo ;
-//                                                    ?mor_p ?mor_o .
-//
-//                                                optional {
-//                                                    ?thing mms:repo mor: ;
-//                                                        ?thing_p ?thing_o .
-//                                                }
-//                                            }
-//                                        } union {
-//                                            graph mor-graph:Metadata {
-//                                                ?m_s ?m_p ?m_o .
-//                                            }
-//                                        }
-//                                    """
-//                                } else ""}
-//                            """)
-//                        }
-//                    }
-//
-//                    val described = executeSparqlConstructOrDescribe(constructQuery)
-//                    log("Transaction failed.\n\n\tInspect: ${described}\n\n\tResults: \n${results}")
-//                }
-
                 // use response to diagnose cause
                 conditions.handle(model, layer1);
-
                 // the above always throws, so this is unreachable
             }
         }

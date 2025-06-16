@@ -49,7 +49,8 @@ open class RefAny : RepoAny() {
                     DCTerms.title exactly demoBranchName.en,
                     MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
                     MMS.commit startsWith localIri("$demoCommitsPath/").iri,  // TODO: incorporate fromCommit ?
-                    MMS.createdBy exactly userIri("root").iri
+                    MMS.createdBy exactly userIri("root").iri,
+                    MMS.created startsWith ""
                 )
             }
 

@@ -55,6 +55,10 @@ class RdfModeler(val layer1: AnyLayer1Context, val baseIri: String, val content:
         return resourceFromParamPrefix("morc")
     }
 
+    fun scratchNode(): Resource {
+        return resourceFromParamPrefix("mors")
+    }
+
     fun lockNode(): Resource {
         return resourceFromParamPrefix("morl")
     }

@@ -54,11 +54,19 @@ private fun ConditionsBuilder.repoNotExists() {
 
 
 // selects all properties of an existing repo
-private fun PatternBuilder<*>.existingRepo() {
+// also used in where clause to match delete for replaceExisting
+//      but don't remove created/createdBy triples
+private fun PatternBuilder<*>.existingRepo(filterCreate: Boolean = false) {
     graph("m-graph:Cluster") {
         raw("""
             mor: ?repoExisting_p ?repoExisting_o .
         """)
+        if (filterCreate) {
+            raw("""
+                filter(?repoExisting_p != mms:created)
+                filter(?repoExisting_p != mms:createdBy)
+            """.trimIndent())
+        }
     }
 }
 
@@ -186,6 +194,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // insert the triples about the new repo, including arbitrary metadata supplied by user
             graph("m-graph:Cluster") {
                 raw(repoTriples)
+                if (!replaceExisting) {
+                    raw("""
+                        mor: mms:created ?_now ;
+                            mms:createdBy mu: .
+                    """
+                    )
+                }
             }
 
             // not replacing existing
@@ -197,8 +212,11 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                         morc: a mms:Commit ;
                             mms:parent rdf:nil ;
                             mms:submitted ?_now ;
+                            mms:createdBy mu: ;
                             mms:message ?_commitMessage ;
                             mms:data morc-data: ;
+                            mms:etag ?_commitEtag ;
+                            mms:id "$transactionId" ;
                             .
                 
                         # root commit data
@@ -213,12 +231,16 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                             mms:commit morc: ;
                             mms:snapshot ?_staging ;
                             dct:title "Master"@en ;
+                            mms:createdBy mu: ;
+                            mms:created ?_now ;
                             .
                             
                         # model snapshot
-                        mor-lock:Commit.root a mms:Lock ;
+                        mor-lock:Commit.$transactionId a mms:Lock ;
                             mms:commit morc: ;
                             mms:snapshot ?_model ;
+                            mms:created ?_now ;
+                            mms:createBy mu: ;
                             .
                         
                         # initial model graph
@@ -246,6 +268,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
         }
         where {
+            if (replaceExisting) {
+                existingRepo(true)
+            }
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
         }

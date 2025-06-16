@@ -7,6 +7,8 @@ import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
 import java.net.URLEncoder
 
+val OPENMBEE_MMS_RDF = "https://mms.openmbee.org/rdf"
+
 class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.() -> PrefixMapBuilder)?=null) {
     var map = HashMap<String, String>()
 
@@ -61,7 +63,7 @@ val SPARQL_PREFIXES = PrefixMapBuilder() {
         "dct" to "http://purl.org/dc/terms/",
     )
 
-    with("https://mms.openmbee.org/rdf") {
+    with(OPENMBEE_MMS_RDF) {
         add(
             "mms" to "$this/ontology/",
             "mms-txn" to "$this/ontology/txn.",
@@ -91,10 +93,12 @@ fun prefixesFor(
     orgId: String?=null,
     collectionId: String?=null,
     repoId: String?=null,
-    refId: String?=null,
-    branchId: String?=null,
     commitId: String?=null,
+    artifactId: String?=null,
+    refId: String?=null,
     lockId: String?=null,
+    branchId: String?=null,
+    scratchId: String?=null,
     diffId: String?=null,
     transactionId: String?=null,
     policyId: String?=null,
@@ -145,6 +149,7 @@ fun prefixesFor(
                             "mor-commit" to "$this/commits/",
                             "mor-branch" to "$this/branches/",
                             "mor-lock" to "$this/locks/",
+                            "mor-artifact" to "$this/artifacts/",
                             "mor-snapshot" to "$this/snapshots/",
                             "mor-graph" to "$this/graphs/",
                         )
@@ -157,7 +162,7 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("morb" to MMS_URNS.never)
                         }
 
                         if(null !== diffId) {
@@ -168,7 +173,7 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("mord" to MMS_URNS.never)
                         }
 
                         if(null != lockId) {
@@ -191,7 +196,29 @@ fun prefixesFor(
                             }
                         }
                         else {
-                            add("morl" to MMS_URNS.never)
+                            add("morc" to MMS_URNS.never)
+                        }
+
+                        if(null != artifactId) {
+                            with("$this/artifacts/$artifactId") {
+                                add(
+                                    "mora" to this,
+                                )
+                            }
+                        }
+                        else {
+                            add("mora" to MMS_URNS.never)
+                        }
+
+                        if(null != scratchId) {
+                            with("$this/scratches/$scratchId") {
+                                add(
+                                    "mors" to this,
+                                )
+                            }
+                        }
+                        else {
+                            add("mors" to MMS_URNS.never)
                         }
                     }
                 }
@@ -232,6 +259,8 @@ object MMS {
     val Branch = res("Branch")
     val Lock = res("Lock")
     val Diff = res("Diff")
+    val Artifact = res("Artifact")
+    val Scratch = res("Scratch")
 
     val User = res("User")
     val Group = res("Group")
@@ -261,6 +290,7 @@ object MMS {
     val org = prop("org")
     val repo = prop("repo")
     val branch = prop("branch")
+    val scratch = prop("scratch")
     val collection = prop("collection")
     val user = prop("user")
     val completed = prop("completed")
@@ -296,6 +326,8 @@ object MMS {
     val insert = prop("insert")
     val where = prop("where")
 
+    val contentType = prop("contentType")
+
     val diffSrc = prop("diffSrc")
     val diffDst = prop("diffDst")
 
@@ -309,8 +341,10 @@ object MMS {
         val baseModel = prop("baseModel")
         val baseModelGraph = prop("baseModelGraph")
         val sourceGraph = prop("sourceGraph")
+        val success = prop("success")
 
         val diff = prop("diff")
+        val baseCommit = prop("baseCommit")
         val commitSource = prop("commitSource")
         val insGraph = prop("insGraph")
         val delGraph = prop("delGraph")

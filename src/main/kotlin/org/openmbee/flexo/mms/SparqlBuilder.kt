@@ -10,8 +10,10 @@ import java.util.*
 
 enum class UpdateOperationBlock(val id: String) {
     NONE(""),
-    DELETE("DELETE"),
     INSERT("INSERT"),
+    DELETE("DELETE"),
+    INSERT_DATA("INSERT_DATA"),
+    DELETE_DATA("DELETE_DATA"),
     WHERE("WHERE"),
 }
 
@@ -230,6 +232,19 @@ open class WhereBuilder(
         """)
     }
 
+    fun auth(scope: String?="mo", conditions: ConditionsGroup?=null): WhereBuilder {
+        return raw("""
+            ${conditions?.requiredPatterns()?.joinToString("\n") ?: ""}
+
+            optional {
+                graph m-graph:AccessControl.Policies {
+                    ?__mms_policy mms:scope ${scope?: "mo"}: ;
+                        ?__mms_policy_p ?__mms_policy_o .
+                }
+            }
+        """)
+    }
+
     fun etag(subject: String): WhereBuilder {
         return raw("""
             graph mor-graph:Metadata {
@@ -298,6 +313,7 @@ class InsertBuilder(
         if(null != layer1.orgId) properties["mms:org"] = "mo:"
         if(null != layer1.repoId) properties["mms:repo"] = "mor:"
         if(null != layer1.branchId) properties["mms:branch"] = "morb:"
+        if(null != layer1.scratchId) properties["mms:scratch"] = "mors:"
 
         val propertiesSparql = properties.entries.fold("") { out, (pred, obj) -> "$out$pred $obj ;\n" }
 
@@ -315,6 +331,10 @@ class InsertBuilder(
     }
 }
 
+class InsertDataBuilder(
+    layer1: AnyLayer1Context,
+    indentLevel: Int,
+): PatternBuilder<InsertDataBuilder>(layer1, indentLevel)
 
 class ConstructBuilder(
     private val layer1: AnyLayer1Context,
@@ -484,6 +504,22 @@ class UpdateBuilder(
             }
         """).apply {
             pendingInsertString = ""
+        }
+    }
+
+    fun insertData(setup: InsertDataBuilder.() -> Unit): UpdateBuilder {
+        if(operationCount++ > 0) raw(";")
+
+        previousBlock = UpdateOperationBlock.INSERT_DATA
+
+        return raw("""
+            insert data {
+                ${InsertDataBuilder(layer1, 4).apply{ setup() }}
+                
+                $pendingInsertDataString
+            }
+        """).apply {
+            pendingInsertDataString = ""
         }
     }
 

@@ -18,29 +18,10 @@ private val SPARQL_BGP_REPO: (Boolean, Boolean) -> String = { allRepos, allData 
                 mms:etag ?__mms_etag ;
                 mms:org ?$SPARQL_VAR_NAME_ORG ;
                 ${"?repo_p ?repo_o ;" iff allData}
-                .
-                
-            bind(iri(concat(str(?$SPARQL_VAR_NAME_REPO), "/graphs/Metadata")) as ?metadataGraph)
+                .                
         """.reindent(if(allRepos) 3 else 2)}
         ${"}" iff allRepos}
-
-        ${"""
-            optional {
-                ?thing mms:repo ?$SPARQL_VAR_NAME_REPO ; 
-                    ?thing_p ?thing_o ;
-                    .
-            }
-        """.reindent(2) iff allData}
     }
-        
-    optional {
-        graph ?metadataGraph {
-            ?m_s mms:etag ?elementEtag ;
-                ${"?m_p ?m_o ;" iff allData}
-            .
-        }
-    }
-    
     ${permittedActionSparqlBgp(Permission.READ_REPO, Scope.REPO,
         if(allRepos) "^mor:?$".toRegex() else null,
         if(allRepos) "" else null)}
@@ -54,11 +35,6 @@ private val SPARQL_CONSTRUCT_REPO: (Boolean, Boolean) -> String = { allRepos, al
             mms:etag ?__mms_etag ;
             ?repo_p ?repo_o ;
             .
-        
-        ?thing ?thing_p ?thing_o .
-        
-        ?m_s ?m_p ?m_o .
-        
         ${generateReadContextBgp(Permission.READ_REPO).reindent(2)}
     } where {
         ${SPARQL_BGP_REPO(allRepos, allData).reindent(2)}
