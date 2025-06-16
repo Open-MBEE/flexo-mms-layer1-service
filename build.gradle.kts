@@ -43,7 +43,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
 
-    val commonsCliVersion = "1.6.0"
+    val commonsCliVersion = "1.9.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
     val kotlinxJsonVersion = "1.8.1"
