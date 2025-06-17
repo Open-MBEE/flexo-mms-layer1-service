@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.openmbee.flexo.mms.util.*
 
@@ -8,17 +10,15 @@ import org.openmbee.flexo.mms.util.*
 class LockWrite : LockAny() {
     init {
         "patch lock with TTL" {
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPatch(demoLockPath) {
                     setTurtleBody(withAllTestPrefixes("""
                         <> dct:description "foo" .
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         validateLockTriples(demoLockId, null, listOf(
                             DCTerms.description exactly "foo"
                         ))
@@ -28,9 +28,8 @@ class LockWrite : LockAny() {
         }
 
         "patch lock with SPARQL UPDATE" {
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPatch(demoLockPath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert data {
@@ -38,9 +37,8 @@ class LockWrite : LockAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         validateLockTriples(demoLockId, null, listOf(
                             DCTerms.description exactly "foo"
                         ))

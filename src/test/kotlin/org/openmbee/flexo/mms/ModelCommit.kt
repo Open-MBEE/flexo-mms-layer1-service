@@ -1,24 +1,26 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.flexo.mms.util.*
 
 class ModelCommit: ModelAny() {
-    fun TestApplicationCall.validateCommitResult(branchPath: String) {
-        response shouldHaveStatus HttpStatusCode.Created
-        val etag = response.headers[HttpHeaders.ETag]
+    suspend fun HttpResponse.validateCommitResult(branchPath: String) {
+        this shouldHaveStatus HttpStatusCode.Created
+        val etag = this.headers[HttpHeaders.ETag]
         etag.shouldNotBeBlank()
-        response.exclusivelyHasTriples {
+        this.exclusivelyHasTriples {
             validateModelCommitResponse(branchPath, etag!!)
         }
     }
     init {
         "insert data on master" {
             val updateBody = mutableListOf(insertAliceRex, insertBobFluffy).joinToString(";\n")
-            withTest {
+            testApplication {
                 httpPost("$masterBranchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
@@ -26,7 +28,7 @@ class ModelCommit: ModelAny() {
                 }
 
                 httpGet("$masterBranchPath/graph") {}.apply {
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         val people = demoPrefixes.get("")
                         subject("${people}Alice") {
                             ignoreAll()
@@ -85,7 +87,7 @@ class ModelCommit: ModelAny() {
                     }
                 """.trimIndent()
             ).joinToString(";\n")
-            withTest {
+            testApplication {
                 httpPost("$masterBranchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
@@ -93,7 +95,7 @@ class ModelCommit: ModelAny() {
                 }
 
                 httpGet("$masterBranchPath/graph") {}.apply {
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subject("urn:these") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:more") exactly ResourceFactory.createResource("urn:inserts"))
                         }
@@ -106,14 +108,14 @@ class ModelCommit: ModelAny() {
         }
 
         "commit model on non-empty branch" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
             val updateBody = """
                 insert data {
                     <urn:this> <urn:is> <urn:inserted> .
                 }
             """.trimIndent()
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 httpPost("$demoBranchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
@@ -121,7 +123,7 @@ class ModelCommit: ModelAny() {
                 }
          
                 httpGet("$demoBranchPath/graph") {}.apply {
-                    response.includesTriples {
+                    this.includesTriples {
                         subject("urn:this") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
                         }
@@ -134,11 +136,11 @@ class ModelCommit: ModelAny() {
             //manually add a transaction into backend
             val updateUrl = backend.getUpdateUrl()
             addDummyTransaction(updateUrl, masterBranchPath)
-            withTest {
+            testApplication {
                 httpPost("$masterBranchPath/update") {
                     setSparqlUpdateBody("""insert data {<urn:this> <urn:is> <urn:inserted> .}""")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Conflict
+                    this shouldHaveStatus HttpStatusCode.Conflict
                 }
             }
         }
@@ -157,7 +159,7 @@ class ModelCommit: ModelAny() {
                     <urn:this> <urn:is> <urn:inserted> .
                 }
             """.trimIndent()
-            withTest {
+            testApplication {
                 httpPost("$masterBranchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
@@ -165,7 +167,7 @@ class ModelCommit: ModelAny() {
                 }
 
                 httpGet("$masterBranchPath/graph") {}.apply {
-                    response.includesTriples {
+                    this.includesTriples {
                         subject("urn:this") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
                         }

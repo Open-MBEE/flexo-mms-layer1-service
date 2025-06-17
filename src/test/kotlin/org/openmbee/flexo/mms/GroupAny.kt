@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
@@ -9,7 +10,7 @@ import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 
 fun TriplesAsserter.validateGroupTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     groupId: String,
     groupName: String,
     extraPatterns: List<PairPattern> = listOf()
@@ -29,7 +30,7 @@ fun TriplesAsserter.validateGroupTriples(
 }
 
 fun TriplesAsserter.validateCreatedGroupTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     groupId: String,
     groupName: String,
     extraPatterns: List<PairPattern> = listOf()

@@ -13,15 +13,6 @@ class LockLdpDc : LockAny() {
             validBodyForCreate = validLockBodyfromMaster,
             resourceCreator = { createLock(demoRepoPath, masterBranchPath, demoLockId) }
         ) {
-
-//            create {
-//                // extract etag
-//                val etag = it.headers[HttpHeaders.ETag]!!
-//
-//                // validate
-//                validateCreatedLockTriples(demoLockId, etag, demoOrgPath)
-//            }
-
             patch()
         }
     }

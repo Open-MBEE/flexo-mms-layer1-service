@@ -3,6 +3,7 @@ package org.openmbee.flexo.mms
 import org.slf4j.LoggerFactory
 import org.openmbee.flexo.mms.util.*
 import io.kotest.core.test.TestCase
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.ResourceFactory
@@ -37,9 +38,10 @@ open class ScratchAny: RepoAny() {
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-
-        // creates an empty repo
-        repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).response.headers[HttpHeaders.ETag]!!
+        testApplication {
+            // creates an empty repo
+            repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).headers[HttpHeaders.ETag]!!
+        }
 
     }
 }
@@ -70,7 +72,7 @@ fun TriplesAsserter.validateScratchTriples(
 }
 
 fun TriplesAsserter.validateCreatedScratchTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     scratchId: String,
     repoId: String,
     orgId: String,

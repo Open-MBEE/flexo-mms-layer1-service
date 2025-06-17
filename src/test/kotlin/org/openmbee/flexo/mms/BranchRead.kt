@@ -2,7 +2,10 @@ package org.openmbee.flexo.mms
 
 
 
+import io.kotest.assertions.ktor.client.shouldHaveHeader
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
@@ -10,37 +13,35 @@ import org.openmbee.flexo.mms.util.*
 class BranchRead : RefAny() {
     init {
         "head non-existent branch" {
-            withTest {
+            testApplication {
                 httpHead(demoBranchPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "get non-existent branch" {
-            withTest {
+            testApplication {
                 httpGet(demoBranchPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "create and head new branch" {
-            val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-
-            withTest {
+            testApplication {
+                val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 httpHead(demoBranchPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-
-                    response.shouldHaveHeader(HttpHeaders.ETag, create.response.headers[HttpHeaders.ETag]!!)
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.shouldHaveHeader(HttpHeaders.ETag, create.headers[HttpHeaders.ETag]!!)
                 }
             }
         }
 
         "get master branch" {
-            withTest {
+            testApplication {
                 httpGet(masterBranchPath) {}.apply {
-                    response includesTriples {
+                    this includesTriples {
                         val branchiri = localIri(masterBranchPath)
 
                         subject(branchiri) {
@@ -56,17 +57,15 @@ class BranchRead : RefAny() {
         }
 
         "create from committed master then get all branches" {
-            val update = commitModel(masterBranchPath, """
-                insert data { 
-                    <urn:mms:s> <urn:mms:p> 5 .
-                }
-            """.trimIndent())
-
-            val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-
-            withTest {
+            testApplication {
+                val update = commitModel(masterBranchPath, """
+                    insert data { 
+                        <urn:mms:s> <urn:mms:p> 5 .
+                    }
+                    """.trimIndent())
+                val create = createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 httpGet("$demoRepoPath/branches") {}.apply {
-                    response includesTriples  {
+                    this includesTriples  {
                         subject(localIri(demoBranchPath)) {
                             includes(
                                 RDF.type exactly MMS.Branch,

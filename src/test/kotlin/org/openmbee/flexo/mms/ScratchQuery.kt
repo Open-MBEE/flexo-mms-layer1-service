@@ -1,8 +1,11 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldContain
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -14,27 +17,27 @@ class ScratchQuery: ScratchAny() {
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        createScratch(demoScratchPath, demoScratchName)
+        testApplication {
+            createScratch(demoScratchPath, demoScratchName)
+        }
     }
 
     init {
         "query data from scratch" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
             }
         }
 
         "query scratch with graph var" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
@@ -45,14 +48,14 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    val graphVal = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
+                    val graphVal = Json.parseToJsonElement(this.bodyAsText()).jsonObject["results"]!!
                         .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
                         .jsonPrimitive.content
 
                     graphVal shouldContain "/graphs/Scratch."
 
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri
                         )
@@ -62,9 +65,8 @@ class ScratchQuery: ScratchAny() {
         }
 
         "query scratch with from default not authorized" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 // scratch is updated??
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -75,15 +77,14 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Forbidden
+                    this shouldHaveStatus HttpStatusCode.Forbidden
                 }
             }
         }
 
         "query scratch with from named not authorized" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -96,15 +97,14 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Forbidden
+                    this shouldHaveStatus HttpStatusCode.Forbidden
                 }
             }
         }
 
         "query scratch graph not there" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -115,8 +115,8 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         varsExpect.addAll(listOf(
                             "s", "p", "o"
                         ))
@@ -126,9 +126,8 @@ class ScratchQuery: ScratchAny() {
         }
 
         "ask scratch: true" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -138,8 +137,8 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson """
                         {
                             "head": {},
                             "boolean": true
@@ -150,9 +149,8 @@ class ScratchQuery: ScratchAny() {
         }
 
         "ask scratch: false" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -162,8 +160,8 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson """
                         {
                             "head": {},
                             "boolean": false
@@ -174,9 +172,8 @@ class ScratchQuery: ScratchAny() {
         }
 
         "describe scratch explicit" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -184,8 +181,8 @@ class ScratchQuery: ScratchAny() {
                         describe :Alice
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples  {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples  {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }
@@ -195,9 +192,8 @@ class ScratchQuery: ScratchAny() {
         }
 
         "describe scratch where" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody(
                         """
@@ -209,8 +205,8 @@ class ScratchQuery: ScratchAny() {
                     """.trimIndent()
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         subjectTerse(":Rex") {
                             ignoreAll()
                         }
@@ -251,19 +247,18 @@ class ScratchQuery: ScratchAny() {
 //        }
 
         "nothing exists" {
-            withTest {
+            testApplication {
                 httpPost("/orgs/not-exists/repos/not-exists/scratches/not-exists/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "concat" {
-            updateScratch(demoScratchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -275,8 +270,8 @@ class ScratchQuery: ScratchAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "concat" to "test:Alice".bindingLit
                         )

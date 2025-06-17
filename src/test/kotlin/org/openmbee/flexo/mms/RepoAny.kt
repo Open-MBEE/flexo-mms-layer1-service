@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.kotest.core.test.TestCase
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.ResourceFactory
@@ -70,7 +71,7 @@ fun TriplesAsserter.validateRepoTriplesWithMasterBranch(
 
 // validates response triples for a newly created repo
 fun TriplesAsserter.validateCreatedRepoTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     repoId: String,
     repoName: String,
     orgPath: String,
@@ -128,11 +129,12 @@ open class RepoAny : OrgAny() {
     // create an org before each repo test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-
-        // create base orgs for repo test
-        createOrg(demoOrgId, demoOrgName)
-        createOrg(fooOrgId, fooOrgName)
-        createOrg(barOrgId, barOrgName)
+        testApplication {
+            // create base orgs for repo test
+            createOrg(demoOrgId, demoOrgName)
+            createOrg(fooOrgId, fooOrgName)
+            createOrg(barOrgId, barOrgName)
+        }
     }
 
     //
