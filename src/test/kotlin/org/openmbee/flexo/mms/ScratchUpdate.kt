@@ -1,7 +1,9 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.flexo.mms.util.*
 
@@ -9,17 +11,19 @@ class ScratchUpdate: ScratchAny() {
     // create a scratch before each test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        createScratch(demoScratchPath, demoScratchName)
+        testApplication {
+            createScratch(demoScratchPath, demoScratchName)
+        }
     }
     init {
         "insert data" {
             val updateBody = mutableListOf(insertAliceRex, insertBobFluffy).joinToString(";\n")
-            withTest {
+            testApplication {
                 httpPost("$demoScratchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }
                 httpGet("$demoScratchPath/graph") {}.apply {
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         val people = demoPrefixes.get("")
                         subject("${people}Alice") {
                             ignoreAll()
@@ -78,14 +82,14 @@ class ScratchUpdate: ScratchAny() {
                     }
                 """.trimIndent()
             ).joinToString(";\n")
-            withTest {
+            testApplication {
                 httpPost("$demoScratchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
                 httpGet("$demoScratchPath/graph") {}.apply {
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subject("urn:these") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:more") exactly ResourceFactory.createResource("urn:inserts"))
                         }
@@ -98,20 +102,20 @@ class ScratchUpdate: ScratchAny() {
         }
 
         "update on non-empty scratch" {
-            updateScratch(demoScratchPath, insertAliceRex)
             val updateBody = """
                 insert data {
                     <urn:this> <urn:is> <urn:inserted> .
                 }
             """.trimIndent()
-            withTest {
+            testApplication {
+                updateScratch(demoScratchPath, insertAliceRex)
                 httpPost("$demoScratchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
                 httpGet("$demoScratchPath/graph") {}.apply {
-                    response.includesTriples {
+                    this.includesTriples {
                         subject("urn:this") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
                         }
@@ -134,14 +138,14 @@ class ScratchUpdate: ScratchAny() {
                     <urn:this> <urn:is> <urn:inserted> .
                 }
             """.trimIndent()
-            withTest {
+            testApplication {
                 httpPost("$demoScratchPath/update") {
                     setSparqlUpdateBody(updateBody)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
                 httpGet("$demoScratchPath/graph") {}.apply {
-                    response.includesTriples {
+                    this.includesTriples {
                         subject("urn:this") {
                             exclusivelyHas(ResourceFactory.createProperty("urn:is") exactly ResourceFactory.createResource("urn:inserted"))
                         }

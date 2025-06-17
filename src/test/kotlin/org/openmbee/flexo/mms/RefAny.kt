@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms
 
 import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
@@ -34,12 +35,14 @@ open class RefAny : RepoAny() {
     // create a repo before each branch test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).response.headers[HttpHeaders.ETag]!!
+        testApplication {
+            repoEtag = createRepo(demoOrgPath, demoRepoId, demoRepoName).headers[HttpHeaders.ETag]!!
+        }
     }
 
-    fun TestApplicationCall.validateCreateBranchResponse(fromCommit: String) {
+    suspend fun HttpResponse.validateCreateBranchResponse(fromCommit: String) {
         // branch-specific validation
-        response exclusivelyHasTriples {
+        this exclusivelyHasTriples {
             modelName = "CreateBranch"
 
             subject(localIri(demoBranchPath)) {
@@ -47,7 +50,7 @@ open class RefAny : RepoAny() {
                     RDF.type exactly MMS.Branch,
                     MMS.id exactly demoBranchId,
                     DCTerms.title exactly demoBranchName.en,
-                    MMS.etag exactly response.headers[HttpHeaders.ETag]!!,
+                    MMS.etag exactly headers[HttpHeaders.ETag]!!,
                     MMS.commit startsWith localIri("$demoCommitsPath/").iri,  // TODO: incorporate fromCommit ?
                     MMS.createdBy exactly userIri("root").iri,
                     MMS.created startsWith ""

@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.ktor.client.statement.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.DCTerms
@@ -8,7 +9,7 @@ import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 
 fun TriplesAsserter.validateOrgTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     orgId: String,
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()
@@ -31,7 +32,7 @@ fun TriplesAsserter.validateOrgTriples(
 }
 
 fun TriplesAsserter.validateCreatedOrgTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     orgId: String,
     orgName: String,
     extraPatterns: List<PairPattern> = listOf()

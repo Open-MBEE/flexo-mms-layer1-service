@@ -2,145 +2,104 @@ package org.openmbee.flexo.mms.util
 
 import io.ktor.client.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.*
 import java.net.URLEncoder
 
-
-fun createOrg(orgId: String, orgName: String): TestApplicationCall {
-    return withTest {
-        httpPut("/orgs/$orgId") {
-            setTurtleBody("""
-                <> dct:title "$orgName"@en .
-            """.trimIndent())
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-
-            // assert it exists
-            httpGet("/orgs/$orgId") {}.apply {
-                response shouldHaveStatus 200
-            }
-        }
+suspend fun ApplicationTestBuilder.createOrg(orgId: String, orgName: String): HttpResponse {
+    val response = httpPut("/orgs/$orgId") {
+        setTurtleBody("""
+            <> dct:title "$orgName"@en .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-fun createRepo(orgPath: String, repoId: String, repoName: String): TestApplicationCall {
-    return withTest {
-        httpPut("$orgPath/repos/$repoId") {
-            setTurtleBody("""
-                <> dct:title "$repoName"@en .
-            """.trimIndent())
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-
-            // assert it exists
-            httpGet("/$orgPath/repos/$repoId") {}.apply {
-                response shouldHaveStatus 200
-            }
-        }
+suspend fun ApplicationTestBuilder.createRepo(orgPath: String, repoId: String, repoName: String): HttpResponse {
+    val response = httpPut("$orgPath/repos/$repoId") {
+        setTurtleBody("""
+            <> dct:title "$repoName"@en .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-// Creates an empty scratch
-fun createScratch(path: String, scratchName: String): TestApplicationCall {
-    return withTest {
-        httpPut(path) {
-            setTurtleBody("""
-                <> dct:title "$scratchName"@en .
-            """)
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-
-            // assert it exists
-            httpGet(path) {}.apply {
-                response shouldHaveStatus 200
-            }
-        }
+suspend fun ApplicationTestBuilder.createScratch(path: String, scratchName: String): HttpResponse {
+    val response = httpPut(path) {
+        setTurtleBody("""
+            <> dct:title "$scratchName"@en .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-fun createBranch(repoPath: String, refId: String, branchId: String, branchName: String): TestApplicationCall {
-    return withTest {
-        httpPut("$repoPath/branches/$branchId") {
-            setTurtleBody("""
-                <> dct:title "$branchName"@en .
-                <> mms:ref <./$refId> .
-            """.trimIndent())
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-
-            // assert it exists
-            httpGet("/$repoPath/branches/$branchId") {}.apply {
-                this.response shouldHaveStatus 200
-            }
-        }
+suspend fun ApplicationTestBuilder.createBranch(repoPath: String, refId: String, branchId: String, branchName: String): HttpResponse {
+    val response = httpPut("$repoPath/branches/$branchId") {
+        setTurtleBody("""
+            <> dct:title "$branchName"@en .
+            <> mms:ref <./$refId> .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-fun createLock(repoPath: String, refPath: String, lockId: String): TestApplicationCall {
-    return withTest {
-        httpPut("$repoPath/locks/$lockId") {
-            setTurtleBody("""
-                <> mms:ref <$refPath> .
-            """.trimIndent())
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-        }
+suspend fun ApplicationTestBuilder.createLock(repoPath: String, refPath: String, lockId: String): HttpResponse {
+    val response = httpPut("$repoPath/locks/$lockId") {
+        setTurtleBody("""
+           <> mms:ref <$refPath> .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-fun createGroup(groupId: String, groupTitle: String): TestApplicationCall {
-    return withTest {
-        httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
-            setTurtleBody("""
-                <> dct:title "${groupTitle}"@en .
-            """.trimIndent())
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-        }
+suspend fun ApplicationTestBuilder.createGroup(groupId: String, groupTitle: String): HttpResponse {
+    val response = httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
+        setTurtleBody("""
+           <> dct:title "${groupTitle}"@en .
+        """.trimIndent())
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-// For inserting things into already created scratches, sparql should be a query
-fun updateScratch(scratchPath: String, sparql: String): TestApplicationCall {
-    return withTest {
-        httpPost("$scratchPath/update") {
-            setSparqlUpdateBody(sparql)
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
-        }
+suspend fun ApplicationTestBuilder.updateScratch(scratchPath: String, sparql: String): HttpResponse {
+    val response = httpPost("$scratchPath/update") {
+        setSparqlUpdateBody(sparql)
     }
+    response shouldHaveStatus HttpStatusCode.OK
+    return response
 }
 
-fun commitModel(refPath: String, sparql: String):  TestApplicationCall {
-    return withTest {
-        httpPost("$refPath/update") {
-            setSparqlUpdateBody(sparql)
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.Created
-        }
+suspend fun ApplicationTestBuilder.commitModel(refPath: String, sparql: String): HttpResponse {
+    val response = httpPost("$refPath/update") {
+        setSparqlUpdateBody(sparql)
     }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
 }
 
-fun loadModel(refPath: String, turtle: String): TestApplicationCall {
-    return withTest {
-        httpPut("$refPath/graph") {
-            setTurtleBody(turtle)
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.OK
-        }
+suspend fun ApplicationTestBuilder.loadModel(refPath: String, turtle: String): HttpResponse {
+    val response = httpPut("$refPath/graph") {
+        setTurtleBody(turtle)
     }
+    response shouldHaveStatus HttpStatusCode.OK
+    return response
 }
 
-fun loadScratch(scratchPath: String, turtle: String): TestApplicationCall {
-    return withTest {
-        httpPut("$scratchPath/graph") {
-            setTurtleBody(turtle)
-        }.apply {
-            response shouldHaveStatus HttpStatusCode.NoContent
-        }
+suspend fun ApplicationTestBuilder.loadScratch(scratchPath: String, turtle: String): HttpResponse {
+    val response = httpPut("$scratchPath/graph") {
+        setTurtleBody(turtle)
     }
+    response shouldHaveStatus HttpStatusCode.NoContent
+    return response
 }
 
 fun includePrefixes(vararg prefixKeys: String, extraSetup: (PrefixMapBuilder.() -> Unit)?=null): String {

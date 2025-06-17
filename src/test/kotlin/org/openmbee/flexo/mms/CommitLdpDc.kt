@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
 
@@ -21,7 +22,7 @@ class CommitLdpDc : CommitAny() {
                     insert data { <urn:some1> <urn:thing1> <urn:here1> . }
                 """.trimIndent())}
             ) { bundle ->
-                if(bundle.createdOthers.isEmpty()) {
+                if (bundle.createdOthers.isEmpty()) {
                     bundle.response includesTriples {
                         validateCommitTriples(basePathCommits, bundle.createdBase.headers[HttpHeaders.Location]!!)
                     }
@@ -39,11 +40,11 @@ class CommitLdpDc : CommitAny() {
         }
 
         "commit path only allow head get and patch" {
-            val call = commitModel("$demoRepoPath/branches/master", """
+            testApplication {
+                val call = commitModel("$demoRepoPath/branches/master", """
                     insert data { <urn:some> <urn:thing> <urn:here> . }
                 """.trimIndent())
-            val path = call.response.headers[HttpHeaders.Location]!!.removePrefix(ROOT_CONTEXT)
-            withTest {
+                val path = call.headers[HttpHeaders.Location]!!.removePrefix(ROOT_CONTEXT)
                 onlyAllowsMethods(path, setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,
@@ -53,7 +54,7 @@ class CommitLdpDc : CommitAny() {
         }
 
         "base path only allow head get" {
-            withTest {
+            testApplication {
                 onlyAllowsMethods(basePathCommits, setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,

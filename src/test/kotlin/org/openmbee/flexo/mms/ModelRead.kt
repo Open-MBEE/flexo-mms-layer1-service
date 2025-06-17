@@ -1,5 +1,8 @@
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.shouldBe
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.ModelAny
 import org.openmbee.flexo.mms.util.*
 
@@ -10,34 +13,32 @@ class ModelRead : ModelAny() {
             "get"
         ).forEach { method ->
             "$method non-existent model graph" {
-                withTest {
+                testApplication {
                     httpRequest(HttpMethod(method.uppercase()), "$demoLockPath/graph") {
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.NotFound
+                        this shouldHaveStatus HttpStatusCode.NotFound
                     }
                 }
             }
         }
 
         "head branch graph" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpHead("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 //                    response.content shouldBe null
                 }
             }
         }
 
         "get branch graph" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpGet("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }
@@ -51,26 +52,24 @@ class ModelRead : ModelAny() {
         }
 
         "head lock graph" {
-            loadModel(masterBranchPath, loadAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpHead("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.content shouldBe null
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.bodyAsText() shouldBe ""
                 }
             }
         }
 
         "get lock graph" {
-            loadModel(masterBranchPath, loadAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpGet("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }

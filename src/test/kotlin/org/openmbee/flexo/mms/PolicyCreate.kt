@@ -1,7 +1,9 @@
 package org.openmbee.flexo.mms
 
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.rdf.model.Resource
@@ -12,7 +14,7 @@ import org.slf4j.LoggerFactory
 
 
 fun TriplesAsserter.validatePolicyTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     policyId: String,
     subjectPath: String,
     scopePath: String,
@@ -36,7 +38,7 @@ fun TriplesAsserter.validatePolicyTriples(
 }
 
 fun TriplesAsserter.validateCreatedPolicyTriples(
-    createResponse: TestApplicationResponse,
+    createResponse: HttpResponse,
     policyId: String,
     subjectPath: String,
     scopePath: String,
@@ -63,7 +65,7 @@ fun TriplesAsserter.validateCreatedPolicyTriples(
 }
 
 class PolicyCreate : CommonSpec() {
-    open val logger = LoggerFactory.getLogger(PolicyCreate::class.java)
+    val logger = LoggerFactory.getLogger(PolicyCreate::class.java)
 
     val policyId = "TestPolicy"
     val policyPath = "/policies/$policyId"
@@ -83,12 +85,12 @@ class PolicyCreate : CommonSpec() {
     """.trimIndent()
 
     init {
-        "reject invalid policy id".config(tags=setOf(NoAuth)) {
-            withTest {
-                httpPut("$policyPath with invalid id") {
+        "reject invalid policy id" {
+            testApplication {
+                httpPut("$policyPath with invalid id", true) {
                     setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
@@ -97,32 +99,32 @@ class PolicyCreate : CommonSpec() {
             "rdf:type" to "mms:NotPolicy",
             "mms:id" to "\"not-$policyId\"",
         ).forEach { (pred, obj) ->
-            "reject wrong $pred".config(tags=setOf(NoAuth)) {
-                withTest {
-                    httpPut(policyPath) {
+            "reject wrong $pred" {
+                testApplication {
+                    httpPut(policyPath, true) {
                         setTurtleBody(withAllTestPrefixes("""
                             $validPolicyBody
                             <> $pred $obj .
                         """.trimIndent()))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.BadRequest
+                        this shouldHaveStatus HttpStatusCode.BadRequest
                     }
                 }
             }
         }
 
-        "create valid policy".config(tags=setOf(NoAuth)) {
-            withTest {
-                httpPut(policyPath) {
+        "create valid policy" {
+            testApplication {
+                httpPut(policyPath, true) {
                     setTurtleBody(withAllTestPrefixes(validPolicyBody))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.ETag].shouldNotBeBlank()
 
-                    response exclusivelyHasTriples {
-                        modelName = it
+                    this exclusivelyHasTriples {
+                        modelName = "create valid policty"
 
-                        validateCreatedPolicyTriples(response, policyId, testUserPath, clusterScopePath, testRoleNodes)
+                        validateCreatedPolicyTriples(this@apply, policyId, testUserPath, clusterScopePath, testRoleNodes)
                     }
                 }
             }

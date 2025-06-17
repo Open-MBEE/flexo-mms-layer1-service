@@ -1,9 +1,13 @@
 package org.openmbee.flexo.mms
 
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.shouldBe
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.request.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
 class LockRead : LockAny() {
@@ -15,37 +19,35 @@ class LockRead : LockAny() {
 //            "delete",
         ).forEach { method ->
             "$method non-existent lock" {
-                withTest {
+                testApplication {
                     httpRequest(HttpMethod(method.uppercase()), demoLockPath) {
                         // PATCH request
-                        if(method == "patch") {
-                            addHeader("Content-Type", RdfContentTypes.Turtle.toString())
+                        if (method == "patch") {
+                            header("Content-Type", RdfContentTypes.Turtle.toString())
                         }
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.NotFound
+                        this shouldHaveStatus HttpStatusCode.NotFound
                     }
                 }
             }
         }
 
         "head valid lock" {
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpHead(demoLockPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.content.shouldBe(null)
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.bodyAsText().shouldBe("")
                 }
             }
         }
 
         "get valid lock" {
-            val etag = createLock(demoRepoPath, masterBranchPath, demoLockId).response.headers[HttpHeaders.ETag]
-
-            withTest {
+            testApplication {
+                val etag = createLock(demoRepoPath, masterBranchPath, demoLockId).headers[HttpHeaders.ETag]
                 httpGet(demoLockPath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         validateLockTriples(demoLockId, etag!!)
                     }
                 }
@@ -53,7 +55,7 @@ class LockRead : LockAny() {
         }
 
         "lock other methods not allowed" {
-            withTest {
+            testApplication {
                 onlyAllowsMethods(demoLockPath, setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,
@@ -65,23 +67,21 @@ class LockRead : LockAny() {
         }
 
         "head all locks" {
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpHead("$demoRepoPath/locks") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.content.shouldBe(null)
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.bodyAsText().shouldBe("")
                 }
             }
         }
 
         "get all locks" {
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpGet("$demoRepoPath/locks") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         validateLockTriples(demoLockId)
                     }
                 }
@@ -89,7 +89,7 @@ class LockRead : LockAny() {
         }
 
         "all locks other methods not allowed" {
-            withTest {
+            testApplication {
                 onlyAllowsMethods("$demoRepoPath/locks", setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,

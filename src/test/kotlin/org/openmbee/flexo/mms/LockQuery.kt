@@ -1,7 +1,10 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldContain
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -11,10 +14,9 @@ import org.openmbee.flexo.mms.util.*
 class LockQuery : LockAny() {
     init {
         "query lock" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?o {
@@ -22,8 +24,8 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "o" to "urn:mms:o".bindingUri
                         )
@@ -33,10 +35,9 @@ class LockQuery : LockAny() {
         }
 
         "query lock with graph var" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         select ?g ?o {
@@ -46,14 +47,14 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    val graphVal = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
+                    val graphVal = Json.parseToJsonElement(this.bodyAsText()).jsonObject["results"]!!
                         .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
                         .jsonPrimitive.content;
 
                     graphVal shouldContain "/graphs/Model."
 
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri,
                             "o" to "urn:mms:o".bindingUri
@@ -64,10 +65,9 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: true" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
@@ -75,8 +75,8 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson  """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
                             "boolean": true
@@ -87,10 +87,9 @@ class LockQuery : LockAny() {
         }
 
         "ask lock: false" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         ask {
@@ -98,8 +97,8 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson  """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson  """
                         {
                             "head": {},
                             "boolean": false
@@ -110,17 +109,16 @@ class LockQuery : LockAny() {
         }
 
         "describe lock explicit" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe <urn:mms:s>
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
                         }
@@ -130,10 +128,9 @@ class LockQuery : LockAny() {
         }
 
         "describe lock where" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         describe ?s {
@@ -141,8 +138,8 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         subject("urn:mms:s") {
                             ignoreAll()
                         }
@@ -152,10 +149,11 @@ class LockQuery : LockAny() {
         }
 
         "construct lock" {
-            commitModel(masterBranchPath, insertLock)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
 
-            withTest {
+
+            testApplication {
+                commitModel(masterBranchPath, insertLock)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody("""
                         construct {
@@ -165,8 +163,8 @@ class LockQuery : LockAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response exclusivelyHasTriples  {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this exclusivelyHasTriples  {
                         subject("urn:mms:o") {
                             exclusivelyHas(
                                 "urn:mms:p".toPredicate exactly "urn:mms:s".iri
@@ -178,7 +176,7 @@ class LockQuery : LockAny() {
         }
 
         "nothing exists" {
-            withTest {
+            testApplication {
                 httpPost("/orgs/not-exists/repos/not-exists/locks/not-exists/query") {
                     setSparqlQueryBody("""
                         select ?o {
@@ -186,7 +184,7 @@ class LockQuery : LockAny() {
                         }
                     """)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
