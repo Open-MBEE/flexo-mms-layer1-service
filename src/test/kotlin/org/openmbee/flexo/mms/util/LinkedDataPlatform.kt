@@ -129,9 +129,9 @@ class LinkedDataPlatformDirectContainerTests(
     fun CommonSpec.create(validator: (TriplesAsserter.(HttpResponse, String) -> Unit)?=null) {
         // POST to the resource container
         basePath.let {
-            "POST $it - allow missing slug".config(tags = setOf(NoAuth)) {
+            "POST $it - allow missing slug" {
                 testApplication {
-                    httpPost(basePath) {
+                    httpPost(basePath, true) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
@@ -140,9 +140,9 @@ class LinkedDataPlatformDirectContainerTests(
                 }
             }
 
-            "POST $it - reject invalid id".config(tags = setOf(NoAuth)) {
+            "POST $it - reject invalid id" {
                 testApplication {
-                    httpPost(basePath) {
+                    httpPost(basePath, true) {
                         // use Slug header to define new resource id
                         header(HttpHeaders.SLUG, "test with invalid id")
 
@@ -156,9 +156,9 @@ class LinkedDataPlatformDirectContainerTests(
 
             // conflicting preconditions
             CONFLICTING_PRECONDITIONS.forEachIndexed { index, preconditions ->
-                "POST $it - reject conflicting preconditions #${index+1}".config(tags=setOf(NoAuth)) {
+                "POST $it - reject conflicting preconditions #${index+1}" {
                     testApplication {
-                        httpPost(basePath) {
+                        httpPost(basePath, true) {
                             preconditions.forEach {
                                 header(it.key, it.value)
                             }
@@ -175,9 +175,9 @@ class LinkedDataPlatformDirectContainerTests(
                 }
             }
 
-            "POST $it - reject precondition: if-none-match star".config(tags = setOf(NoAuth)) {
+            "POST $it - reject precondition: if-none-match star" {
                 testApplication {
-                    httpPost(basePath) {
+                    httpPost(basePath, true) {
                         header(HttpHeaders.IfNoneMatch, "*")
 
                         // use Slug header to define new resource id
@@ -208,9 +208,9 @@ class LinkedDataPlatformDirectContainerTests(
 
         // PUT to a specific resource
         run {
-            "PUT $resourcePath - reject invalid id".config(tags = setOf(NoAuth)) {
+            "PUT $resourcePath - reject invalid id" {
                 testApplication {
-                    httpPut("$basePath/test with invalid id") {
+                    httpPut("$basePath/test with invalid id", true) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
@@ -220,9 +220,9 @@ class LinkedDataPlatformDirectContainerTests(
             }
 
             EXHAUSTIVE_PRECONDITIONS.forEach { preconditions ->
-                "PUT $resourcePath - reject failed precondition: if-match $preconditions".config(tags = setOf(NoAuth)) {
+                "PUT $resourcePath - reject failed precondition: if-match $preconditions" {
                     testApplication {
-                        httpPut(resourcePath) {
+                        httpPut(resourcePath, true) {
                             header(HttpHeaders.IfMatch, preconditions)
 
                             // set valid turtle body for creating new resource
@@ -236,9 +236,9 @@ class LinkedDataPlatformDirectContainerTests(
 
             // conflicting preconditions
             CONFLICTING_PRECONDITIONS.forEachIndexed { index, preconditions ->
-                "PUT $resourcePath - reject conflicting preconditions #${index + 1}".config(tags = setOf(NoAuth)) {
+                "PUT $resourcePath - reject conflicting preconditions #${index + 1}" {
                     testApplication {
-                        httpPut(resourcePath) {
+                        httpPut(resourcePath, true) {
                             preconditions.forEach {
                                 header(it.key, it.value)
                             }
@@ -287,9 +287,9 @@ class LinkedDataPlatformDirectContainerTests(
     fun CommonSpec.postWithPrecondition(
         validation: suspend (HttpResponse.(testName: String) -> Unit)
     ) {
-        "POST $basePath - with precondition: if-match star".config(tags = setOf(NoAuth)) {
+        "POST $basePath - with precondition: if-match star" {
             testApplication {
-                httpPost(basePath) {
+                httpPost(basePath, true) {
                     header(HttpHeaders.IfMatch, "*")
 
                     // use Slug header to define new resource id
