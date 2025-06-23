@@ -2,9 +2,11 @@ package org.openmbee.flexo.mms.util
 
 import io.kotest.assertions.fail
 import io.kotest.assertions.json.shouldBeJsonObject
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.*
@@ -91,14 +93,14 @@ class JsonAsserter(json: JsonElement, var resultsName: String="Unnamed") {
     }
 }
 
-infix fun TestApplicationResponse.equalsSparqlResults(build: JsonAsserter.() -> Unit) {
+suspend infix fun HttpResponse.equalsSparqlResults(build: JsonAsserter.() -> Unit) {
     this shouldHaveStatus HttpStatusCode.OK
 
     // assert content-type header (ignore charset if present)
     this.headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.SparqlResultsJson.contentType)
 
     // load str
-    val jsonStr = this.content.toString()
+    val jsonStr = bodyAsText()
 
     // json object
     jsonStr.shouldBeJsonObject()

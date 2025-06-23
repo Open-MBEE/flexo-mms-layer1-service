@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.ktor.client.statement.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
@@ -15,8 +16,7 @@ class ScratchLdpDc: ScratchAny() {
             """.trimIndent()),
             resourceCreator = { createScratch(demoScratchPath, demoScratchName) }
         ) {
-            // FIXME this function needs rewriting - done?
-            fun TriplesAsserter.validCreatedScratch(response: TestApplicationResponse, slug: String) {
+            fun TriplesAsserter.validCreatedScratch(response: HttpResponse, slug: String) {
                 modelName = "CreateValidScratch"
 
                 validateCreatedScratchTriples(response, slug, demoRepoId, demoOrgId, demoScratchName, listOf(

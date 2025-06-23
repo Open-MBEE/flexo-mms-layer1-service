@@ -1,8 +1,12 @@
 package org.openmbee.flexo.mms.util
 
+import io.kotest.assertions.ktor.client.shouldHaveHeader
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.sparql.vocabulary.FOAF
@@ -41,24 +45,24 @@ val PATCH_INSERT_TRIPLES = "<> foaf:homepage <https://www.openmbee.org/> ."
  * Bundles responses for when resources get created in tests
  */
 data class TestApplicationCreatedResponseBundle(
-    val response: TestApplicationResponse,
-    val createdBase: TestApplicationResponse,
-    val createdOthers: List<TestApplicationResponse> = listOf(),
+    val response: HttpResponse,
+    val createdBase: HttpResponse,
+    val createdOthers: List<HttpResponse> = listOf(),
 )
 
 class LinkedDataPlatformDirectContainerTests(
     val basePath: String,
     var resourceId: String,
     var validBodyForCreate: String = "",
-    val resourceCreator: () -> TestApplicationCall,
+    val resourceCreator: suspend ApplicationTestBuilder.() -> HttpResponse,
     val useCreatorLocationForResource: Boolean = false,
     body: LinkedDataPlatformDirectContainerTests.() -> Unit
 ) {
     var resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
 
-    fun setResource(call: TestApplicationCall) {
+    fun setResource(call: HttpResponse) {
         if (useCreatorLocationForResource) {
-            resourceId = call.response.headers[HttpHeaders.Location]!!.removePrefix("$ROOT_CONTEXT$basePath/")
+            resourceId = call.headers[HttpHeaders.Location]!!.removePrefix("$ROOT_CONTEXT$basePath/")
             resourcePath = "$basePath/${URLEncoder.encode(resourceId, "UTF-8")}"
         }
     }
@@ -68,25 +72,25 @@ class LinkedDataPlatformDirectContainerTests(
     }
 
     // overloaded version of below
-    fun TestApplicationCall.validateCreatedLdpResource(
+    suspend fun HttpResponse.validateCreatedLdpResource(
         testName: String,
-        validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null,
+        validator: (TriplesAsserter.(HttpResponse, String) -> Unit)?=null,
     ) {
         validateCreatedLdpResource(testName, validator, false)
     }
 
-    fun TestApplicationCall.validateCreatedLdpResource(
+    suspend fun HttpResponse.validateCreatedLdpResource(
         testName: String,
-        validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null,
+        validator: (TriplesAsserter.(HttpResponse, String) -> Unit)?=null,
         slugWasOmitted: Boolean?=false
     ) {
         // LDP 4.2.1.3 - Etag
         withClue("Expected created LDP resource to return ETag header") {
-            response.headers[HttpHeaders.ETag].shouldNotBeBlank()
+            this.headers[HttpHeaders.ETag].shouldNotBeBlank()
         }
 
         // LDP 5.2.3.1 - Location header points to new resource
-        val location = response.headers[HttpHeaders.Location]
+        val location = this.headers[HttpHeaders.Location]
         withClue("Expected created LDP resource to return Location header") {
             location.shouldNotBeBlank()
         }
@@ -111,23 +115,23 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         // LDP 5.2.3.1 - response with status code 201; body is not required by LDP
-        response shouldHaveStatus HttpStatusCode.Created
-        response.exclusivelyHasTriples {
+        this shouldHaveStatus HttpStatusCode.Created
+        this exclusivelyHasTriples {
             modelName = testName
 
-            validator?.invoke(this, response, slug)
+            validator?.invoke(this, this@validateCreatedLdpResource, slug)
         }
     }
 
     /**
      * Checks that the LDP direct container responds correctly to various create calls
      */
-    fun CommonSpec.create(validator: (TriplesAsserter.(TestApplicationResponse, String) -> Unit)?=null) {
+    fun CommonSpec.create(validator: (TriplesAsserter.(HttpResponse, String) -> Unit)?=null) {
         // POST to the resource container
         basePath.let {
-            "POST $it - allow missing slug".config(tags = setOf(NoAuth)) {
-                withTest {
-                    httpPost(basePath) {
+            "POST $it - allow missing slug" {
+                testApplication {
+                    httpPost(basePath, true) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
@@ -136,62 +140,62 @@ class LinkedDataPlatformDirectContainerTests(
                 }
             }
 
-            "POST $it - reject invalid id".config(tags = setOf(NoAuth)) {
-                withTest {
-                    httpPost(basePath) {
+            "POST $it - reject invalid id" {
+                testApplication {
+                    httpPost(basePath, true) {
                         // use Slug header to define new resource id
-                        addHeader(HttpHeaders.SLUG, "test with invalid id")
+                        header(HttpHeaders.SLUG, "test with invalid id")
 
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.BadRequest
+                        this shouldHaveStatus HttpStatusCode.BadRequest
                     }
                 }
             }
 
             // conflicting preconditions
             CONFLICTING_PRECONDITIONS.forEachIndexed { index, preconditions ->
-                "POST $it - reject conflicting preconditions #${index+1}".config(tags=setOf(NoAuth)) {
-                    withTest {
-                        httpPost(basePath) {
+                "POST $it - reject conflicting preconditions #${index+1}" {
+                    testApplication {
+                        httpPost(basePath, true) {
                             preconditions.forEach {
-                                addHeader(it.key, it.value)
+                                header(it.key, it.value)
                             }
 
                             // use Slug header to define new resource id
-                            addHeader(HttpHeaders.SLUG, resourceId)
+                            header(HttpHeaders.SLUG, resourceId)
 
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                            response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                            this shouldHaveStatus HttpStatusCode.PreconditionFailed
                         }
                     }
                 }
             }
 
-            "POST $it - reject precondition: if-none-match star".config(tags = setOf(NoAuth)) {
-                withTest {
-                    httpPost(basePath) {
-                        addHeader(HttpHeaders.IfNoneMatch, "*")
+            "POST $it - reject precondition: if-none-match star" {
+                testApplication {
+                    httpPost(basePath, true) {
+                        header(HttpHeaders.IfNoneMatch, "*")
 
                         // use Slug header to define new resource id
-                        addHeader(HttpHeaders.SLUG, resourceId)
+                        header(HttpHeaders.SLUG, resourceId)
 
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                        this shouldHaveStatus HttpStatusCode.PreconditionFailed
                     }
                 }
             }
 
             "POST $it - create valid" {
-                withTest {
+                testApplication {
                     httpPost(basePath) {
                         // use Slug header to define new resource id
-                        addHeader(HttpHeaders.SLUG, resourceId)
+                        header(HttpHeaders.SLUG, resourceId)
 
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
@@ -204,27 +208,27 @@ class LinkedDataPlatformDirectContainerTests(
 
         // PUT to a specific resource
         run {
-            "PUT $resourcePath - reject invalid id".config(tags = setOf(NoAuth)) {
-                withTest {
-                    httpPut("$basePath/test with invalid id") {
+            "PUT $resourcePath - reject invalid id" {
+                testApplication {
+                    httpPut("$basePath/test with invalid id", true) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.BadRequest
+                        this shouldHaveStatus HttpStatusCode.BadRequest
                     }
                 }
             }
 
             EXHAUSTIVE_PRECONDITIONS.forEach { preconditions ->
-                "PUT $resourcePath - reject failed precondition: if-match $preconditions".config(tags = setOf(NoAuth)) {
-                    withTest {
-                        httpPut(resourcePath) {
-                            addHeader(HttpHeaders.IfMatch, preconditions)
+                "PUT $resourcePath - reject failed precondition: if-match $preconditions" {
+                    testApplication {
+                        httpPut(resourcePath, true) {
+                            header(HttpHeaders.IfMatch, preconditions)
 
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                            response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                            this shouldHaveStatus HttpStatusCode.PreconditionFailed
                         }
                     }
                 }
@@ -232,29 +236,29 @@ class LinkedDataPlatformDirectContainerTests(
 
             // conflicting preconditions
             CONFLICTING_PRECONDITIONS.forEachIndexed { index, preconditions ->
-                "PUT $resourcePath - reject conflicting preconditions #${index + 1}".config(tags = setOf(NoAuth)) {
-                    withTest {
-                        httpPut(resourcePath) {
+                "PUT $resourcePath - reject conflicting preconditions #${index + 1}" {
+                    testApplication {
+                        httpPut(resourcePath, true) {
                             preconditions.forEach {
-                                addHeader(it.key, it.value)
+                                header(it.key, it.value)
                             }
 
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                            response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                            this shouldHaveStatus HttpStatusCode.PreconditionFailed
                         }
                     }
                 }
             }
 
             "PUT $resourcePath - create valid" {
-                withTest {
+                testApplication {
                     httpPut(resourcePath) {
                         // set valid turtle body for creating new resource
                         setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                     }.apply {
-                        validateCreatedLdpResource(it, validator)
+                        validateCreatedLdpResource("PUT $resourcePath - create valid", validator)
                     }
                 }
             }
@@ -262,14 +266,14 @@ class LinkedDataPlatformDirectContainerTests(
 
             EXHAUSTIVE_PRECONDITIONS.forEach { preconditions ->
                 "PUT $resourcePath - create valid with precondition: if-none-match $preconditions" {
-                    withTest {
+                    testApplication {
                         httpPut(resourcePath) {
-                            addHeader(HttpHeaders.IfNoneMatch, preconditions)
+                            header(HttpHeaders.IfNoneMatch, preconditions)
 
                             // set valid turtle body for creating new resource
                             setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                         }.apply {
-                            validateCreatedLdpResource(it, validator)
+                            validateCreatedLdpResource("PUT $resourcePath - create valid with precondition: if-none-match $preconditions", validator)
                         }
                     }
                 }
@@ -281,20 +285,20 @@ class LinkedDataPlatformDirectContainerTests(
      * Checks that the LDP direct container responds correctly to POST'ing with precondition
      */
     fun CommonSpec.postWithPrecondition(
-        validation: (TestApplicationCall.(testName: String) -> Unit)
+        validation: suspend (HttpResponse.(testName: String) -> Unit)
     ) {
-        "POST $basePath - with precondition: if-match star".config(tags = setOf(NoAuth)) {
-            withTest {
-                httpPost(basePath) {
-                    addHeader(HttpHeaders.IfMatch, "*")
+        "POST $basePath - with precondition: if-match star" {
+            testApplication {
+                httpPost(basePath, true) {
+                    header(HttpHeaders.IfMatch, "*")
 
                     // use Slug header to define new resource id
-                    addHeader(HttpHeaders.SLUG, resourceId)
+                    header(HttpHeaders.SLUG, resourceId)
 
                     // set valid turtle body for creating new resource
                     setTurtleBody(withAllTestPrefixes(validBodyForCreate))
                 }.apply {
-                    validation(it)
+                    validation("POST $basePath - with precondition: if-match star")
                 }
             }
         }
@@ -304,145 +308,145 @@ class LinkedDataPlatformDirectContainerTests(
      * Checks that the LDP direct container responds correctly to various read calls
      */
     fun CommonSpec.read(
-        vararg creators: () -> TestApplicationCall,
-        validator: ((TestApplicationCreatedResponseBundle) -> Unit)
+        vararg creators: suspend ApplicationTestBuilder.() -> HttpResponse,
+        validator: suspend ((TestApplicationCreatedResponseBundle) -> Unit)
     ) {
         "HEAD $basePath - empty" {
-            withTest {
+            testApplication {
                 httpHead(basePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.headers["ETag"].shouldNotBeBlank()
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.headers["ETag"].shouldNotBeBlank()
                 }
             }
         }
 
         "GET $basePath - empty" {
-            withTest {
+            testApplication {
                 httpGet(basePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.headers["ETag"].shouldNotBeBlank()
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.headers["ETag"].shouldNotBeBlank()
                 }
             }
         }
 
         "HEAD $resourcePath - non-existent" {
-            withTest {
+            testApplication {
                 httpHead(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "GET $resourcePath - non-existent" {
-            withTest {
+            testApplication {
                 httpGet(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "HEAD $resourcePath - valid" {
-            val createdBase = resourceCreator()
-            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                val etag = createdBase.headers[HttpHeaders.ETag]!!
+                setResource(createdBase)
                 httpHead(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.shouldHaveHeader(HttpHeaders.ETag, etag)
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.shouldHaveHeader(HttpHeaders.ETag, etag)
                 }
             }
         }
 
         "GET $resourcePath - valid" {
-            val createdBase = resourceCreator()
-            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                val etag = createdBase.headers[HttpHeaders.ETag]!!
+                setResource(createdBase)
                 httpGet(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.shouldHaveHeader(HttpHeaders.ETag, etag)
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.shouldHaveHeader(HttpHeaders.ETag, etag)
 
-                    validator(TestApplicationCreatedResponseBundle(response, createdBase.response))
+                    validator(TestApplicationCreatedResponseBundle(this, createdBase))
                 }
             }
         }
 
         "GET $resourcePath - if-match etag" {
-            val createdBase = resourceCreator()
-            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                val etag = createdBase.headers[HttpHeaders.ETag]!!
+                setResource(createdBase)
                 httpGet(resourcePath) {
-                    addHeader(HttpHeaders.IfMatch, "\"$etag\"")
+                    header(HttpHeaders.IfMatch, "\"$etag\"")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }
 
         "GET $resourcePath - if-match random" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpGet(resourcePath) {
-                    addHeader(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
+                    header(HttpHeaders.IfMatch, "\"${UUID.randomUUID()}\"")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                    this shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }
             }
         }
 
         "GET $resourcePath - if-none-match etag" {
-            val createdBase = resourceCreator()
-            val etag = createdBase.response.headers[HttpHeaders.ETag]!!
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                val etag = createdBase.headers[HttpHeaders.ETag]!!
+                setResource(createdBase)
                 httpGet(resourcePath) {
-                    addHeader(HttpHeaders.IfNoneMatch, "\"$etag\"")
+                    header(HttpHeaders.IfNoneMatch, "\"$etag\"")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NotModified
+                    this shouldHaveStatus HttpStatusCode.NotModified
                 }
             }
         }
 
         "GET $resourcePath - if-none-match star" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpGet(resourcePath) {
-                    addHeader(HttpHeaders.IfNoneMatch, "*")
+                    header(HttpHeaders.IfNoneMatch, "*")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NotModified
+                    this shouldHaveStatus HttpStatusCode.NotModified
                 }
             }
         }
 
         "GET $basePath - all resources" {
-            val createdBase = resourceCreator()
-            val createdOthers = creators.map { it() }
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                val createdOthers = creators.map { it() }
+                setResource(createdBase)
                 httpGet(basePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.includesTriples {
-                        modelName = it
+                    this.includesTriples {
+                        modelName = basePath
 
-                        validator(TestApplicationCreatedResponseBundle(response, createdBase.response, createdOthers.map { it.response }))
+                       //TODO validator(TestApplicationCreatedResponseBundle(this@apply, createdBase, createdOthers))
                     }
                 }
             }
         }
     }
 
-    fun CommonSpec.replaceExisting(validator: ((TestApplicationResponse) -> Unit)) {
+    fun CommonSpec.replaceExisting(validator: suspend ((HttpResponse) -> Unit)) {
         "PUT $resourcePath - replace resource" {
-            resourceCreator()
-            withTest {
+            testApplication {
+                resourceCreator()
                 httpPut(resourcePath) {
                     setTurtleBody(validBodyForCreate)
                 }.apply {
-                    validator(response)
+                    validator(this)
                 }
             }
         }
@@ -452,7 +456,7 @@ class LinkedDataPlatformDirectContainerTests(
      * Checks that the LDP direct container responds correctly to various patch calls
      */
     fun CommonSpec.patch() {
-        fun validatePatchResponse(response: TestApplicationResponse) {
+        suspend fun validatePatchResponse(response: HttpResponse) {
             response shouldHaveStatus HttpStatusCode.OK
 
             response includesTriples {
@@ -465,23 +469,23 @@ class LinkedDataPlatformDirectContainerTests(
         }
 
         "PATCH $resourcePath - Turtle: insert 1 triple unconditionally" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setTurtleBody(withAllTestPrefixes("""
                         $PATCH_INSERT_TRIPLES
                     """.trimIndent()))
                 }.apply {
-                    validatePatchResponse(response)
+                    validatePatchResponse(this)
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple unconditionally" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert data {
@@ -489,15 +493,15 @@ class LinkedDataPlatformDirectContainerTests(
                         }
                     """.trimIndent()))
                 }.apply {
-                    validatePatchResponse(response)
+                    validatePatchResponse(this)
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally passing" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
@@ -508,15 +512,15 @@ class LinkedDataPlatformDirectContainerTests(
                         }
                     """.trimIndent()))
                 }.apply {
-                    validatePatchResponse(response)
+                    validatePatchResponse(this)
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: insert 1 triple conditionally failing" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert {
@@ -527,15 +531,15 @@ class LinkedDataPlatformDirectContainerTests(
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.PreconditionFailed
+                    this shouldHaveStatus HttpStatusCode.PreconditionFailed
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete data" {
-            val createdBase = resourceCreator()     // This creates a tuple
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()     // This creates a tuple
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
                         withAllTestPrefixes("""
@@ -545,15 +549,15 @@ class LinkedDataPlatformDirectContainerTests(
                         """.trimIndent())
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert data" {
-            val createdBase = resourceCreator()
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(withAllTestPrefixes("""
                         insert data {
@@ -561,15 +565,15 @@ class LinkedDataPlatformDirectContainerTests(
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete pattern" {
-            val createdBase = resourceCreator()     // This creates a tuple
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()     // This creates a tuple
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
                         withAllTestPrefixes("""
@@ -582,15 +586,15 @@ class LinkedDataPlatformDirectContainerTests(
                         """.trimIndent())
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad insert pattern" {
-            val createdBase = resourceCreator()     // This creates a tuple
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()     // This creates a tuple
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
                         withAllTestPrefixes("""
@@ -603,15 +607,15 @@ class LinkedDataPlatformDirectContainerTests(
                         """.trimIndent())
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
 
         "PATCH $resourcePath - SPARQL UPDATE: patch branch with bad delete predicate variable" {
-            val createdBase = resourceCreator()     // This creates a tuple
-            setResource(createdBase)
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()     // This creates a tuple
+                setResource(createdBase)
                 httpPatch(resourcePath) {
                     setSparqlUpdateBody(
                         withAllTestPrefixes("""
@@ -624,7 +628,7 @@ class LinkedDataPlatformDirectContainerTests(
                         """.trimIndent())
                     )
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
@@ -636,24 +640,18 @@ class LinkedDataPlatformDirectContainerTests(
      */
     fun CommonSpec.delete() {
         "DELETE $resourcePath" {
-            val createdBase = resourceCreator()
-
-            withTest {
+            testApplication {
+                val createdBase = resourceCreator()
                 // delete resource should work
                 httpDelete(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
 
                 // get deleted resource should 404
                 httpGet(resourcePath) {}.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
     }
-}
-
-fun TriplesAsserter.validateLdpRead() {
-    // context
-
 }

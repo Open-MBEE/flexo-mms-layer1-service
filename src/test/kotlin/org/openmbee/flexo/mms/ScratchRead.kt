@@ -1,5 +1,7 @@
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.ScratchAny
 import org.openmbee.flexo.mms.util.*
 
@@ -7,28 +9,28 @@ class ScratchRead : ScratchAny() {
     // create a scratch before each test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        createScratch(demoScratchPath, demoScratchName)
+        testApplication {
+            createScratch(demoScratchPath, demoScratchName)
+        }
     }
 
     init {
         "head scratch" {
-            loadScratch(demoScratchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadScratch(demoScratchPath, loadAliceRex)
                 httpHead("$demoScratchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }
 
         "get scratch" {
-            loadScratch(demoScratchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadScratch(demoScratchPath, loadAliceRex)
                 httpGet("$demoScratchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }

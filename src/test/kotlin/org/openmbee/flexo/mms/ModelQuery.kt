@@ -1,7 +1,10 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldContain
+import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -11,21 +14,20 @@ import org.openmbee.flexo.mms.util.*
 class ModelQuery : ModelAny() {
     init {
         "query data from model" {
-            val update = commitModel(masterBranchPath, insertAliceRex)
-            withTest {
+            testApplication {
+                val update = commitModel(masterBranchPath, insertAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
             }
         }
 
         "query model with graph var" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
@@ -36,14 +38,12 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    val graphVal = Json.parseToJsonElement(response.content!!).jsonObject["results"]!!
+                    val graphVal = Json.parseToJsonElement(this.bodyAsText()).jsonObject["results"]!!
                         .jsonObject["bindings"]!!.jsonArray[0].jsonObject["g"]!!.jsonObject["value"]!!
                         .jsonPrimitive.content
-
                     graphVal shouldContain "/graphs/Model."
-
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "g" to graphVal.bindingUri
                         )
@@ -53,9 +53,8 @@ class ModelQuery : ModelAny() {
         }
 
         "query model with from default not authorized" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -66,15 +65,14 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Forbidden
+                    this shouldHaveStatus HttpStatusCode.Forbidden
                 }
             }
         }
 
         "query model with from named not authorized" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -87,15 +85,14 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Forbidden
+                    this shouldHaveStatus HttpStatusCode.Forbidden
                 }
             }
         }
 
         "query model graph not there" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(withAllTestPrefixes("""
@@ -106,8 +103,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent()))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         varsExpect.addAll(listOf(
                             "s", "p", "o"
                         ))
@@ -117,9 +114,8 @@ class ModelQuery : ModelAny() {
         }
 
         "ask model: true" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -129,8 +125,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson """
                         {
                             "head": {},
                             "boolean": true
@@ -141,9 +137,8 @@ class ModelQuery : ModelAny() {
         }
 
         "ask model: false" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -153,8 +148,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson """
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson """
                         {
                             "head": {},
                             "boolean": false
@@ -165,9 +160,8 @@ class ModelQuery : ModelAny() {
         }
 
         "describe model explicit" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -175,8 +169,8 @@ class ModelQuery : ModelAny() {
                         describe :Alice
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples  {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples  {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }
@@ -186,9 +180,8 @@ class ModelQuery : ModelAny() {
         }
 
         "describe model where" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -198,8 +191,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response includesTriples {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
                         subjectTerse(":Rex") {
                             ignoreAll()
                         }
@@ -209,72 +202,69 @@ class ModelQuery : ModelAny() {
         }
 
         "query result is different between master and branch" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-            commitModel(masterBranchPath, insertBobFluffy)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
+                commitModel(masterBranchPath, insertBobFluffy)
                 // branch model does not have second updates
                 httpPost("$demoBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceBobResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
         }
 
         "query result is different between master and lock" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-            commitModel(masterBranchPath, insertBobFluffy)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
+                commitModel(masterBranchPath, insertBobFluffy)
                 // branch model does not have second updates
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
                 // master model is updated
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceBobResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceBobResult
                 }
             }
         }
 
         "query result is different between master and lock from model loads" {
-            loadModel(masterBranchPath, loadAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-            loadModel(masterBranchPath, loadBobFluffy)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
+                loadModel(masterBranchPath, loadBobFluffy)
                 httpPost("$demoLockPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response shouldEqualSparqlResultsJson queryNamesAliceResult
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this shouldEqualSparqlResultsJson queryNamesAliceResult
                 }
 
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
                     // the load overwrites, so only bob exists
-                    response equalsSparqlResults {
+                    this equalsSparqlResults {
                         binding(
                             "name" to "Bob".bindingLit
                         )
@@ -284,10 +274,9 @@ class ModelQuery : ModelAny() {
         }
 
         "subquery" {
-            loadModel(masterBranchPath, loadAliceRex)
-            loadModel(masterBranchPath, loadBobFluffy)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
+                loadModel(masterBranchPath, loadBobFluffy)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -304,8 +293,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "personName" to "Bob".bindingLit
                         )
@@ -315,19 +304,18 @@ class ModelQuery : ModelAny() {
         }
 
         "nothing exists" {
-            withTest {
+            testApplication {
                 httpPost("/orgs/not-exists/repos/not-exists/branches/not-exists/query") {
                     setSparqlQueryBody(queryNames)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NotFound
+                    this shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
 
         "concat" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpPost("$masterBranchPath/query") {
                     setSparqlQueryBody("""
                         $demoPrefixesStr
@@ -339,8 +327,8 @@ class ModelQuery : ModelAny() {
                         }
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response equalsSparqlResults {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this equalsSparqlResults {
                         binding(
                             "concat" to "test:Alice".bindingLit
                         )

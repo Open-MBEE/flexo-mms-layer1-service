@@ -1,5 +1,6 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
 import org.openmbee.flexo.mms.util.*
 
@@ -16,7 +17,7 @@ class GroupLdpDc : GroupAny() {
             }
 
             postWithPrecondition {
-                response shouldHaveStatus HttpStatusCode.BadRequest
+                this shouldHaveStatus HttpStatusCode.BadRequest
             }
 
             read {

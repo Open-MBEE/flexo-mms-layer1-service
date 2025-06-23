@@ -1,21 +1,23 @@
 package org.openmbee.flexo.mms
 
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
 class LockCreate : LockAny() {
     fun createAndValidateLock(_lockId: String=demoLockId, lockBody: String=validLockBodyfromMaster) {
-        withTest {
+        testApplication {
             httpPut("$demoRepoPath/locks/$_lockId") {
                 setTurtleBody(withAllTestPrefixes(lockBody))
             }.apply {
-                val etag = response.headers[HttpHeaders.ETag]
+                val etag = this.headers[HttpHeaders.ETag]
                 etag.shouldNotBeBlank()
 
-                response shouldHaveStatus HttpStatusCode.Created
-                response.exclusivelyHasTriples {
+                this shouldHaveStatus HttpStatusCode.Created
+                this.exclusivelyHasTriples {
                     modelName = "ValidateLock"
                     validateCreatedLockTriples(_lockId, etag!!, demoOrgPath)
                 }
@@ -24,12 +26,12 @@ class LockCreate : LockAny() {
     }
 
     init {
-        "reject invalid lock id".config(tags=setOf(NoAuth)) {
-            withTest {
-                httpPut("$demoLockPath with invalid id") {
+        "reject invalid lock id" {
+            testApplication {
+                httpPut("$demoLockPath with invalid id", true) {
                     setTurtleBody(withAllTestPrefixes(validLockBodyfromMaster))
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.BadRequest
+                    this shouldHaveStatus HttpStatusCode.BadRequest
                 }
             }
         }
@@ -39,21 +41,25 @@ class LockCreate : LockAny() {
         }
 
         "create lock on committed master" {
-            commitModel(masterBranchPath, """
-                insert data {
-                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
-                }
-            """.trimIndent())
+            testApplication {
+                commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> <urn:mms:o> .
+                    }
+                """.trimIndent())
+            }
 
             createAndValidateLock()
         }
 
         "create lock on existing lock" {
-            commitModel(masterBranchPath, """
-                insert data {
-                    <urn:mms:s> <urn:mms:p> <urn:mms:o> .
-                }
-            """.trimIndent())
+            testApplication {
+                commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> <urn:mms:o> .
+                    }
+                """.trimIndent())
+            }
 
             createAndValidateLock()
 

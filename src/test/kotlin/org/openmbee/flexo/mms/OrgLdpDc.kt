@@ -1,7 +1,9 @@
 package org.openmbee.flexo.mms
 
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 import java.util.*
 
@@ -19,7 +21,7 @@ class OrgLdpDc : OrgAny() {
             }
 
             postWithPrecondition {
-                response shouldHaveStatus HttpStatusCode.BadRequest
+                this shouldHaveStatus HttpStatusCode.BadRequest
             }
 
             replaceExisting {
@@ -56,15 +58,15 @@ class OrgLdpDc : OrgAny() {
             "mms:id" to "\"not-$demoOrgId\"",
             "mms:etag" to "\"${UUID.randomUUID()}\"",
         ).forEach { (pred, obj) ->
-            "reject wrong $pred".config(tags=setOf(NoAuth)) {
-                withTest {
-                    httpPut(demoOrgPath) {
+            "reject wrong $pred" {
+                testApplication {
+                    httpPut(demoOrgPath, true) {
                         setTurtleBody(withAllTestPrefixes("""
                             $validOrgBody
                             <> $pred $obj .
                         """.trimIndent()))
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.BadRequest
+                        this shouldHaveStatus HttpStatusCode.BadRequest
                     }
                 }
             }

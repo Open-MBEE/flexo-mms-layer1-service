@@ -1,11 +1,16 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldBeEmpty
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import io.ktor.util.*
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
@@ -13,6 +18,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 
+@OptIn(InternalAPI::class)
 open class ArtifactAny : RefAny() {
     override val logger = LoggerFactory.getLogger(LockAny::class.java)
 
@@ -21,14 +27,14 @@ open class ArtifactAny : RefAny() {
 
     init {
         "post artifact text/plain" {
-            withTest {
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain")
+                    header("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
-                    response.contentType() shouldBe ContentType.Text.Plain
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this.contentType() shouldBe ContentType.Text.Plain
                 }
             }
         }
@@ -36,46 +42,46 @@ open class ArtifactAny : RefAny() {
         // Set a content-type with parameters (like utf-8 on text/plain) and assert that parameters have
         // been removed on returned content type
         "post artifact text/plain with parameter" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain; charset=utf-8")
+                    header("Content-Type", "text/plain; charset=utf-8")
                     setBody("foo")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
-                    response.contentType() shouldBe ContentType.Text.Plain
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this.contentType() shouldBe ContentType.Text.Plain
                 }
             }
         }
 
         "get all artifacts empty" {
-            withTest{
+            testApplication {
                 httpGet("$artifactsPath?download") {
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
-                    response.content.shouldBeNull()
+                    this shouldHaveStatus HttpStatusCode.NoContent
+                    this.bodyAsText().shouldBeEmpty()
                 }
             }
         }
 
 
         "get all artifacts two artifacts" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain")
+                    header("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
-                    val locationFile1 = getURI(response.headers[HttpHeaders.Location].toString())
+                    val locationFile1 = getURI(this.headers[HttpHeaders.Location].toString())
                     httpPost(artifactsPath) {
-                        addHeader("Content-Type", "application/octet-stream")
+                        header("Content-Type", "application/octet-stream")
                         setBody("bar".toByteArray())
                     }.apply {
-                        val locationFile2 = getURI(response.headers[HttpHeaders.Location].toString())
+                        val locationFile2 = getURI(this.headers[HttpHeaders.Location].toString())
                         httpGet("$artifactsPath?download") {}.apply {
-                            response shouldHaveStatus HttpStatusCode.OK
-                            response.contentType() shouldBe ContentType.Application.Zip
+                            this shouldHaveStatus HttpStatusCode.OK
+                            this.contentType() shouldBe ContentType.Application.Zip
 
-                            val zipBytes = response.byteContent ?: throw IllegalStateException("Response byteContent is null")
+                            val zipBytes = this.content.toByteArray()
                             val contents = readZipContents(zipBytes)
                             contents.size shouldBe 2
                             contents["$locationFile1.txt"] shouldBe "foo"
@@ -88,7 +94,7 @@ open class ArtifactAny : RefAny() {
 
         // Not used http methods that should fail
         "artifact rejects other methods" {
-            withTest {
+            testApplication {
                 onlyAllowsMethods(artifactsPath, setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,
@@ -102,79 +108,78 @@ open class ArtifactAny : RefAny() {
         *********************************************/
 
         "get an artifact by id - turtle" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain")
+                    header("Content-Type", "text/plain")
                     setBody("foo".toByteArray())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
 
-                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
-                    httpGet(uri) {
-                    }.apply {
-                        response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType() shouldBe ContentType.Text.Plain
-                        response shouldHaveContent "foo"
+                    val uri = getLocation(this.headers[HttpHeaders.Location].toString())
+                    httpGet(uri) {}.apply {
+                        this shouldHaveStatus HttpStatusCode.OK
+                        this.contentType() shouldBe ContentType.Text.Plain
+                        this.bodyAsText() shouldContain "foo"
                     }
                 }
             }
         }
 
         "download an artifact by id - text" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain")
+                    header("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
 
-                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
+                    val uri = getLocation(this.headers[HttpHeaders.Location].toString())
                     httpGet("$uri?download") {
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType() shouldBe ContentType.Text.Plain
-                        response shouldHaveContent "foo"
+                        this shouldHaveStatus HttpStatusCode.OK
+                        this.contentType() shouldBe ContentType.Text.Plain
+                        this.bodyAsText() shouldContain "foo"
                     }
                 }
             }
         }
 
         "download an artifact by id - binary" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "application/octet-stream")
+                    header("Content-Type", "application/octet-stream")
                     setBody("foo".toByteArray())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
 
-                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
+                    val uri = getLocation(this.headers[HttpHeaders.Location].toString())
                     httpGet("$uri?download") {
                     }.apply {
-                        response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType() shouldBe ContentType.Application.OctetStream
-                        response shouldHaveContent "foo"
+                        this shouldHaveStatus HttpStatusCode.OK
+                        this.contentType() shouldBe ContentType.Application.OctetStream
+                        this.bodyAsText() shouldContain "foo"
                     }
                 }
             }
         }
 
         "get an artifact by id - URI" {
-            withTest{
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/turtle")
+                    header("Content-Type", "text/turtle")
                     setBody("<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> .")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
 
-                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
+                    val uri = getLocation(this.headers[HttpHeaders.Location].toString())
                     httpGet("$uri?download") {}.apply {
-                        response shouldHaveStatus HttpStatusCode.OK
-                        response.contentType().toString() shouldBeEqual "text/turtle"
-                        response shouldHaveContent "<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> ."
+                        this shouldHaveStatus HttpStatusCode.OK
+                        this.contentType().toString() shouldBeEqual "text/turtle"
+                        this.bodyAsText() shouldBeEqual "<http://openmbee.org> <http://openmbee.org> <http://openmbee.org> ."
                     }
                 }
             }
@@ -182,15 +187,15 @@ open class ArtifactAny : RefAny() {
 
         // Not used http methods that should fail
         "artifact/{id} rejects other methods" {
-            withTest {
+            testApplication {
                 httpPost(artifactsPath) {
-                    addHeader("Content-Type", "text/plain")
+                    header("Content-Type", "text/plain")
                     setBody("foo")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Created
-                    response.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.headers[HttpHeaders.Location] shouldStartWith localIri(artifactsPath)
 
-                    val uri = getLocation(response.headers[HttpHeaders.Location].toString())
+                    val uri = getLocation(this.headers[HttpHeaders.Location].toString())
                     onlyAllowsMethods(
                         uri, setOf(
                             HttpMethod.Head,
