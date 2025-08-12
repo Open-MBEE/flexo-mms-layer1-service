@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms
 
 
+import io.ktor.client.statement.*
 import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 
@@ -16,7 +17,7 @@ class RepoLdpDc : RepoAny() {
             """.trimIndent()),
             resourceCreator = { createRepo(demoOrgPath, demoRepoId, demoRepoName) }
         ) {
-            fun TriplesAsserter.validCreatedRepo(response: TestApplicationResponse, slug: String) {
+            fun TriplesAsserter.validCreatedRepo(response: HttpResponse, slug: String) {
                 modelName = "CreateValidRepo"
 
                 validateCreatedRepoTriples(response, slug, demoRepoName, demoOrgPath, listOf(

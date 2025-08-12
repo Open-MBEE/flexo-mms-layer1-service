@@ -1,8 +1,10 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.kotest.matchers.shouldBe
 import io.ktor.http.*
+import io.ktor.server.testing.*
 
 import org.openmbee.flexo.mms.util.*
 
@@ -12,34 +14,35 @@ class ScratchLoad: ScratchAny() {
     // create a scratch before each test
     override suspend fun beforeEach(testCase: TestCase) {
         super.beforeEach(testCase)
-        createScratch(demoScratchPath, demoScratchName)
+        testApplication {
+            createScratch(demoScratchPath, demoScratchName)
+        }
     }
 
     init{
         "load nothing on empty graph" {
-            withTest {
+            testApplication {
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
+                    this shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "load data on empty graph" {
-            withTest {
+            testApplication {
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
+                    this shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "load data on non-empty graph" {
-            loadScratch(demoScratchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadScratch(demoScratchPath, loadAliceRex)
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody("""
                         $loadAliceRex
@@ -48,19 +51,18 @@ class ScratchLoad: ScratchAny() {
                             foaf:name "Xavier" .
                     """.trimIndent())
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
+                    this shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
 
         "load clear on non-empty graph" {
-            loadScratch(demoScratchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadScratch(demoScratchPath, loadAliceRex)
                 httpPut("$demoScratchPath/graph") {
                     setTurtleBody("")
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.NoContent
+                    this shouldHaveStatus HttpStatusCode.NoContent
                 }
             }
         }
@@ -96,7 +98,7 @@ class ScratchLoad: ScratchAny() {
 //        }
 
         "gsp endpoint for scratches rejects other methods" {
-            withTest {
+            testApplication {
                 onlyAllowsMethods(
                     "$demoScratchPath/graph", setOf(
                         HttpMethod.Head,

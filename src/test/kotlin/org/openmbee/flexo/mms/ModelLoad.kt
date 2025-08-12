@@ -1,8 +1,10 @@
 package org.openmbee.flexo.mms
 
+import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import org.apache.jena.vocabulary.DCTerms
@@ -11,13 +13,13 @@ import org.apache.jena.vocabulary.XSD
 import org.openmbee.flexo.mms.util.*
 
 class ModelLoad : ModelAny() {
-    fun TestApplicationCall.validateModelLoadResponse() {
-        response shouldHaveStatus HttpStatusCode.OK
-        val commit = response.headers[HttpHeaders.Location]
+    suspend fun HttpResponse.validateModelLoadResponse() {
+        this shouldHaveStatus HttpStatusCode.OK
+        val commit = this.headers[HttpHeaders.Location]
         commit.shouldNotBeBlank()
-        val etag = response.headers[HttpHeaders.ETag]
+        val etag = this.headers[HttpHeaders.ETag]
         etag.shouldNotBeBlank()
-        response includesTriples {
+        this includesTriples {
             subject(commit!!) {
                 includes(
                     RDF.type exactly MMS.Commit,
@@ -30,15 +32,15 @@ class ModelLoad : ModelAny() {
         }
     }
 
-    fun TestApplicationCall.validateModelLoadNoChangeResponse() {
-        response shouldHaveStatus HttpStatusCode.OK
-        val etag = response.headers[HttpHeaders.ETag]
+    fun HttpResponse.validateModelLoadNoChangeResponse() {
+        this shouldHaveStatus HttpStatusCode.OK
+        val etag = this.headers[HttpHeaders.ETag]
         etag.shouldNotBeBlank()
     }
 
     init {
         "load all inserts on empty model" {
-            withTest {
+            testApplication {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
@@ -48,7 +50,7 @@ class ModelLoad : ModelAny() {
         }
 
         "load no change on empty model" {
-            withTest {
+            testApplication {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
@@ -58,9 +60,8 @@ class ModelLoad : ModelAny() {
         }
 
         "load all inserts on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("""
                         $loadAliceRex
@@ -75,9 +76,8 @@ class ModelLoad : ModelAny() {
         }
 
         "load all deletes on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("")
                 }.apply {
@@ -87,9 +87,8 @@ class ModelLoad : ModelAny() {
         }
 
         "load no change on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
@@ -99,9 +98,8 @@ class ModelLoad : ModelAny() {
         }
 
         "load both inserts and deletes on non-empty model" {
-            loadModel(masterBranchPath, loadAliceRex)
-
-            withTest {
+            testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody("""
                         @prefix : <https://mms.openmbee.org/demos/people/>
@@ -120,20 +118,19 @@ class ModelLoad : ModelAny() {
             //manually add a transaction into backend
             val updateUrl = backend.getUpdateUrl()
             addDummyTransaction(updateUrl, masterBranchPath)
-            withTest {
+            testApplication {
                 httpPut("$masterBranchPath/graph") {
                     setTurtleBody(loadAliceRex)
                 }.apply {
-                    response shouldHaveStatus HttpStatusCode.Conflict
+                    this shouldHaveStatus HttpStatusCode.Conflict
                 }
             }
         }
 
         "lock graph rejects other methods" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 onlyAllowsMethods("$demoLockPath/graph", setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,
@@ -142,24 +139,21 @@ class ModelLoad : ModelAny() {
         }
 
         "head branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpHead("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-//                    response.content shouldBe null
+                    this shouldHaveStatus HttpStatusCode.OK
                 }
             }
         }
 
         "get branch graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
                 httpGet("$masterBranchPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }
@@ -173,26 +167,24 @@ class ModelLoad : ModelAny() {
         }
 
         "head lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpHead("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
-                    response.content shouldBe null
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.bodyAsText() shouldBe ""
                 }
             }
         }
 
         "get lock graph" {
-            commitModel(masterBranchPath, insertAliceRex)
-            createLock(demoRepoPath, masterBranchPath, demoLockId)
-
-            withTest {
+            testApplication {
+                commitModel(masterBranchPath, insertAliceRex)
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
                 httpGet("$demoLockPath/graph") {}.apply {
-                    response shouldHaveStatus HttpStatusCode.OK
+                    this shouldHaveStatus HttpStatusCode.OK
 
-                    response.exclusivelyHasTriples {
+                    this.exclusivelyHasTriples {
                         subjectTerse(":Alice") {
                             ignoreAll()
                         }

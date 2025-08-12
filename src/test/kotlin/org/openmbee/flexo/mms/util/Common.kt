@@ -1,6 +1,5 @@
 package org.openmbee.flexo.mms.util
 
-import io.kotest.core.NamedTag
 import io.kotest.core.spec.Spec
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.core.test.TestCase
@@ -13,10 +12,6 @@ import org.apache.jena.riot.RDFFormat
 import org.apache.jena.sparql.exec.http.UpdateExecutionHTTP
 import java.io.File
 import java.io.FileOutputStream
-
-val NoAuth = NamedTag("NoAuth")
-
-val Expect404 = NamedTag("Expect404")
 
 val backend = RemoteBackend()
 

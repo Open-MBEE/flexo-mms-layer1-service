@@ -2,9 +2,15 @@ package org.openmbee.flexo.mms.util
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import io.kotest.assertions.ktor.client.shouldHaveHeader
+import io.kotest.assertions.ktor.client.shouldHaveStatus
+import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.junit.runner.Request.method
 import org.openmbee.flexo.mms.ROOT_CONTEXT
 import org.openmbee.flexo.mms.server.BuildInfo
 import java.util.*
@@ -53,9 +59,9 @@ private fun authorization(auth: AuthStruct): String {
  * Extension function to add a Turtle request body with appropriate Content-Type
  * to a test request
  */
-fun TestApplicationRequest.setTurtleBody(body: String) {
-    addHeader("Content-Type", "text/turtle")
-    addHeader("Content-Length", body.length.toString())
+fun HttpRequestBuilder.setTurtleBody(body: String) {
+    header("Content-Type", "text/turtle")
+    header("Content-Length", body.length.toString())
     setBody(body)
 }
 
@@ -63,82 +69,67 @@ fun TestApplicationRequest.setTurtleBody(body: String) {
  * Extension function to add a SPARQL update request body with appropriate Content-Type
  * to a test request
  */
-fun TestApplicationRequest.setSparqlUpdateBody(body: String) {
-    addHeader("Content-Type", "application/sparql-update")
+fun HttpRequestBuilder.setSparqlUpdateBody(body: String) {
+    header("Content-Type", "application/sparql-update")
     setBody(body)
 }
 
-fun TestApplicationRequest.setSparqlQueryBody(body: String) {
-    addHeader("Content-Type", "application/sparql-query")
+fun HttpRequestBuilder.setSparqlQueryBody(body: String) {
+    header("Content-Type", "application/sparql-query")
     setBody(body)
 }
 
-fun TestApplicationEngine.httpRequest(method: HttpMethod, uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    if("1" != System.getProperty("FLEXO_MMS_TEST_NO_AUTH", "")) {
-        handleRequest(method, uri) {
-            addHeader("Authorization", authorization(anonAuth))
+suspend fun ApplicationTestBuilder.httpRequest(method: HttpMethod, uri: String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    if (!skipAnon) {
+        client.request {
+            this.method = method
+            this.url(uri)
+            header("Authorization", authorization(anonAuth))
             setup()
         }.apply {
-            if("" != System.getProperty("FLEXO_MMS_TEST_EXPECT", "")) {
-                response shouldHaveStatus System.getProperty("FLEXO_MMS_TEST_EXPECT").toInt()
+            if (HttpStatusCode.OK === this.status) {
+                println("?");
             }
-            else {
-                if(HttpStatusCode.OK === response.status()) {
-                    println("?");
-                }
-
-                response shouldHaveOneOfStatuses setOf(
-                    HttpStatusCode.BadRequest,
-                    HttpStatusCode.Forbidden,
-                    HttpStatusCode.NotFound,
-                    HttpStatusCode.MethodNotAllowed,
-                    HttpStatusCode.NotImplemented,
-                )
-            }
-
-            // else if(method == HttpMethod.Get) {
-            //
-            // } else {
-            //     response shouldHaveStatus HttpStatusCode.Forbidden
-            // }
+            this.status shouldBeIn setOf(
+                HttpStatusCode.BadRequest,
+                HttpStatusCode.Forbidden,
+                HttpStatusCode.NotFound,
+                HttpStatusCode.MethodNotAllowed,
+                HttpStatusCode.NotImplemented,
+            )
         }
     }
-
-    return handleRequest(method, uri) {
-        addHeader("Authorization", authorization(rootAuth))
+    return client.request {
+        this.method = method
+        this.url(uri)
+        header("Authorization", authorization(rootAuth))
         setup()
     }.apply {
-        response.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
+        this.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
     }
 }
 
-fun TestApplicationEngine.httpHead(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Head, uri, setup)
+suspend fun ApplicationTestBuilder.httpHead(uri: String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Head, uri, skipAnon, setup)
+}
+suspend fun ApplicationTestBuilder.httpGet(uri:  String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Get, uri, skipAnon, setup)
+}
+suspend fun ApplicationTestBuilder.httpPost(uri:  String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Post, uri, skipAnon, setup)
+}
+suspend fun ApplicationTestBuilder.httpPut(uri:  String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Put, uri, skipAnon, setup)
+}
+suspend fun ApplicationTestBuilder.httpPatch(uri:  String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Patch, uri, skipAnon, setup)
+}
+suspend fun ApplicationTestBuilder.httpDelete(uri:  String, skipAnon: Boolean = false, setup: HttpRequestBuilder.() -> Unit): HttpResponse {
+    return httpRequest(HttpMethod.Delete, uri, skipAnon, setup)
 }
 
-fun TestApplicationEngine.httpGet(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Get, uri, setup)
-}
-
-fun TestApplicationEngine.httpPost(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Post, uri, setup)
-}
-
-fun TestApplicationEngine.httpPut(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Put, uri, setup)
-}
-
-fun TestApplicationEngine.httpPatch(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Patch, uri, setup)
-}
-
-fun TestApplicationEngine.httpDelete(uri: String, setup: TestApplicationRequest.() -> Unit): TestApplicationCall {
-    return this.httpRequest(HttpMethod.Delete, uri, setup)
-}
-
-
-fun TestApplicationEngine.onlyAllowsMethods(path: String, allowedMethods: Set<HttpMethod>) {
-    val verbs: MutableMap<HttpMethod, (path: String) -> TestApplicationCall> = mutableMapOf(
+suspend fun ApplicationTestBuilder.onlyAllowsMethods(path: String, allowedMethods: Set<HttpMethod>) {
+    val verbs: MutableMap<HttpMethod, suspend (path: String) -> HttpResponse> = mutableMapOf(
         HttpMethod.Head to { httpHead(it) {} },
         HttpMethod.Get to { httpGet(it) {} },
         HttpMethod.Post to { httpPost(it) {} },
@@ -158,9 +149,10 @@ fun TestApplicationEngine.onlyAllowsMethods(path: String, allowedMethods: Set<Ht
     // each remaining method
     for((method, verb) in verbs) {
         verb(path).apply {
-            response shouldHaveStatus HttpStatusCode.MethodNotAllowed
-            response.shouldHaveHeader("Allow", expectedAllowHeader)
-            response.contentType().toString().shouldStartWith(ContentType.Text.Plain.toString())
+            this shouldHaveStatus HttpStatusCode.MethodNotAllowed
+            this.shouldHaveHeader("Allow", expectedAllowHeader)
+            this.contentType().toString().shouldStartWith(ContentType.Text.Plain.toString())
         }
     }
 }
+

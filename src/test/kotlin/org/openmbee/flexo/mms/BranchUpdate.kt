@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms
 
 
 import io.ktor.http.*
+import io.ktor.server.testing.*
 import org.apache.jena.sparql.vocabulary.FOAF
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
@@ -10,9 +11,8 @@ import org.openmbee.flexo.mms.util.*
 class BranchUpdate : RefAny() {
     init {
         "patch branch" {
-            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-
-            withTest {
+            testApplication {
+                createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 httpPatch(demoBranchPath) {
                     setSparqlUpdateBody(
                         withAllTestPrefixes(
@@ -27,7 +27,7 @@ class BranchUpdate : RefAny() {
                         )
                     )
                 }.apply {
-                    response includesTriples {
+                    this includesTriples {
                         subject(localIri(demoBranchPath)) {
                             includes(
                                 RDF.type exactly MMS.Branch,
@@ -42,9 +42,8 @@ class BranchUpdate : RefAny() {
         }
 
         "all branches rejects other methods" {
-            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-
-            withTest {
+            testApplication {
+                createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 onlyAllowsMethods("$demoRepoPath/branches", setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,
@@ -54,9 +53,8 @@ class BranchUpdate : RefAny() {
         }
 
         "branch rejects other methods" {
-            createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
-
-            withTest {
+            testApplication {
+                createBranch(demoRepoPath, "master", demoBranchId, demoBranchName)
                 onlyAllowsMethods(demoBranchPath, setOf(
                     HttpMethod.Head,
                     HttpMethod.Get,

@@ -71,6 +71,7 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
+    testImplementation("io.kotest.extensions:kotest-assertions-ktor:2.0.0")
 
     val logbackVersion = "1.5.18"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")

@@ -7,6 +7,7 @@ import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.testing.*
@@ -379,29 +380,29 @@ class TriplesAsserter(val model: Model, var modelName: String="Unnamed") {
     }
 }
 
-infix fun TestApplicationResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
+suspend infix fun HttpResponse.includesTriples(assertions: TriplesAsserter.() -> Unit): TriplesAsserter {
     // assert content-type header (ignore charset if present)
     headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.Turtle.contentType)
 
     // parse turtle into model
     val model = ModelFactory.createDefaultModel()
-    parseTurtle(content.toString(), model, call.request.uri)
+    parseTurtle(bodyAsText(), model, call.request.url.toString())
 
     // make triple assertions and then assert the model is empty
     return TriplesAsserter(model).apply { assertions() }
 }
 
-infix fun TestApplicationResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
+suspend infix fun HttpResponse.exclusivelyHasTriples(assertions: TriplesAsserter.() -> Unit) {
     includesTriples(assertions).assertEmpty()
 }
 
-infix fun TestApplicationResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
+suspend infix fun HttpResponse.shouldEqualSparqlResultsJson(expectedJson: String) {
     // assert content-type header (ignore charset if present)
     headers[HttpHeaders.ContentType].shouldStartWith(RdfContentTypes.SparqlResultsJson.contentType)
 
     // json object
-    content!!.shouldBeJsonObject()
+    bodyAsText().shouldBeJsonObject()
 
     // assert equal
-    content!!.shouldEqualJson(expectedJson)
+    bodyAsText().shouldEqualJson(expectedJson)
 }
