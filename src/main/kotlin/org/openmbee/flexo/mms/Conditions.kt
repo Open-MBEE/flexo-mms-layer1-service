@@ -88,39 +88,19 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-val SNAPSHOT_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    require("queryableSnapshotExists") {
-        handler = { layer1 -> "The target model is corrupt. No queryable snapshots found." to HttpStatusCode.InternalServerError }
-
-        """
-            graph mor-graph:Metadata {
-                ?__mms_ref
-                    # select the latest commit from the current named ref
-                    mms:commit ?__mms_baseCommit ;
-
-                    # and its etag value
-                    mms:etag ?__mms_etag ;
-
-                    # and a queryable snapshot
-                    mms:snapshot/mms:graph ?__mms_queryGraph .
-            }
-        """
-    }
-}
-
-val REPO_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+val REPO_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.READ_REPO, Scope.REPO)
 }
 
-val BRANCH_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+val BRANCH_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.READ_BRANCH, Scope.BRANCH)
 }
 
-val LOCK_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+val LOCK_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.READ_LOCK, Scope.LOCK)
 }
 
-val ARTIFACT_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+val ARTIFACT_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.READ_ARTIFACT, Scope.ARTIFACT)
 }
 
@@ -134,7 +114,7 @@ val SCRATCH_UPDATE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_SCRATCH, Scope.SCRATCH)
 }
 
-val DIFF_QUERY_CONDITIONS = SNAPSHOT_QUERY_CONDITIONS.append {
+val DIFF_QUERY_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.READ_DIFF, Scope.DIFF)
 }
 
