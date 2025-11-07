@@ -111,6 +111,32 @@ Apply the initialization file
 
 Once the initialization file has been generated at ``cluster.trig``, apply this file to your empty quadstore (for example, by using its Graph Store Protocol API to insert the data) before using Flexo MMS.
 
+Performance Considerations
+--------------------------
+
+Writing to a triplestore can impact query performance significantly. For production deployments with moderate to high load, we recommend using a dedicated write node and separate read-only nodes for the triple store.
+
+The service configuration supports this architecture through the following settings:
+
+- ``FLEXO_MMS_UPDATE_URL``: Points to your dedicated write node
+- ``FLEXO_MMS_QUERY_URL``: Points to your read-only node(s)
+- ``FLEXO_MMS_MASTER_QUERY_URL``: Optional endpoint for when you need the most up-to-date data (typically points to the write node)
+
+With this configuration:
+
+1. All write operations (updates, deletes) will be directed to the dedicated write node
+2. Most read operations (queries) will be directed to the read-only node(s)
+3. When absolute consistency is required, queries will use the master query URL
+
+This separation provides several benefits:
+
+- Improved query performance by offloading read traffic from the write node
+- Better write throughput by dedicating resources to write operations
+- Horizontal scalability by adding more read nodes as query demand increases
+- Improved reliability as read operations can continue even if the write node is under heavy load
+
+For smaller deployments with limited traffic, a single node configuration may be sufficient, but as your model size and user base grow, the separated architecture becomes increasingly important.
+
 API
 ---------
 
