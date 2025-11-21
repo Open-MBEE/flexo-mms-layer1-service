@@ -26,6 +26,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // set response ETag from created/replaced resource
     handleWrittenResourceEtag(constructModel, prefixes[resourceSymbol]!!)
 
+    // optional teardown
+    teardown?.invoke(constructModel)
+
     // new resource
     if(isNewResource) {
         // respond with the created resource
@@ -35,9 +38,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     else {
         responseContext.mutatedResource(prefixes[resourceSymbol]!!, constructModel)
     }
-
-    // optional teardown
-    teardown?.invoke(constructModel)
 
     // delete transaction
     run {

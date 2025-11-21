@@ -234,11 +234,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             else "__mms_commitSource" to commitSource!!,
         )
     }) { constructModel ->
-        //
-        // ==== Response closed ====
-        //
-
-
         // predetermine snapshot graphs
         val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
         val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
