@@ -69,8 +69,8 @@ val BRANCH_UPDATE_CONDITIONS = BRANCH_CRUD_CONDITIONS.append {
 val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
-    require("stagingExists") {
-        handler = { layer1 -> "The destination branch <${layer1.prefixes["morb"]}> is corrupt. No staging snapshot found." to HttpStatusCode.InternalServerError }
+    require("stagingExists and modelExists") {
+        handler = { layer1 -> "The destination branch <${layer1.prefixes["morb"]}> is corrupt. No staging snapshot and model found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -83,6 +83,11 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 morb: mms:snapshot ?staging .
                 ?staging a mms:Staging ;
                     mms:graph ?stagingGraph .
+                   
+                ?lock mms:commit ?baseCommit ;
+                    mms:snapshot ?snapshot .
+                ?snapshot a mms:Model ;
+                    mms:graph ?modelGraph .
             }
         """
     }

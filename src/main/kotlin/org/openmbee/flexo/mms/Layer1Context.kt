@@ -369,7 +369,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
      * Execute a SPARQL Update string against Layer 0
      */
     @OptIn(InternalAPI::class)
-    suspend fun executeSparqlUpdate(pattern: String, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
+    suspend fun executeSparqlUpdate(pattern: String, using: String?=null, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
         var sparql = SparqlParameterizer(pattern.trimIndent()).apply {
             if(setup != null) setup()
             else prefixes(prefixes)
@@ -387,6 +387,9 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 append(HttpHeaders.Accept, ContentType.Any)
             }
             contentType(RdfContentTypes.SparqlUpdate)
+            if (using != null) {
+                parameter("using-graph-uri", using)
+            }
             body=sparql
         })
     }
