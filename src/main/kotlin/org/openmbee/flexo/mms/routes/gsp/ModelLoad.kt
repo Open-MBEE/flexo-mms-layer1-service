@@ -88,7 +88,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         // response
         call.response.header(HttpHeaders.ETag, transactionId)
         call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
-        call.respondText(constructCommitResponseText, status = HttpStatusCode.Created, contentType = RdfContentTypes.Turtle)
+        call.respondText(constructCommitResponseText, contentType = RdfContentTypes.Turtle)
 
         deleteTransaction()
         executeSparqlUpdate("""
