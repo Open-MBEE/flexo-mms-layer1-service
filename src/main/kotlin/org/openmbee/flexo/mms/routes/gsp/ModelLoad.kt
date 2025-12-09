@@ -56,8 +56,9 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
 
     // compute the delta
     val updateString = genDiffUpdate()
+        val prefixesnew = prefixes.add("hint" to "http://aws.amazon.com/neptune/vocab/v01/QueryHints#")
     executeSparqlUpdate(updateString) {
-        prefixes(prefixes)
+        prefixes(prefixesnew)
 
         iri(
             // use current branch as ref source

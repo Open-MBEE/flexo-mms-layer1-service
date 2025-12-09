@@ -285,10 +285,13 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
                     }
                     
                     # ... that isn't in the destination graph 
-                    filter not exists {
-                        graph ?dstGraph {
-                            ?del_s ?del_p ?del_o .
-                        }
+                    MINUS {
+                    {select * where {
+                           hint:SubQuery hint:evaluationStrategy "BottomUp" .
+                           graph ?dstGraph {
+                               ?del_s ?del_p ?del_o .
+                           }
+                    }}
                     }
                 } union {
                     # insert every triple from the destination graph...
@@ -296,11 +299,14 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
                         ?ins_s ?ins_p ?ins_o .
                     }
                     
-                    # ... that isn't in the source graph
-                    filter not exists {
-                        graph ?srcGraph {
-                            ?ins_s ?ins_p ?ins_o .
-                        }
+                    # ... that isn't in the source graph 
+                    MINUS {
+                    {select * where {
+                           hint:SubQuery hint:evaluationStrategy "BottomUp" .
+                           graph ?srcGraph {
+                               ?ins_s ?ins_p ?ins_o .
+                           }
+                    }}
                     }
                 } union {}
             """)
