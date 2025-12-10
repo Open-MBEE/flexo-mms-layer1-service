@@ -34,7 +34,6 @@ fun Route.commitModel() {
                 """
             }
         }
-        rejectGraphInUserUpdate(sparqlUpdateAst)
         createBranchModifyingTransaction(localConditions)
         try {
             val txnModel = validateBranchModifyingTransaction(localConditions)
@@ -47,8 +46,16 @@ fun Route.commitModel() {
             val baseCommitIri = txnModel.listObjectsOfProperty(
                 txnModel.createResource(prefixes["mt"]), MMS.TXN.baseCommit)
                 .next().asResource().uri
+            val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
+            val updates = prepareUserUpdate(sparqlUpdateAst, prefixMap)
+            val userPrefixes = PrefixMapBuilder()
+            userPrefixes.map = prefixMap
+            val updateString = updates.joinToString(";\n")
             //run update, will throw error if triplestore response is not 2xx
-            executeSparqlUpdate(requestContext.update, stagingGraphIri)
+            executeSparqlUpdate(updateString) {
+                prefixes(userPrefixes)
+                iri("__mms_model" to stagingGraphIri)
+            }
             val commitUpdateString = genCommitUpdate()
             val constructResponseText = diffAndFinalizeCommit(
                 stagingGraphIri,

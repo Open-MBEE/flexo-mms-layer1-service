@@ -369,19 +369,14 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
      * Execute a SPARQL Update string against Layer 0
      */
     @OptIn(InternalAPI::class)
-    suspend fun executeSparqlUpdate(pattern: String, using: String?=null, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
-        var sparql: String
-        if (using != null) {
-            sparql = pattern
-        } else {
-            sparql = SparqlParameterizer(pattern.trimIndent()).apply {
-                if (setup != null) setup()
-                else prefixes(prefixes)
-            }.toString()
-            sparql = replaceValuesDirectives(sparql,
-                "groupId" to groups,
+    suspend fun executeSparqlUpdate(pattern: String, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
+        var sparql = SparqlParameterizer(pattern.trimIndent()).apply {
+            if (setup != null) setup()
+            else prefixes(prefixes)
+        }.toString()
+        sparql = replaceValuesDirectives(sparql,
+            "groupId" to groups
             )
-        }
         log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
         return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
@@ -390,9 +385,6 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 append(HttpHeaders.Accept, ContentType.Any)
             }
             contentType(RdfContentTypes.SparqlUpdate)
-            if (using != null) {
-                parameter("using-graph-uri", using)
-            }
             body=sparql
         })
     }
