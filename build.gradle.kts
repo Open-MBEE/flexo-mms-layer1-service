@@ -51,6 +51,7 @@ dependencies {
 
     val jenaVersion = "4.10.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
+    implementation("org.apache.jena:jena-fuseki-server:$jenaVersion")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
@@ -141,4 +142,27 @@ compileKotlin.compilerOptions {
 
 kotlin {
     jvmToolchain(17)
+}
+
+// Task to build a fat JAR with embedded Fuseki server
+tasks.register<Jar>("fatJar") {
+    group = "build"
+    description = "Creates a fat JAR with Layer1 service and embedded Fuseki server"
+
+    archiveClassifier.set("with-fuseki")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Set main class to custom launcher
+    manifest {
+        attributes["Main-Class"] = "org.openmbee.flexo.mms.EmbeddedFusekiLauncher"
+    }
+
+    // Include all runtime dependencies
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+
+    // Include compiled classes
+    with(tasks.jar.get())
+
+    // Exclude signature files that can cause issues
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }

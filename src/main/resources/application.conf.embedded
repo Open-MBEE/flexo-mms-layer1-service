@@ -1,0 +1,81 @@
+mms {
+    application {
+        # if true, respond with 404 to unauthorized requests, even when a resource exists (neither confirming nor denying its existence)
+        glomar-response = true
+        glomar-response = ${?FLEXO_MMS_GLOMAR_RESPONSE}
+
+        # large patch strings above this threshold size will not be stored in the triplestore. if unset, no limit on literal size enforced
+        maximum-literal-size-kib = 61440
+        maximum-literal-size-kib = ${?FLEXO_MMS_MAXIMUM_LITERAL_SIZE_KIB}
+
+        # patch strings above this threshold size will be gzipped when stored in the triplestore. if unset, will not attempt to gzip any strings (effectively disabling the feature)
+        gzip-literals-larger-than-kib = 512
+        gzip-literals-larger-than-kib = ${?FLEXO_MMS_GZIP_LITERALS_LARGER_THAN_KIB}
+
+        # request timeout in seconds for requests to backend quadstore (default 30 min)
+        request-timeout = 1800
+        request-timeout = ${?FLEXO_MMS_SPARQL_REQUEST_TIMEOUT}
+    }
+
+    store-service {
+        url = ""
+        url = ${?FLEXO_MMS_STORE_SERVICE_URL}
+        accepts = "text/turtle, application/ld+json, application/rdf+xml"
+        accepts = ${?FLEXO_MMS_STORE_SERVICE_ACCEPTS}
+    }
+
+    quad-store {
+        # These will be automatically configured by EmbeddedFusekiLauncher
+        # but can be overridden via environment variables
+        query-url = "http://localhost:3030/ds/sparql"
+        query-url = ${?FLEXO_MMS_QUERY_URL}
+        update-url = "http://localhost:3030/ds/update"
+        update-url = ${?FLEXO_MMS_UPDATE_URL}
+        master-query-url = ""
+        master-query-url = ${?FLEXO_MMS_MASTER_QUERY_URL}
+        graph-store-protocol-url = "http://localhost:3030/ds/data"
+        graph-store-protocol-url = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL}
+        graph-store-protocol-accepts = "text/turtle, application/ld+json, application/rdf+xml"
+        graph-store-protocol-url = ${?FLEXO_MMS_GRAPH_STORE_PROTOCOL_ACCEPTS}
+    }
+}
+
+fuseki {
+    # Embedded Fuseki server configuration
+    port = 3030
+    port = ${?FUSEKI_PORT}
+    dataset-name = "ds"
+    dataset-name = ${?FUSEKI_DATASET_NAME}
+    persistence-mode = "memory"
+    persistence-mode = ${?FUSEKI_PERSISTENCE_MODE}
+    tdb-location = "./fuseki-data"
+    tdb-location = ${?FUSEKI_TDB_LOCATION}
+}
+
+ktor {
+    deployment {
+        # Layer1 service port (use FLEXO_MMS_LAYER1_PORT, FLEXO_LAYER1_PORT, LAYER1_PORT, or PORT, defaults to 31337)
+        port = 31337
+        port = ${?FLEXO_MMS_LAYER1_PORT}
+        port = ${?FLEXO_LAYER1_PORT}
+        port = ${?LAYER1_PORT}
+        port = ${?PORT}
+    }
+
+    application {
+        modules = [ org.openmbee.flexo.mms.ApplicationKt.module ]
+    }
+
+    development = false
+}
+
+jwt {
+    domain = "https://jwt-provider-domain/"
+    domain = ${?JWT_DOMAIN}
+    audience = "jwt-audience"
+    audience = ${?JWT_AUDIENCE}
+    realm = "Flexo MMS Microservices"
+    realm = ${?JWT_REALM}
+    secret = "test1234"
+    secret = ${?JWT_SECRET}
+}
