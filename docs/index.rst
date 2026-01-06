@@ -98,6 +98,10 @@ To generate the init file, checkout https://github.com/Open-MBEE/flexo-mms-layer
 .. code:: bash
 
    cd deploy
+   # install dependencies
+   npm ci
+   # approve module download [y]
+   npx ts-node -v
    npx ts-node src/main.ts $APP_URL > cluster.trig
 
 Where ``$APP_URL`` is the root URL for where the Flexo MMS Layer 1 instance is deployed, e.g., ``https://mms.openmbee.org``. For local development, we simply use the stand-in ``http://layer1-service``.
@@ -110,6 +114,13 @@ Apply the initialization file
 -----------------------------
 
 Once the initialization file has been generated at ``cluster.trig``, apply this file to your empty quadstore (for example, by using its Graph Store Protocol API to insert the data) before using Flexo MMS.
+
+.. code:: bash
+
+   # POSIX shell
+   curl -X POST -H "Content-Type: application/trig" --data-binary @src/test/resources/cluster.trig http://localhost:3030/ds/data
+   # or PowerShell
+   Invoke-WebRequest -Uri "http://localhost:3030/ds/data" -Method POST -InFile "src/test/resources/cluster.trig" -ContentType "application/trig"
 
 Performance Considerations
 --------------------------
