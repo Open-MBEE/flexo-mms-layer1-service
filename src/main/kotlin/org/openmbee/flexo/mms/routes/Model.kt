@@ -487,7 +487,7 @@ suspend fun AnyLayer1Context.diffAndFinalizeCommit(dstGraphIri: String, srcGraph
             }
         }
     """)
-    return constructCommitResponseText
+    return "$constructCommitResponseText\n$diffConstructResponseText"
 }
 
 fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
