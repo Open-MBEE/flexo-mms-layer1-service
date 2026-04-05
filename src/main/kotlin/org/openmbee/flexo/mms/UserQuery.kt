@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
 import org.apache.jena.sparql.modify.request.UpdateDataDelete
@@ -430,7 +431,33 @@ suspend fun Layer1Context<GspRequest, *>.deleteGraph(deleteGraphUri: String, whe
     // execute update
     executeSparqlUpdate(deleteUpdateString)
 }
-
+fun rejectGraphInQuads(quads: List<Quad>) {
+    for(quad in quads) {
+        if (quad.graph != null && !quad.isDefaultGraph) {
+            throw QuadsNotAllowedException(quad.graph.toString())
+        }
+    }
+}
+fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
+    for (update in sparqlUpdateAst.operations) {
+        when (update) {
+            is UpdateDataDelete, is UpdateDataInsert -> {
+                rejectGraphInQuads(update.quads)
+            }
+            is UpdateDeleteWhere -> {
+                rejectGraphInQuads(update.quads)
+            }
+            is UpdateModify -> {
+                if (update.hasDeleteClause()) rejectGraphInQuads(update.deleteQuads)
+                if (update.hasInsertClause()) rejectGraphInQuads(update.insertQuads)
+                update.wherePattern.apply {
+                    visit(NoQuadsElementVisitor)
+                }
+            }
+            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+        }
+    }
+}
 /**
  * Rewrites a user update so it includes the correct graph to update, and to reject unauthorized graph access
  * caller should replace ?__mms_model by the graph to be updated

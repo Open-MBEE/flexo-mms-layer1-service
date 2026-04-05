@@ -6,6 +6,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import loadModel
+import org.apache.jena.rdf.model.Property
+import org.apache.jena.rdf.model.Resource
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.server.graphStoreProtocol
@@ -73,13 +75,14 @@ fun Route.crudModel() {
  *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb: triple
  *   and all the conditions pass
  *
- *   ?baseCommit and ?stagingGraph should be part of the conditions pattern
+ *   ?baseCommit and ?stagingGraph, ?modelGraph should be part of the conditions pattern
 */
 suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: ConditionsGroup): String {
     val update = buildSparqlUpdate {
         insert {
             txn("mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:baseCommit" to "?baseCommit",
+                "mms-txn:baseModelGraph" to "?modelGraph",
                 "mms-txn:mutex" to "morb:")
         }
         where {
@@ -187,9 +190,9 @@ fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where
             
                     # commit data
                     morc-data: a mms:Update ;
-                        mms:body ?_updateBody ;
                         mms:patch ?_patchString ;
-                        mms:where ?_whereString ;
+                        mms:insGraph ?_insGraph ;
+                        mms:delGraph ?_delGraph ;
                         .
             
                     # update branch pointer and etag
@@ -306,6 +309,185 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
             """)
         }
     }
+}
+suspend fun AnyLayer1Context.diffAndFinalizeCommit(dstGraphIri: String, srcGraphIri: String, srcCommitIri: String, localConditions: ConditionsGroup, commitUpdateString: String): String {
+    // compute the delta
+    val updateString = genDiffUpdate()
+    executeSparqlUpdate(updateString) {
+        prefixes(prefixes)
+        iri(
+            // use current branch as ref source
+            "srcRef" to prefixes["morb"]!!,
+            // set dst graph
+            "dstGraph" to dstGraphIri,
+            // set dst commit (this commit)
+            "dstCommit" to prefixes["morc"]!!,
+            // use explicit srcGraph
+            "srcGraph" to srcGraphIri,
+            // use explicit srcCommit
+            "srcCommit" to srcCommitIri,
+        )
+    }
+    // validate diff creation
+    lateinit var diffConstructResponseText: String
+    val diffConstructModel = run {
+        val diffConstructString = buildSparqlQuery {
+            construct {
+                txn("diff")
+                etag("morb:")
+            }
+            where {
+                group {
+                    txn("diff", true)
+                    etag("morb:")
+                }
+            }
+        }
+        diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
+        log("Diff construct response:\n$diffConstructResponseText")
+
+        validateTransaction(diffConstructResponseText, localConditions, "diff")
+    }
+
+    // shortcut lambda for fetching properties in returned model
+    val propertyUriAt = { res: Resource, prop: Property ->
+        diffConstructModel.listObjectsOfProperty(res, prop).let {
+            if (it.hasNext()) it.next().asResource().uri else null
+        }
+    }
+
+    // locate transaction node
+    val transactionNode = diffConstructModel.createResource(prefixes["mt"] + "diff")
+
+    // get ins/del graphs
+    val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
+    val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
+
+    //for some reason, on fuseki, even if the construct is empty, it still returns prefixes...
+    val deleteDataResponseText = executeSparqlConstructOrDescribe("""
+        construct {
+            ?del_s ?del_p ?del_o .
+        }
+        where {                    
+            graph ?_delGraph {
+                ?del_s ?del_p ?del_o .
+            }
+        }
+    """) {
+        iri(
+            "_delGraph" to diffDelGraph!!,
+        )
+    }
+
+    val insertDataResponseText = executeSparqlConstructOrDescribe("""
+        construct {
+            ?ins_s ?ins_p ?ins_o .
+        }
+        where {                    
+            graph ?_insGraph {
+                ?ins_s ?ins_p ?ins_o .
+            }
+        }
+    """) {
+        iri(
+            "_insGraph" to diffInsGraph!!,
+        )
+    }
+    val insertModel = parseModelStripPrefixes(RdfContentTypes.Turtle, insertDataResponseText)
+    val deleteModel = parseModelStripPrefixes(RdfContentTypes.Turtle, deleteDataResponseText)
+    // empty delta (no changes)
+    if (insertModel.isEmpty && deleteModel.isEmpty) {
+        // locate branch node
+        val branchNode = diffConstructModel.createResource(prefixes["morb"])
+        // get its etag value
+        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+        // set etag header
+        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
+        // sanity check
+        log.info("Sending data-less construct response text to client: \n$prefixes")
+        // respond
+        call.respondText("$prefixes", RdfContentTypes.Turtle)
+        // should this be some other response code to indicate no change..,
+        return ""
+    }
+
+    //create patch string to get from previous commit to loaded graph
+    // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
+    var patchString = """
+        delete {
+            graph ?__mms_model {
+                ?s ?p ?o .
+            }
+        } where {
+            graph <$diffDelGraph> {
+                ?s ?p ?o .
+            }
+        };
+        insert {
+            graph ?__mms_model {
+                ?s ?p ?o .
+            }
+        } where {
+            graph <$diffInsGraph> {
+                ?s ?p ?o .
+            }
+        } 
+    """.trimIndent()
+
+    log("Prepared commit update string:")
+    executeSparqlUpdate(commitUpdateString) {
+        prefixes(prefixes)
+
+        iri(
+            "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
+            "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph")
+        )
+
+        datatyped(
+            "_patchString" to (patchString to MMS_DATATYPE.sparql),
+        )
+
+        literal(
+            "_txnId" to transactionId,
+        )
+    }
+
+    val constructCommitString = buildSparqlQuery {
+        construct {
+            raw("""
+                morc: ?commit_p ?commit_o .
+            """)
+        }
+        where {
+            raw("""
+                graph mor-graph:Metadata {
+                   morc: ?commit_p ?commit_o .
+                }
+            """)
+        }
+    }
+    val constructCommitResponseText = executeSparqlConstructOrDescribe(constructCommitString)
+    // start copying staging to new model
+    executeSparqlUpdate("""
+        copy graph <$dstGraphIri> to graph mor-graph:Model.$transactionId ;
+
+        insert data {
+            graph m-graph:Graphs {
+                mor-graph:Model.$transactionId a mms:ModelGraph .
+            }
+
+            graph mor-graph:Metadata {
+                mor-lock:Commit.$transactionId a mms:Lock ;
+                    mms:snapshot mor-snapshot:Model.$transactionId ;
+                    mms:commit morc: ;
+                    .
+                mor-snapshot:Model.$transactionId a mms:Model ;
+                    mms:graph mor-graph:Model.$transactionId ;
+                    .
+            }
+        }
+    """)
+    return constructCommitResponseText
 }
 
 fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
