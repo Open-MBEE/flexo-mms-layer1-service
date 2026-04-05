@@ -48,7 +48,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         val loadGraphUri = "${prefixes["mor-graph"]}Load.$transactionId"
 
         // now load triples into designated load graph
-        loadGraph(loadGraphUri, "$orgId/$repoId/$branchId/$diffId.ttl")
+        loadGraph(loadGraphUri, "$orgId/$repoId/$branchId/Load.$transactionId.ttl")
         // replace current staging graph with the already loaded model in load graph
         val commitUpdateString = genCommitUpdate(
             delete = """

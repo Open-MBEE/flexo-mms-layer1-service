@@ -24,7 +24,7 @@ services:
       - 9000:9000
 
   store-service:
-    image: openmbee/flexo-mms-store-service:develop-SNAPSHOT
+    image: openmbee/flexo-mms-store-service:v0.2.0
     hostname: store-service
     container_name: store-service
     env_file:
