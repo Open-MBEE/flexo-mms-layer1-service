@@ -24,9 +24,6 @@ class CollectionQueryTest : CollectionAny() {
 
         "POST $demoCollectionPath/query - query across collected graphs" {
             testApplication {
-                // create repo
-                val repoResponse = createRepo(demoOrgPath, demoRepoId, demoRepoName)
-
                 // load data into the repo's master branch
                 httpPost("$demoRepoPath/branches/master/update") {
                     setSparqlUpdateBody(insertAliceRex)
@@ -50,9 +47,6 @@ class CollectionQueryTest : CollectionAny() {
 
         "POST $demoCollectionPath/query/inspect - inspect generated query" {
             testApplication {
-                // create repo
-                createRepo(demoOrgPath, demoRepoId, demoRepoName)
-
                 // create collection
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
@@ -71,9 +65,6 @@ class CollectionQueryTest : CollectionAny() {
 
         "GET $demoCollectionPath/graph - get union graph" {
             testApplication {
-                // create repo
-                createRepo(demoOrgPath, demoRepoId, demoRepoName)
-
                 // load data
                 httpPost("$demoRepoPath/branches/master/update") {
                     setSparqlUpdateBody(insertAliceRex)
