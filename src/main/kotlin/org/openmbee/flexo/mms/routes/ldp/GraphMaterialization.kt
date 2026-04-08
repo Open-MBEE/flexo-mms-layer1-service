@@ -231,6 +231,7 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
         }
         """
     ) {
+        prefixes(prefixes)
         iri(
             "_commitIri" to commitIri,
             "_targetGraph" to targetGraphIri,
@@ -245,7 +246,9 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
                 mt:sequence ?p ?o .
             }
         }
-    """)
+    """) {
+        prefixes(prefixes)
+    }
 
     return targetGraphIri
 }
