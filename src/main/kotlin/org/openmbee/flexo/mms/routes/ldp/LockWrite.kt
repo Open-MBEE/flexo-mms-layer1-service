@@ -2,6 +2,8 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.response.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
@@ -50,56 +52,6 @@ private fun PatternBuilder<*>.existingLock() {
     }
 }
 
-
-private const val SPARQL_CONSTRUCT_SNAPSHOT = """
-    construct {
-        ?baseSnapshot mms:graph ?baseGraph .
-        ?baseRef
-            mms:commit ?baseCommit ;
-            mms:snapshot ?baseSnapshot .
-
-        ?ancestor mms:parent ?parent ;
-            mms:patch ?patch ;
-            mms:where ?where .
-    } where {
-        graph mor-graph:Metadata {
-            # locate a commit that...
-            ?__mms_commit mms:parent* ?baseCommit .
-
-            # ... is targeted by some ref
-            ?baseRef mms:commit ?baseCommit ;
-                # access its snapshot
-                mms:snapshot ?baseSnapshot .
-
-            # and that snapshot's graph
-            ?baseSnapshot mms:graph ?baseGraph .
-
-            # only match the most recent snapshot in the commit history
-            filter not exists {
-                morc: mms:parent* ?newerCommit .
-                ?newerCommit mms:parent* ?baseCommit ;
-                    ^mms:commit/mms:snapshot ?newerSnapshot .
-
-                filter(?newerCommit != ?baseCommit)
-            }
-
-
-            # fetch the ancestry between the base and target commits
-            optional {
-                ?__mms_commit mms:parent* ?ancestor .
-                ?ancestor mms:parent ?parent ;
-                    mms:data ?data .
-                ?data mms:patch ?patch ;
-                    mms:where ?where .
-                
-                # exclude commits older than the base commit
-                filter not exists {
-                    ?baseCommit mms:parent* ?ancestor .
-                }
-            }
-        }
-    }
-"""
 
 suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceLock() {
     // process RDF body from user about this new lock
@@ -191,9 +143,34 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }.appendRefOrCommit()
 
-    // only support lock on existing ref for now
-    if(refSource == null) {
-        throw Http500Excpetion("Creating Locks on commits is not yet supported")
+    // for commit-source, materialize the model graph first so snapshot is available for the SPARQL update
+    var materializedSnapshotIri: String? = null
+    if(commitSource != null) {
+        val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
+        val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
+
+        // query for the snapshot IRI that was created/found for this commit
+        val snapshotQuery = """
+            select ?snapshot where {
+                graph mor-graph:Metadata {
+                    ?lock mms:commit ?_commitSource ;
+                        mms:snapshot ?snapshot .
+                    ?snapshot a mms:Model .
+                }
+            } limit 1
+        """.trimIndent()
+
+        val snapshotResult = executeSparqlSelectOrAsk(snapshotQuery) {
+            prefixes(prefixes)
+            iri("_commitSource" to commitSource!!)
+        }
+
+        val snapshotBindings = parseSparqlResultsJsonSelect(snapshotResult)
+        if (snapshotBindings.isNotEmpty()) {
+            materializedSnapshotIri = snapshotBindings[0]["snapshot"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        } else {
+            throw Http500Excpetion("Failed to materialize model graph for commit")
+        }
     }
 
     // prep SPARQL UPDATE string
@@ -229,12 +206,20 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
 
-            graph("mor-graph:Metadata") {
+            if(refSource != null) {
+                // ref-source: find commit and snapshot through the ref's existing lock
+                graph("mor-graph:Metadata") {
+                    raw("""
+                        ?__mms_commitLock a mms:Lock ;
+                            mms:commit ?__mms_commitSource ;
+                            mms:snapshot ?__mms_commitSnapshot ;
+                            .
+                    """)
+                }
+            } else {
+                // commit-source: snapshot was created by materialization step, bind it directly
                 raw("""
-                    ?__mms_commitLock a mms:Lock ;
-                        mms:commit ?__mms_commitSource ;
-                        mms:snapshot ?__mms_commitSnapshot ;
-                        .
+                    bind(?_materializedSnapshot as ?__mms_commitSnapshot)
                 """)
             }
         }
@@ -247,9 +232,16 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         prefixes(prefixes)
 
         // replace IRI substitution variables
-        iri(
-            "_refSource" to refSource!!
-        )
+        if(refSource != null) {
+            iri(
+                "_refSource" to refSource!!
+            )
+        } else {
+            iri(
+                "__mms_commitSource" to commitSource!!,
+                "_materializedSnapshot" to materializedSnapshotIri!!,
+            )
+        }
     }
 
     // create construct query to confirm transaction and fetch lock details

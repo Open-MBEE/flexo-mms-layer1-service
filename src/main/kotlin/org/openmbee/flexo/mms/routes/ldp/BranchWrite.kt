@@ -1,19 +1,11 @@
 package org.openmbee.flexo.mms.routes.ldp
 
-import com.linkedin.migz.MiGzInputStream
 import io.ktor.http.*
 import io.ktor.server.response.*
-import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
-import java.io.ByteArrayInputStream
-
-
-private val ROOT_COMMIT_RESOURCE = ResourceFactory.createResource("urn:mms:rootCommit")
-
-private val IS_PROPERTY = ResourceFactory.createProperty("urn:mms:is")
 
 
 // default starting conditions for any calls to create a branch
@@ -36,92 +28,6 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-private val SPARQL_UPDATE_SEQUENCE = """
-    insert {
-        # copy origin graph
-        graph ?_mdlGraph {
-            ?origin_s ?origin_p ?origin_o .
-        }
-    
-        graph m-graph:Graphs {
-            ?_mdlGraph a mms:SnapshotGraph .
-        }
-    
-        # save state for next queries
-        graph m-graph:Transactions {
-            mt:sequence
-                mms-txn:originCommit ?originCommit ;
-                mms-txn:originSnapshot ?originSnapshot ;
-                mms-txn:originGraph ?originGraph ;
-                .
-        }
-    }
-    where {
-        graph mor-graph:Metadata {
-            # commit's ancestors
-            ?_commitSource a mms:Commit ;
-                mms:parent+ ?originCommit .
-    
-            # pick the closest commit which also has a ref by excluding 'heirs'
-            filter not exists {
-                ?_commitSource mms:parent+ ?heirCommit .
-    
-                ?heirCommit mms:parent+ ?originCommit .
-    
-                ?heirRef mms:commit ?heirCommit .
-            }
-    
-            # traverse to snapshot
-            ?originRef mms:commit ?originCommit ;
-                mms:snapshot ?originSnapshot .
-    
-            # resolve to origin graph
-            ?originSnapshot mms:graph ?originGraph .
-        }
-
-        # select contents of origin graph
-        optional {
-            graph ?originGraph {
-                ?origin_s ?origin_p ?origin_o .
-            }
-        }
-    }
-""".trimIndent()
-
-private val SPARQL_CONSTRUCT_DELTAS = """
-    construct {
-        ?deltaCommit ?delta_p ?delta_o .
-    
-        ?deltaData ?data_p ?data_o .
-        
-        <${ROOT_COMMIT_RESOURCE.uri}> <${IS_PROPERTY.uri}> ?rootCommit .
-    } where {
-        # restore state from previous transaction
-        graph m-graph:Transactions {
-            mt:sequence
-                mms-txn:originCommit ?originCommit ;
-                mms-txn:originSnapshot ?originSnapshot ;
-                mms-txn:originGraph ?originGraph ;
-                .
-        }
-    
-        graph mor-graph:Metadata {
-            # select all prior delta commits...
-            ?_commitSource mms:parent* ?deltaCommit .
-    
-            # ...that occur after the origin commit
-            ?deltaCommit mms:parent+ ?originCommit ;
-                mms:data ?deltaData ;
-                ?delta_p ?delta_o .
-    
-            # all delta commit data
-            ?deltaData ?data_p ?data_o.
-            
-            # 'root' commit
-            ?rootCommit mms:parent ?originCommit .
-        }
-    }
-""".trimIndent()
 
 
 //suspend fun AnyLayer1Context.createBranch(usedPost: Boolean = false) {
@@ -279,109 +185,36 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
             // no snapshots available, must build for commit
             else {
-                // select most recent preceding snapshot and copy to new snapshot graph
-                val sequenceUpdateResponseText = executeSparqlUpdate(SPARQL_UPDATE_SEQUENCE) {
-                    prefixes(prefixes)
+                // materialize the model graph for the commit
+                val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
 
-                    iri(
-                        "_commitSource" to commitSource!!,
-                        "_mdlGraph" to modelGraph,
-                    )
-                }
-
-                log.info(sequenceUpdateResponseText)
-
-                // select all commits between source and target
-                val deltasResponseText = executeSparqlConstructOrDescribe(SPARQL_CONSTRUCT_DELTAS) {
-                    prefixes(prefixes)
-
-                    iri(
-                        "_commitSource" to commitSource!!,
-                    )
-                }
-
-                log.info(deltasResponseText)
-
-                // build sparql update string
-                val updates = mutableListOf<String>()
-                parseConstructResponse(deltasResponseText) {
-                    // find root commit
-                    val rootCommits = model.listObjectsOfProperty(ROOT_COMMIT_RESOURCE, IS_PROPERTY).toList()
-                    if (rootCommits.size != 1) throw Http500Excpetion("Failed to determine commit history")
-
-                    // set initial commit resource
-                    var commit = rootCommits[0].asResource()
-
-                    // iterate thru all commits
-                    while (true) {
-                        // get patch body
-                        val patches =
-                            model.listObjectsOfProperty(commit.extractExactly1Uri(MMS.data), MMS.patch).toList()
-                        if (patches.size != 1) throw Http500Excpetion("Commit data missing patch string")
-
-                        // ref literal
-                        val patchLiteral = patches[0].asLiteral()
-
-                        // compressed sparql gz
-                        val patchString = if (patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
-                            val bytes = patchLiteral.string.toByteArray()
-
-                            // prep input stream
-                            val stream = ByteArrayInputStream(bytes)
-
-                            // instantiate decompressor
-                            val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
-
-                            // read decompressed data and create string
-                            String(migz.readAllBytes())
-
-                        }
-                        // uncompressed sparql
-                        else {
-                            patchLiteral.string
-                        }
-
-                        // add to update strings
-                        updates.add(patchString)
-
-                        // traverse to child commit
-                        val children = model.listSubjectsWithProperty(MMS.parent, commit).toList()
-                        if (children.isEmpty()) break
-
-                        // repeat
-                        commit = children[0]
-                    }
-                }
-
-                // apply all commits in sequence
-                executeSparqlUpdate(updates.joinToString(" ;\n")) {
-                    prefixes(prefixes)
-
-                    iri(
-                        "__mms_model" to modelGraph
-                    )
-                }
-
-                // save new snapshot
+                // copy materialized graph to staging graph and save staging snapshot metadata
                 executeSparqlUpdate(
                     """
+                    # copy materialized model graph to new branch's staging graph
+                    copy silent graph <$materializedGraph> to graph ?_stgGraph ;
+                    
+                    # save snapshot metadata
                     insert data {
+                        # add snapshot graph to registry
+                        graph m-graph:Graphs {
+                            ?_stgGraph a mms:SnapshotGraph .
+                        }
+                    
+                        # declare snapshot in repository metadata
                         graph mor-graph:Metadata {
-                            mor-lock:Commit.${transactionId} a mms:Lock ;
-                                mms:commit morc: ;
-                                mms:snapshot ?_mdlSnapshot ;
-                                .
-    
-                            ?_mdlSnapshot a mms:Model ;
-                                mms:graph ?_mdlGraph ;
+                            morb: mms:snapshot ?_stgSnapshot . 
+                            ?_stgSnapshot a mms:Staging ;
+                                mms:graph ?_stgGraph ;
                                 .
                         }
                     }
                 """
                 ) {
+                    prefixes(prefixes)
                     iri(
-                        "_mdlGraph" to modelGraph,
-                        "_mdlSnapshot" to modelSnapshot,
+                        "_stgGraph" to stagingGraph,
+                        "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
                     )
                 }
             }

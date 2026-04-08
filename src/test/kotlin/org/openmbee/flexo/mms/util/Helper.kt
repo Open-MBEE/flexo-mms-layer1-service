@@ -60,6 +60,27 @@ suspend fun ApplicationTestBuilder.createLock(repoPath: String, refPath: String,
     return response
 }
 
+suspend fun ApplicationTestBuilder.createBranchFromCommit(repoPath: String, commitIri: String, branchId: String, branchName: String): HttpResponse {
+    val response = httpPut("$repoPath/branches/$branchId") {
+        setTurtleBody(withAllTestPrefixes("""
+            <> dct:title "$branchName"@en .
+            <> mms:commit <$commitIri> .
+        """.trimIndent()))
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
+suspend fun ApplicationTestBuilder.createLockFromCommit(repoPath: String, commitIri: String, lockId: String): HttpResponse {
+    val response = httpPut("$repoPath/locks/$lockId") {
+        setTurtleBody(withAllTestPrefixes("""
+           <> mms:commit <$commitIri> .
+        """.trimIndent()))
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
 suspend fun ApplicationTestBuilder.createGroup(groupId: String, groupTitle: String): HttpResponse {
     val response = httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
         setTurtleBody("""
