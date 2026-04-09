@@ -224,7 +224,10 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         )
     }
 
-    // Wrap remaining steps in try/finally so diff graphs are cleaned up on failure
+    // Wrap remaining steps in try/finally so diff graphs are cleaned up on failure.
+    // On success, the diff graphs become the newer commit's mms:insGraph/mms:delGraph
+    // and must NOT be dropped.
+    var squashSucceeded = false
     try {
 
     // ===== Step 4: Build the squashed patch string =====
@@ -493,13 +496,20 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         log.info(dropResponseText)
     }
 
+    // mark success so finally block preserves the diff graphs (they are now
+    // referenced as the newer commit's mms:insGraph/mms:delGraph)
+    squashSucceeded = true
+
     } finally {
-        // always clean up the temporary diff graphs, even if authorization or validation fails
-        executeSparqlUpdate("""
-            drop silent graph <$diffInsGraphIri> ;
-            drop silent graph <$diffDelGraphIri>
-        """) {
-            prefixes(prefixes)
+        // only clean up temporary diff graphs on failure — on success they are
+        // stored as the newer commit's mms:insGraph/mms:delGraph
+        if (!squashSucceeded) {
+            executeSparqlUpdate("""
+                drop silent graph <$diffInsGraphIri> ;
+                drop silent graph <$diffDelGraphIri>
+            """) {
+                prefixes(prefixes)
+            }
         }
     }
 }
