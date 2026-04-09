@@ -393,7 +393,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             }
         }
         where {
-            // enforce authorization conditions (org/repo existence, UPDATE_LOCK, UPDATE_COMMIT)
+            // enforce authorization conditions (org/repo existence, UPDATE_COMMIT)
             raw(*localConditions.requiredPatterns())
 
             // match intermediate commit triples for deletion
