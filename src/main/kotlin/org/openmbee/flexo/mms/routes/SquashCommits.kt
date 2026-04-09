@@ -429,24 +429,6 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         )
     }
 
-    // ===== Step 7: Clean up old ins/del graphs from intermediate commits and old newer commit data =====
-    val graphsToClean = mutableListOf<String>()
-    graphsToClean.addAll(intermediateGraphsToClean)
-    // also drop old ins/del graphs from the newer commit's previous data if they differ from new ones
-    if (oldInsGraphIri != null && oldInsGraphIri != diffInsGraphIri) {
-        graphsToClean.add(oldInsGraphIri)
-    }
-    if (oldDelGraphIri != null && oldDelGraphIri != diffDelGraphIri) {
-        graphsToClean.add(oldDelGraphIri)
-    }
-
-    if (graphsToClean.isNotEmpty()) {
-        val dropStatements = graphsToClean.joinToString(";\n") { "drop silent graph <$it>" }
-        executeSparqlUpdate(dropStatements) {
-            prefixes(prefixes)
-        }
-    }
-
     // ===== Verify transaction and respond =====
     val constructString = buildSparqlQuery {
         construct {
@@ -480,6 +462,30 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     // validate whether the transaction succeeded (checks conditions passed)
     validateTransaction(constructResponseText, localConditions, "squash")
 
+    // mark success immediately after validation — the squash update is now confirmed
+    // in the triplestore, so diff graphs must be preserved even if response/cleanup fails
+    squashSucceeded = true
+
+    // ===== Step 7: Clean up old ins/del graphs from intermediate commits and old newer commit data =====
+    // This runs AFTER validateTransaction to avoid dropping graphs that are still
+    // referenced by metadata if the squash UPDATE was a no-op (e.g. auth failure).
+    val graphsToClean = mutableListOf<String>()
+    graphsToClean.addAll(intermediateGraphsToClean)
+    // also drop old ins/del graphs from the newer commit's previous data if they differ from new ones
+    if (oldInsGraphIri != null && oldInsGraphIri != diffInsGraphIri) {
+        graphsToClean.add(oldInsGraphIri)
+    }
+    if (oldDelGraphIri != null && oldDelGraphIri != diffDelGraphIri) {
+        graphsToClean.add(oldDelGraphIri)
+    }
+
+    if (graphsToClean.isNotEmpty()) {
+        val dropStatements = graphsToClean.joinToString(";\n") { "drop silent graph <$it>" }
+        executeSparqlUpdate(dropStatements) {
+            prefixes(prefixes)
+        }
+    }
+
     // respond
     call.response.header(HttpHeaders.ETag, transactionId)
     call.respondText(constructResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
@@ -495,10 +501,6 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         """)
         log.info(dropResponseText)
     }
-
-    // mark success so finally block preserves the diff graphs (they are now
-    // referenced as the newer commit's mms:insGraph/mms:delGraph)
-    squashSucceeded = true
 
     } finally {
         // only clean up temporary diff graphs on failure — on success they are
