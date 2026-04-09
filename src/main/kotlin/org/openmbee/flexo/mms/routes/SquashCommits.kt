@@ -328,6 +328,8 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     val oldDelGraphIri = newerCommitInfoBindings[0]["oldDelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
 
     // ===== Step 6: Execute the squash as a SPARQL UPDATE =====
+    val localConditions = SQUASH_CONDITIONS
+
     val squashUpdateParts = mutableListOf<String>()
 
     // Part a: Delete intermediate commits and their data
@@ -354,19 +356,28 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     }
 
     // Part b: Update the newer commit's parent to the older commit
-    squashUpdateParts.add("""
+    // Include conditions in the WHERE clause to enforce authorization
+    squashUpdateParts.add(buildSparqlUpdate {
         delete {
-            graph mor-graph:Metadata {
-                <$newerCommitIri> mms:parent <$oldParentIri> .
+            graph("mor-graph:Metadata") {
+                raw("""
+                    <$newerCommitIri> mms:parent <$oldParentIri> .
+                """)
             }
         }
         insert {
-            graph mor-graph:Metadata {
-                <$newerCommitIri> mms:parent <$olderCommitIri> .
+            subtxn("squash")
+
+            graph("mor-graph:Metadata") {
+                raw("""
+                    <$newerCommitIri> mms:parent <$olderCommitIri> .
+                """)
             }
         }
-        where {}
-    """.trimIndent())
+        where {
+            raw(*localConditions.requiredPatterns())
+        }
+    })
 
     // Part c: Replace the newer commit's data patch with the squashed patch
     val deleteOldDataClauses = mutableListOf(
@@ -429,27 +440,52 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         }
     }
 
-    // ===== Respond with the updated commit metadata =====
-    val responseQuery = buildSparqlQuery {
+    // ===== Verify transaction and respond =====
+    val constructString = buildSparqlQuery {
         construct {
+            txn("squash")
+
             raw("""
                 <$newerCommitIri> ?commit_p ?commit_o .
                 ?newerData ?data_p ?data_o .
             """)
         }
         where {
-            raw("""
-                graph mor-graph:Metadata {
-                    <$newerCommitIri> ?commit_p ?commit_o ;
-                        mms:data ?newerData .
-                    ?newerData ?data_p ?data_o .
-                }
-            """)
+            group {
+                txn("squash")
+
+                raw("""
+                    graph mor-graph:Metadata {
+                        <$newerCommitIri> ?commit_p ?commit_o ;
+                            mms:data ?newerData .
+                        ?newerData ?data_p ?data_o .
+                    }
+                """)
+            }
+            // inspect conditions for diagnostics if transaction failed
+            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
-    val responseText = executeSparqlConstructOrDescribe(responseQuery)
+    // execute construct
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
+    // validate whether the transaction succeeded (checks conditions passed)
+    validateTransaction(constructResponseText, localConditions, "squash")
+
+    // respond
     call.response.header(HttpHeaders.ETag, transactionId)
-    call.respondText(responseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
+    call.respondText(constructResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
+
+    // clean up transaction
+    run {
+        val dropResponseText = executeSparqlUpdate("""
+            delete where {
+                graph m-graph:Transactions {
+                    mt: ?p ?o .
+                }
+            }
+        """)
+        log.info(dropResponseText)
+    }
 }
