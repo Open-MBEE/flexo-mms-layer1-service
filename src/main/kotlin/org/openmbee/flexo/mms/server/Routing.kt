@@ -95,6 +95,7 @@ fun Application.configureRouting() {
             crudLocks()
             crudCommits()
             crudDiffs()
+            squashCommits()
 
             storeArtifacts()
 //            queryArtifacts()
