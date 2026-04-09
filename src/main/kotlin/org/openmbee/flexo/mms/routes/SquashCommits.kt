@@ -224,6 +224,9 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         )
     }
 
+    // Wrap remaining steps in try/finally so diff graphs are cleaned up on failure
+    try {
+
     // ===== Step 4: Build the squashed patch string =====
     val patchString = """
         delete {
@@ -276,12 +279,13 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     }
 
     // also collect ins/del graphs from intermediate commit data for cleanup
+    // use OPTIONAL for insGraph/delGraph since a commit's data may only have one or neither
     val intermediateInsDelQuery = """
-        select ?insGraph ?delGraph where {
+        select ?data ?insGraph ?delGraph where {
             graph mor-graph:Metadata {
-                ?data mms:insGraph ?insGraph ;
-                      mms:delGraph ?delGraph .
                 filter(?data in (${intermediateDataIris.joinToString(", ") { "<$it>" }}))
+                optional { ?data mms:insGraph ?insGraph . }
+                optional { ?data mms:delGraph ?delGraph . }
             }
         }
     """.trimIndent()
@@ -487,5 +491,15 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             }
         """)
         log.info(dropResponseText)
+    }
+
+    } finally {
+        // always clean up the temporary diff graphs, even if authorization or validation fails
+        executeSparqlUpdate("""
+            drop silent graph <$diffInsGraphIri> ;
+            drop silent graph <$diffDelGraphIri>
+        """) {
+            prefixes(prefixes)
+        }
     }
 }
