@@ -10,9 +10,12 @@ import org.openmbee.flexo.mms.server.LdpPostResponse
 import org.openmbee.flexo.mms.server.linkedDataPlatformDirectContainer
 
 
-// conditions for squash: repo must exist, user needs UPDATE_LOCK and UPDATE_COMMIT at repo scope
+// conditions for squash: repo must exist, user needs UPDATE_COMMIT at repo scope.
+// Only one permit() call is used because permittedActionSparqlBgp() generates SPARQL patterns
+// with shared variable names (?__mms_policy, ?__mms_scope, etc.) — multiple permit() calls in
+// the same ConditionsGroup would cause variable collisions in the WHERE clause. UPDATE_LOCK is
+// not needed here because locks are only read (to resolve commits), not modified.
 private val SQUASH_CONDITIONS = REPO_CRUD_CONDITIONS.append {
-    permit(Permission.UPDATE_LOCK, Scope.REPO)
     permit(Permission.UPDATE_COMMIT, Scope.REPO)
 }
 
