@@ -417,6 +417,9 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         datatyped(
             "_squashedPatch" to (patchString to MMS_DATATYPE.sparql),
         )
+        iri(
+            "_requiredPermission" to "${prefixes["mms-object"]}Permission.${Permission.UPDATE_COMMIT.id}",
+        )
     }
 
     // ===== Step 7: Clean up old ins/del graphs from intermediate commits and old newer commit data =====
