@@ -230,24 +230,16 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     val materialized = materializeModelGraph(resolvedCommitSource, modelGraph)
 
     // --- Phase 4: Insert lock metadata + auto policy last (after graph setup) ---
-    // delete existing lock triples first if replacing
-    if(replaceExisting) {
-        executeSparqlUpdate(
-            """
-            delete where {
-                graph mor-graph:Metadata {
-                    morl: ?p ?o .
-                }
-            }
-        """
-        ) {
-            prefixes(prefixes)
-        }
-    }
-
     val autoPolicyCurie = if(!replaceExisting) "m-policy:AutoLockOwner.${UUID.randomUUID()}" else null
     executeSparqlUpdate(
         """
+        ${if(replaceExisting) """
+        delete {
+            graph mor-graph:Metadata {
+                morl: ?morl_old_p ?morl_old_o .
+            }
+        }
+        """ else ""}
         insert {
             graph mor-graph:Metadata {
                 $lockTriples
@@ -272,14 +264,19 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             """ else ""}
         }
         where {
-            ${if(!replaceExisting) """
+            ${if(replaceExisting) """
+            # match existing lock triples for atomic delete+insert
+            graph mor-graph:Metadata {
+                morl: ?morl_old_p ?morl_old_o .
+            }
+            """ else """
             # re-check that the lock does not yet exist (atomicity guard)
             filter not exists {
                 graph mor-graph:Metadata {
                     morl: a mms:Lock .
                 }
             }
-            """ else ""}
+            """}
         }
     """
     ) {
