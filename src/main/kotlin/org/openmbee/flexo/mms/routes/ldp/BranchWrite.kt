@@ -2,10 +2,12 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.response.*
+import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
+import java.time.Instant
 
 
 // default starting conditions for any calls to create a branch
@@ -211,6 +213,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }),
             "_stgGraph" to stagingGraph,
             "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
+        )
+        datatyped(
+            "_now" to (Instant.now().toString() to XSDDatatype.XSDdateTime),
         )
     }
 
