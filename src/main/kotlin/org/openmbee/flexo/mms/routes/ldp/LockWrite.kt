@@ -2,11 +2,14 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.response.*
+import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 import org.openmbee.flexo.mms.server.LdpPatchResponse
+import java.time.Instant
+import java.util.UUID
 
 
 // require that the given lock does not exist (before attempting to create it)
@@ -141,62 +144,28 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }.appendRefOrCommit()
 
-    // for commit-source, materialize the model graph first so snapshot is available for the SPARQL update
-    var materializedSnapshotIri: String? = null
-    if(commitSource != null) {
-        val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
-        val materialized = materializeModelGraph(commitSource!!, modelGraph)
-        materializedSnapshotIri = materialized.snapshotIri
-    }
-
-    // prep SPARQL UPDATE string
+    // --- Phase 1: Insert only the transaction (with conditions check), NOT lock metadata or auto policy ---
     val updateString = buildSparqlUpdate {
-        if(replaceExisting) {
-            delete {
-                existingLock()
-            }
-        }
         insert {
             // create a new txn object in the transactions graph
-            txn {
-                // not replacing existing; create new policy
-                if(!replaceExisting) {
-                    // create a new policy that grants this user admin over the new lock
-                    autoPolicy(Scope.LOCK, Role.ADMIN_LOCK)
-                }
-            }
-
-            // insert the triples about the new lock, including arbitrary metadata supplied by user
-            graph("mor-graph:Metadata") {
-                raw("""
-                    $lockTriples
-                    
-                    morl: mms:commit ?__mms_commitSource ;
-                        mms:snapshot ?__mms_commitSnapshot ;
-                        mms:created ?_now ;
-                        .
-                """)
-            }
+            // store the commit source as an intermediate txn property
+            txn(
+                "mms-txn:commitSource" to "?__mms_commitSource",
+            )
         }
         where {
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
 
             if(refSource != null) {
-                // ref-source: find commit and snapshot through the ref's existing lock
+                // ref-source: find commit through the ref's existing lock
                 graph("mor-graph:Metadata") {
                     raw("""
                         ?__mms_commitLock a mms:Lock ;
                             mms:commit ?__mms_commitSource ;
-                            mms:snapshot ?__mms_commitSnapshot ;
                             .
                     """)
                 }
-            } else {
-                // commit-source: snapshot was created by materialization step, bind it directly
-                raw("""
-                    bind(?_materializedSnapshot as ?__mms_commitSnapshot)
-                """)
             }
         }
     }
@@ -208,21 +177,125 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         prefixes(prefixes)
 
         // replace IRI substitution variables
-        if(refSource != null) {
-            iri(
-                "_refSource" to refSource!!
-            )
-        } else {
-            iri(
-                "__mms_commitSource" to commitSource!!,
-                "_materializedSnapshot" to materializedSnapshotIri!!,
-            )
+        iri(
+            // user specified either ref or commit
+            if(refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+
+    // --- Phase 2: Construct + validate transaction ---
+    val constructString = buildSparqlQuery {
+        construct {
+            // all the details about this transaction
+            txn()
+        }
+        where {
+            // first group in a series of unions fetches intended outputs
+            group {
+                txn()
+            }
+            // all subsequent unions are for inspecting what if any conditions failed
+            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
-    // create construct query to confirm transaction and fetch lock details
-    val constructString = buildSparqlQuery {
-        construct  {
+    // parameterizer setup shared by construct and later queries
+    val sparqlSetup: SparqlParameterizer.() -> Unit = {
+        prefixes(prefixes)
+
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if(refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+
+    // execute construct to validate transaction
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString, sparqlSetup)
+
+    // validate whether the transaction succeeded
+    val constructModel = validateTransaction(constructResponseText, localConditions, null, null)
+
+    // --- Phase 3: Resolve commit source, materialize model graph ---
+    val resolvedCommitSource = commitSource ?: run {
+        val transactionNode = constructModel.createResource(prefixes["mt"])
+        transactionNode.listProperties(MMS.TXN.commitSource).toList().firstOrNull()
+            ?.`object`?.asResource()?.uri
+            ?: throw Http500Excpetion("Transaction missing commit source")
+    }
+
+    val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
+    val materialized = materializeModelGraph(resolvedCommitSource, modelGraph)
+
+    // --- Phase 4: Insert lock metadata + auto policy last (after graph setup) ---
+    // delete existing lock triples first if replacing
+    if(replaceExisting) {
+        executeSparqlUpdate(
+            """
+            delete where {
+                graph mor-graph:Metadata {
+                    morl: ?p ?o .
+                }
+            }
+        """
+        ) {
+            prefixes(prefixes)
+        }
+    }
+
+    val autoPolicyCurie = if(!replaceExisting) "m-policy:AutoLockOwner.${UUID.randomUUID()}" else null
+    executeSparqlUpdate(
+        """
+        insert {
+            graph mor-graph:Metadata {
+                $lockTriples
+                
+                morl: mms:commit ?_commitSource ;
+                    mms:snapshot ?_commitSnapshot ;
+                    mms:created ?_now ;
+                    .
+            }
+            ${if(autoPolicyCurie != null) """
+            graph m-graph:Transactions {
+                mt: mms:createdPolicy $autoPolicyCurie .
+            }
+            
+            graph m-graph:AccessControl.Policies {
+                $autoPolicyCurie a mms:Policy ;
+                    mms:subject mu: ;
+                    mms:scope morl: ;
+                    mms:role mms-object:Role.AdminLock ;
+                    .
+            }
+            """ else ""}
+        }
+        where {
+            ${if(!replaceExisting) """
+            # re-check that the lock does not yet exist (atomicity guard)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    morl: a mms:Lock .
+                }
+            }
+            """ else ""}
+        }
+    """
+    ) {
+        prefixes(prefixes)
+        iri(
+            "_commitSource" to resolvedCommitSource,
+            "_commitSnapshot" to materialized.snapshotIri,
+        )
+        datatyped(
+            "_now" to (Instant.now().toString() to XSDDatatype.XSDdateTime),
+        )
+    }
+
+    // --- Phase 5: Construct + validate lock triples for response ---
+    val lockConstructString = buildSparqlQuery {
+        construct {
             // all the details about this transaction
             txn()
 
@@ -247,9 +320,29 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
     }
 
-//    // check that the user-supplied HTTP preconditions were met
-//    handleEtagAndPreconditions(constructModel, prefixes["morl"])
+    val lockConstructResponseText = executeSparqlConstructOrDescribe(lockConstructString, sparqlSetup)
+    val lockModel = validateTransaction(lockConstructResponseText, localConditions, null, "morl")
 
-    // finalize transaction
-    finalizeMutateTransaction(constructString, localConditions, "morl", !replaceExisting)
+    // set response ETag from the created/replaced lock
+    handleWrittenResourceEtag(lockModel, prefixes["morl"]!!)
+
+    // respond with the resource
+    if(!replaceExisting) {
+        responseContext.createdResource(prefixes["morl"]!!, lockModel)
+    } else {
+        responseContext.mutatedResource(prefixes["morl"]!!, lockModel)
+    }
+
+    // --- Phase 6: Clean up transaction ---
+    run {
+        val dropResponseText = executeSparqlUpdate("""
+            delete where {
+                graph m-graph:Transactions {
+                    mt: ?p ?o .
+                }
+            }
+        """)
+
+        log.info("Delete transaction response:\n$dropResponseText")
+    }
 }
