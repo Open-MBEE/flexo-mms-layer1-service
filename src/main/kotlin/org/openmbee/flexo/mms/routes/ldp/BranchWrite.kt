@@ -227,7 +227,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     }
 
     val branchConstructResponseText = executeSparqlConstructOrDescribe(branchConstructString, sparqlSetup)
-    val branchModel = parseConstructResponse(branchConstructResponseText) {}
+    val branchModel = validateTransaction(branchConstructResponseText, localConditions, null, "morb")
 
     // set response ETag from the created branch
     handleWrittenResourceEtag(branchModel, prefixes["morb"]!!)
