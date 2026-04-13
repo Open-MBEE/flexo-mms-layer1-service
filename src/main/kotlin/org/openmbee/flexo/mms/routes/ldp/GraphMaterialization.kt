@@ -195,11 +195,11 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
                 // prep input stream
                 val stream = ByteArrayInputStream(bytes)
 
-                // instantiate decompressor
-                val migz = MiGzInputStream(stream, Runtime.getRuntime().availableProcessors())
-
-                // read decompressed data and create string
-                String(migz.readAllBytes())
+                // instantiate decompressor and read
+                MiGzInputStream(stream, Runtime.getRuntime().availableProcessors()).use { migz ->
+                    // read decompressed data and create string
+                    String(migz.readAllBytes())
+                }
             }
             // uncompressed sparql
             else {
