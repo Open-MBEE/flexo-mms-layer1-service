@@ -2,8 +2,6 @@ package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
 import io.ktor.server.response.*
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
@@ -147,30 +145,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     var materializedSnapshotIri: String? = null
     if(commitSource != null) {
         val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
-        val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
-
-        // query for the snapshot IRI that was created/found for this commit
-        val snapshotQuery = """
-            select ?snapshot where {
-                graph mor-graph:Metadata {
-                    ?lock mms:commit ?_commitSource ;
-                        mms:snapshot ?snapshot .
-                    ?snapshot a mms:Model .
-                }
-            } limit 1
-        """.trimIndent()
-
-        val snapshotResult = executeSparqlSelectOrAsk(snapshotQuery) {
-            prefixes(prefixes)
-            iri("_commitSource" to commitSource!!)
-        }
-
-        val snapshotBindings = parseSparqlResultsJsonSelect(snapshotResult)
-        if (snapshotBindings.isNotEmpty()) {
-            materializedSnapshotIri = snapshotBindings[0]["snapshot"]!!.jsonObject["value"]!!.jsonPrimitive.content
-        } else {
-            throw Http500Excpetion("Failed to materialize model graph for commit")
-        }
+        val materialized = materializeModelGraph(commitSource!!, modelGraph)
+        materializedSnapshotIri = materialized.snapshotIri
     }
 
     // prep SPARQL UPDATE string

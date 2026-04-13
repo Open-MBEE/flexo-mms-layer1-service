@@ -14,6 +14,18 @@ private val IS_PROPERTY = ResourceFactory.createProperty("urn:mms:is")
 
 
 /**
+ * Result of materializing a model graph for a commit.
+ *
+ * @property graphIri The IRI of the model graph (either existing or newly created)
+ * @property snapshotIri The IRI of the Model snapshot that references the graph
+ */
+data class MaterializedModel(
+    val graphIri: String,
+    val snapshotIri: String,
+)
+
+
+/**
  * Materializes a model graph for the given commit IRI. If a model graph already exists for the commit,
  * returns its IRI. Otherwise, finds the nearest ancestor commit with a model graph, copies it,
  * and applies intermediate patches to build the model graph for the target commit.
@@ -22,12 +34,12 @@ private val IS_PROPERTY = ResourceFactory.createProperty("urn:mms:is")
  *
  * @param commitIri The IRI of the commit to materialize a model graph for
  * @param targetGraphIri The IRI of the graph where the materialized model should be stored
- * @return The IRI of the model graph for the commit (either existing or newly created)
+ * @return A [MaterializedModel] with the graph IRI and snapshot IRI
  */
-suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGraphIri: String): String {
+suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGraphIri: String): MaterializedModel {
     // Step 1: Check if the commit already has a model graph
     val existingGraphQuery = """
-        select ?graph where {
+        select ?graph ?snapshot where {
             graph mor-graph:Metadata {
                 ?lock mms:commit ?_commitIri ;
                     mms:snapshot ?snapshot .
@@ -45,7 +57,8 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
     val existingBindings = parseSparqlResultsJsonSelect(existingResult)
     if (existingBindings.isNotEmpty()) {
         val existingGraph = existingBindings[0]["graph"]!!.jsonObject["value"]!!.jsonPrimitive.content
-        return existingGraph
+        val existingSnapshot = existingBindings[0]["snapshot"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        return MaterializedModel(graphIri = existingGraph, snapshotIri = existingSnapshot)
     }
 
     // Step 2: Find nearest ancestor commit with a model graph and copy it to the target graph
@@ -250,5 +263,5 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
         prefixes(prefixes)
     }
 
-    return targetGraphIri
+    return MaterializedModel(graphIri = targetGraphIri, snapshotIri = modelSnapshot)
 }

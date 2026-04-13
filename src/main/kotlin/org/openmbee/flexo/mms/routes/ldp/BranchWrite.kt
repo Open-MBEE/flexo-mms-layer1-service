@@ -130,12 +130,12 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // --- graph setup (before branch metadata) ---
     // materialize the model graph for the commit (idempotent — reuses existing if available)
-    val materializedGraph = materializeModelGraph(resolvedCommitSource, modelGraph)
+    val materialized = materializeModelGraph(resolvedCommitSource, modelGraph)
 
     // copy materialized graph to new branch's staging graph
     executeSparqlUpdate(
         """
-        copy silent graph <$materializedGraph> to graph ?_stgGraph ;
+        copy silent graph <${materialized.graphIri}> to graph ?_stgGraph ;
         
         insert data {
             graph m-graph:Graphs {
