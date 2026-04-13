@@ -52,26 +52,17 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // extend the default conditions with requirements for user-specified ref or commit
     val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
-    // prep SPARQL UPDATE string
+    // prep SPARQL UPDATE string — only insert transaction + auto policy, NOT branch metadata
     val updateString = buildSparqlUpdate {
         insert {
             // create a new txn object in the transactions graph
+            // store the commit source and source graph as intermediate txn properties
             txn(
-                // add the source graph to the transaction results
+                "mms-txn:commitSource" to "?__mms_commitSource",
                 "mms-txn:sourceGraph" to "?sourceGraph",
             ) {
                 // create a new policy that grants this user admin over the new branch
                 autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
-            }
-
-            // insert the triples about the new branch, including arbitrary metadata supplied by user
-            graph("mor-graph:Metadata") {
-                raw("""
-                    $branchTriples
-                    # set branch pointer
-                    morb: mms:commit ?__mms_commitSource ;
-                          mms:created ?_now .
-                """)
             }
         }
         where {
@@ -102,8 +93,129 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         )
     }
 
-    // create construct query to confirm transaction and fetch repo details
+    // create construct query to confirm transaction (branch metadata not yet inserted)
     val constructString = buildSparqlQuery {
+        construct {
+            // all the details about this transaction
+            txn()
+        }
+        where {
+            // first group in a series of unions fetches intended outputs
+            group {
+                txn()
+            }
+            // all subsequent unions are for inspecting what if any conditions failed
+            raw("""union ${localConditions.unionInspectPatterns()}""")
+        }
+    }
+
+    // parameterizer setup shared by construct and later queries
+    val sparqlSetup: SparqlParameterizer.() -> Unit = {
+        prefixes(prefixes)
+
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if(refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+
+    // execute construct to validate transaction
+    val constructResponseText = executeSparqlConstructOrDescribe(constructString, sparqlSetup)
+
+    // validate whether the transaction succeeded
+    val constructModel = validateTransaction(constructResponseText, localConditions, null, null)
+
+    // predetermine snapshot graphs
+    val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
+    val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
+
+    // --- graph setup (before branch metadata) ---
+    run {
+        // isolate the transaction node
+        val transactionNode = constructModel.createResource(prefixes["mt"])
+
+        // snapshot is available for source commit
+        val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
+        if (sourceGraphs.size >= 1) {
+            // copy existing snapshot graph to new branch's staging graph
+            executeSparqlUpdate(
+                """
+                copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
+                
+                insert data {
+                    graph m-graph:Graphs {
+                        ?_stgGraph a mms:SnapshotGraph .
+                    }
+                }
+            """
+            ) {
+                prefixes(prefixes)
+                iri(
+                    "_stgGraph" to stagingGraph,
+                )
+            }
+        }
+        // no snapshots available, must build for commit
+        else {
+            // materialize the model graph for the commit
+            val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
+
+            // copy materialized graph to new branch's staging graph
+            executeSparqlUpdate(
+                """
+                copy silent graph <$materializedGraph> to graph ?_stgGraph ;
+                
+                insert data {
+                    graph m-graph:Graphs {
+                        ?_stgGraph a mms:SnapshotGraph .
+                    }
+                }
+            """
+            ) {
+                prefixes(prefixes)
+                iri(
+                    "_stgGraph" to stagingGraph,
+                )
+            }
+        }
+    }
+
+    // --- insert branch metadata last (after graph setup) ---
+    executeSparqlUpdate(
+        """
+        insert data {
+            graph mor-graph:Metadata {
+                $branchTriples
+                
+                morb: mms:commit ?_commitSource ;
+                      mms:created ?_now ;
+                      mms:snapshot ?_stgSnapshot .
+                      
+                ?_stgSnapshot a mms:Staging ;
+                    mms:graph ?_stgGraph ;
+                    .
+            }
+        }
+    """
+    ) {
+        prefixes(prefixes)
+        iri(
+            "_commitSource" to (commitSource ?: run {
+                // for ref-source, resolve the commit from the transaction
+                val transactionNode = constructModel.createResource(prefixes["mt"])
+                transactionNode.listProperties(MMS.TXN.commitSource).toList().firstOrNull()
+                    ?.`object`?.asResource()?.uri
+                    ?: throw Http500Excpetion("Transaction missing commit source")
+            }),
+            "_stgGraph" to stagingGraph,
+            "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
+        )
+    }
+
+    // --- finalize: fetch branch triples for response ---
+    val branchConstructString = buildSparqlQuery {
         construct {
             // all the details about this transaction
             txn()
@@ -114,7 +226,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             """)
         }
         where {
-            // first group in a series of unions fetches intended outputs
             group {
                 txn()
 
@@ -124,100 +235,29 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     }
                 """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
             raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
-    // finalize transaction
-    finalizeMutateTransaction(constructString, localConditions, "morb", true, {
-        prefixes(prefixes)
+    val branchConstructResponseText = executeSparqlConstructOrDescribe(branchConstructString, sparqlSetup)
+    val branchModel = parseConstructResponse(branchConstructResponseText) {}
 
-        // replace IRI substitution variables
-        iri(
-            // user specified either ref or commit
-            if(refSource != null) "_refSource" to refSource!!
-            else "__mms_commitSource" to commitSource!!,
-        )
-    }) { constructModel ->
-        // predetermine snapshot graphs
-        val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
-        val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
-        val modelSnapshot = "${prefixes["mor-snapshot"]}Model.${transactionId}"
+    // set response ETag from the created branch
+    handleWrittenResourceEtag(branchModel, prefixes["morb"]!!)
 
-        // clone graph
-        run {
-            // isolate the transaction node
-            val transactionNode = constructModel.createResource(prefixes["mt"])
+    // respond with the created resource
+    responseContext.createdResource(prefixes["morb"]!!, branchModel)
 
-            // snapshot is available for source commit
-            val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-            if (sourceGraphs.size >= 1) {
-                // copy graph
-                executeSparqlUpdate(
-                    """
-                    # copy existing snapshot graph to new branch's staging graph
-                    copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
-                    
-                    # save snapshot metadata
-                    insert data {
-                        # add snapshot graph to registry
-                        graph m-graph:Graphs {
-                            ?_stgGraph a mms:SnapshotGraph .
-                        }
-                    
-                        # declare snapshot in repository metadata
-                        graph mor-graph:Metadata {
-                            morb: mms:snapshot ?_stgSnapshot . 
-                            ?_stgSnapshot a mms:Staging ;
-                                mms:graph ?_stgGraph ;
-                                .
-                        }
-                    }
-                """
-                ) {
-                    prefixes(prefixes)
-                    iri(
-                        "_stgGraph" to stagingGraph,
-                        "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                    )
+    // delete transaction
+    run {
+        val dropResponseText = executeSparqlUpdate("""
+            delete where {
+                graph m-graph:Transactions {
+                    mt: ?p ?o .
                 }
             }
-            // no snapshots available, must build for commit
-            else {
-                // materialize the model graph for the commit
-                val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
+        """)
 
-                // copy materialized graph to staging graph and save staging snapshot metadata
-                executeSparqlUpdate(
-                    """
-                    # copy materialized model graph to new branch's staging graph
-                    copy silent graph <$materializedGraph> to graph ?_stgGraph ;
-                    
-                    # save snapshot metadata
-                    insert data {
-                        # add snapshot graph to registry
-                        graph m-graph:Graphs {
-                            ?_stgGraph a mms:SnapshotGraph .
-                        }
-                    
-                        # declare snapshot in repository metadata
-                        graph mor-graph:Metadata {
-                            morb: mms:snapshot ?_stgSnapshot . 
-                            ?_stgSnapshot a mms:Staging ;
-                                mms:graph ?_stgGraph ;
-                                .
-                        }
-                    }
-                """
-                ) {
-                    prefixes(prefixes)
-                    iri(
-                        "_stgGraph" to stagingGraph,
-                        "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
-                    )
-                }
-            }
-        }
+        log.info("Delete transaction response:\n$dropResponseText")
     }
 }
