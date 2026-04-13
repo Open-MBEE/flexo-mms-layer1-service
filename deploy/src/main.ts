@@ -375,7 +375,13 @@ ds_writer.write({
 			...permissions({
 				Cluster: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: [
+								'ReadOrg',
+								'ReadAccessControlAny',
+							],
+						},
 						Update: {
 							implies: [
 								'ReadCluster',
@@ -395,7 +401,10 @@ ds_writer.write({
 
 				Org: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: 'ReadProject',
+						},
 						Update: {
 							implies: [
 								'ReadOrg',
@@ -405,7 +414,6 @@ ds_writer.write({
 						Delete: {
 							implies: [
 								'UpdateOrg',
-								// ability to delete an org implies ability to delete projects in that org
 								'DeleteProject',
 							],
 						},
@@ -435,17 +443,25 @@ ds_writer.write({
 
 				Repo: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: [
+								'ReadRef',
+								'ReadArtifact',
+								'ReadCommit',
+								'ReadScratch',
+							],
+						},
 						Update: {
 							implies: [
 								'ReadRepo',
 								'ReadCommit',
 								'ReadScratch',
-								'UpdateBranch',  // PATCH for updating repo metadata
-								'UpdateLock',  // PATCH for updating repo metadata
-								'UpdateCommit', //PATCH for updating commit metadata
+								'UpdateBranch',
+								'UpdateLock',
+								'UpdateCommit',
 								'UpdateRef',
-								'UpdateArtifact',  // PATCH for updating artifact metadata
+								'UpdateArtifact',
 								'UpdateScratch'
 							],
 						},
@@ -467,12 +483,18 @@ ds_writer.write({
 
 				Ref: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: [
+								'ReadBranch',
+								'ReadLock',
+							],
+						},
 						Update: {
 							implies: [
 								'ReadRef',
-								'UpdateBranch',  // PATCH for updating branch metadata
-								'UpdateLock',  // PATCH for updating lock metadata
+								'UpdateBranch',
+								'UpdateLock',
 							],
 						},
 						Delete: {
@@ -508,7 +530,13 @@ ds_writer.write({
 
 				AccessControlAny: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: [
+								'ReadAgent',
+								'ReadPolicy',
+							],
+						},
 						Update: {
 							implies: [
 								'ReadAccessControlAny',
@@ -528,7 +556,13 @@ ds_writer.write({
 
 				Agent: {
 					crud: {
-						...H_CRUD_DEFAULT,
+						Create: {},
+						Read: {
+							implies: [
+								'ReadUser',
+								'ReadGroup',
+							],
+						},
 						Update: {
 							implies: [
 								'ReadAgent',
@@ -537,7 +571,7 @@ ds_writer.write({
 							],
 						},
 						Delete: {
-							implies:[
+							implies: [
 								'UpdateAgent',
 								'DeleteUser',
 								'DeleteGroup',
