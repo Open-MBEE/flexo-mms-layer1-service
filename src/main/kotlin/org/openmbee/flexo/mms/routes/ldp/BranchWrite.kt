@@ -8,6 +8,7 @@ import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 import java.time.Instant
+import java.util.UUID
 
 
 // default starting conditions for any calls to create a branch
@@ -54,32 +55,18 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // extend the default conditions with requirements for user-specified ref or commit
     val localConditions = DEFAULT_CONDITIONS.appendRefOrCommit()
 
-    // prep SPARQL UPDATE string — only insert transaction + auto policy, NOT branch metadata
+    // prep SPARQL UPDATE string — only insert transaction, NOT branch metadata or auto policy
     val updateString = buildSparqlUpdate {
         insert {
             // create a new txn object in the transactions graph
-            // store the commit source and source graph as intermediate txn properties
+            // store the commit source as an intermediate txn property
             txn(
                 "mms-txn:commitSource" to "?__mms_commitSource",
-                "mms-txn:sourceGraph" to "?sourceGraph",
-            ) {
-                // create a new policy that grants this user admin over the new branch
-                autoPolicy(Scope.BRANCH, Role.ADMIN_BRANCH)
-            }
+            )
         }
         where {
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
-
-            // attempt to locate the source graph for inclusion in the transaction results
-            raw("""
-                optional {
-                    graph mor-graph:Metadata {
-                        ?__mms_commitSource ^mms:commit/mms:snapshot ?snapshot .
-                        ?snapshot mms:graph ?sourceGraph .
-                    }
-                }
-            """)
         }
     }
 
@@ -129,65 +116,46 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     // validate whether the transaction succeeded
     val constructModel = validateTransaction(constructResponseText, localConditions, null, null)
 
+    // resolve the commit source IRI
+    val resolvedCommitSource = commitSource ?: run {
+        val transactionNode = constructModel.createResource(prefixes["mt"])
+        transactionNode.listProperties(MMS.TXN.commitSource).toList().firstOrNull()
+            ?.`object`?.asResource()?.uri
+            ?: throw Http500Excpetion("Transaction missing commit source")
+    }
+
     // predetermine snapshot graphs
     val modelGraph = "${prefixes["mor-graph"]}Model.${transactionId}"
     val stagingGraph = "${prefixes["mor-graph"]}Staging.${transactionId}"
 
     // --- graph setup (before branch metadata) ---
-    run {
-        // isolate the transaction node
-        val transactionNode = constructModel.createResource(prefixes["mt"])
+    // materialize the model graph for the commit (idempotent — reuses existing if available)
+    val materializedGraph = materializeModelGraph(resolvedCommitSource, modelGraph)
 
-        // snapshot is available for source commit
-        val sourceGraphs = transactionNode.listProperties(MMS.TXN.sourceGraph).toList()
-        if (sourceGraphs.size >= 1) {
-            // copy existing snapshot graph to new branch's staging graph
-            executeSparqlUpdate(
-                """
-                copy silent graph <${sourceGraphs[0].`object`.asResource().uri}> to graph ?_stgGraph ;
-                
-                insert data {
-                    graph m-graph:Graphs {
-                        ?_stgGraph a mms:SnapshotGraph .
-                    }
-                }
-            """
-            ) {
-                prefixes(prefixes)
-                iri(
-                    "_stgGraph" to stagingGraph,
-                )
-            }
-        }
-        // no snapshots available, must build for commit
-        else {
-            // materialize the model graph for the commit
-            val materializedGraph = materializeModelGraph(commitSource!!, modelGraph)
-
-            // copy materialized graph to new branch's staging graph
-            executeSparqlUpdate(
-                """
-                copy silent graph <$materializedGraph> to graph ?_stgGraph ;
-                
-                insert data {
-                    graph m-graph:Graphs {
-                        ?_stgGraph a mms:SnapshotGraph .
-                    }
-                }
-            """
-            ) {
-                prefixes(prefixes)
-                iri(
-                    "_stgGraph" to stagingGraph,
-                )
-            }
-        }
-    }
-
-    // --- insert branch metadata last (after graph setup) ---
+    // copy materialized graph to new branch's staging graph
     executeSparqlUpdate(
         """
+        copy silent graph <$materializedGraph> to graph ?_stgGraph ;
+        
         insert data {
+            graph m-graph:Graphs {
+                ?_stgGraph a mms:SnapshotGraph .
+            }
+        }
+    """
+    ) {
+        prefixes(prefixes)
+        iri(
+            "_stgGraph" to stagingGraph,
+        )
+    }
+
+    // --- insert branch metadata + auto policy last (after graph setup) ---
+    // use INSERT...WHERE with branchNotExists re-check for atomicity against concurrent requests
+    val autoPolicyCurie = "m-policy:AutoBranchOwner.${UUID.randomUUID()}"
+    executeSparqlUpdate(
+        """
+        insert {
             graph mor-graph:Metadata {
                 $branchTriples
                 
@@ -199,18 +167,32 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                     mms:graph ?_stgGraph ;
                     .
             }
+            
+            graph m-graph:Transactions {
+                mt: mms:createdPolicy $autoPolicyCurie .
+            }
+            
+            graph m-graph:AccessControl.Policies {
+                $autoPolicyCurie a mms:Policy ;
+                    mms:subject mu: ;
+                    mms:scope morb: ;
+                    mms:role mms-object:Role.AdminBranch ;
+                    .
+            }
+        }
+        where {
+            # re-check that the branch does not yet exist (atomicity guard)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    morb: a mms:Branch .
+                }
+            }
         }
     """
     ) {
         prefixes(prefixes)
         iri(
-            "_commitSource" to (commitSource ?: run {
-                // for ref-source, resolve the commit from the transaction
-                val transactionNode = constructModel.createResource(prefixes["mt"])
-                transactionNode.listProperties(MMS.TXN.commitSource).toList().firstOrNull()
-                    ?.`object`?.asResource()?.uri
-                    ?: throw Http500Excpetion("Transaction missing commit source")
-            }),
+            "_commitSource" to resolvedCommitSource,
             "_stgGraph" to stagingGraph,
             "_stgSnapshot" to "${prefixes["mor-snapshot"]}Staging.${transactionId}",
         )
