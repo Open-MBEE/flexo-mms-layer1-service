@@ -60,7 +60,7 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
         val existingSnapshot = existingBindings[0]["snapshot"]!!.jsonObject["value"]!!.jsonPrimitive.content
         return MaterializedModel(graphIri = existingGraph, snapshotIri = existingSnapshot)
     }
-
+    //TODO need to test this, currently all commits generate a model graph so this always return before
     // Step 2: Find nearest ancestor commit with a model graph and copy it to the target graph
     val sequenceUpdate = """
         insert {
