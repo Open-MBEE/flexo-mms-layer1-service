@@ -1,15 +1,12 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.response.*
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
-import org.openmbee.flexo.mms.server.LdpPatchResponse
 import org.openmbee.flexo.mms.routes.sparql.*
-
 import java.time.Instant
 import java.util.UUID
 
@@ -20,7 +17,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
     // require that the given branch does not exist before attempting to create it
     require("lockNotExists") {
-        handler = { layer1 -> "The provided lock <${layer1.prefixes["morl"]}> already exists." to HttpStatusCode.BadRequest }
+        handler = { layer1 -> "The provided lock <${layer1.prefixes["morl"]}> already exists." to HttpStatusCode.Conflict }
         """
             # lock must not yet exist
             filter not exists {
@@ -76,9 +73,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 $lockTriples
                 
                 morl: mms:commit ?_commitSource ;
-                    mms:snapshot ?_commitSnapshot ;
                     mms:created ?_now ;
-                    .
+                    mms:snapshot ?_commitSnapshot .
             }
             
             graph m-graph:Transactions {

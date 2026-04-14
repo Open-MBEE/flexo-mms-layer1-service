@@ -1,7 +1,6 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.response.*
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
@@ -11,7 +10,6 @@ import org.openmbee.flexo.mms.server.LdpMutateResponse
 import java.time.Instant
 import java.util.UUID
 
-
 // default starting conditions for any calls to create a branch
 private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     // require that the user has the ability to create branches on a repo-level scope
@@ -19,7 +17,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
 
     // require that the given branch does not exist before attempting to create it
     require("branchNotExists") {
-        handler = { layer1 -> "The provided branch <${layer1.prefixes["morb"]}> already exists." to HttpStatusCode.BadRequest }
+        handler = { layer1 -> "The provided branch <${layer1.prefixes["morb"]}> already exists." to HttpStatusCode.Conflict }
         """
             # branch must not yet exist
             filter not exists {
@@ -31,10 +29,7 @@ private val DEFAULT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     }
 }
 
-
-
-//suspend fun AnyLayer1Context.createBranch(usedPost: Boolean = false) {
-suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createBranch(usedPost: Boolean = false) {
+suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createBranch() {
     // process RDF body from user about this new branch
     val branchTriples = filterIncomingStatements("morb") {
         // relative to this branch node
@@ -161,7 +156,6 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         }
         //TODO shoudln't need conditions
         finalizeMutateTransaction(branchConstructString, REPO_CRUD_CONDITIONS, "morb", true)
-
     } finally {
         deleteTransaction()
     }

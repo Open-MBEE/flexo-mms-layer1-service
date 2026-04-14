@@ -71,7 +71,7 @@ fun Route.crudLocks() {
             getLocks()
         }
 
-        // create or replace lock
+        // create lock
         put {
             createLock()
         }
