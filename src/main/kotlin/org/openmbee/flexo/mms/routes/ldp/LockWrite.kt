@@ -156,21 +156,8 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         where {
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
-
-            if(refSource != null) {
-                // ref-source: find commit through the ref's existing lock
-                graph("mor-graph:Metadata") {
-                    raw("""
-                        ?__mms_commitLock a mms:Lock ;
-                            mms:commit ?__mms_commitSource ;
-                            .
-                    """)
-                }
-            }
         }
     }
-
-    log.info(updateString)
 
     // execute update
     executeSparqlUpdate(updateString) {
