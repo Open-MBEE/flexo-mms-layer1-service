@@ -68,7 +68,7 @@ open class RefAny : RepoAny() {
             validateTransaction(demoOrgPath, demoRepoPath, demoBranchPath, "root")
 
             // inspect
-            subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
+            //subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
         }
     }
 }

@@ -5,7 +5,7 @@ import org.openmbee.flexo.mms.LOCK_UPDATE_CONDITIONS
 import org.openmbee.flexo.mms.NotImplementedException
 import org.openmbee.flexo.mms.guardedPatch
 import org.openmbee.flexo.mms.reindent
-import org.openmbee.flexo.mms.routes.ldp.createOrReplaceLock
+import org.openmbee.flexo.mms.routes.ldp.createLock
 import org.openmbee.flexo.mms.routes.ldp.deleteLock
 import org.openmbee.flexo.mms.routes.ldp.getLocks
 import org.openmbee.flexo.mms.routes.ldp.headLocks
@@ -44,7 +44,7 @@ fun Route.crudLocks() {
             lockId = slug
 
             // create new lock
-            createOrReplaceLock()
+            createLock()
         }
 
         // method not allowed
@@ -73,7 +73,7 @@ fun Route.crudLocks() {
 
         // create or replace lock
         put {
-            createOrReplaceLock()
+            createLock()
         }
 
         // update lock metadata

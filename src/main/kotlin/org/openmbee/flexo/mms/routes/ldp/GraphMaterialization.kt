@@ -189,22 +189,7 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
             val patchLiteral = patches[0].asLiteral()
 
             // compressed sparql gz
-            val patchString = if (patchLiteral.datatype == MMS_DATATYPE.sparqlGz) {
-                val bytes = patchLiteral.string.toByteArray()
-
-                // prep input stream
-                val stream = ByteArrayInputStream(bytes)
-
-                // instantiate decompressor and read
-                MiGzInputStream(stream, Runtime.getRuntime().availableProcessors()).use { migz ->
-                    // read decompressed data and create string
-                    String(migz.readAllBytes())
-                }
-            }
-            // uncompressed sparql
-            else {
-                patchLiteral.string
-            }
+            val patchString = patchLiteral.string
 
             // add to update strings
             updates.add(patchString)
@@ -259,9 +244,7 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
                 mt:sequence ?p ?o .
             }
         }
-    """) {
-        prefixes(prefixes)
-    }
+    """)
 
     return MaterializedModel(graphIri = targetGraphIri, snapshotIri = modelSnapshot)
 }

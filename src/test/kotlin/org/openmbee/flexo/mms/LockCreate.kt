@@ -93,7 +93,7 @@ class LockCreate : LockAny() {
                 }
             }
         }
-
+        //TODO needs to delete model graphs first to test
         "create lock from commit needing materialization" {
             testApplication {
                 commitModel(masterBranchPath, """

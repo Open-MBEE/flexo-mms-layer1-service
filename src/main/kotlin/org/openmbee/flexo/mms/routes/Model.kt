@@ -127,6 +127,80 @@ suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: Cond
 }
 
 /**
+ *   Used by BranchWrite and LockWrite
+ *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb or morl
+ *   and all the conditions pass
+ *
+ *   ?__mms_commitSource or ?_refSource should be part of the conditions pattern
+ */
+suspend fun AnyLayer1Context.createRefCreatingTransaction(conditions: ConditionsGroup, ref: String, updateSetup: (SparqlParameterizer.() -> SparqlParameterizer)? = null): String {
+    val update = buildSparqlUpdate {
+        insert {
+            txn(
+                "mms-txn:commitSource" to "?__mms_commitSource",
+                "mms-txn:mutex" to "${ref}:"
+            )
+        }
+        where {
+            raw(
+                """
+                    filter not exists {
+                        graph m-graph:Transactions { 
+                            ?t a mms:Transaction ;
+                                mms-txn:mutex ${ref}: .
+                        }    
+                    }
+                """
+            )
+            raw(conditions.requiredPatterns().joinToString("\n"))
+        }
+    }
+    return executeSparqlUpdate(update) {
+        prefixes(prefixes)
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if (refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+}
+
+/**
+ *   Used by BranchWrite and LockWrite
+ *   Get back the transaction added in createRefCreatingTransaction - if transaction doesn't exist, check conditions
+ *   validateTransaction will throw ServerBugException if no transaction is returned but all conditions pass -
+ *     the only way this can happen is if there's another transaction that prevented the create function from inserting
+ *     a transaction in the first place
+ */
+suspend fun AnyLayer1Context.validateRefCreatingTransaction(conditions: ConditionsGroup): KModel {
+    val query = buildSparqlQuery {
+        construct {
+            txn()
+        }
+        where {
+            txnOrInspections(null, conditions) {}
+        }
+    }
+    val result = executeSparqlConstructOrDescribe(query) {
+        prefixes(prefixes)
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if (refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+    try {
+        return validateTransaction(result, conditions)
+    } catch (ex: ServerBugException) {
+        // the conditions passed but there's no transaction, means some other transaction is in progress
+        // throw 409
+        throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
+    }
+}
+
+/**
  *   Delete transaction for model commit/model load - mt:diff is optional since it only happens for model load and may
  *   not have started yet in model load
  */
