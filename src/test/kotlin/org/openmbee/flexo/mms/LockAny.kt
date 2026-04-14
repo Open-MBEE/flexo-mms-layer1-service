@@ -47,7 +47,7 @@ fun TriplesAsserter.validateCreatedLockTriples(
     validateTransaction(orgPath=orgPath)
 
     // inspect
-    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
+    //subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 open class LockAny : RefAny() {
