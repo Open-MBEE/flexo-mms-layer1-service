@@ -33,9 +33,8 @@ class SquashCommits : ModelAny() {
                 // squash between the two locks
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
-                        @prefix mms: <https://mms.openmbee.org/rdf/ontology/> .
-                        <> mms:srcRef <./locks/lock-older> .
-                        <> mms:dstRef <./locks/lock-newer> .
+                        <> mms:srcRef mor-lock:lock-older .
+                        <> mms:dstRef mor-lock:lock-newer .
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.OK
@@ -68,9 +67,8 @@ class SquashCommits : ModelAny() {
                 // attempt to squash across branches — should fail
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
-                        @prefix mms: <https://mms.openmbee.org/rdf/ontology/> .
-                        <> mms:srcRef <./locks/lock-master> .
-                        <> mms:dstRef <./locks/lock-branch> .
+                        <> mms:srcRef mor-lock:lock-master .
+                        <> mms:dstRef mor-lock:lock-branch .
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.BadRequest
@@ -90,9 +88,8 @@ class SquashCommits : ModelAny() {
                 // attempt to squash — both locks point to the same commit
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
-                        @prefix mms: <https://mms.openmbee.org/rdf/ontology/> .
-                        <> mms:srcRef <./locks/lock-a> .
-                        <> mms:dstRef <./locks/lock-b> .
+                        <> mms:srcRef mor-lock:lock-a .
+                        <> mms:dstRef mor-lock:lock-b .
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.BadRequest
@@ -111,9 +108,8 @@ class SquashCommits : ModelAny() {
                 // attempt to squash with non-existent lock
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
-                        @prefix mms: <https://mms.openmbee.org/rdf/ontology/> .
-                        <> mms:srcRef <./locks/lock-exists> .
-                        <> mms:dstRef <./locks/lock-nonexistent> .
+                        <> mms:srcRef mor-lock:lock-exists .
+                        <> mms:dstRef mor-lock:lock-nonexistent .
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.NotFound
@@ -158,9 +154,8 @@ class SquashCommits : ModelAny() {
                 // squash
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
-                        @prefix mms: <https://mms.openmbee.org/rdf/ontology/> .
-                        <> mms:srcRef <./locks/lock-first> .
-                        <> mms:dstRef <./locks/lock-second> .
+                        <> mms:srcRef mor-lock:lock-first .
+                        <> mms:dstRef mor-lock:lock-second .
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.OK
