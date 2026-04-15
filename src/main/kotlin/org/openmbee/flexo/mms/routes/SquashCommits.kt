@@ -43,6 +43,8 @@ fun Route.squashCommits() {
         post { _ ->
             squashCommitsImpl()
         }
+
+        otherwiseNotAllowed()
     }
 }
 
