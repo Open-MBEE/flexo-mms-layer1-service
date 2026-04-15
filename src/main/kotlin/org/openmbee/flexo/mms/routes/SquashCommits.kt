@@ -286,7 +286,10 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     // (i.e. not the newer commit and not another intermediate), deleting it would
     // orphan that external branch's commit history.
     if (intermediateCommitIris.isNotEmpty()) {
-        // all commits in the squash path: newer + intermediates
+        // Only check intermediate commits (which are deleted). The newer commit is
+        // preserved, so it's fine if it has children outside the squash path.
+        val intermediateFilter = intermediateCommitIris.joinToString(", ") { "<$it>" }
+        // External children must not be the newer commit or another intermediate
         val squashPathCommits = listOf(newerCommitIri) + intermediateCommitIris
         val squashPathFilter = squashPathCommits.joinToString(", ") { "<$it>" }
 
@@ -294,7 +297,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             select ?intermediateCommit ?externalChild where {
                 graph mor-graph:Metadata {
                     ?externalChild mms:parent ?intermediateCommit .
-                    filter(?intermediateCommit in ($squashPathFilter))
+                    filter(?intermediateCommit in ($intermediateFilter))
                     filter(?externalChild not in ($squashPathFilter))
                 }
             }
