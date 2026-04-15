@@ -281,6 +281,38 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         it["intermediateData"]!!.jsonObject["value"]!!.jsonPrimitive.content
     }
 
+    // ===== Step 5b: Verify no intermediate commit is a branch point =====
+    // If any intermediate commit is the parent of a commit outside the squash path
+    // (i.e. not the newer commit and not another intermediate), deleting it would
+    // orphan that external branch's commit history.
+    if (intermediateCommitIris.isNotEmpty()) {
+        // all commits in the squash path: newer + intermediates
+        val squashPathCommits = listOf(newerCommitIri) + intermediateCommitIris
+        val squashPathFilter = squashPathCommits.joinToString(", ") { "<$it>" }
+
+        val branchPointQuery = """
+            select ?intermediateCommit ?externalChild where {
+                graph mor-graph:Metadata {
+                    ?externalChild mms:parent ?intermediateCommit .
+                    filter(?intermediateCommit in ($squashPathFilter))
+                    filter(?externalChild not in ($squashPathFilter))
+                }
+            }
+        """.trimIndent()
+
+        val branchPointResult = executeSparqlSelectOrAsk(branchPointQuery) {
+            prefixes(prefixes)
+        }
+        val branchPointBindings = parseSparqlResultsJsonSelect(branchPointResult)
+        if (branchPointBindings.isNotEmpty()) {
+            val branchPointIri = branchPointBindings[0]["intermediateCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
+            throw Http400Exception(
+                "Cannot squash: intermediate commit <$branchPointIri> is a branch point " +
+                "(parent of commits outside the squash path). Squashing would destroy their commit history."
+            )
+        }
+    }
+
     // also collect ins/del graphs from intermediate commit data for cleanup
     // use OPTIONAL for insGraph/delGraph since a commit's data may only have one or neither
     val intermediateInsDelQuery = """
