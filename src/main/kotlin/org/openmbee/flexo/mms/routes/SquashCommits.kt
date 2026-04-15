@@ -316,6 +316,32 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
                 "(parent of commits outside the squash path). Squashing would destroy their commit history."
             )
         }
+
+        // Also check if any lock or branch references an intermediate commit via mms:commit.
+        // The two input locks (srcLockRef, dstLockRef) are excluded because they point to
+        // the older/newer commits (which are preserved), not intermediates.
+        val refCheckQuery = """
+            select ?intermediateCommit ?ref where {
+                graph mor-graph:Metadata {
+                    ?ref mms:commit ?intermediateCommit .
+                    filter(?intermediateCommit in ($intermediateFilter))
+                    filter(?ref not in (<$srcLockRef>, <$dstLockRef>))
+                }
+            }
+        """.trimIndent()
+
+        val refCheckResult = executeSparqlSelectOrAsk(refCheckQuery) {
+            prefixes(prefixes)
+        }
+        val refCheckBindings = parseSparqlResultsJsonSelect(refCheckResult)
+        if (refCheckBindings.isNotEmpty()) {
+            val refIri = refCheckBindings[0]["ref"]!!.jsonObject["value"]!!.jsonPrimitive.content
+            val commitIri = refCheckBindings[0]["intermediateCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
+            throw Http400Exception(
+                "Cannot squash: <$refIri> references intermediate commit <$commitIri> via mms:commit. " +
+                "Squashing would leave a dangling reference."
+            )
+        }
     }
 
     // also collect ins/del graphs from intermediate commit data for cleanup
