@@ -349,7 +349,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     val intermediateInsDelQuery = """
         select ?data ?insGraph ?delGraph where {
             graph mor-graph:Metadata {
-                filter(?data in (${intermediateDataIris.joinToString(", ") { "<$it>" }}))
+                values ?data { ${intermediateDataIris.joinToString(" ") { "<$it>" }} }
                 optional { ?data mms:insGraph ?insGraph . }
                 optional { ?data mms:delGraph ?delGraph . }
             }
