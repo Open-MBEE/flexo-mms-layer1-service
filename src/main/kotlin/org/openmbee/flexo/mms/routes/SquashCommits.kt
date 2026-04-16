@@ -134,44 +134,8 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     }
     val dstIsNewer = parseSparqlResultsJsonAsk(askDstNewerResult)
 
-    // Check if srcCommit is a descendant of dstCommit (src is newer)
-    val askSrcNewerQuery = buildSparqlQuery {
-        ask {
-            raw("""
-                graph mor-graph:Metadata {
-                    ?srcCommit mms:parent+ ?dstCommit .
-                }
-            """)
-        }
-    }
-    val askSrcNewerResult = executeSparqlSelectOrAsk(askSrcNewerQuery) {
-        prefixes(prefixes)
-        iri(
-            "srcCommit" to srcCommitIri,
-            "dstCommit" to dstCommitIri,
-        )
-    }
-    val srcIsNewer = parseSparqlResultsJsonAsk(askSrcNewerResult)
-
-    if (!dstIsNewer && !srcIsNewer) {
-        throw Http400Exception("No linear commit path between the two locks")
-    }
-
-    // determine older/newer
-    val olderCommitIri: String
-    val newerCommitIri: String
-    val olderGraphIri: String
-    val newerGraphIri: String
-    if (dstIsNewer) {
-        olderCommitIri = srcCommitIri
-        newerCommitIri = dstCommitIri
-        olderGraphIri = srcGraphIri
-        newerGraphIri = dstGraphIri
-    } else {
-        olderCommitIri = dstCommitIri
-        newerCommitIri = srcCommitIri
-        olderGraphIri = dstGraphIri
-        newerGraphIri = srcGraphIri
+    if (!dstIsNewer) {
+        throw Http400Exception("No linear commit path between the two locks or dstRef is not newer")
     }
 
     // ===== Step 3: Compute the diff between the two model graphs =====
@@ -190,21 +154,21 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         where {
             {
                 # triples in newer graph but not in older graph (insertions)
-                graph ?newerGraph {
+                graph <$dstGraphIri> {
                     ?ins_s ?ins_p ?ins_o .
                 }
                 filter not exists {
-                    graph ?olderGraph {
+                    graph <$srcGraphIri> {
                         ?ins_s ?ins_p ?ins_o .
                     }
                 }
             } union {
                 # triples in older graph but not in newer graph (deletions)
-                graph ?olderGraph {
+                graph <$srcGraphIri> {
                     ?del_s ?del_p ?del_o .
                 }
                 filter not exists {
-                    graph ?newerGraph {
+                    graph <$dstGraphIri> {
                         ?del_s ?del_p ?del_o .
                     }
                 }
@@ -212,13 +176,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         }
     """.trimIndent()
 
-    executeSparqlUpdate(computeDiffUpdate) {
-        prefixes(prefixes)
-        iri(
-            "olderGraph" to olderGraphIri,
-            "newerGraph" to newerGraphIri,
-        )
-    }
+    executeSparqlUpdate(computeDiffUpdate)
 
     // Wrap remaining steps in try/finally so diff graphs are cleaned up on failure.
     // On success, the diff graphs become the newer commit's mms:insGraph/mms:delGraph
@@ -252,20 +210,14 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     val intermediateQuery = """
         select ?intermediateCommit ?intermediateData where {
             graph mor-graph:Metadata {
-                ?newerCommit mms:parent+ ?intermediateCommit .
-                ?intermediateCommit mms:parent+ ?olderCommit ;
+                <$dstCommitIri> mms:parent+ ?intermediateCommit .
+                ?intermediateCommit mms:parent+ <$srcCommitIri> ;
                     mms:data ?intermediateData .
             }
         }
     """.trimIndent()
 
-    val intermediateResult = executeSparqlSelectOrAsk(intermediateQuery) {
-        prefixes(prefixes)
-        iri(
-            "newerCommit" to newerCommitIri,
-            "olderCommit" to olderCommitIri,
-        )
-    }
+    val intermediateResult = executeSparqlSelectOrAsk(intermediateQuery)
 
     val intermediateBindings = parseSparqlResultsJsonSelect(intermediateResult)
 
@@ -286,7 +238,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         // preserved, so it's fine if it has children outside the squash path.
         val intermediateFilter = intermediateCommitIris.joinToString(", ") { "<$it>" }
         // External children must not be the newer commit or another intermediate
-        val squashPathCommits = listOf(newerCommitIri) + intermediateCommitIris
+        val squashPathCommits = listOf(dstCommitIri) + intermediateCommitIris
         val squashPathFilter = squashPathCommits.joinToString(", ") { "<$it>" }
 
         val branchPointQuery = """
@@ -370,9 +322,9 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     val newerCommitInfoQuery = """
         select ?newerData ?oldParent ?oldPatch ?oldInsGraph ?oldDelGraph where {
             graph mor-graph:Metadata {
-                ?newerCommit mms:data ?newerData ;
+                <$dstCommitIri> mms:data ?newerData ;
                              mms:parent ?oldParent .
-                ?oldParent (mms:parent)* ?olderCommit .
+                ?oldParent (mms:parent)* <$srcCommitIri> .
                 ?newerData mms:patch ?oldPatch .
                 optional { ?newerData mms:insGraph ?oldInsGraph . }
                 optional { ?newerData mms:delGraph ?oldDelGraph . }
@@ -380,13 +332,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         }
     """.trimIndent()
 
-    val newerCommitInfoResult = executeSparqlSelectOrAsk(newerCommitInfoQuery) {
-        prefixes(prefixes)
-        iri(
-            "newerCommit" to newerCommitIri,
-            "olderCommit" to olderCommitIri,
-        )
-    }
+    val newerCommitInfoResult = executeSparqlSelectOrAsk(newerCommitInfoQuery)
 
     val newerCommitInfoBindings = parseSparqlResultsJsonSelect(newerCommitInfoResult)
     if (newerCommitInfoBindings.isEmpty()) {
@@ -435,7 +381,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
 
                 // delete old parent pointer
                 raw("""
-                    <$newerCommitIri> mms:parent <$oldParentIri> .
+                    <$dstCommitIri> mms:parent <$oldParentIri> .
                 """)
 
                 // delete old patch/insGraph/delGraph
@@ -449,7 +395,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             graph("mor-graph:Metadata") {
                 // new parent pointer
                 raw("""
-                    <$newerCommitIri> mms:parent <$olderCommitIri> .
+                    <$dstCommitIri> mms:parent <$srcCommitIri> .
                 """)
 
                 // new squashed patch and diff graphs
@@ -496,7 +442,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             txn("squash")
 
             raw("""
-                <$newerCommitIri> ?commit_p ?commit_o .
+                <$dstCommitIri> ?commit_p ?commit_o .
                 ?newerData ?data_p ?data_o .
             """)
         }
@@ -506,7 +452,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
 
                 raw("""
                     graph mor-graph:Metadata {
-                        <$newerCommitIri> ?commit_p ?commit_o ;
+                        <$dstCommitIri> ?commit_p ?commit_o ;
                             mms:data ?newerData .
                         ?newerData ?data_p ?data_o .
                     }
