@@ -62,59 +62,53 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
     }
 
     // ===== Step 1: Resolve both locks and validate they exist =====
+    // Each lock is resolved in a separate query so that a missing lock produces
+    // an accurate 404 identifying the specific lock that doesn't exist.
     val resolveLockQuery = buildSparqlQuery {
         construct {
             raw("""
-                ?lock1 mms:commit ?commit1 ; mms:snapshot ?snapshot1 .
-                ?snapshot1 mms:graph ?graph1 .
-                ?lock2 mms:commit ?commit2 ; mms:snapshot ?snapshot2 .
-                ?snapshot2 mms:graph ?graph2 .
+                ?lock mms:commit ?commit ; mms:snapshot ?snapshot .
+                ?snapshot mms:graph ?graph .
             """)
         }
         where {
             raw("""
                 graph mor-graph:Metadata {
-                    ?lock1 a mms:Lock ; mms:commit ?commit1 ; mms:snapshot ?snapshot1 .
-                    ?snapshot1 mms:graph ?graph1 .
-                    ?lock2 a mms:Lock ; mms:commit ?commit2 ; mms:snapshot ?snapshot2 .
-                    ?snapshot2 mms:graph ?graph2 .
+                    ?lock a mms:Lock ; mms:commit ?commit ; mms:snapshot ?snapshot .
+                    ?snapshot mms:graph ?graph .
                 }
             """)
         }
     }
 
-    val resolveResponseText = executeSparqlConstructOrDescribe(resolveLockQuery) {
+    val srcResolveText = executeSparqlConstructOrDescribe(resolveLockQuery) {
         prefixes(prefixes)
-        iri(
-            "lock1" to srcLockRef,
-            "lock2" to dstLockRef,
-        )
+        iri("lock" to srcLockRef)
     }
-
-    // parse the result and extract commit/graph IRIs
-    val resolveModel = KModel().apply {
-        parseTurtle(resolveResponseText, this)
-    }
-
-    val srcLockRes = resolveModel.createResource(srcLockRef)
-    val dstLockRes = resolveModel.createResource(dstLockRef)
-
-    // validate both locks exist
+    val srcModel = KModel().apply { parseTurtle(srcResolveText, this) }
+    val srcLockRes = srcModel.createResource(srcLockRef)
     if (!srcLockRes.listProperties().hasNext()) {
         throw Http404Exception("Source lock <$srcLockRef>")
     }
+
+    val dstResolveText = executeSparqlConstructOrDescribe(resolveLockQuery) {
+        prefixes(prefixes)
+        iri("lock" to dstLockRef)
+    }
+    val dstModel = KModel().apply { parseTurtle(dstResolveText, this) }
+    val dstLockRes = dstModel.createResource(dstLockRef)
     if (!dstLockRes.listProperties().hasNext()) {
         throw Http404Exception("Destination lock <$dstLockRef>")
     }
 
-    val srcCommitIri = resolveModel.listObjectsOfProperty(srcLockRes, MMS.commit).next().asResource().uri
-    val dstCommitIri = resolveModel.listObjectsOfProperty(dstLockRes, MMS.commit).next().asResource().uri
+    val srcCommitIri = srcModel.listObjectsOfProperty(srcLockRes, MMS.commit).next().asResource().uri
+    val dstCommitIri = dstModel.listObjectsOfProperty(dstLockRes, MMS.commit).next().asResource().uri
 
-    val srcSnapshotRes = resolveModel.listObjectsOfProperty(srcLockRes, MMS.snapshot).next().asResource()
-    val dstSnapshotRes = resolveModel.listObjectsOfProperty(dstLockRes, MMS.snapshot).next().asResource()
+    val srcSnapshotRes = srcModel.listObjectsOfProperty(srcLockRes, MMS.snapshot).next().asResource()
+    val dstSnapshotRes = dstModel.listObjectsOfProperty(dstLockRes, MMS.snapshot).next().asResource()
 
-    val srcGraphIri = resolveModel.listObjectsOfProperty(srcSnapshotRes, MMS.graph).next().asResource().uri
-    val dstGraphIri = resolveModel.listObjectsOfProperty(dstSnapshotRes, MMS.graph).next().asResource().uri
+    val srcGraphIri = srcModel.listObjectsOfProperty(srcSnapshotRes, MMS.graph).next().asResource().uri
+    val dstGraphIri = dstModel.listObjectsOfProperty(dstSnapshotRes, MMS.graph).next().asResource().uri
 
     // ===== Step 2: Determine which commit is newer and verify linear path =====
     if (srcCommitIri == dstCommitIri) {
