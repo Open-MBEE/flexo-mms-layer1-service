@@ -30,6 +30,29 @@ class SquashCommits : ModelAny() {
                 // create lock at commit 3 (after third commit)
                 createLock(demoRepoPath, "../branches/master", "lock-newer")
 
+                // verify the model graph before squash contains all data
+                httpGet("$masterBranchPath/graph") {}.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.includesTriples {
+                        val people = demoPrefixes.get("")
+                        subject("${people}Alice") {
+                            ignoreAll()
+                        }
+                        subject("${people}Rex") {
+                            ignoreAll()
+                        }
+                        subject("${people}Bob") {
+                            ignoreAll()
+                        }
+                        subject("${people}Fluffy") {
+                            ignoreAll()
+                        }
+                        subject("urn:charlie") {
+                            ignoreAll()
+                        }
+                    }
+                }
+
                 // delete auto-created locks on intermediate commits
                 deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
 
@@ -41,6 +64,29 @@ class SquashCommits : ModelAny() {
                     """.trimIndent())
                 }.apply {
                     this shouldHaveStatus HttpStatusCode.OK
+                }
+
+                // verify the model graph after squash is still intact
+                httpGet("$masterBranchPath/graph") {}.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this.includesTriples {
+                        val people = demoPrefixes.get("")
+                        subject("${people}Alice") {
+                            ignoreAll()
+                        }
+                        subject("${people}Rex") {
+                            ignoreAll()
+                        }
+                        subject("${people}Bob") {
+                            ignoreAll()
+                        }
+                        subject("${people}Fluffy") {
+                            ignoreAll()
+                        }
+                        subject("urn:charlie") {
+                            ignoreAll()
+                        }
+                    }
                 }
             }
         }
@@ -129,7 +175,7 @@ class SquashCommits : ModelAny() {
             }
         }
 
-        "model graph integrity after squash" {
+        "consecutive commits is a no-op" {
             testApplication {
                 // commit 1: insert Alice
                 commitModel(masterBranchPath, insertAliceRex)
@@ -137,36 +183,16 @@ class SquashCommits : ModelAny() {
                 // create lock at commit 1
                 createLock(demoRepoPath, "../branches/master", "lock-first")
 
-                // commit 2: insert Bob
+                // commit 2: insert Bob (consecutive — no intermediate between lock-first and lock-second)
                 commitModel(masterBranchPath, insertBobFluffy)
 
                 // create lock at commit 2
                 createLock(demoRepoPath, "../branches/master", "lock-second")
 
-                // verify the model graph before squash
-                httpGet("$masterBranchPath/graph") {}.apply {
-                    this shouldHaveStatus HttpStatusCode.OK
-                    this.includesTriples {
-                        val people = demoPrefixes.get("")
-                        subject("${people}Alice") {
-                            ignoreAll()
-                        }
-                        subject("${people}Rex") {
-                            ignoreAll()
-                        }
-                        subject("${people}Bob") {
-                            ignoreAll()
-                        }
-                        subject("${people}Fluffy") {
-                            ignoreAll()
-                        }
-                    }
-                }
-
                 // delete auto-created locks on intermediate commits
                 deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
 
-                // squash
+                // squash between consecutive commits — should succeed as a no-op
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
                         <> mms:srcRef mor-lock:lock-first .
@@ -176,7 +202,7 @@ class SquashCommits : ModelAny() {
                     this shouldHaveStatus HttpStatusCode.OK
                 }
 
-                // verify the model graph after squash is still intact
+                // verify the model graph is still intact after no-op squash
                 httpGet("$masterBranchPath/graph") {}.apply {
                     this shouldHaveStatus HttpStatusCode.OK
                     this.includesTriples {

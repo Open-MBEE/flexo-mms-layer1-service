@@ -148,9 +148,11 @@ suspend fun deleteAutoCreatedLocks(updateUrl: String, repoPath: String) {
     val client = HttpClient()
     client.post(updateUrl) {
         contentType(ContentType.Application.FormUrlEncoded)
+        // Use full IRI string literal instead of prefixed name for the filter.
+        // SPARQL prefixed names cannot end with a dot (it is parsed as a statement
+        // terminator), so "mor-lock:Commit." would cause a parse error.
         parameter("update", """
              prefix mor-graph: <$ROOT_CONTEXT$repoPath/graphs/>
-             prefix mor-lock: <$ROOT_CONTEXT$repoPath/locks/>
              prefix mms: <https://mms.openmbee.org/rdf/ontology/>
              delete {
                  graph mor-graph:Metadata {
@@ -161,7 +163,7 @@ suspend fun deleteAutoCreatedLocks(updateUrl: String, repoPath: String) {
                  graph mor-graph:Metadata {
                      ?lock a mms:Lock ;
                          ?p ?o .
-                     filter(strstarts(str(?lock), str(mor-lock:Commit.)))
+                     filter(strstarts(str(?lock), "$ROOT_CONTEXT$repoPath/locks/Commit."))
                  }
              }
         """.trimIndent())

@@ -229,6 +229,32 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         it["intermediateData"]!!.jsonObject["value"]!!.jsonPrimitive.content
     }
 
+    // ===== Step 5a: No-op for consecutive commits =====
+    // If there are no intermediate commits, the two locks reference consecutive commits.
+    // There is nothing to squash — return OK as a no-op.
+    if (intermediateCommitIris.isEmpty()) {
+        // Build a simple construct of the newer commit's current metadata to return
+        val noopConstructQuery = buildSparqlQuery {
+            construct {
+                raw("""
+                    <$dstCommitIri> ?commit_p ?commit_o .
+                """)
+            }
+            where {
+                raw("""
+                    graph mor-graph:Metadata {
+                        <$dstCommitIri> ?commit_p ?commit_o .
+                    }
+                """)
+            }
+        }
+        val noopResponseText = executeSparqlConstructOrDescribe(noopConstructQuery) {
+            prefixes(prefixes)
+        }
+        call.respondText(noopResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
+        return
+    }
+
     // ===== Step 5b: Verify no intermediate commit is a branch point =====
     // If any intermediate commit is the parent of a commit outside the squash path
     // (i.e. not the newer commit and not another intermediate), deleting it would
