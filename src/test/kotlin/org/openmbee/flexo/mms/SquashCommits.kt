@@ -23,7 +23,7 @@ class SquashCommits : ModelAny() {
                 // commit 3: insert more data
                 commitModel(masterBranchPath, """
                     insert data {
-                        <urn:charlie> <urn:name> "Charlie" .
+                        <urn:mms:charlie> <urn:mms:name> "Charlie" .
                     }
                 """.trimIndent())
 
@@ -47,7 +47,7 @@ class SquashCommits : ModelAny() {
                         subject("${people}Fluffy") {
                             ignoreAll()
                         }
-                        subject("urn:charlie") {
+                        subject("urn:mms:charlie") {
                             ignoreAll()
                         }
                     }
@@ -83,7 +83,7 @@ class SquashCommits : ModelAny() {
                         subject("${people}Fluffy") {
                             ignoreAll()
                         }
-                        subject("urn:charlie") {
+                        subject("urn:mms:charlie") {
                             ignoreAll()
                         }
                     }
@@ -105,7 +105,7 @@ class SquashCommits : ModelAny() {
                 // commit on master (diverging)
                 commitModel(masterBranchPath, """
                     insert data {
-                        <urn:charlie> <urn:name> "Charlie" .
+                        <urn:mms:charlie> <urn:mms:name> "Charlie" .
                     }
                 """.trimIndent())
 
