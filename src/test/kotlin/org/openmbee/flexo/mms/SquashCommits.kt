@@ -30,6 +30,9 @@ class SquashCommits : ModelAny() {
                 // create lock at commit 3 (after third commit)
                 createLock(demoRepoPath, "../branches/master", "lock-newer")
 
+                // delete auto-created locks on intermediate commits
+                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+
                 // squash between the two locks
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
@@ -64,6 +67,9 @@ class SquashCommits : ModelAny() {
                 createLock(demoRepoPath, "../branches/master", "lock-master")
                 createLock(demoRepoPath, "../branches/$demoBranchId", "lock-branch")
 
+                // delete auto-created locks on intermediate commits
+                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+
                 // attempt to squash across branches — should fail
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
@@ -85,6 +91,9 @@ class SquashCommits : ModelAny() {
                 createLock(demoRepoPath, "../branches/master", "lock-a")
                 createLock(demoRepoPath, "../branches/master", "lock-b")
 
+                // delete auto-created locks on intermediate commits
+                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+
                 // attempt to squash — both locks point to the same commit
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
                     setTurtleBody("""
@@ -104,6 +113,9 @@ class SquashCommits : ModelAny() {
 
                 // create only one lock
                 createLock(demoRepoPath, "../branches/master", "lock-exists")
+
+                // delete auto-created locks on intermediate commits
+                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
 
                 // attempt to squash with non-existent lock
                 httpPost("$demoRepoPath/squash", skipAnon = true) {
@@ -150,6 +162,9 @@ class SquashCommits : ModelAny() {
                         }
                     }
                 }
+
+                // delete auto-created locks on intermediate commits
+                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
 
                 // squash
                 httpPost("$demoRepoPath/squash", skipAnon = true) {

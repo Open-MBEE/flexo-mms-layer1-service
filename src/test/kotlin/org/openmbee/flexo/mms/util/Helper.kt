@@ -138,6 +138,36 @@ fun withAllTestPrefixes(body: String): String {
     """.trimIndent()
 }
 
+/**
+ * Deletes all auto-created locks (mor-lock:Commit.*) from the metadata graph.
+ * Model commits and loads automatically create a lock on each commit with lockId = Commit.<etag>.
+ * These must be removed before squash tests to avoid the branch-point safety check rejecting
+ * the squash due to locks referencing intermediate commits.
+ */
+suspend fun deleteAutoCreatedLocks(updateUrl: String, repoPath: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        parameter("update", """
+             prefix mor-graph: <$ROOT_CONTEXT$repoPath/graphs/>
+             prefix mor-lock: <$ROOT_CONTEXT$repoPath/locks/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             delete {
+                 graph mor-graph:Metadata {
+                     ?lock ?p ?o .
+                 }
+             }
+             where {
+                 graph mor-graph:Metadata {
+                     ?lock a mms:Lock ;
+                         ?p ?o .
+                     filter(strstarts(str(?lock), str(mor-lock:Commit.)))
+                 }
+             }
+        """.trimIndent())
+    }
+}
+
 suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
     val client = HttpClient()
     client.post(updateUrl) {
