@@ -370,12 +370,15 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         }
     }
 
-    // also get the newer commit's current data, parent, and its ins/del graphs for replacement
+    // also get the newer commit's current data, parent, and its ins/del graphs for replacement.
+    // Constrain ?oldParent to be on the squash path (an ancestor of olderCommit) so that
+    // merge commits with multiple parents don't pick the wrong one non-deterministically.
     val newerCommitInfoQuery = """
         select ?newerData ?oldParent ?oldPatch ?oldInsGraph ?oldDelGraph where {
             graph mor-graph:Metadata {
                 ?newerCommit mms:data ?newerData ;
                              mms:parent ?oldParent .
+                ?oldParent (mms:parent)* ?olderCommit .
                 ?newerData mms:patch ?oldPatch .
                 optional { ?newerData mms:insGraph ?oldInsGraph . }
                 optional { ?newerData mms:delGraph ?oldDelGraph . }
@@ -387,6 +390,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         prefixes(prefixes)
         iri(
             "newerCommit" to newerCommitIri,
+            "olderCommit" to olderCommitIri,
         )
     }
 
