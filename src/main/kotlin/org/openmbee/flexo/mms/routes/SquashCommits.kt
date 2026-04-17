@@ -61,9 +61,11 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
         }
     }
 
-    // ===== Step 1: Resolve both locks and validate they exist =====
-    // Each lock is resolved in a separate query so that a missing lock produces
-    // an accurate 404 identifying the specific lock that doesn't exist.
+    /*
+    ===== Step 1: Resolve both locks and validate they exist =====
+    Each lock is resolved in a separate query so that a missing lock produces
+    an accurate 404 identifying the specific lock that doesn't exist.
+    */
     val resolveLockQuery = buildSparqlQuery {
         construct {
             raw("""
@@ -178,90 +180,90 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
 
     executeSparqlUpdate(computeDiffUpdate)
 
-    // Wrap remaining steps in try/finally so diff graphs are cleaned up on failure.
-    // On success, the diff graphs become the newer commit's mms:insGraph/mms:delGraph
-    // and must NOT be dropped.
+    /*
+      Wrap remaining steps in try/finally so diff graphs are cleaned up on failure.
+      On success, the diff graphs become the newer commit's mms:insGraph/mms:delGraph
+      and must NOT be dropped.
+      */
     var squashSucceeded = false
     try {
+        // ===== Step 4: Build the squashed patch string =====
+        val patchString = """
+            delete {
+                graph ?__mms_model {
+                    ?s ?p ?o .
+                }
+            } where {
+                graph <$diffDelGraphIri> {
+                    ?s ?p ?o .
+                }
+            };
+            insert {
+                graph ?__mms_model {
+                    ?s ?p ?o .
+                }
+            } where {
+                graph <$diffInsGraphIri> {
+                    ?s ?p ?o .
+                }
+            }
+        """.trimIndent()
 
-    // ===== Step 4: Build the squashed patch string =====
-    val patchString = """
-        delete {
-            graph ?__mms_model {
-                ?s ?p ?o .
-            }
-        } where {
-            graph <$diffDelGraphIri> {
-                ?s ?p ?o .
-            }
-        };
-        insert {
-            graph ?__mms_model {
-                ?s ?p ?o .
-            }
-        } where {
-            graph <$diffInsGraphIri> {
-                ?s ?p ?o .
-            }
+        // ===== Step 5: Collect intermediate commits =====
+        val intermediateQuery = """
+               select ?intermediateCommit ?intermediateData where {
+                   graph mor-graph:Metadata {
+                       <$dstCommitIri> mms:parent+ ?intermediateCommit .
+                       ?intermediateCommit mms:parent+ <$srcCommitIri> ;
+                           mms:data ?intermediateData .
+                   }
+               }
+           """.trimIndent()
+        val intermediateResult = executeSparqlSelectOrAsk(intermediateQuery)
+        val intermediateBindings = parseSparqlResultsJsonSelect(intermediateResult)
+        // collect intermediate commit and data IRIs
+        val intermediateCommitIris = intermediateBindings.map {
+            it["intermediateCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
         }
-    """.trimIndent()
-
-    // ===== Step 5: Collect intermediate commits =====
-    val intermediateQuery = """
-        select ?intermediateCommit ?intermediateData where {
-            graph mor-graph:Metadata {
-                <$dstCommitIri> mms:parent+ ?intermediateCommit .
-                ?intermediateCommit mms:parent+ <$srcCommitIri> ;
-                    mms:data ?intermediateData .
-            }
+        val intermediateDataIris = intermediateBindings.map {
+            it["intermediateData"]!!.jsonObject["value"]!!.jsonPrimitive.content
         }
-    """.trimIndent()
-
-    val intermediateResult = executeSparqlSelectOrAsk(intermediateQuery)
-
-    val intermediateBindings = parseSparqlResultsJsonSelect(intermediateResult)
-
-    // collect intermediate commit and data IRIs
-    val intermediateCommitIris = intermediateBindings.map {
-        it["intermediateCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
-    }
-    val intermediateDataIris = intermediateBindings.map {
-        it["intermediateData"]!!.jsonObject["value"]!!.jsonPrimitive.content
-    }
-
-    // ===== Step 5a: No-op for consecutive commits =====
-    // If there are no intermediate commits, the two locks reference consecutive commits.
-    // There is nothing to squash — return OK as a no-op.
-    if (intermediateCommitIris.isEmpty()) {
-        // Build a simple construct of the newer commit's current metadata to return
-        val noopConstructQuery = buildSparqlQuery {
-            construct {
-                raw("""
-                    <$dstCommitIri> ?commit_p ?commit_o .
-                """)
-            }
-            where {
-                raw("""
-                    graph mor-graph:Metadata {
+        /*
+           ===== Step 5a: No-op for consecutive commits =====
+           If there are no intermediate commits, the two locks reference consecutive commits.
+           There is nothing to squash — return OK as a no-op.
+           */
+        if (intermediateCommitIris.isEmpty()) {
+            // Build a simple construct of the newer commit's current metadata to return
+            val noopConstructQuery = buildSparqlQuery {
+                construct {
+                    raw("""
                         <$dstCommitIri> ?commit_p ?commit_o .
-                    }
-                """)
+                    """)
+                }
+                where {
+                    raw("""
+                        graph mor-graph:Metadata {
+                            <$dstCommitIri> ?commit_p ?commit_o .
+                        }
+                    """)
+                }
             }
+            val noopResponseText = executeSparqlConstructOrDescribe(noopConstructQuery) {
+                prefixes(prefixes)
+            }
+            call.respondText(noopResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
+            return
         }
-        val noopResponseText = executeSparqlConstructOrDescribe(noopConstructQuery) {
-            prefixes(prefixes)
-        }
-        call.respondText(noopResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
-        return
-    }
 
-    // ===== Step 5b: Verify no intermediate commit is a branch point =====
-    // If any intermediate commit is the parent of a commit outside the squash path
-    // (i.e. not the newer commit and not another intermediate), deleting it would
-    // orphan that external branch's commit history.
-    if (intermediateCommitIris.isNotEmpty()) {
-        // Only check intermediate commits (which are deleted). The newer commit is
-        // preserved, so it's fine if it has children outside the squash path.
+        /*
+        ===== Step 5b: Verify no intermediate commit is a branch point =====
+        If any intermediate commit is the parent of a commit outside the squash path
+        (i.e. not the newer commit and not another intermediate), deleting it would
+        orphan that external branch's commit history.
+        Only check intermediate commits (which are deleted). The newer commit is
+        preserved, so it's fine if it has children outside the squash path.
+        */
         val intermediateFilter = intermediateCommitIris.joinToString(", ") { "<$it>" }
         // External children must not be the newer commit or another intermediate
         val squashPathCommits = listOf(dstCommitIri) + intermediateCommitIris
@@ -277,9 +279,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             }
         """.trimIndent()
 
-        val branchPointResult = executeSparqlSelectOrAsk(branchPointQuery) {
-            prefixes(prefixes)
-        }
+        val branchPointResult = executeSparqlSelectOrAsk(branchPointQuery)
         val branchPointBindings = parseSparqlResultsJsonSelect(branchPointResult)
         if (branchPointBindings.isNotEmpty()) {
             val branchPointIri = branchPointBindings[0]["intermediateCommit"]!!.jsonObject["value"]!!.jsonPrimitive.content
@@ -289,9 +289,11 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             )
         }
 
-        // Also check if any lock or branch references an intermediate commit via mms:commit.
-        // The two input locks (srcLockRef, dstLockRef) are excluded because they point to
-        // the older/newer commits (which are preserved), not intermediates.
+        /*
+        Also check if any lock or branch references an intermediate commit via mms:commit.
+        The two input locks (srcLockRef, dstLockRef) are excluded because they point to
+        the older/newer commits (which are preserved), not intermediates.
+        */
         val refCheckQuery = """
             select ?intermediateCommit ?ref where {
                 graph mor-graph:Metadata {
@@ -302,9 +304,7 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
             }
         """.trimIndent()
 
-        val refCheckResult = executeSparqlSelectOrAsk(refCheckQuery) {
-            prefixes(prefixes)
-        }
+        val refCheckResult = executeSparqlSelectOrAsk(refCheckQuery)
         val refCheckBindings = parseSparqlResultsJsonSelect(refCheckResult)
         if (refCheckBindings.isNotEmpty()) {
             val refIri = refCheckBindings[0]["ref"]!!.jsonObject["value"]!!.jsonPrimitive.content
@@ -314,237 +314,233 @@ suspend fun LdpDcLayer1Context<LdpPostResponse>.squashCommitsImpl() {
                 "Squashing would leave a dangling reference."
             )
         }
-    }
 
-    // also collect ins/del graphs from intermediate commit data for cleanup
-    // use OPTIONAL for insGraph/delGraph since a commit's data may only have one or neither
-    val intermediateInsDelQuery = """
-        select ?data ?insGraph ?delGraph where {
-            graph mor-graph:Metadata {
-                values ?data { ${intermediateDataIris.joinToString(" ") { "<$it>" }} }
-                optional { ?data mms:insGraph ?insGraph . }
-                optional { ?data mms:delGraph ?delGraph . }
+        // also collect ins/del graphs from intermediate commit data for cleanup
+        // use OPTIONAL for insGraph/delGraph since a commit's data may only have one or neither
+        val intermediateInsDelQuery = """
+            select ?data ?insGraph ?delGraph where {
+                graph mor-graph:Metadata {
+                    values ?data { ${intermediateDataIris.joinToString(" ") { "<$it>" }} }
+                    optional { ?data mms:insGraph ?insGraph . }
+                    optional { ?data mms:delGraph ?delGraph . }
+                }
+            }
+        """.trimIndent()
+
+        var intermediateGraphsToClean = listOf<String>()
+        if (intermediateDataIris.isNotEmpty()) {
+            val insDelResult = executeSparqlSelectOrAsk(intermediateInsDelQuery) {
+                prefixes(prefixes)
+            }
+            val insDelBindings = parseSparqlResultsJsonSelect(insDelResult)
+            intermediateGraphsToClean = insDelBindings.flatMap { binding ->
+                listOfNotNull(
+                    binding["insGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content,
+                    binding["delGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content,
+                )
             }
         }
-    """.trimIndent()
 
-    var intermediateGraphsToClean = listOf<String>()
-    if (intermediateDataIris.isNotEmpty()) {
-        val insDelResult = executeSparqlSelectOrAsk(intermediateInsDelQuery) {
-            prefixes(prefixes)
+        /*
+        also get the newer commit's current data, parent, and its ins/del graphs for replacement.
+        Constrain ?oldParent to be on the squash path (an ancestor of olderCommit) so that
+        merge commits with multiple parents don't pick the wrong one non-deterministically.
+        */
+        val newerCommitInfoQuery = """
+            select ?newerData ?oldParent ?oldPatch ?oldInsGraph ?oldDelGraph where {
+                graph mor-graph:Metadata {
+                    <$dstCommitIri> mms:data ?newerData ;
+                                 mms:parent ?oldParent .
+                    ?oldParent (mms:parent)* <$srcCommitIri> .
+                    ?newerData mms:patch ?oldPatch .
+                    optional { ?newerData mms:insGraph ?oldInsGraph . }
+                    optional { ?newerData mms:delGraph ?oldDelGraph . }
+                }
+            }
+        """.trimIndent()
+
+        val newerCommitInfoResult = executeSparqlSelectOrAsk(newerCommitInfoQuery)
+
+        val newerCommitInfoBindings = parseSparqlResultsJsonSelect(newerCommitInfoResult)
+        if (newerCommitInfoBindings.isEmpty()) {
+            throw Http500Excpetion("Failed to retrieve newer commit data")
         }
-        val insDelBindings = parseSparqlResultsJsonSelect(insDelResult)
-        intermediateGraphsToClean = insDelBindings.flatMap { binding ->
-            listOfNotNull(
-                binding["insGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content,
-                binding["delGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content,
+
+        val newerDataIri = newerCommitInfoBindings[0]["newerData"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        val oldParentIri = newerCommitInfoBindings[0]["oldParent"]!!.jsonObject["value"]!!.jsonPrimitive.content
+        val oldInsGraphIri = newerCommitInfoBindings[0]["oldInsGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        val oldDelGraphIri = newerCommitInfoBindings[0]["oldDelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+
+        /*
+        ===== Step 6: Execute the squash as a single SPARQL UPDATE =====
+        All mutations are consolidated into one DELETE/INSERT/WHERE block so that
+        authorization conditions gate everything atomically.
+        */
+        val localConditions = SQUASH_CONDITIONS
+
+        // Build delete clauses for intermediate commits
+        val intermediateDeletePatterns = if (intermediateCommitIris.isNotEmpty()) {
+            val commitPatterns = intermediateCommitIris.mapIndexed { idx, iri ->
+                "<$iri> ?ic_p_$idx ?ic_o_$idx ."
+            }
+            val dataPatterns = intermediateDataIris.mapIndexed { idx, iri ->
+                "<$iri> ?id_p_$idx ?id_o_$idx ."
+            }
+            (commitPatterns + dataPatterns).joinToString("\n                    ")
+        } else ""
+
+        // Build delete clauses for old patch data
+        val deleteOldDataClauses = mutableListOf(
+            "<$newerDataIri> mms:patch ?oldPatch ."
+        )
+        if (oldInsGraphIri != null) {
+            deleteOldDataClauses.add("<$newerDataIri> mms:insGraph <$oldInsGraphIri> .")
+        }
+        if (oldDelGraphIri != null) {
+            deleteOldDataClauses.add("<$newerDataIri> mms:delGraph <$oldDelGraphIri> .")
+        }
+
+        val squashUpdateString = buildSparqlUpdate {
+            delete {
+                graph("mor-graph:Metadata") {
+                    // delete intermediate commits and their data
+                    if (intermediateDeletePatterns.isNotEmpty()) {
+                        raw(intermediateDeletePatterns)
+                    }
+
+                    // delete old parent pointer
+                    raw("""
+                        <$dstCommitIri> mms:parent <$oldParentIri> .
+                    """)
+
+                    // delete old patch/insGraph/delGraph
+                    raw(deleteOldDataClauses.joinToString("\n                    "))
+                }
+            }
+            insert {
+                // record the transaction for validation
+                subtxn("squash")
+
+                graph("mor-graph:Metadata") {
+                    // new parent pointer
+                    raw("""
+                        <$dstCommitIri> mms:parent <$srcCommitIri> .
+                    """)
+
+                    // new squashed patch and diff graphs
+                    raw("""
+                        <$newerDataIri> mms:patch ?_squashedPatch .
+                        <$newerDataIri> mms:insGraph <$diffInsGraphIri> .
+                        <$newerDataIri> mms:delGraph <$diffDelGraphIri> .
+                    """)
+                }
+            }
+            where {
+                // enforce authorization conditions (org/repo existence, UPDATE_COMMIT)
+                raw(*localConditions.requiredPatterns())
+
+                // match intermediate commit triples for deletion
+                if (intermediateDeletePatterns.isNotEmpty()) {
+                    graph("mor-graph:Metadata") {
+                        raw(intermediateDeletePatterns)
+                    }
+                }
+
+                // match old patch data for deletion
+                graph("mor-graph:Metadata") {
+                    raw("""
+                        <$newerDataIri> mms:patch ?oldPatch .
+                    """)
+                }
+            }
+        }
+
+        executeSparqlUpdate(squashUpdateString) {
+            prefixes(prefixes)
+            datatyped(
+                "_squashedPatch" to (patchString to MMS_DATATYPE.sparql),
+            )
+            iri(
+                "_requiredPermission" to "${prefixes["mms-object"]}Permission.${Permission.UPDATE_COMMIT.id}",
             )
         }
-    }
 
-    // also get the newer commit's current data, parent, and its ins/del graphs for replacement.
-    // Constrain ?oldParent to be on the squash path (an ancestor of olderCommit) so that
-    // merge commits with multiple parents don't pick the wrong one non-deterministically.
-    val newerCommitInfoQuery = """
-        select ?newerData ?oldParent ?oldPatch ?oldInsGraph ?oldDelGraph where {
-            graph mor-graph:Metadata {
-                <$dstCommitIri> mms:data ?newerData ;
-                             mms:parent ?oldParent .
-                ?oldParent (mms:parent)* <$srcCommitIri> .
-                ?newerData mms:patch ?oldPatch .
-                optional { ?newerData mms:insGraph ?oldInsGraph . }
-                optional { ?newerData mms:delGraph ?oldDelGraph . }
-            }
-        }
-    """.trimIndent()
-
-    val newerCommitInfoResult = executeSparqlSelectOrAsk(newerCommitInfoQuery)
-
-    val newerCommitInfoBindings = parseSparqlResultsJsonSelect(newerCommitInfoResult)
-    if (newerCommitInfoBindings.isEmpty()) {
-        throw Http500Excpetion("Failed to retrieve newer commit data")
-    }
-
-    val newerDataIri = newerCommitInfoBindings[0]["newerData"]!!.jsonObject["value"]!!.jsonPrimitive.content
-    val oldParentIri = newerCommitInfoBindings[0]["oldParent"]!!.jsonObject["value"]!!.jsonPrimitive.content
-    val oldInsGraphIri = newerCommitInfoBindings[0]["oldInsGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
-    val oldDelGraphIri = newerCommitInfoBindings[0]["oldDelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
-
-    // ===== Step 6: Execute the squash as a single SPARQL UPDATE =====
-    // All mutations are consolidated into one DELETE/INSERT/WHERE block so that
-    // authorization conditions gate everything atomically.
-    val localConditions = SQUASH_CONDITIONS
-
-    // Build delete clauses for intermediate commits
-    val intermediateDeletePatterns = if (intermediateCommitIris.isNotEmpty()) {
-        val commitPatterns = intermediateCommitIris.mapIndexed { idx, iri ->
-            "<$iri> ?ic_p_$idx ?ic_o_$idx ."
-        }
-        val dataPatterns = intermediateDataIris.mapIndexed { idx, iri ->
-            "<$iri> ?id_p_$idx ?id_o_$idx ."
-        }
-        (commitPatterns + dataPatterns).joinToString("\n                    ")
-    } else ""
-
-    // Build delete clauses for old patch data
-    val deleteOldDataClauses = mutableListOf(
-        "<$newerDataIri> mms:patch ?oldPatch ."
-    )
-    if (oldInsGraphIri != null) {
-        deleteOldDataClauses.add("<$newerDataIri> mms:insGraph <$oldInsGraphIri> .")
-    }
-    if (oldDelGraphIri != null) {
-        deleteOldDataClauses.add("<$newerDataIri> mms:delGraph <$oldDelGraphIri> .")
-    }
-
-    val squashUpdateString = buildSparqlUpdate {
-        delete {
-            graph("mor-graph:Metadata") {
-                // delete intermediate commits and their data
-                if (intermediateDeletePatterns.isNotEmpty()) {
-                    raw(intermediateDeletePatterns)
-                }
-
-                // delete old parent pointer
-                raw("""
-                    <$dstCommitIri> mms:parent <$oldParentIri> .
-                """)
-
-                // delete old patch/insGraph/delGraph
-                raw(deleteOldDataClauses.joinToString("\n                    "))
-            }
-        }
-        insert {
-            // record the transaction for validation
-            subtxn("squash")
-
-            graph("mor-graph:Metadata") {
-                // new parent pointer
-                raw("""
-                    <$dstCommitIri> mms:parent <$srcCommitIri> .
-                """)
-
-                // new squashed patch and diff graphs
-                raw("""
-                    <$newerDataIri> mms:patch ?_squashedPatch .
-                    <$newerDataIri> mms:insGraph <$diffInsGraphIri> .
-                    <$newerDataIri> mms:delGraph <$diffDelGraphIri> .
-                """)
-            }
-        }
-        where {
-            // enforce authorization conditions (org/repo existence, UPDATE_COMMIT)
-            raw(*localConditions.requiredPatterns())
-
-            // match intermediate commit triples for deletion
-            if (intermediateDeletePatterns.isNotEmpty()) {
-                graph("mor-graph:Metadata") {
-                    raw(intermediateDeletePatterns)
-                }
-            }
-
-            // match old patch data for deletion
-            graph("mor-graph:Metadata") {
-                raw("""
-                    <$newerDataIri> mms:patch ?oldPatch .
-                """)
-            }
-        }
-    }
-
-    executeSparqlUpdate(squashUpdateString) {
-        prefixes(prefixes)
-        datatyped(
-            "_squashedPatch" to (patchString to MMS_DATATYPE.sparql),
-        )
-        iri(
-            "_requiredPermission" to "${prefixes["mms-object"]}Permission.${Permission.UPDATE_COMMIT.id}",
-        )
-    }
-
-    // ===== Verify transaction and respond =====
-    val constructString = buildSparqlQuery {
-        construct {
-            txn("squash")
-
-            raw("""
-                <$dstCommitIri> ?commit_p ?commit_o .
-                ?newerData ?data_p ?data_o .
-            """)
-        }
-        where {
-            group {
+        // ===== Verify transaction and respond =====
+        val constructString = buildSparqlQuery {
+            construct {
                 txn("squash")
 
                 raw("""
-                    graph mor-graph:Metadata {
-                        <$dstCommitIri> ?commit_p ?commit_o ;
-                            mms:data ?newerData .
-                        ?newerData ?data_p ?data_o .
-                    }
+                    <$dstCommitIri> ?commit_p ?commit_o .
+                    ?newerData ?data_p ?data_o .
                 """)
             }
-            // inspect conditions for diagnostics if transaction failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
+            where {
+                group {
+                    txn("squash")
+
+                    raw("""
+                        graph mor-graph:Metadata {
+                            <$dstCommitIri> ?commit_p ?commit_o ;
+                                mms:data ?newerData .
+                            ?newerData ?data_p ?data_o .
+                        }
+                    """)
+                }
+                // inspect conditions for diagnostics if transaction failed
+                raw("""union ${localConditions.unionInspectPatterns()}""")
+            }
         }
-    }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+        // execute construct
+        val constructResponseText = executeSparqlConstructOrDescribe(constructString)
 
-    // validate whether the transaction succeeded (checks conditions passed)
-    validateTransaction(constructResponseText, localConditions, "squash")
+        // validate whether the transaction succeeded (checks conditions passed)
+        validateTransaction(constructResponseText, localConditions, "squash")
 
-    // mark success immediately after validation — the squash update is now confirmed
-    // in the triplestore, so diff graphs must be preserved even if response/cleanup fails
-    squashSucceeded = true
+        // mark success immediately after validation — the squash update is now confirmed
+        // in the triplestore, so diff graphs must be preserved even if response/cleanup fails
+        squashSucceeded = true
 
-    // ===== Step 7: Clean up old ins/del graphs from intermediate commits and old newer commit data =====
-    // This runs AFTER validateTransaction to avoid dropping graphs that are still
-    // referenced by metadata if the squash UPDATE was a no-op (e.g. auth failure).
-    val graphsToClean = mutableListOf<String>()
-    graphsToClean.addAll(intermediateGraphsToClean)
-    // also drop old ins/del graphs from the newer commit's previous data if they differ from new ones
-    if (oldInsGraphIri != null && oldInsGraphIri != diffInsGraphIri) {
-        graphsToClean.add(oldInsGraphIri)
-    }
-    if (oldDelGraphIri != null && oldDelGraphIri != diffDelGraphIri) {
-        graphsToClean.add(oldDelGraphIri)
-    }
+        // respond
+        call.response.header(HttpHeaders.ETag, transactionId)
+        call.respondText(constructResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
 
-    if (graphsToClean.isNotEmpty()) {
-        val dropStatements = graphsToClean.joinToString(";\n") { "drop silent graph <$it>" }
-        executeSparqlUpdate(dropStatements) {
-            prefixes(prefixes)
+        /*
+        ===== Step 7: Clean up old ins/del graphs from intermediate commits and old newer commit data =====
+        This runs AFTER validateTransaction to avoid dropping graphs that are still
+        referenced by metadata if the squash UPDATE was a no-op (e.g. auth failure).
+        */
+        val graphsToClean = mutableListOf<String>()
+        graphsToClean.addAll(intermediateGraphsToClean)
+        // also drop old ins/del graphs from the newer commit's previous data if they differ from new ones
+        if (oldInsGraphIri != null && oldInsGraphIri != diffInsGraphIri) {
+            graphsToClean.add(oldInsGraphIri)
         }
-    }
+        if (oldDelGraphIri != null && oldDelGraphIri != diffDelGraphIri) {
+            graphsToClean.add(oldDelGraphIri)
+        }
 
-    // respond
-    call.response.header(HttpHeaders.ETag, transactionId)
-    call.respondText(constructResponseText, RdfContentTypes.Turtle, HttpStatusCode.OK)
-
-    // clean up transaction
-    run {
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
+        if (graphsToClean.isNotEmpty()) {
+            val dropStatements = graphsToClean.joinToString(";\n") { "drop silent graph <$it>" }
+            executeSparqlUpdate(dropStatements)
+        }
+    } finally {
+        //TODO missing subtxn squash
+        executeSparqlUpdate("""
+            delete where {  
                 graph m-graph:Transactions {
                     mt: ?p ?o .
                 }
             }
         """)
-        log.info(dropResponseText)
-    }
-
-    } finally {
         // only clean up temporary diff graphs on failure — on success they are
         // stored as the newer commit's mms:insGraph/mms:delGraph
         if (!squashSucceeded) {
             executeSparqlUpdate("""
                 drop silent graph <$diffInsGraphIri> ;
                 drop silent graph <$diffDelGraphIri>
-            """) {
-                prefixes(prefixes)
-            }
+            """)
         }
     }
 }
