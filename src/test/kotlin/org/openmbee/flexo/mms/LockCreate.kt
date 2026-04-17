@@ -65,5 +65,83 @@ class LockCreate : LockAny() {
 
             createAndValidateLock("other-lock", "<> mms:ref <./$demoLockId> .")
         }
+
+        "create lock from commit with existing model graph" {
+            testApplication {
+                val update = commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> <urn:mms:o> .
+                    }
+                """.trimIndent())
+
+                val commitId = update.headers[HttpHeaders.ETag]!!
+
+                // create lock from commit (model graph exists via master's lock)
+                httpPut("$demoRepoPath/locks/commit-lock") {
+                    setTurtleBody(withAllTestPrefixes("""
+                        <> mms:commit mor-commit:$commitId .
+                    """.trimIndent()))
+                }.apply {
+                    val etag = this.headers[HttpHeaders.ETag]
+                    etag.shouldNotBeBlank()
+
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.exclusivelyHasTriples {
+                        modelName = "ValidateLockFromCommit"
+                        validateCreatedLockTriples("commit-lock", etag!!, demoOrgPath)
+                    }
+                }
+            }
+        }
+        //TODO needs to delete model graphs first to test
+        "create lock from commit needing materialization" {
+            testApplication {
+                commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 1 .
+                    }
+                """.trimIndent())
+
+                val update2 = commitModel(masterBranchPath, """
+                    delete where {
+                        <urn:mms:s> <urn:mms:p> ?previous .
+                    } ;
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 2 .
+                    }
+                """.trimIndent())
+
+                val commitId2 = update2.headers[HttpHeaders.ETag]!!
+
+                kotlinx.coroutines.delay(2_000L)
+
+                val update3 = commitModel(masterBranchPath, """
+                    delete where {
+                        <urn:mms:s> <urn:mms:p> ?previous .
+                    } ;
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 3 .
+                    }
+                """.trimIndent())
+
+                kotlinx.coroutines.delay(2_000L)
+
+                // create lock from the 2nd commit (which may not have a model graph yet)
+                httpPut("$demoRepoPath/locks/commit-lock") {
+                    setTurtleBody(withAllTestPrefixes("""
+                        <> mms:commit mor-commit:$commitId2 .
+                    """.trimIndent()))
+                }.apply {
+                    val etag = this.headers[HttpHeaders.ETag]
+                    etag.shouldNotBeBlank()
+
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.exclusivelyHasTriples {
+                        modelName = "ValidateLockFromCommitMaterialized"
+                        validateCreatedLockTriples("commit-lock", etag!!, demoOrgPath)
+                    }
+                }
+            }
+        }
     }
 }
