@@ -25,6 +25,7 @@ import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
 import org.apache.jena.update.UpdateRequest
+import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
@@ -129,25 +130,32 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, isCollection: Boolean=false, addPrefix: Boolean=false, baseIri: String?=null) {
     // for certain sparql, point user query at a predetermined graph
-    var targetGraphIri = when(refIri) {
-        prefixes["mor"] -> {
-            "${prefixes["mor-graph"]}Metadata"
+    val targetGraphIri = if (!isCollection) {
+        when(refIri) {
+            prefixes["mor"] -> {
+                "${prefixes["mor-graph"]}Metadata"
+            }
+            prefixes["mors"] -> {
+                "${prefixes["mor-graph"]}Scratch.$scratchId"
+            }
+            else -> {
+                null
+            }
         }
-        prefixes["mors"] -> {
-            "${prefixes["mor-graph"]}Scratch.$scratchId"
-        }
-        else -> {
-            null
-        }
-    }
+    }  else "urn:mms:collection:query:placeholder"
 
     val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
 
     // extract the target graph iri from query results
-    if(targetGraphIri == null) {
-        targetGraphIri = targetGraphIriResult
+    val graphIris = mutableListOf<String>()
+    if (targetGraphIri == null) {
+        graphIris.add(targetGraphIriResult)
+    } else if (isCollection) {
+        graphIris.addAll(resolveCollectionGraphIris())
+    } else {
+        graphIris.add(targetGraphIri)
     }
 
     // parse user query
@@ -221,109 +229,11 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
             throw Http403Exception(this@processAndSubmitUserQuery, "graph parameter(s)")
         }
 
-        // set default graph
-        graphURIs.add(targetGraphIri)
-
-        // set named graph(s)
-        namedGraphURIs.add(targetGraphIri)
-    }
-
-    // serialize user query
-    var userQueryString = userQuery.serialize()
-
-    // remove BASE from user query
-    userQueryString = userQueryString.replace("\\bBASE(\\s*#[^\\n]*)*\\s+<[^>]*>".toRegex(RegexOption.IGNORE_CASE), "")
-
-    // a base IRI was provided; force it back in
-    if (baseIri != null) {
-       userQueryString = "BASE <${baseIri}>\n" + userQueryString
-    }
-
-    // user only wants to inspect the generated query
-    if(inspectOnly) {
-        call.respondText(userQueryString)
-        return
-    }
-
-    // SELECT or ASK query
-    if(userQuery.isSelectType || userQuery.isAskType) {
-        // execute user query
-        val queryResponseText = executeSparqlSelectOrAsk(userQueryString) {
-            acceptReplicaLag = true
-
-            if(addPrefix) prefixes(prefixes)
+        // inject FROM and FROM NAMED for each resolved graph IRI
+        for(graphIri in graphIris) {
+            userQuery.graphURIs.add(graphIri)
+            userQuery.namedGraphURIs.add(graphIri)
         }
-
-        // forward results to client
-        call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
-    }
-    // CONSTRUCT or DESCRIBE
-    else if(userQuery.isConstructType || userQuery.isDescribeType) {
-        // execute user query
-        val queryResponseText = executeSparqlConstructOrDescribe(userQueryString) {
-            acceptReplicaLag = true
-
-            if(addPrefix) prefixes(prefixes)
-        }
-
-        // forward results to client
-        call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
-    }
-    // unsupported query type
-    else {
-        throw Http400Exception("Query operation not supported")
-    }
-}
-
-/**
- * Overload for collection queries where multiple target graph IRIs are pre-resolved.
- *
- * Conditions (collection exists, permissions) must be checked by the caller before invoking this.
- * This handles: query parsing, FROM/FROM NAMED rejection, graph injection, serialization,
- * inspect mode, execution, and response routing — the same shared logic as the single-graph overload.
- *
- * When [targetGraphIris] is empty, returns spec-compliant empty results with the correct content type.
- */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, targetGraphIris: List<String>, addPrefix: Boolean=false, baseIri: String?=null) {
-    // parse user query
-    val userQuery = try {
-        if(baseIri != null) {
-            QueryFactory.create(queryRequest.query, baseIri)
-        }
-        else {
-            QueryFactory.create(queryRequest.query)
-        }
-    } catch(parse: Exception) {
-        throw QuerySyntaxException(parse)
-    }
-
-    // reject any from or from named
-    if(userQuery.graphURIs.isNotEmpty() || userQuery.namedGraphURIs.isNotEmpty()) {
-        throw Http403Exception(this, "FROM target")
-    }
-
-    // reject any target graphs from query parameters
-    if(queryRequest.defaultGraphUris.isNotEmpty() || queryRequest.namedGraphUris.isNotEmpty()) {
-        throw Http403Exception(this, "graph parameter(s)")
-    }
-
-    // no graphs resolved — return empty results with correct content type
-    if(targetGraphIris.isEmpty()) {
-        if(userQuery.isSelectType) {
-            val vars = userQuery.resultVars.joinToString(",") { "\"$it\"" }
-            call.respondText("""{"head":{"vars":[$vars]},"results":{"bindings":[]}}""", contentType=RdfContentTypes.SparqlResultsJson)
-        } else if(userQuery.isAskType) {
-            call.respondText("""{"head":{},"boolean":false}""", contentType=RdfContentTypes.SparqlResultsJson)
-        } else {
-            call.respondText("", contentType=RdfContentTypes.Turtle)
-        }
-        return
-    }
-
-    // inject FROM and FROM NAMED for each resolved graph IRI
-    for(graphIri in targetGraphIris) {
-        userQuery.graphURIs.add(graphIri)
-        userQuery.namedGraphURIs.add(graphIri)
     }
 
     // serialize user query

@@ -20,6 +20,6 @@ fun Route.queryRepo() {
 
         processAndSubmitUserQuery(requestContext, prefixes["mor"]!!, REPO_QUERY_CONDITIONS.append {
             assertPreconditions(this)
-        }, false, prefixes["mor"])
+        }, isCollection = false, false, prefixes["mor"])
     }
 }

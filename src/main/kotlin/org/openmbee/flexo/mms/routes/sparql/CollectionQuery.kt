@@ -22,14 +22,6 @@ fun Route.queryCollection() {
             inspect()
         }
 
-        // check conditions (collection exists + READ_COLLECTION permission)
-        checkModelQueryConditions(
-            targetGraphIri = "urn:mms:collection:query:placeholder",
-            conditions = COLLECTION_QUERY_CONDITIONS
-        )
-
-        // resolve collected refs to their model graph IRIs and delegate
-        val graphIris = resolveCollectionGraphIris()
-        processAndSubmitUserQuery(requestContext, graphIris)
+        processAndSubmitUserQuery(requestContext, prefixes["moc"]!!, COLLECTION_QUERY_CONDITIONS, true)
     }
 }

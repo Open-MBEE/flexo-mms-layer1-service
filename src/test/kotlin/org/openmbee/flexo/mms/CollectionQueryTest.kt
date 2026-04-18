@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 
 class CollectionQueryTest : CollectionAny() {
     override val logger = LoggerFactory.getLogger(CollectionQueryTest::class.java)
-
+    val masterBranchPath = "$demoRepoPath/branches/master"
     // a second repo for cross-repo collection tests
     val secondRepoId = "second-repo"
     val secondRepoName = "Second Repo"
