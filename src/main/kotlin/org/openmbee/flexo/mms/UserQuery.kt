@@ -276,6 +276,104 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
 }
 
 /**
+ * Overload for collection queries where multiple target graph IRIs are pre-resolved.
+ *
+ * Conditions (collection exists, permissions) must be checked by the caller before invoking this.
+ * This handles: query parsing, FROM/FROM NAMED rejection, graph injection, serialization,
+ * inspect mode, execution, and response routing — the same shared logic as the single-graph overload.
+ *
+ * When [targetGraphIris] is empty, returns spec-compliant empty results with the correct content type.
+ */
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, targetGraphIris: List<String>, addPrefix: Boolean=false, baseIri: String?=null) {
+    // parse user query
+    val userQuery = try {
+        if(baseIri != null) {
+            QueryFactory.create(queryRequest.query, baseIri)
+        }
+        else {
+            QueryFactory.create(queryRequest.query)
+        }
+    } catch(parse: Exception) {
+        throw QuerySyntaxException(parse)
+    }
+
+    // reject any from or from named
+    if(userQuery.graphURIs.isNotEmpty() || userQuery.namedGraphURIs.isNotEmpty()) {
+        throw Http403Exception(this, "FROM target")
+    }
+
+    // reject any target graphs from query parameters
+    if(queryRequest.defaultGraphUris.isNotEmpty() || queryRequest.namedGraphUris.isNotEmpty()) {
+        throw Http403Exception(this, "graph parameter(s)")
+    }
+
+    // no graphs resolved — return empty results with correct content type
+    if(targetGraphIris.isEmpty()) {
+        if(userQuery.isSelectType) {
+            val vars = userQuery.resultVars.joinToString(",") { "\"$it\"" }
+            call.respondText("""{"head":{"vars":[$vars]},"results":{"bindings":[]}}""", contentType=RdfContentTypes.SparqlResultsJson)
+        } else if(userQuery.isAskType) {
+            call.respondText("""{"head":{},"boolean":false}""", contentType=RdfContentTypes.SparqlResultsJson)
+        } else {
+            call.respondText("", contentType=RdfContentTypes.Turtle)
+        }
+        return
+    }
+
+    // inject FROM and FROM NAMED for each resolved graph IRI
+    for(graphIri in targetGraphIris) {
+        userQuery.graphURIs.add(graphIri)
+        userQuery.namedGraphURIs.add(graphIri)
+    }
+
+    // serialize user query
+    var userQueryString = userQuery.serialize()
+
+    // remove BASE from user query
+    userQueryString = userQueryString.replace("\\bBASE(\\s*#[^\\n]*)*\\s+<[^>]*>".toRegex(RegexOption.IGNORE_CASE), "")
+
+    // a base IRI was provided; force it back in
+    if (baseIri != null) {
+       userQueryString = "BASE <${baseIri}>\n" + userQueryString
+    }
+
+    // user only wants to inspect the generated query
+    if(inspectOnly) {
+        call.respondText(userQueryString)
+        return
+    }
+
+    // SELECT or ASK query
+    if(userQuery.isSelectType || userQuery.isAskType) {
+        // execute user query
+        val queryResponseText = executeSparqlSelectOrAsk(userQueryString) {
+            acceptReplicaLag = true
+
+            if(addPrefix) prefixes(prefixes)
+        }
+
+        // forward results to client
+        call.respondText(queryResponseText, contentType=RdfContentTypes.SparqlResultsJson)
+    }
+    // CONSTRUCT or DESCRIBE
+    else if(userQuery.isConstructType || userQuery.isDescribeType) {
+        // execute user query
+        val queryResponseText = executeSparqlConstructOrDescribe(userQueryString) {
+            acceptReplicaLag = true
+
+            if(addPrefix) prefixes(prefixes)
+        }
+
+        // forward results to client
+        call.respondText(queryResponseText, contentType=RdfContentTypes.Turtle)
+    }
+    // unsupported query type
+    else {
+        throw Http400Exception("Query operation not supported")
+    }
+}
+
+/**
  * Takes a Graph Store Protocol load request and forwards it to Layer 0
  */
 suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String, storeServiceLoadPath: String) {
