@@ -14,8 +14,8 @@ import org.openmbee.flexo.mms.AnyLayer1Context
  * derive the repo metadata graph IRI (`{repoIri}/graphs/Metadata`), then query within that metadata
  * graph to resolve the ref to its model graph:
  *
- * - Branch: ref → mms:commit → snapshot (mms:Staging) → mms:graph
- * - Lock:   ref → mms:commit → snapshot (mms:Model)   → mms:graph
+ * - Branch: ref → commit → snapshot (prefer mms:Model, fallback mms:Staging) → mms:graph
+ * - Lock:   ref → commit → snapshot (mms:Model) → mms:graph
  * - Scratch: graph IRI is `{repoIri}/graphs/Scratch.{scratchId}`
  */
 val COLLECTION_GRAPH_RESOLUTION_SPARQL = """
@@ -33,13 +33,24 @@ val COLLECTION_GRAPH_RESOLUTION_SPARQL = """
         bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
 
         {
-            # branch case: ref is in the repo metadata graph
+            # branch case: resolve through commit to snapshot, prefer Model over Staging
             graph ?repoMetaGraph {
                 ?ref a mms:Branch ;
                      mms:commit ?commit .
-                ?ref mms:snapshot ?snapshot .
-                ?snapshot a mms:Staging ;
-                          mms:graph ?graph .
+                ?commit ^mms:commit/mms:snapshot ?snapshot .
+                ?snapshot mms:graph ?graph .
+
+                # prefer the model snapshot
+                {
+                    ?snapshot a mms:Model .
+                }
+                # use staging snapshot if model is not ready
+                union {
+                    ?snapshot a mms:Staging .
+                    filter not exists {
+                        ?snapshot ^mms:snapshot/mms:commit/^mms:commit/mms:snapshot/a mms:Model .
+                    }
+                }
             }
         } union {
             # lock case: ref is in the repo metadata graph

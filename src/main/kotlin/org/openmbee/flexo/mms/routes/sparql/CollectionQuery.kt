@@ -34,6 +34,12 @@ fun Route.queryCollection() {
         // resolve collected refs to their model graph IRIs
         val graphIris = resolveCollectionGraphIris()
 
+        // no graphs resolved — return empty results instead of querying default dataset
+        if (graphIris.isEmpty()) {
+            call.respondText("", contentType = RdfContentTypes.Turtle)
+            return@sparqlQuery
+        }
+
         // parse user query
         val userQuery = try {
             QueryFactory.create(requestContext.query)
