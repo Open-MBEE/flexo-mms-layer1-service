@@ -231,8 +231,8 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
 
         // inject FROM and FROM NAMED for each resolved graph IRI
         for(graphIri in graphIris) {
-            userQuery.graphURIs.add(graphIri)
-            userQuery.namedGraphURIs.add(graphIri)
+            graphURIs.add(graphIri)
+            namedGraphURIs.add(graphIri)
         }
     }
 
