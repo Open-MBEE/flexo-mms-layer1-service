@@ -24,8 +24,9 @@ val COLLECTION_GRAPH_RESOLUTION_SPARQL = """
             moc: a mms:Collection ;
                  mms:collects ?ref .
 
-            # find the repo that owns this ref
+            # find the repo that owns this ref (ref IRI is a child path of the repo IRI)
             ?repo a mms:Repo .
+            filter(strstarts(str(?ref), concat(str(?repo), "/")))
         }
 
         # derive the repo metadata graph IRI from the repo IRI
