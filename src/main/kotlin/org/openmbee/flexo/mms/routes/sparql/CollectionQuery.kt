@@ -3,13 +3,10 @@ package org.openmbee.flexo.mms.routes.sparql
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.query.QueryFactory
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.COLLECTIONS_PATH
+import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.server.sparqlQuery
 
 
@@ -34,40 +31,8 @@ fun Route.queryCollection() {
             conditions = COLLECTION_QUERY_CONDITIONS
         )
 
-        // look up collected refs and resolve their model graph IRIs
-        val graphSelectQuery = """
-            select ?graph where {
-                graph m-graph:Cluster {
-                    moc: a mms:Collection ;
-                         mms:collects ?ref .
-                }
-                {
-                    # branch case
-                    ?ref a mms:Branch ;
-                         mms:commit ?commit .
-                    ?commit ^mms:commit/mms:snapshot ?snapshot .
-                    ?snapshot a mms:Staging ;
-                              mms:graph ?graph .
-                } union {
-                    # lock case
-                    ?ref a mms:Lock ;
-                         mms:commit ?lockCommit .
-                    ?lockCommit ^mms:commit/mms:snapshot ?lockSnapshot .
-                    ?lockSnapshot a mms:Model ;
-                                  mms:graph ?graph .
-                }
-            }
-        """.trimIndent()
-
-        val graphSelectResponse = executeSparqlSelectOrAsk(graphSelectQuery) {
-            acceptReplicaLag = true
-            prefixes(prefixes)
-        }
-
-        // parse bindings to get graph IRIs
-        val graphIris = Json.parseToJsonElement(graphSelectResponse)
-            .jsonObject["results"]!!.jsonObject["bindings"]!!.jsonArray
-            .map { it.jsonObject["graph"]!!.jsonObject["value"]!!.jsonPrimitive.content }
+        // resolve collected refs to their model graph IRIs
+        val graphIris = resolveCollectionGraphIris()
 
         if (graphIris.isEmpty()) {
             throw Http404Exception("No graphs found for collection")
