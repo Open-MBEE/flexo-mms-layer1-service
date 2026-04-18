@@ -41,6 +41,16 @@ fun Route.queryCollection() {
             throw QuerySyntaxException(parse)
         }
 
+        // reject any user-specified FROM or FROM NAMED
+        if (userQuery.graphURIs.isNotEmpty() || userQuery.namedGraphURIs.isNotEmpty()) {
+            throw Http403Exception(this, "FROM target")
+        }
+
+        // reject any target graphs from query parameters
+        if (requestContext.defaultGraphUris.isNotEmpty() || requestContext.namedGraphUris.isNotEmpty()) {
+            throw Http403Exception(this, "graph parameter(s)")
+        }
+
         // no graphs resolved — return empty results with correct content type
         if (graphIris.isEmpty()) {
             if (userQuery.isSelectType) {
@@ -52,16 +62,6 @@ fun Route.queryCollection() {
                 call.respondText("", contentType = RdfContentTypes.Turtle)
             }
             return@sparqlQuery
-        }
-
-        // reject any user-specified FROM or FROM NAMED
-        if (userQuery.graphURIs.isNotEmpty() || userQuery.namedGraphURIs.isNotEmpty()) {
-            throw Http403Exception(this, "FROM target")
-        }
-
-        // reject any target graphs from query parameters
-        if (requestContext.defaultGraphUris.isNotEmpty() || requestContext.namedGraphUris.isNotEmpty()) {
-            throw Http403Exception(this, "graph parameter(s)")
         }
 
         // inject FROM and FROM NAMED for each resolved graph IRI
