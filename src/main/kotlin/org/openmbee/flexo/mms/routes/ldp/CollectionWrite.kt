@@ -71,7 +71,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // retrieve the resolved collects URIs
     val collectsUris = call.attributes[COLLECTS_URIS_KEY]
-
+    //TODO check user has admin permission on the refs
     // resolve ambiguity
     if(intentIsAmbiguous) {
         // ask if collection exists
