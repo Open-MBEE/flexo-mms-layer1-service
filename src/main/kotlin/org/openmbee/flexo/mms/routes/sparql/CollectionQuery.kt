@@ -34,10 +34,6 @@ fun Route.queryCollection() {
         // resolve collected refs to their model graph IRIs
         val graphIris = resolveCollectionGraphIris()
 
-        if (graphIris.isEmpty()) {
-            throw Http404Exception("No graphs found for collection")
-        }
-
         // parse user query
         val userQuery = try {
             QueryFactory.create(requestContext.query)
