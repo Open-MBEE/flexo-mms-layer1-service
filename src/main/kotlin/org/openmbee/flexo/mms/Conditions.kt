@@ -44,6 +44,17 @@ val ORG_UPDATE_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_ORG, Scope.CLUSTER)
 }
 
+// starting conditions for any operation that depends on parent collection existing
+val COLLECTION_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    collectionExists()
+}
+
+// collection query conditions
+val COLLECTION_QUERY_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    collectionExists()
+    permit(Permission.READ_COLLECTION, Scope.COLLECTION)
+}
+
 // starting conditions for any operation that depends on parent repo existing
 val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     repoExists()
@@ -255,6 +266,21 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
                 graph m-graph:AccessControl.Policies {
                     mp: a mms:Policy ;
                         ?policyExisting_p ?policyExisting_o .
+                }
+            """
+        }
+    }
+
+    fun collectionExists() {
+        require("collectionExists") {
+            handler = { layer1 -> "Collection <${layer1.prefixes["moc"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+            """
+                # collection must exist
+                graph m-graph:Cluster {
+                    moc: a mms:Collection ;
+                        ?collectionExisting_p ?collectionExisting_o .
                 }
             """
         }

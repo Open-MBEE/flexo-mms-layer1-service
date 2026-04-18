@@ -1,106 +1,175 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
-import io.ktor.server.response.*
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpMutateResponse
 
 
-// default starting conditions for any calls to create a collection
-private val DEFAULT_CONDITIONS = ORG_CRUD_CONDITIONS.append {
-    // require that the user has the ability to create collections on an org-level scope
-    permit(Permission.CREATE_COLLECTION, Scope.ORG)
-
-    // require that the given collection does not exist before attempting to create it
+// require that the given collection does not exist before attempting to create it
+private fun ConditionsBuilder.collectionNotExists() {
     require("collectionNotExists") {
-        handler = { mms -> "The provided collection <${mms.prefixes["moc"]}> already exists." to HttpStatusCode.Conflict }
+        handler = { layer1 -> "The provided collection <${layer1.prefixes["moc"]}> already exists." to HttpStatusCode.Conflict }
 
         """
-            # repo must not yet exist
-            graph m-graph:Cluster {
-                filter not exists {
+            # collection must not yet exist
+            filter not exists {
+                graph m-graph:Cluster {
                     moc: a mms:Collection .
-                }
-            }
-        """
-    }
-
-    // require that there is no pre-existing metadata graph associated with the given collection id
-    require("collectionMetadataGraphEmpty") {
-        handler = { mms -> "The Metadata graph <${mms.prefixes["moc-graph"]}Metadata> is not empty." to HttpStatusCode.Conflict }
-
-        """
-            # repo metadata graph must be empty
-            graph moc-graph:Metadata {
-                filter not exists {
-                    ?e_s ?e_p ?e_o .
                 }
             }
         """
     }
 }
 
+// selects all properties of an existing collection
+private fun PatternBuilder<*>.existingCollection(filterCreate: Boolean = false) {
+    graph("m-graph:Cluster") {
+        raw("""
+            moc: ?collectionExisting_p ?collectionExisting_o .
+        """)
+        if (filterCreate) {
+            raw("""
+                filter(?collectionExisting_p != mms:created)
+                filter(?collectionExisting_p != mms:createdBy)
+            """.trimIndent())
+        }
+    }
+}
+
+/**
+ * Creates or replaces collection(s)
+ *
+ * Collections are lightweight — stored only in m-graph:Cluster with mms:collects triples
+ * pointing to validated refs (branches/locks). No separate metadata graph with commits/branches.
+ */
 suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplaceCollection() {
     // process RDF body from user about this new collection
     val collectionTriples = filterIncomingStatements("moc") {
-        // relative to this org node
+        // relative to this collection node
         collectionNode().apply {
             // sanitize statements
             sanitizeCrudObject {
                 setProperty(RDF.type, MMS.Collection)
                 setProperty(MMS.id, collectionId!!)
                 setProperty(MMS.org, orgNode())
+                setProperty(MMS.etag, layer1.transactionId, true)
+                bypass(MMS.collects)
             }
+
+            // extract mms:collects URIs from the body
+            val collectsResources = extract1OrMoreUris(MMS.collects)
+
+            // remove the mms:collects statements from sanitized triples (they'll be re-inserted with absolute URIs)
+            listProperties(MMS.collects).toList().forEach { it.remove() }
+
+            // store resolved collects URIs for later use
+            layer1.requestContext.call.attributes.put(COLLECTS_URIS_KEY, collectsResources.map { it.uri })
         }
     }
 
-    // inherit the default conditions
-    val localConditions = DEFAULT_CONDITIONS
+    // retrieve the resolved collects URIs
+    val collectsUris = call.attributes[COLLECTS_URIS_KEY]
+    //TODO check user has admin permission on the refs
+    // resolve ambiguity
+    if(intentIsAmbiguous) {
+        // ask if collection exists
+        val probeResults = executeSparqlSelectOrAsk(buildSparqlQuery {
+            ask {
+                existingCollection()
+            }
+        })
+
+        // parse response
+        val exists = parseSparqlResultsJsonAsk(probeResults)
+
+        // collection does not exist
+        if(!exists) {
+            replaceExisting = false
+        }
+    }
+
+    // intent is ambiguous or resource is definitely being replaced
+    val permission = if(replaceExisting) {
+        Permission.UPDATE_COLLECTION
+    } else {
+        Permission.CREATE_COLLECTION
+    }
+
+    // build conditions
+    val localConditions = ORG_CRUD_CONDITIONS.append {
+        if(isPostMethod) {
+            // reject preconditions on POST
+            if(ifMatch != null || ifNoneMatch != null) {
+                throw PreconditionsForbidden("when creating collection via POST")
+            }
+        } else {
+            // resource must exist
+            if(mustExist) {
+                collectionExists()
+            }
+
+            // resource must not exist
+            if(mustNotExist) {
+                collectionNotExists()
+            } else {
+                // enforce preconditions if present
+                appendPreconditions { values ->
+                    """
+                        graph m-graph:Cluster {
+                            ${if(mustExist) "" else "optional {"}
+                                moc: mms:etag ?__mms_etag .
+                                ${values.reindent(8)}
+                            ${if(mustExist) "" else "}"}
+                        }
+                    """
+                }
+            }
+        }
+
+        // apply relevant permission
+        permit(permission, if(replaceExisting) Scope.COLLECTION else Scope.ORG)
+    }
+
+    // build mms:collects insert triples
+    val collectsTriples = collectsUris.joinToString("\n") { uri ->
+        "moc: mms:collects <$uri> ."
+    }
 
     // prep SPARQL UPDATE string
     val updateString = buildSparqlUpdate {
+        if(replaceExisting) {
+            delete {
+                existingCollection()
+            }
+        }
         insert {
             // create a new txn object in the transactions graph
             txn {
                 // create a new policy that grants this user admin over the new collection
-                autoPolicy(Scope.COLLECTION, Role.ADMIN_COLLECTION)
+                if(!replaceExisting) autoPolicy(Scope.COLLECTION, Role.ADMIN_COLLECTION)
+
+                // write whether this action replaces an existing resource to the transaction
+                replacesExisting(replaceExisting)
             }
 
-            // insert the triples about the new collection, including arbitrary metadata supplied by user
+            // insert the triples about the collection, including arbitrary metadata supplied by user
             graph("m-graph:Cluster") {
                 raw(collectionTriples)
-            }
-
-            // initialize the collection metadata graph
-            graph("moc-graph:Metadata") {
-                raw("""
-                    # root commit
-                    mocc: a mms:Commit ;
-                        mms:parent rdf:nil ;
-                        mms:submitted ?_now ;
-                        mms:message ?_commitMessage ;
-                        mms:collects () ;
-                        .
-
-                    # default branch
-                    morb: a mms:Branch ;
-                        mms:id ?_branchId ;
-                        mms:etag ?_branchEtag ;
-                        mms:commit morc: ;
-                        .
-                """)
-            }
-
-            // declare new graph
-            graph("m-graph:Graphs") {
-                raw("""
-                    moc-graph:Metadata a mms:CollectionMetadataGraph .
-                """)
+                raw(collectsTriples)
+                if (!replaceExisting) {
+                    raw("""
+                        moc: mms:created ?_now ;
+                            mms:createdBy mu: .
+                    """)
+                }
             }
         }
         where {
+            if (replaceExisting) {
+                existingCollection(true)
+            }
             // assert the required conditions (e.g., access-control, existence, etc.)
             raw(*localConditions.requiredPatterns())
         }
@@ -115,68 +184,26 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             // all the details about this transaction
             txn()
 
-            // all the properties about this repo
+            // all the properties about this collection
             raw("""
-                # outgoing collection properties
                 moc: ?moc_p ?moc_o .
-                
-                # properties of things that belong to this collection
-                ?thing ?thing_p ?thing_o .
-                
-                # all triples in metadata graph
-                ?m_s ?m_p ?m_o .
             """)
         }
         where {
-            // first group in a series of unions fetches intended outputs
-            group {
-                txn()
-
+            txnOrInspections(null, localConditions) {
                 raw("""
+                    # extract the created/updated collection properties
                     graph m-graph:Cluster {
-                        moc: a mms:Collection ;
-                            ?moc_p ?moc_o .
-                               
-                        optional {
-                            ?thing mms:collection moc: ; 
-                                ?thing_p ?thing_o .
-                        }
-                    }
-                    
-                    graph moc-graph:Metadata {
-                        ?m_s ?m_p ?m_o .
+                        moc: ?moc_p ?moc_o .
                     }
                 """)
             }
-            // all subsequent unions are for inspecting what if any conditions failed
-            raw("""union ${localConditions.unionInspectPatterns()}""")
         }
     }
 
-    // execute construct
-    val constructResponseText = executeSparqlConstructOrDescribe(constructString)
-
-    // validate whether the transaction succeeded
-    val constructModel = validateTransaction(constructResponseText, localConditions, null, "moc")
-
-    // check that the user-supplied HTTP preconditions were met
-    handleEtagAndPreconditions(constructModel, prefixes["moc"])
-
-    // respond
-    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
-
-    // delete transaction graph
-    run {
-        // prepare SPARQL DROP
-        val dropResponseText = executeSparqlUpdate("""
-            delete where {
-                graph m-graph:Transactions {
-                    mt: ?p ?o .
-                }
-            }
-        """)
-
-        // log response
-        log.info(dropResponseText)
-    }
+    // finalize transaction
+    finalizeMutateTransaction(constructString, localConditions, "moc", !replaceExisting)
 }
+
+// attribute key for passing collects URIs between filterIncomingStatements and the rest of the handler
+val COLLECTS_URIS_KEY = io.ktor.util.AttributeKey<List<String>>("collects_uris")

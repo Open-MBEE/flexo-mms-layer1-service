@@ -25,6 +25,7 @@ import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
 import org.apache.jena.update.UpdateRequest
+import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
@@ -129,25 +130,32 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, isCollection: Boolean=false, addPrefix: Boolean=false, baseIri: String?=null) {
     // for certain sparql, point user query at a predetermined graph
-    var targetGraphIri = when(refIri) {
-        prefixes["mor"] -> {
-            "${prefixes["mor-graph"]}Metadata"
+    val targetGraphIri = if (!isCollection) {
+        when(refIri) {
+            prefixes["mor"] -> {
+                "${prefixes["mor-graph"]}Metadata"
+            }
+            prefixes["mors"] -> {
+                "${prefixes["mor-graph"]}Scratch.$scratchId"
+            }
+            else -> {
+                null
+            }
         }
-        prefixes["mors"] -> {
-            "${prefixes["mor-graph"]}Scratch.$scratchId"
-        }
-        else -> {
-            null
-        }
-    }
+    }  else "urn:mms:collection:query:placeholder"
 
     val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
 
     // extract the target graph iri from query results
-    if(targetGraphIri == null) {
-        targetGraphIri = targetGraphIriResult
+    val graphIris = mutableListOf<String>()
+    if (targetGraphIri == null) {
+        graphIris.add(targetGraphIriResult)
+    } else if (isCollection) {
+        graphIris.addAll(resolveCollectionGraphIris())
+    } else {
+        graphIris.add(targetGraphIri)
     }
 
     // parse user query
@@ -221,11 +229,11 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
             throw Http403Exception(this@processAndSubmitUserQuery, "graph parameter(s)")
         }
 
-        // set default graph
-        graphURIs.add(targetGraphIri)
-
-        // set named graph(s)
-        namedGraphURIs.add(targetGraphIri)
+        // inject FROM and FROM NAMED for each resolved graph IRI
+        for(graphIri in graphIris) {
+            graphURIs.add(graphIri)
+            namedGraphURIs.add(graphIri)
+        }
     }
 
     // serialize user query

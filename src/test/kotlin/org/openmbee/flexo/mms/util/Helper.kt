@@ -81,6 +81,14 @@ suspend fun ApplicationTestBuilder.createLockFromCommit(repoPath: String, commit
     return response
 }
 
+suspend fun ApplicationTestBuilder.createCollection(orgPath: String, collectionId: String, body: String): HttpResponse {
+    val response = httpPut("$orgPath/collections/$collectionId") {
+        setTurtleBody(body)
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
 suspend fun ApplicationTestBuilder.createGroup(groupId: String, groupTitle: String): HttpResponse {
     val response = httpPut("/groups/${URLEncoder.encode(groupId, "UTF-8")}") {
         setTurtleBody("""
