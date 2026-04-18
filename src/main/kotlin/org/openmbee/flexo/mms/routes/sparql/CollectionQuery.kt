@@ -34,17 +34,23 @@ fun Route.queryCollection() {
         // resolve collected refs to their model graph IRIs
         val graphIris = resolveCollectionGraphIris()
 
-        // no graphs resolved — return empty results instead of querying default dataset
-        if (graphIris.isEmpty()) {
-            call.respondText("", contentType = RdfContentTypes.Turtle)
-            return@sparqlQuery
-        }
-
         // parse user query
         val userQuery = try {
             QueryFactory.create(requestContext.query)
         } catch (parse: Exception) {
             throw QuerySyntaxException(parse)
+        }
+
+        // no graphs resolved — return empty results with correct content type
+        if (graphIris.isEmpty()) {
+            if (userQuery.isSelectType) {
+                call.respondText("""{"head":{"vars":[]},"results":{"bindings":[]}}""", contentType = RdfContentTypes.SparqlResultsJson)
+            } else if (userQuery.isAskType) {
+                call.respondText("""{"head":{},"boolean":false}""", contentType = RdfContentTypes.SparqlResultsJson)
+            } else {
+                call.respondText("", contentType = RdfContentTypes.Turtle)
+            }
+            return@sparqlQuery
         }
 
         // reject any user-specified FROM or FROM NAMED
