@@ -44,7 +44,8 @@ fun Route.queryCollection() {
         // no graphs resolved — return empty results with correct content type
         if (graphIris.isEmpty()) {
             if (userQuery.isSelectType) {
-                call.respondText("""{"head":{"vars":[]},"results":{"bindings":[]}}""", contentType = RdfContentTypes.SparqlResultsJson)
+                val vars = userQuery.resultVars.joinToString(",") { "\"$it\"" }
+                call.respondText("""{"head":{"vars":[$vars]},"results":{"bindings":[]}}""", contentType = RdfContentTypes.SparqlResultsJson)
             } else if (userQuery.isAskType) {
                 call.respondText("""{"head":{},"boolean":false}""", contentType = RdfContentTypes.SparqlResultsJson)
             } else {
