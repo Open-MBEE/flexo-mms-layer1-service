@@ -55,6 +55,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 setProperty(MMS.id, collectionId!!)
                 setProperty(MMS.org, orgNode())
                 setProperty(MMS.etag, layer1.transactionId, true)
+                bypass(MMS.collects)
             }
 
             // extract mms:collects URIs from the body
