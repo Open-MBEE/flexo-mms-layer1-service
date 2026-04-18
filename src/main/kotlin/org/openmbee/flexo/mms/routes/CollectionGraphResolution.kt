@@ -61,14 +61,14 @@ val COLLECTION_GRAPH_RESOLUTION_SPARQL = """
                 ?lockSnapshot a mms:Model ;
                               mms:graph ?graph .
             }
-            } union {
-                # scratch case: ref is in the repo metadata graph, graph IRI derived from ref IRI
-                graph ?repoMetaGraph {
-                    ?ref a mms:Scratch .
-                }
-                # derive graph IRI by replacing /scratches/ with /graphs/Scratch. in the ref IRI
-                bind(iri(replace(str(?ref), "/scratches/", "/graphs/Scratch.")) as ?graph)
+        } union {
+            # scratch case: ref is in the repo metadata graph, graph IRI derived from ref IRI
+            graph ?repoMetaGraph {
+                ?ref a mms:Scratch .
             }
+            # derive graph IRI by replacing /scratches/ with /graphs/Scratch. in the ref IRI
+            bind(iri(replace(str(?ref), "/scratches/", "/graphs/Scratch.")) as ?graph)
+        }
     }
 """.trimIndent()
 
