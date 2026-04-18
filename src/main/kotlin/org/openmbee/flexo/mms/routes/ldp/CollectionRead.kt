@@ -4,6 +4,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_COLLECTION
+import org.openmbee.flexo.mms.routes.SPARQL_VAR_NAME_ORG
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpGetResponse
 import org.openmbee.flexo.mms.server.LdpHeadResponse
@@ -16,6 +17,7 @@ private val SPARQL_BGP_COLLECTION: (Boolean, Boolean) -> String = { allCollectio
         ${"optional {" iff allCollections}${"""
             ?$SPARQL_VAR_NAME_COLLECTION a mms:Collection ;
                 mms:etag ?__mms_etag ;
+                mms:org ?$SPARQL_VAR_NAME_ORG ;
                 ${"?collection_p ?collection_o ;" iff allData}
                 .
         """.reindent(if(allCollections) 3 else 2)}
@@ -54,6 +56,11 @@ suspend fun LdpDcLayer1Context<LdpReadResponse>.fetchCollections(allCollections:
 
         // internal query, give it all the prefixes
         prefixes(prefixes)
+
+        // always belongs to some org
+        iri(
+            SPARQL_VAR_NAME_ORG to prefixes["mo"]!!,
+        )
 
         // get by collectionId
         collectionIri?.let {
