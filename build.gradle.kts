@@ -28,6 +28,10 @@ repositories {
     mavenCentral()
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
