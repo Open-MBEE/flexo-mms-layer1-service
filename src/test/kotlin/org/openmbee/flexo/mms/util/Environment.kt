@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms.util
 
 import com.typesafe.config.ConfigFactory
 import io.ktor.server.config.*
+import io.ktor.server.testing.*
 import java.io.InputStreamReader
 
 /**
@@ -13,5 +14,19 @@ fun testEnv(): ApplicationConfig {
             HoconApplicationConfig(ConfigFactory.parseReader(reader).resolve())
         }
     } ?: throw IllegalStateException("application.conf.test not found")
+}
+
+/**
+ * Wrapper around Ktor's testApplication that automatically loads the
+ * application.conf.test configuration file. In Ktor 3, testApplication
+ * no longer auto-loads modules from config files.
+ */
+fun testApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
+    io.ktor.server.testing.testApplication {
+        environment {
+            config = ApplicationConfig("application.conf.test")
+        }
+        block()
+    }
 }
 

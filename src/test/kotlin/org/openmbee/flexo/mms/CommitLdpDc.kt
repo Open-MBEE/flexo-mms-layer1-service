@@ -1,7 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.openmbee.flexo.mms.util.*
 
 

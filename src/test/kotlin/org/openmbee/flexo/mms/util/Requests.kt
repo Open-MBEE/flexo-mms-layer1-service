@@ -9,7 +9,7 @@ import io.kotest.matchers.string.shouldStartWith
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 
 import org.openmbee.flexo.mms.ROOT_CONTEXT
 import org.openmbee.flexo.mms.server.BuildInfo

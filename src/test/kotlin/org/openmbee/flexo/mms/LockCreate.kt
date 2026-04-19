@@ -8,7 +8,7 @@ import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.flexo.mms.util.*
 

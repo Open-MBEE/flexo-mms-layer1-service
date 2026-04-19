@@ -5,7 +5,7 @@ import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldContain
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.openmbee.flexo.mms.util.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray

@@ -4,7 +4,7 @@ import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.matchers.string.shouldContain
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
