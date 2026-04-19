@@ -10,7 +10,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import org.junit.runner.Request.method
+
 import org.openmbee.flexo.mms.ROOT_CONTEXT
 import org.openmbee.flexo.mms.server.BuildInfo
 import java.util.*
@@ -40,10 +40,10 @@ fun userIri(user: String): String {
  * Generate an Authorization: header Bearer token value for the given username.
  */
 private fun authorization(auth: AuthStruct): String {
-    val testEnv = testEnv()
-    val jwtAudience = testEnv.config.property("jwt.audience").getString()
-    val issuer = testEnv.config.property("jwt.domain").getString()
-    val secret = testEnv.config.property("jwt.secret").getString()
+    val config = testEnv()
+    val jwtAudience = config.property("jwt.audience").getString()
+    val issuer = config.property("jwt.domain").getString()
+    val secret = config.property("jwt.secret").getString()
     val expires = Date(System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000))
     return "Bearer " + JWT.create()
         .withAudience(jwtAudience)

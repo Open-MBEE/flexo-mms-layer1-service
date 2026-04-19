@@ -10,7 +10,6 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import io.ktor.util.*
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
@@ -18,7 +17,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 
-@OptIn(InternalAPI::class)
 open class ArtifactAny : RefAny() {
     override val logger = LoggerFactory.getLogger(LockAny::class.java)
 
@@ -81,7 +79,7 @@ open class ArtifactAny : RefAny() {
                             this shouldHaveStatus HttpStatusCode.OK
                             this.contentType() shouldBe ContentType.Application.Zip
 
-                            val zipBytes = this.content.toByteArray()
+                            val zipBytes = this.readRawBytes()
                             val contents = readZipContents(zipBytes)
                             contents.size shouldBe 2
                             contents["$locationFile1.txt"] shouldBe "foo"
