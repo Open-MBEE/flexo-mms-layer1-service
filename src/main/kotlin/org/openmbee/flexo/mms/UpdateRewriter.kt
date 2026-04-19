@@ -8,7 +8,6 @@ import org.apache.jena.shared.PrefixMapping
 import org.apache.jena.shared.impl.PrefixMappingImpl
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.syntax.*
-import org.checkerframework.checker.units.qual.Prefix
 
 class RequirementsNotMetException(conditions: List<String>): Http400Exception("The following conditions failed after the transaction attempt:\n"
     +conditions.mapIndexed { i, v -> "${i}. $v" }.joinToString("\n"))
@@ -86,6 +85,18 @@ object NoQuadsElementVisitor: ElementVisitor {
     override fun visit(el: ElementLateral?) {
         throw SparqlFeatureNotSupportedException("LATERAL keyword not standardized")
     }
+
+    override fun visit(el: ElementUnfold?) {
+        throw SparqlFeatureNotSupportedException("UNFOLD keyword not supported")
+    }
+
+    override fun visit(el: ElementSemiJoin?) {
+        throw SparqlFeatureNotSupportedException("SEMI JOIN not supported")
+    }
+
+    override fun visit(el: ElementAntiJoin?) {
+        throw SparqlFeatureNotSupportedException("ANTI JOIN not supported")
+    }
 }
 
 fun assertNoQuads(element: Element1?) {
@@ -100,7 +111,7 @@ fun assertNoQuads(elements: List<Element>?) {
 
 
 fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): String {
-    return QueryFactory.make().apply {
+    return QueryFactory.create().apply {
         setQueryAskType()
         if(mapping != null) prefixMapping = mapping
         queryPattern = ElementGroup().apply {
