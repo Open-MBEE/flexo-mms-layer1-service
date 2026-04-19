@@ -2,9 +2,14 @@ package org.openmbee.flexo.mms
 
 
 import io.kotest.assertions.ktor.client.shouldHaveStatus
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotBeBlank
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.flexo.mms.util.*
 
 class LockCreate : LockAny() {
@@ -93,7 +98,6 @@ class LockCreate : LockAny() {
                 }
             }
         }
-        //TODO needs to delete model graphs first to test
         "create lock from commit needing materialization" {
             testApplication {
                 commitModel(masterBranchPath, """
@@ -113,8 +117,6 @@ class LockCreate : LockAny() {
 
                 val commitId2 = update2.headers[HttpHeaders.ETag]!!
 
-                kotlinx.coroutines.delay(2_000L)
-
                 val update3 = commitModel(masterBranchPath, """
                     delete where {
                         <urn:mms:s> <urn:mms:p> ?previous .
@@ -123,8 +125,6 @@ class LockCreate : LockAny() {
                         <urn:mms:s> <urn:mms:p> 3 .
                     }
                 """.trimIndent())
-
-                kotlinx.coroutines.delay(2_000L)
 
                 // create lock from the 2nd commit (which may not have a model graph yet)
                 httpPut("$demoRepoPath/locks/commit-lock") {
@@ -140,6 +140,70 @@ class LockCreate : LockAny() {
                         modelName = "ValidateLockFromCommitMaterialized"
                         validateCreatedLockTriples("commit-lock", etag!!, demoOrgPath)
                     }
+                }
+            }
+        }
+
+        "create lock from commit with materialization after deleting auto locks" {
+            testApplication {
+                commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 1 .
+                    }
+                """.trimIndent())
+
+                val update2 = commitModel(masterBranchPath, """
+                    delete where {
+                        <urn:mms:s> <urn:mms:p> ?previous .
+                    } ;
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 2 .
+                    }
+                """.trimIndent())
+
+                val commitId2 = update2.headers[HttpHeaders.ETag]!!
+
+                val update3 = commitModel(masterBranchPath, """
+                    delete where {
+                        <urn:mms:s> <urn:mms:p> ?previous .
+                    } ;
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 3 .
+                    }
+                """.trimIndent())
+
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitId2)
+
+                // create lock from the 2nd commit (model graph no longer exists)
+                httpPut("$demoRepoPath/locks/commit-lock") {
+                    setTurtleBody(withAllTestPrefixes("""
+                        <> mms:commit mor-commit:$commitId2 .
+                    """.trimIndent()))
+                }.apply {
+                    val etag = this.headers[HttpHeaders.ETag]
+                    etag.shouldNotBeBlank()
+
+                    this shouldHaveStatus HttpStatusCode.Created
+                    this.exclusivelyHasTriples {
+                        modelName = "ValidateLockFromCommitMaterialized"
+                        validateCreatedLockTriples("commit-lock", etag!!, demoOrgPath)
+                    }
+                }
+                // assert the resultant model is in the correct state
+                httpGet("$demoRepoPath/locks/commit-lock/graph") {
+                    header(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+                }.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    val model = KModel()
+                    parseTurtle(this.bodyAsText(), model, demoBranchPath)
+
+                    val s = ResourceFactory.createResource("urn:mms:s")
+                    val p = ResourceFactory.createProperty("urn:mms:p")
+                    val values = model.listObjectsOfProperty(s, p).toList()
+
+                    values shouldHaveSize 1
+                    values[0].asLiteral().string shouldBe "2"
                 }
             }
         }

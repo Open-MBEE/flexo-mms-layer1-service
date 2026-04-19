@@ -96,8 +96,6 @@ class BranchCreate : RefAny() {
                     )
                     val commitId = update.headers[HttpHeaders.ETag]!!
                     commitIds.add(commitId)
-                    // wait for interim lock to be deleted
-                    delay(2_000L)
                     return commitId;
                 }
 
@@ -136,13 +134,72 @@ class BranchCreate : RefAny() {
             }
         }
 
+        "insert, replace x 4, branch on 2nd with materialization" {
+            testApplication {
+                commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> 1 . 
+                    }
+                """.trimIndent())
+                val commitIds = mutableListOf<String>();
+                suspend fun replaceCounterValue(value: Int): String {
+                    val update = commitModel(masterBranchPath, """
+                        delete where {
+                            <urn:mms:s> <urn:mms:p> ?previous .
+                        } ;
+                        insert data {
+                            <urn:mms:s> <urn:mms:p> $value . 
+                        }
+                        """.trimIndent()
+                    )
+                    val commitId = update.headers[HttpHeaders.ETag]!!
+                    commitIds.add(commitId)
+                    return commitId;
+                }
+
+                for(index in 2..5) {
+                    replaceCounterValue(index)
+                }
+                val restoreCommitId = commitIds[2]
+                val restoredValue = 4
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitIds[0])
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitIds[1])
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, restoreCommitId)
+                // create branch and validate
+                httpPut(demoBranchPath) {
+                    setTurtleBody(withAllTestPrefixes("""
+                        ${title(demoBranchName)}
+                        <> mms:commit mor-commit:$restoreCommitId .
+                    """.trimIndent()))
+                }.apply {
+                    validateCreateBranchResponse(restoreCommitId)
+                }
+
+                // assert the resultant model is in the correct state
+                val refPath = "$demoBranchPath/graph"
+                httpGet(refPath) {
+                    header(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+                }.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    val model = KModel()
+                    parseTurtle(this.bodyAsText(), model, demoBranchPath)
+
+                    val s = ResourceFactory.createResource("urn:mms:s")
+                    val p = ResourceFactory.createProperty("urn:mms:p")
+                    val values = model.listObjectsOfProperty(s, p).toList()
+
+                    values shouldHaveSize 1
+                    values[0].asLiteral().string shouldBe "$restoredValue"
+                }
+            }
+        }
+
         "model load x 3, branch on 2" {
             testApplication {
                 val load1 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 1 .
                 """.trimIndent())
-
-                delay(500L)
 
                 val load2 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 2 .
@@ -150,13 +207,10 @@ class BranchCreate : RefAny() {
 
                 val commitId2 = load2.headers[HttpHeaders.ETag]!!
 
-                delay(500L)
-
                 val load3 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 3 .
                 """.trimIndent())
 
-                delay(500L)
                 httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""
                         ${title(demoBranchName)}
@@ -166,6 +220,51 @@ class BranchCreate : RefAny() {
                     validateCreateBranchResponse(commitId2)
                 }
 
+                val refPath = "$demoBranchPath/graph"
+                httpGet(refPath) {
+                    header(HttpHeaders.Accept, RdfContentTypes.Turtle.toString())
+                }.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    val model = KModel()
+                    parseTurtle(this.bodyAsText(), model, demoBranchPath)
+
+                    val s = ResourceFactory.createResource("urn:mms:s")
+                    val p = ResourceFactory.createProperty("urn:mms:p")
+                    val values = model.listObjectsOfProperty(s, p).toList()
+
+                    values shouldHaveSize 1
+                    values[0].asLiteral().string shouldBe "2"
+                }
+            }
+        }
+
+        "model load x 3, branch on 2 with materialization" {
+            testApplication {
+                val load1 = loadModel(masterBranchPath, """
+                    <urn:mms:s> <urn:mms:p> 1 .
+                """.trimIndent())
+
+                val load2 = loadModel(masterBranchPath, """
+                    <urn:mms:s> <urn:mms:p> 2 .
+                """.trimIndent())
+
+                val commitId2 = load2.headers[HttpHeaders.ETag]!!
+
+                val load3 = loadModel(masterBranchPath, """
+                    <urn:mms:s> <urn:mms:p> 3 .
+                """.trimIndent())
+
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitId2)
+
+                httpPut(demoBranchPath) {
+                    setTurtleBody(withAllTestPrefixes("""
+                        ${title(demoBranchName)}
+                        <> mms:commit mor-commit:${commitId2} .
+                    """.trimIndent()))
+                }.apply {
+                    validateCreateBranchResponse(commitId2)
+                }
 
                 val refPath = "$demoBranchPath/graph"
                 httpGet(refPath) {
