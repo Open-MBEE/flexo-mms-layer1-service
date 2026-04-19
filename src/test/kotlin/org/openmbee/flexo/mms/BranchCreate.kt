@@ -96,8 +96,6 @@ class BranchCreate : RefAny() {
                     )
                     val commitId = update.headers[HttpHeaders.ETag]!!
                     commitIds.add(commitId)
-                    // wait for interim lock to be deleted
-                    delay(2_000L)
                     return commitId;
                 }
 
@@ -156,21 +154,18 @@ class BranchCreate : RefAny() {
                     )
                     val commitId = update.headers[HttpHeaders.ETag]!!
                     commitIds.add(commitId)
-                    // wait for interim lock to be deleted
-                    delay(2_000L)
                     return commitId;
                 }
 
-                val restoredValue = 2
-                val restoreCommitId = replaceCounterValue(restoredValue)
-
-                for(index in 3..5) {
+                for(index in 2..5) {
                     replaceCounterValue(index)
                 }
-
+                val restoreCommitId = commitIds[2]
+                val restoredValue = 4
                 // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitIds[0])
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitIds[1])
                 deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, restoreCommitId)
-
                 // create branch and validate
                 httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""
@@ -206,21 +201,16 @@ class BranchCreate : RefAny() {
                     <urn:mms:s> <urn:mms:p> 1 .
                 """.trimIndent())
 
-                delay(500L)
-
                 val load2 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 2 .
                 """.trimIndent())
 
                 val commitId2 = load2.headers[HttpHeaders.ETag]!!
 
-                delay(500L)
-
                 val load3 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 3 .
                 """.trimIndent())
 
-                delay(500L)
                 httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""
                         ${title(demoBranchName)}
@@ -229,7 +219,6 @@ class BranchCreate : RefAny() {
                 }.apply {
                     validateCreateBranchResponse(commitId2)
                 }
-
 
                 val refPath = "$demoBranchPath/graph"
                 httpGet(refPath) {
@@ -255,21 +244,15 @@ class BranchCreate : RefAny() {
                     <urn:mms:s> <urn:mms:p> 1 .
                 """.trimIndent())
 
-                delay(500L)
-
                 val load2 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 2 .
                 """.trimIndent())
 
                 val commitId2 = load2.headers[HttpHeaders.ETag]!!
 
-                delay(500L)
-
                 val load3 = loadModel(masterBranchPath, """
                     <urn:mms:s> <urn:mms:p> 3 .
                 """.trimIndent())
-
-                delay(500L)
 
                 // remove auto-created lock for the target commit to force materialization codepath
                 deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitId2)
@@ -282,7 +265,6 @@ class BranchCreate : RefAny() {
                 }.apply {
                     validateCreateBranchResponse(commitId2)
                 }
-
 
                 val refPath = "$demoBranchPath/graph"
                 httpGet(refPath) {

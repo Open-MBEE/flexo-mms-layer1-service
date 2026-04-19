@@ -68,11 +68,7 @@ suspend fun AnyLayer1Context.materializeModelGraph(commitIri: String, targetGrap
             graph ?_targetGraph {
                 ?origin_s ?origin_p ?origin_o .
             }
-        
-            graph m-graph:Graphs {
-                ?_targetGraph a mms:SnapshotGraph .
-            }
-        
+
             # save state for next queries
             graph m-graph:Transactions {
                 mt:sequence
