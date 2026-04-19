@@ -25,9 +25,12 @@ fun testEnv(): ApplicationConfig {
  * no longer auto-loads modules from config files.
  */
 fun testApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
+    val hoconConfig = HoconApplicationConfig(
+        ConfigFactory.parseResources("application.conf.test").resolve()
+    )
     io.ktor.server.testing.testApplication {
         environment {
-            config = ApplicationConfig("application.conf.test")
+            config = hoconConfig
         }
         application {
             configureAuthentication()
