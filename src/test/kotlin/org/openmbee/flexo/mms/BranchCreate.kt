@@ -168,8 +168,8 @@ class BranchCreate : RefAny() {
                     replaceCounterValue(index)
                 }
 
-                // remove auto-created locks to force materialization codepath
-                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, restoreCommitId)
 
                 // create branch and validate
                 httpPut(demoBranchPath) {
@@ -271,8 +271,8 @@ class BranchCreate : RefAny() {
 
                 delay(500L)
 
-                // remove auto-created locks to force materialization codepath
-                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitId2)
 
                 httpPut(demoBranchPath) {
                     setTurtleBody(withAllTestPrefixes("""

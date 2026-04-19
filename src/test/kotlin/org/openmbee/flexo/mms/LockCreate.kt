@@ -175,8 +175,8 @@ class LockCreate : LockAny() {
 
                 kotlinx.coroutines.delay(2_000L)
 
-                // remove auto-created locks to force materialization codepath
-                deleteAutoCreatedLocks(backend.getUpdateUrl(), demoRepoPath)
+                // remove auto-created lock for the target commit to force materialization codepath
+                deleteAutoCreatedLockForCommit(backend.getUpdateUrl(), demoRepoPath, commitId2)
 
                 // create lock from the 2nd commit (model graph no longer exists)
                 httpPut("$demoRepoPath/locks/commit-lock") {

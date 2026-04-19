@@ -199,6 +199,36 @@ suspend fun deleteAutoCreatedLocks(updateUrl: String, repoPath: String) {
     }
 }
 
+/**
+ * Deletes the auto-created lock for a specific commit from the metadata graph.
+ * This forces the materialization codepath for that commit while preserving
+ * ancestor locks needed by materializeModelGraph to find an origin model graph.
+ */
+suspend fun deleteAutoCreatedLockForCommit(updateUrl: String, repoPath: String, commitId: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        parameter("update", """
+             prefix mor-graph: <$ROOT_CONTEXT$repoPath/graphs/>
+             prefix mor-lock: <$ROOT_CONTEXT$repoPath/locks/>
+             prefix mor-commit: <$ROOT_CONTEXT$repoPath/commits/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             delete {
+                 graph mor-graph:Metadata {
+                     ?lock ?p ?o .
+                 }
+             }
+             where {
+                 graph mor-graph:Metadata {
+                     ?lock a mms:Lock ;
+                         mms:commit mor-commit:$commitId ;
+                         ?p ?o .
+                 }
+             }
+        """.trimIndent())
+    }
+}
+
 suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {
     val client = HttpClient()
     client.post(updateUrl) {
