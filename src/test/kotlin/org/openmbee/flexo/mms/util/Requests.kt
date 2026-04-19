@@ -105,7 +105,7 @@ suspend fun ApplicationTestBuilder.httpRequest(method: HttpMethod, uri: String, 
         header("Authorization", authorization(rootAuth))
         setup()
     }.apply {
-        //this.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
+        this.shouldHaveHeader("Flexo-MMS-Layer-1", "Version=${BuildInfo.getProperty("build.version")}")
     }
 }
 
