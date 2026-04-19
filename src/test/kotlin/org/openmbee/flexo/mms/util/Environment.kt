@@ -3,9 +3,6 @@ package org.openmbee.flexo.mms.util
 import com.typesafe.config.ConfigFactory
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
-import org.openmbee.flexo.mms.server.configureAuthentication
-import org.openmbee.flexo.mms.server.configureHTTP
-import org.openmbee.flexo.mms.server.configureRouting
 import java.io.InputStreamReader
 
 /**
@@ -31,11 +28,6 @@ fun testApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
     io.ktor.server.testing.testApplication {
         environment {
             config = hoconConfig
-        }
-        application {
-            configureAuthentication()
-            configureRouting()
-            configureHTTP()
         }
         block()
     }
