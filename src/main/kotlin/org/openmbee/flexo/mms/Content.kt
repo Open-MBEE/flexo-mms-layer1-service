@@ -16,7 +16,7 @@ import org.apache.jena.riot.Lang
 import org.apache.jena.riot.RDFLanguages
 import org.apache.jena.riot.RDFParser
 import org.apache.jena.riot.system.ErrorHandlerFactory
-import org.apache.jena.riot.system.PrefixMapAdapter
+import org.apache.jena.riot.system.PrefixMapFactory
 import java.nio.charset.StandardCharsets
 
 val COMMA_SEPARATED = """\s*,\s*""".toRegex()
@@ -147,7 +147,7 @@ fun ApplicationCall.negotiateRdfResponseContentType(): ContentType {
     return destinationType
 }
 
-class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.() -> Unit)?=null): ModelCom(GraphMemFactory.createGraphMem()) {
+class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.() -> Unit)?=null): ModelCom(GraphMemFactory.createDefaultGraph()) {
     companion object {
         fun fromModel(model: Model): KModel {
             return KModel().apply {
@@ -212,7 +212,7 @@ class KModel(val prefixes: PrefixMapBuilder=PrefixMapBuilder(), setup: (KModel.(
 fun parseRdf(language: Lang, body: String, model: Model, baseIri: String?=null, prefixes: PrefixMapBuilder?=null) {
     // parse input document
     RDFParser.create().apply {
-        prefixes?.let {prefixes(PrefixMapAdapter(it.toPrefixMappings())) }
+        prefixes?.let {prefixes(PrefixMapFactory.create(it.toPrefixMappings())) }
         lang(language)
         errorHandler(ErrorHandlerFactory.errorHandlerWarn)
         if(baseIri != null) base(baseIri)

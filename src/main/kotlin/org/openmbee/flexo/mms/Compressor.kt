@@ -1,6 +1,5 @@
 package org.openmbee.flexo.mms
 
-import org.apache.jena.atlas.lib.Trie
 import org.apache.jena.rdf.model.Model
 
 fun c1Subject() {
@@ -10,7 +9,7 @@ fun c1Subject() {
 private val COMPRESS_IRI = """(.*?)([^/#]*)""".toRegex()
 
 class Compressor {
-    var prefixes: Trie<Int> = Trie()
+    var prefixes: HashMap<String, Int> = HashMap()
     var prefixCount = 0
 
     fun load(model: Model) {
@@ -21,10 +20,10 @@ class Compressor {
                 val subjectIri = subject.uri
                 val (prefix, suffix) = COMPRESS_IRI.matchEntire(subjectIri)!!.destructured
 
-                var prefixId: Int? = prefixes.get(prefix)
+                var prefixId: Int? = prefixes[prefix]
                 if(prefixId == null) {
                     prefixId = prefixCount++
-                    prefixes.add(prefix, prefixId)
+                    prefixes[prefix] = prefixId
                 }
 
                 subjectC1 = ">"+prefixId.toChar().toString()+suffix

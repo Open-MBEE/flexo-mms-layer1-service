@@ -28,6 +28,10 @@ repositories {
     mavenCentral()
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
@@ -49,7 +53,7 @@ dependencies {
     val kotlinxJsonVersion = "1.8.1"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
-    val jenaVersion = "4.10.0"
+    val jenaVersion = "6.0.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
@@ -140,5 +144,5 @@ compileKotlin.compilerOptions {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
