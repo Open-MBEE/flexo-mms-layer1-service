@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
@@ -71,7 +73,101 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // retrieve the resolved collects URIs
     val collectsUris = call.attributes[COLLECTS_URIS_KEY]
-    //TODO check user has admin permission on the refs
+
+    // Step 1: Verify all refs exist and determine their types
+    val valuesClause = collectsUris.joinToString(" ") { "<$it>" }
+
+    val refExistenceQuery = """
+        select ?ref ?refType where {
+            values ?ref { $valuesClause }
+            
+            graph m-graph:Cluster {
+                ?repo a mms:Repo .
+                filter(strstarts(str(?ref), concat(str(?repo), "/")))
+            }
+            
+            bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
+            
+            graph ?repoMetaGraph {
+                { ?ref a mms:Branch . bind(mms:Branch as ?refType) }
+                union
+                { ?ref a mms:Lock . bind(mms:Lock as ?refType) }
+                union
+                { ?ref a mms:Scratch . bind(mms:Scratch as ?refType) }
+            }
+        }
+    """.trimIndent()
+
+    val existenceResults = executeSparqlSelectOrAsk(refExistenceQuery) {
+        prefixes(prefixes)
+    }
+    val existenceBindings = parseSparqlResultsJsonSelect(existenceResults)
+    val foundRefs = existenceBindings.mapNotNull { it["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content }.toSet()
+
+    for (uri in collectsUris) {
+        if (uri !in foundRefs) {
+            throw Http404Exception("Ref <$uri> does not exist")
+        }
+    }
+
+    // Step 2: Verify admin permission on each ref
+    val permissionQuery = """
+        select ?ref where {
+            values ?ref { $valuesClause }
+            
+            graph m-graph:Cluster {
+                ?repo a mms:Repo .
+                filter(strstarts(str(?ref), concat(str(?repo), "/")))
+                ?repo mms:org ?org .
+            }
+            
+            graph m-graph:AccessControl.Policies {
+                ?policy a mms:Policy ;
+                    mms:scope ?scope ;
+                    mms:role ?role .
+                
+                {
+                    ?policy mms:subject mu: .
+                } union {
+                    graph m-graph:AccessControl.Agents {
+                        ?group a mms:Group ;
+                            mms:id ?groupId .
+                        values ?groupId {
+                            # @values groupId
+                        }
+                    }
+                    ?policy mms:subject ?group .
+                }
+            }
+            
+            filter(?scope = ?ref || ?scope = ?repo || ?scope = ?org || ?scope = m:)
+            
+            graph m-graph:AccessControl.Definitions {
+                ?role a mms:Role ;
+                    mms:permits ?permission .
+                ?permission a mms:Permission ;
+                    mms:implies* ?adminPerm .
+                filter(?adminPerm in (
+                    mms-object:Permission.UpdateBranch,
+                    mms-object:Permission.UpdateLock,
+                    mms-object:Permission.UpdateScratch
+                ))
+            }
+        }
+    """.trimIndent()
+
+    val permissionResults = executeSparqlSelectOrAsk(permissionQuery) {
+        prefixes(prefixes)
+    }
+    val permissionBindings = parseSparqlResultsJsonSelect(permissionResults)
+    val permittedRefs = permissionBindings.mapNotNull { it["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content }.toSet()
+
+    for (uri in collectsUris) {
+        if (uri !in permittedRefs) {
+            throw Http403Exception(this, "Ref <$uri>")
+        }
+    }
+
     // resolve ambiguity
     if(intentIsAmbiguous) {
         // ask if collection exists
