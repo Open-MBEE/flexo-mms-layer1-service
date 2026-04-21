@@ -102,18 +102,32 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         prefixes(prefixes)
     }
     val existenceBindings = parseSparqlResultsJsonSelect(existenceResults)
-    val foundRefs = existenceBindings.mapNotNull { it["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content }.toSet()
+    val foundRefTypes = existenceBindings.mapNotNull { binding ->
+        val ref = binding["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        val refType = binding["refType"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        if (ref != null && refType != null) ref to refType else null
+    }.toMap()
 
     for (uri in collectsUris) {
-        if (uri !in foundRefs) {
+        if (uri !in foundRefTypes) {
             throw Http404Exception("Ref <$uri> does not exist")
         }
     }
 
-    // Step 2: Verify admin permission on each ref
+    // Step 2: Verify admin permission on each ref, correlating ref type with required permission
+    val refPermissionValues = foundRefTypes.entries.joinToString("\n") { (ref, refType) ->
+        val requiredPerm = when {
+            refType.endsWith("Branch") -> "mms-object:Permission.UpdateBranch"
+            refType.endsWith("Lock") -> "mms-object:Permission.UpdateLock"
+            refType.endsWith("Scratch") -> "mms-object:Permission.UpdateScratch"
+            else -> throw Http400Exception("Unknown ref type: $refType")
+        }
+        "( <$ref> $requiredPerm )"
+    }
+
     val permissionQuery = """
         select ?ref where {
-            values ?ref { $valuesClause }
+            values (?ref ?requiredPerm) { $refPermissionValues }
             
             graph m-graph:Cluster {
                 ?repo a mms:Repo .
@@ -146,12 +160,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 ?role a mms:Role ;
                     mms:permits ?permission .
                 ?permission a mms:Permission ;
-                    mms:implies* ?adminPerm .
-                filter(?adminPerm in (
-                    mms-object:Permission.UpdateBranch,
-                    mms-object:Permission.UpdateLock,
-                    mms-object:Permission.UpdateScratch
-                ))
+                    mms:implies* ?requiredPerm .
             }
         }
     """.trimIndent()
