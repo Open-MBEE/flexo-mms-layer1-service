@@ -157,7 +157,9 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
     } else {
         graphIris.add(targetGraphIri)
     }
-
+    if (graphIris.isEmpty()) {
+        //TODO return empty, otherwise user query will be made against triple store's default graph
+    }
     // parse user query
     val userQuery = try {
         if(baseIri != null) {

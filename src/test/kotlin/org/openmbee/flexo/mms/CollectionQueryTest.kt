@@ -12,7 +12,7 @@ class CollectionQueryTest : CollectionAny() {
     override val logger = LoggerFactory.getLogger(CollectionQueryTest::class.java)
 
     init {
-        "POST $demoCollectionPath/query - non-existent collection returns 404" {
+        "POST collection query - non-existent collection returns 404" {
             testApplication {
                 httpPost("$demoCollectionPath/query") {
                     setSparqlQueryBody(queryPersonNames)
@@ -22,7 +22,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - query across branch and lock returns union" {
+        "POST collection query - query across branch and lock returns union" {
             testApplication {
                 // insert Alice into first repo's master branch
                 commitModel(masterBranchPath, insertAlice)
@@ -57,7 +57,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - query across branch and scratch returns union" {
+        "POST collection query - query across branch and scratch returns union" {
             testApplication {
                 // insert Alice into the master branch
                 commitModel(masterBranchPath, insertAlice)
@@ -91,7 +91,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - query across branch, lock, and scratch returns full union" {
+        "POST collection query - query across branch, lock, and scratch returns full union" {
             testApplication {
                 // insert Alice into first repo's master branch
                 commitModel(masterBranchPath, insertAlice)
@@ -134,7 +134,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - ASK query returns true when data exists" {
+        "POST collection query - ASK query returns true when data exists" {
             testApplication {
                 // insert Alice into the master branch
                 commitModel(masterBranchPath, insertAlice)
@@ -161,7 +161,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - ASK query returns false when no matching data" {
+        "POST collection query - ASK query returns false when no matching data" {
             testApplication {
                 // insert Bob (not Alice) into the master branch
                 commitModel(masterBranchPath, insertBob)
@@ -188,7 +188,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - CONSTRUCT returns union triples" {
+        "POST collection query - CONSTRUCT returns union triples" {
             testApplication {
                 // insert Alice into master branch
                 commitModel(masterBranchPath, insertAlice)
@@ -222,7 +222,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - FROM clause rejected with 403" {
+        "POST collection query - FROM clause rejected with 403" {
             testApplication {
                 // create collection
                 httpPut(demoCollectionPath) {
@@ -246,7 +246,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - FROM NAMED clause rejected with 403" {
+        "POST collection query - FROM NAMED clause rejected with 403" {
             testApplication {
                 // create collection
                 httpPut(demoCollectionPath) {
@@ -272,7 +272,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query/inspect - inspect generated query" {
+        "POST collection query inspect - inspect generated query" {
             testApplication {
                 // insert data and create collection
                 commitModel(masterBranchPath, insertAlice)
@@ -291,7 +291,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "GET $demoCollectionPath/graph - get union graph across branch and lock" {
+        "GET collection graph - get union graph across branch and lock" {
             testApplication {
                 // insert Alice into first repo
                 commitModel(masterBranchPath, insertAlice)
@@ -324,7 +324,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - single branch collection returns only that branch's data" {
+        "POST collection query - single branch collection returns only that branch's data" {
             testApplication {
                 // insert Alice into master
                 commitModel(masterBranchPath, insertAlice)
@@ -350,7 +350,7 @@ class CollectionQueryTest : CollectionAny() {
             }
         }
 
-        "POST $demoCollectionPath/query - lock preserves snapshot at time of locking" {
+        "POST collection query - lock preserves snapshot at time of locking" {
             testApplication {
                 // insert Alice, then lock
                 commitModel(masterBranchPath, insertAlice)

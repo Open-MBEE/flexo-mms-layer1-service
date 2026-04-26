@@ -39,7 +39,7 @@ fun userIri(user: String): String {
 /**
  * Generate an Authorization: header Bearer token value for the given username.
  */
-private fun authorization(auth: AuthStruct): String {
+fun authorization(auth: AuthStruct): String {
     val config = testEnv()
     val jwtAudience = config.property("jwt.audience").getString()
     val issuer = config.property("jwt.domain").getString()

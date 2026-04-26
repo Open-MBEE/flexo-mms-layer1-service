@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms.routes.ldp
 
 import io.ktor.http.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
@@ -71,7 +73,108 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
     // retrieve the resolved collects URIs
     val collectsUris = call.attributes[COLLECTS_URIS_KEY]
-    //TODO check user has admin permission on the refs
+
+    // Step 1: Verify all refs exist and determine their types
+    val valuesClause = collectsUris.joinToString(" ") { "<$it>" }
+
+    val refExistenceQuery = """
+        select ?ref ?refType where {
+            values ?ref { $valuesClause }
+            #graph m-graph:Cluster { ## having the filter and binding doesn't work and returns nothing?
+            #    ?repo a mms:Repo .
+            #    filter(strstarts(str(?ref), concat(str(?repo), "/")))
+            #}
+            # derive the repo metadata graph IRI from the repo IRI
+            #bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
+            graph ?repoMetaGraph {
+                ?ref a ?refType .
+                filter(?refType in (mms:Branch, mms:Lock, mms:Scratch))
+            }
+        }
+    """.trimIndent()
+
+    val existenceResults = executeSparqlSelectOrAsk(refExistenceQuery) {
+        prefixes(prefixes)
+    }
+    val existenceBindings = parseSparqlResultsJsonSelect(existenceResults)
+    val foundRefTypes = existenceBindings.mapNotNull { binding ->
+        val ref = binding["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        val refType = binding["refType"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        if (ref != null && refType != null) ref to refType else null
+    }.toMap()
+
+    for (uri in collectsUris) {
+        if (uri !in foundRefTypes) {
+            throw Http404Exception("Ref <$uri> does not exist")
+        }
+    }
+
+    // Step 2: Verify admin permission on each ref, correlating ref type with required permission
+    // Derive repo and org scope URIs from the ref URI to avoid the Cluster graph lookup
+    // (Fuseki does not reliably evaluate filter(strstarts) with VALUES-bound variables)
+    val clusterUri = prefixes["m"]!!
+    val refPermissionValues = foundRefTypes.entries.joinToString("\n") { (ref, refType) ->
+        val requiredPerm = when {
+            refType.endsWith("Branch") -> "mms-object:Permission.UpdateBranch"
+            refType.endsWith("Lock") -> "mms-object:Permission.UpdateLock"
+            refType.endsWith("Scratch") -> "mms-object:Permission.UpdateScratch"
+            else -> throw Http400Exception("Unknown ref type: $refType")
+        }
+        val repoUri = ref.replace(Regex("/(branches|locks|scratches)/.*$"), "")
+        val orgUri = repoUri.replace(Regex("/repos/.*$"), "")
+        "( <$ref> $requiredPerm <$repoUri> <$orgUri> <$clusterUri> )"
+    }
+
+    val permissionQuery = """
+        select ?ref where {
+            values (?ref ?requiredPerm ?repoScope ?orgScope ?clusterScope) { $refPermissionValues }
+            
+            graph m-graph:AccessControl.Policies {
+                ?policy a mms:Policy ;
+                    mms:scope ?scope ;
+                    mms:role ?role .
+            }
+            
+            {
+                graph m-graph:AccessControl.Policies {
+                    ?policy mms:subject mu: .
+                }
+            } union {
+                graph m-graph:AccessControl.Agents {
+                    ?group a mms:Group ;
+                        mms:id ?groupId .
+                    values ?groupId {
+                        # @values groupId
+                    }
+                }
+                graph m-graph:AccessControl.Policies {
+                    ?policy mms:subject ?group .
+                }
+            }
+            
+            filter(?scope = ?ref || ?scope = ?repoScope || ?scope = ?orgScope || ?scope = ?clusterScope)
+            
+            graph m-graph:AccessControl.Definitions {
+                ?role a mms:Role ;
+                    mms:permits ?permission .
+                ?permission a mms:Permission ;
+                    mms:implies* ?requiredPerm .
+            }
+        }
+    """.trimIndent()
+
+    val permissionResults = executeSparqlSelectOrAsk(permissionQuery) {
+        prefixes(prefixes)
+    }
+    val permissionBindings = parseSparqlResultsJsonSelect(permissionResults)
+    val permittedRefs = permissionBindings.mapNotNull { it["ref"]?.jsonObject?.get("value")?.jsonPrimitive?.content }.toSet()
+
+    for (uri in collectsUris) {
+        if (uri !in permittedRefs) {
+            throw Http403Exception(this, "Ref <$uri>")
+        }
+    }
+
     // resolve ambiguity
     if(intentIsAmbiguous) {
         // ask if collection exists
