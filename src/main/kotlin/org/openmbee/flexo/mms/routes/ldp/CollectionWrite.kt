@@ -81,22 +81,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         select ?ref ?refType where {
             values ?ref { $valuesClause }
             
-            graph m-graph:Cluster {
-                ?repo a mms:Repo .
-                filter(strstarts(str(?ref), concat(str(?repo), "/")))
-            }
-            
-            bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
-            
-            {
-                graph ?repoMetaGraph { ?ref a mms:Branch . }
-                bind(mms:Branch as ?refType)
-            } union {
-                graph ?repoMetaGraph { ?ref a mms:Lock . }
-                bind(mms:Lock as ?refType)
-            } union {
-                graph ?repoMetaGraph { ?ref a mms:Scratch . }
-                bind(mms:Scratch as ?refType)
+            graph ?g {
+                ?ref a ?refType .
+                filter(?refType in (mms:Branch, mms:Lock, mms:Scratch))
             }
         }
     """.trimIndent()
