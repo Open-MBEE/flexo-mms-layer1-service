@@ -57,7 +57,7 @@ fun TriplesAsserter.validateCreatedCollectionTriples(
 
 class CollectionLdpDc : CollectionAny() {
     init {
-        "PUT $demoCollectionPath - create valid collection" {
+        "PUT collection - create valid collection" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
@@ -67,7 +67,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "PUT $demoCollectionPath - replace existing collection" {
+        "PUT collection - replace existing collection" {
             testApplication {
                 // create initial collection
                 httpPut(demoCollectionPath) {
@@ -88,7 +88,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "GET $demoCollectionPath - non-existent" {
+        "GET collection - non-existent" {
             testApplication {
                 httpGet(demoCollectionPath) {}.apply {
                     this shouldHaveStatus HttpStatusCode.NotFound
@@ -96,7 +96,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "GET $demoCollectionPath - valid" {
+        "GET collection - valid" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
@@ -111,7 +111,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "HEAD $demoCollectionPath - valid" {
+        "HEAD collection - valid" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
@@ -123,7 +123,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "GET $basePathCollections - all collections" {
+        "GET collections - all collections" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
@@ -135,7 +135,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "PUT $demoCollectionPath - reject missing mms:collects" {
+        "PUT collection - reject missing mms:collects" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes("""
@@ -147,7 +147,7 @@ class CollectionLdpDc : CollectionAny() {
             }
         }
 
-        "POST $basePathCollections - create valid collection" {
+        "POST collections - create valid collection" {
             testApplication {
                 httpPost(basePathCollections) {
                     header(HttpHeaders.SLUG, demoCollectionId)
