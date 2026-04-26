@@ -80,8 +80,13 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     val refExistenceQuery = """
         select ?ref ?refType where {
             values ?ref { $valuesClause }
-            
-            graph ?g {
+            graph m-graph:Cluster {
+                ?repo a mms:Repo .
+                filter(strstarts(str(?ref), concat(str(?repo), "/")))
+            }
+            # derive the repo metadata graph IRI from the repo IRI
+            bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
+            graph ?repoMetaGraph {
                 ?ref a ?refType .
                 filter(?refType in (mms:Branch, mms:Lock, mms:Scratch))
             }
