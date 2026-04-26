@@ -12,7 +12,7 @@ class CollectionValidationTest : CollectionAny() {
     override val logger = LoggerFactory.getLogger(CollectionValidationTest::class.java)
 
     init {
-        "PUT $demoCollectionPath - reject non-existent ref with 404" {
+        "PUT collection - reject non-existent ref with 404" {
             testApplication {
                 val nonExistentRef = "$demoRepoPath/branches/does-not-exist"
                 val body = withAllTestPrefixes("""
@@ -28,7 +28,7 @@ class CollectionValidationTest : CollectionAny() {
             }
         }
 
-        "PUT $demoCollectionPath - reject mix of existing and non-existent refs with 404" {
+        "PUT collection - reject mix of existing and non-existent refs with 404" {
             testApplication {
                 val nonExistentRef = "$demoRepoPath/branches/does-not-exist"
                 val body = withAllTestPrefixes("""
@@ -45,7 +45,7 @@ class CollectionValidationTest : CollectionAny() {
             }
         }
 
-        "POST $basePathCollections - reject non-existent ref with 404" {
+        "POST collections - reject non-existent ref with 404" {
             testApplication {
                 val nonExistentRef = "$demoRepoPath/locks/no-such-lock"
                 val body = withAllTestPrefixes("""
@@ -62,7 +62,7 @@ class CollectionValidationTest : CollectionAny() {
             }
         }
 
-        "PUT $demoCollectionPath - reject ref without admin permission with 403" {
+        "PUT collection - reject ref without admin permission with 403" {
             testApplication {
                 // create collection as non-root user who has no admin policy on the ref
                 val noPermUser = AuthStruct("noperm")
@@ -82,7 +82,7 @@ class CollectionValidationTest : CollectionAny() {
             }
         }
 
-        "PUT $demoCollectionPath - existing tests still pass with admin user" {
+        "PUT collection - existing tests still pass with admin user" {
             testApplication {
                 httpPut(demoCollectionPath) {
                     setTurtleBody(withAllTestPrefixes(validCollectionBody))
