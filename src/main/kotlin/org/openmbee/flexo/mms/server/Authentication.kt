@@ -32,4 +32,5 @@ fun Application.configureAuthentication() {
     }
 }
 
+@Suppress("DEPRECATION")
 data class UserDetailsPrincipal(val name: String, val groups: List<String>) : Principal

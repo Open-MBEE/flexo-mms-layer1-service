@@ -154,6 +154,7 @@ fun Route.linkedDataPlatformResource(
     // scope all contained routes to specified (sub)path
     route(path) {
         // 4.2.1.6: all responses must contain the Link header
+        @Suppress("DEPRECATION")
         intercept(ApplicationCallPipeline.Call) {
             // response headers have not yet been sent
             if(!call.response.isCommitted) {

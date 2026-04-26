@@ -103,7 +103,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
     /**
      * Set a callback to execute before each call handled under given route
      */
-    var beforeEach: (suspend Layer1Context<TRequestContext, out GenericResponse>.() -> Unit)? = null
+    var beforeEach: (suspend Layer1Context<TRequestContext, GenericResponse>.() -> Unit)? = null
 
     /**
      * Set default regex used to assert the slug is a legal identifier when POST-ing to create new resource
