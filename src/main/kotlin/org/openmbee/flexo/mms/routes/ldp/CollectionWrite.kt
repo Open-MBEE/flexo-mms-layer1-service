@@ -110,6 +110,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     }
 
     // Step 2: Verify admin permission on each ref, correlating ref type with required permission
+    // Derive repo and org scope URIs from the ref URI to avoid the Cluster graph lookup
+    // (Fuseki does not reliably evaluate filter(strstarts) with VALUES-bound variables)
+    val clusterUri = prefixes["m"]!!
     val refPermissionValues = foundRefTypes.entries.joinToString("\n") { (ref, refType) ->
         val requiredPerm = when {
             refType.endsWith("Branch") -> "mms-object:Permission.UpdateBranch"
@@ -117,18 +120,14 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             refType.endsWith("Scratch") -> "mms-object:Permission.UpdateScratch"
             else -> throw Http400Exception("Unknown ref type: $refType")
         }
-        "( <$ref> $requiredPerm )"
+        val repoUri = ref.replace(Regex("/(branches|locks|scratches)/.*$"), "")
+        val orgUri = repoUri.replace(Regex("/repos/.*$"), "")
+        "( <$ref> $requiredPerm <$repoUri> <$orgUri> <$clusterUri> )"
     }
 
     val permissionQuery = """
         select ?ref where {
-            values (?ref ?requiredPerm) { $refPermissionValues }
-            
-            graph m-graph:Cluster {
-                ?repo a mms:Repo .
-                filter(strstarts(str(?ref), concat(str(?repo), "/")))
-                ?repo mms:org ?org .
-            }
+            values (?ref ?requiredPerm ?repoScope ?orgScope ?clusterScope) { $refPermissionValues }
             
             graph m-graph:AccessControl.Policies {
                 ?policy a mms:Policy ;
@@ -153,7 +152,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 }
             }
             
-            filter(?scope = ?ref || ?scope = ?repo || ?scope = ?org || ?scope = m:)
+            filter(?scope = ?ref || ?scope = ?repoScope || ?scope = ?orgScope || ?scope = ?clusterScope)
             
             graph m-graph:AccessControl.Definitions {
                 ?role a mms:Role ;
