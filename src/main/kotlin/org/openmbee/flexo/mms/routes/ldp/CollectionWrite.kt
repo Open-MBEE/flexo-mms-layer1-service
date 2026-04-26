@@ -134,17 +134,21 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 ?policy a mms:Policy ;
                     mms:scope ?scope ;
                     mms:role ?role .
-                
-                {
+            }
+            
+            {
+                graph m-graph:AccessControl.Policies {
                     ?policy mms:subject mu: .
-                } union {
-                    graph m-graph:AccessControl.Agents {
-                        ?group a mms:Group ;
-                            mms:id ?groupId .
-                        values ?groupId {
-                            # @values groupId
-                        }
+                }
+            } union {
+                graph m-graph:AccessControl.Agents {
+                    ?group a mms:Group ;
+                        mms:id ?groupId .
+                    values ?groupId {
+                        # @values groupId
                     }
+                }
+                graph m-graph:AccessControl.Policies {
                     ?policy mms:subject ?group .
                 }
             }
