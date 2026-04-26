@@ -88,12 +88,15 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             
             bind(iri(concat(str(?repo), "/graphs/Metadata")) as ?repoMetaGraph)
             
-            graph ?repoMetaGraph {
-                { ?ref a mms:Branch . bind(mms:Branch as ?refType) }
-                union
-                { ?ref a mms:Lock . bind(mms:Lock as ?refType) }
-                union
-                { ?ref a mms:Scratch . bind(mms:Scratch as ?refType) }
+            {
+                graph ?repoMetaGraph { ?ref a mms:Branch . }
+                bind(mms:Branch as ?refType)
+            } union {
+                graph ?repoMetaGraph { ?ref a mms:Lock . }
+                bind(mms:Lock as ?refType)
+            } union {
+                graph ?repoMetaGraph { ?ref a mms:Scratch . }
+                bind(mms:Scratch as ?refType)
             }
         }
     """.trimIndent()
