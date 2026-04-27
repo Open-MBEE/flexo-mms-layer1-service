@@ -808,8 +808,8 @@ paths:
                   mms:dstRef <./locks/lock-b> ;
                   .
       responses:
-        '201':
-          $ref: '#/components/responses/CreatedResponse'
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
 
   # ──────────────────────────── Squash ────────────────────────────
   /orgs/{orgId}/repos/{repoId}/squash:
