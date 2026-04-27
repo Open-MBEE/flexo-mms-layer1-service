@@ -1005,8 +1005,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RdfBody'
       responses:
-        '200':
-          $ref: '#/components/responses/TurtleResponse'
+        '204':
+          $ref: '#/components/responses/NoContent'
 
   # ──────────────────────────── Collections ────────────────────────────
   /orgs/{orgId}/collections:
