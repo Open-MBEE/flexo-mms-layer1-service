@@ -6,7 +6,7 @@ import io.kotest.matchers.shouldBe
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import kotlinx.coroutines.delay
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.vocabulary.SchemaDO.application

@@ -5,7 +5,6 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.pipeline.*
 import org.openmbee.flexo.mms.LEGAL_ID_REGEX
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.MethodNotAllowedException
@@ -104,7 +103,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
     /**
      * Set a callback to execute before each call handled under given route
      */
-    var beforeEach: (suspend Layer1Context<TRequestContext, out GenericResponse>.() -> Unit)? = null
+    var beforeEach: (suspend Layer1Context<TRequestContext, GenericResponse>.() -> Unit)? = null
 
     /**
      * Set default regex used to assert the slug is a legal identifier when POST-ing to create new resource
@@ -315,7 +314,7 @@ abstract class GenericProtocolRoute<TRequestContext: GenericRequest>(
     fun <TResponseContext: GenericResponse, TUpdateRequest: GenericRequest> patch(
         body: suspend Layer1Context<TRequestContext, TResponseContext>.(updateRequest: TUpdateRequest) -> Unit,
         responseContextCreator: ResponseContextCreator<TResponseContext>,
-        called: suspend PipelineContext<Unit, ApplicationCall>.(Layer1Context<TRequestContext, TResponseContext>) -> TUpdateRequest
+        called: suspend RoutingContext.(Layer1Context<TRequestContext, TResponseContext>) -> TUpdateRequest
     ) {
         // add to allowed methods
         allowedMethods.add(HttpMethod.Patch)

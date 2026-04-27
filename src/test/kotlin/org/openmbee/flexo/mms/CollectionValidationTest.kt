@@ -3,7 +3,6 @@ package org.openmbee.flexo.mms
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
 

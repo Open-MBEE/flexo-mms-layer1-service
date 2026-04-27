@@ -1,8 +1,9 @@
 package org.openmbee.flexo.mms
 
 import io.kotest.core.test.TestCase
-import io.ktor.server.testing.testApplication
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.openmbee.flexo.mms.util.createRepo
+import org.openmbee.flexo.mms.util.testApplication
 import org.slf4j.LoggerFactory
 
 open class CollectionAny : RepoAny() {

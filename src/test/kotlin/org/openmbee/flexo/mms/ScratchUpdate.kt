@@ -3,7 +3,7 @@ package org.openmbee.flexo.mms
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.test.TestCase
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.apache.jena.rdf.model.ResourceFactory
 import org.openmbee.flexo.mms.util.*
 
