@@ -870,8 +870,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/RdfBody'
       responses:
-        '201':
-          $ref: '#/components/responses/CreatedResponse'
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
         '409':
           $ref: '#/components/responses/Conflict'
 
