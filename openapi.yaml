@@ -142,10 +142,10 @@ components:
     inspect:
       name: inspect
       in: path
-      required: false
+      required: true
       schema:
         type: string
-      description: Optional path segment to inspect query conditions.
+      description: Path segment to inspect query conditions.
 
   headers:
     ETag:
@@ -1280,11 +1280,14 @@ paths:
           $ref: '#/components/responses/CreatedResponse'
 
   # ──────────────────────────── SPARQL Query ────────────────────────────
-  /orgs/{orgId}/repos/{repoId}/query/{inspect}:
+  # Each query endpoint is split into two paths because {inspect} is optional
+  # in the Ktor routes ({inspect?}), and OpenAPI 3.0 requires path params to
+  # be required: true.
+
+  /orgs/{orgId}/repos/{repoId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a repository (via query string)
@@ -1310,12 +1313,41 @@ paths:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
-  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query/{inspect}:
+  /orgs/{orgId}/repos/{repoId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a repository with inspection (via query string)
+      operationId: queryRepoInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a repository with inspection (via body)
+      operationId: queryRepoInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/lockId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a lock (via query string)
@@ -1341,12 +1373,42 @@ paths:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
-  /orgs/{orgId}/repos/{repoId}/diff/{diffId}/query/{inspect}:
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/lockId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a lock with inspection (via query string)
+      operationId: queryLockInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a lock with inspection (via body)
+      operationId: queryLockInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/diff/{diffId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/diffId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a diff (via query string)
@@ -1372,12 +1434,42 @@ paths:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
-  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect}:
+  /orgs/{orgId}/repos/{repoId}/diff/{diffId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/diffId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a diff with inspection (via query string)
+      operationId: queryDiffInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a diff with inspection (via body)
+      operationId: queryDiffInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/branchId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a branch's model (via query string)
@@ -1403,12 +1495,42 @@ paths:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
-  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query/{inspect}:
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a branch's model with inspection (via query string)
+      operationId: queryModelInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a branch's model with inspection (via body)
+      operationId: queryModelInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/scratchId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a scratch (via query string)
@@ -1434,11 +1556,41 @@ paths:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
-  /orgs/{orgId}/collections/{collectionId}/query/{inspect}:
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a scratch with inspection (via query string)
+      operationId: queryScratchInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a scratch with inspection (via body)
+      operationId: queryScratchInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/collections/{collectionId}/query:
     parameters:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/collectionId'
-      - $ref: '#/components/parameters/inspect'
     get:
       tags: [SPARQL Query]
       summary: SPARQL query against a collection (via query string)
@@ -1458,6 +1610,36 @@ paths:
       tags: [SPARQL Query]
       summary: SPARQL query against a collection (via body)
       operationId: queryCollectionPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/collections/{collectionId}/query/{inspect}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/collectionId'
+      - $ref: '#/components/parameters/inspect'
+    get:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a collection with inspection (via query string)
+      operationId: queryCollectionInspectGet
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SPARQL query string.
+          example: SELECT * WHERE { ?s ?p ?o } LIMIT 10
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [SPARQL Query]
+      summary: SPARQL query against a collection with inspection (via body)
+      operationId: queryCollectionInspectPost
       requestBody:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
