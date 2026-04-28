@@ -81,16 +81,7 @@ fun ComposeUpdateBuilder.dropLock(): String {
         }
     """
 
-    whereString += """
-        optional {
-            graph m-graph:AccessControl.Policies {
-                ?lockPolicy mms:scope ?lock ;
-                    ?lockPolicy_p ?lockPolicy_o .
-            }
-        }
-    """
-
-    return dropRepoObject("lock") {
+    val result = dropRepoObject("lock") {
         dropRepoObject("snapshot")
 
         // delete snapshot dependencies
@@ -116,4 +107,16 @@ fun ComposeUpdateBuilder.dropLock(): String {
             }
         """)
     }
+
+    // appended after dropRepoObject so ?lock is already bound
+    whereString += """
+        optional {
+            graph m-graph:AccessControl.Policies {
+                ?lockPolicy mms:scope ?lock ;
+                    ?lockPolicy_p ?lockPolicy_o .
+            }
+        }
+    """
+
+    return result
 }

@@ -34,21 +34,24 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
         )
     }
 
-    // Step 2: Query model graph IRI before deletion (needed for cleanup)
-    val modelGraphQuery = """
+    // Step 2: Query model graph IRIs that are exclusive to this lock (not shared by other locks)
+    val exclusiveGraphQuery = """
         select ?modelGraph where {
             graph mor-graph:Metadata {
                 morl: mms:snapshot ?snapshot .
                 ?snapshot mms:graph ?modelGraph .
+                filter not exists {
+                    ?otherLock mms:snapshot ?snapshot .
+                    filter(?otherLock != morl:)
+                }
             }
         }
     """
 
-    val modelGraphResults = executeSparqlSelectOrAsk(modelGraphQuery) {
+    val graphResults = executeSparqlSelectOrAsk(exclusiveGraphQuery) {
         prefixes(prefixes)
     }
-    val modelGraphBindings = parseSparqlResultsJsonSelect(modelGraphResults)
-    val modelGraphIri = modelGraphBindings.firstOrNull()?.let { binding ->
+    val exclusiveGraphIris = parseSparqlResultsJsonSelect(graphResults).mapNotNull { binding ->
         binding["modelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
     }
 
@@ -83,9 +86,9 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
     // Step 5: Respond with the transaction result
     call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
 
-    // Step 6: Clean up - drop model graph and transaction
-    if (modelGraphIri != null) {
-        executeSparqlUpdate("drop silent graph <$modelGraphIri>")
+    // Step 6: Clean up - drop exclusive model graphs and transaction
+    for (graphIri in exclusiveGraphIris) {
+        executeSparqlUpdate("drop silent graph <$graphIri>")
     }
 
     executeSparqlUpdate("""
