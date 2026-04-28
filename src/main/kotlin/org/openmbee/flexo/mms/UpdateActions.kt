@@ -74,6 +74,22 @@ fun ComposeUpdateBuilder.dropSnapshot(): String {
 }
 
 fun ComposeUpdateBuilder.dropLock(): String {
+    // delete scoped policies from AccessControl.Policies
+    deleteString += """
+        graph m-graph:AccessControl.Policies {
+            ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
+        }
+    """
+
+    whereString += """
+        optional {
+            graph m-graph:AccessControl.Policies {
+                ?lockPolicy mms:scope ?lock ;
+                    ?lockPolicy_p ?lockPolicy_o .
+            }
+        }
+    """
+
     return dropRepoObject("lock") {
         dropRepoObject("snapshot")
 

@@ -1,16 +1,59 @@
 package org.openmbee.flexo.mms.routes.ldp
 
+import io.ktor.http.*
 import io.ktor.server.response.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.server.LdpDcLayer1Context
 import org.openmbee.flexo.mms.server.LdpDeleteResponse
 
-private val DEFAULT_CONDITIONS =  LOCK_CRUD_CONDITIONS.append {
-    permit(Permission.DELETE_LOCK, Scope.LOCK)
-}
 
 suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
-    val localConditions = DEFAULT_CONDITIONS
+    // Step 1: Check for collection references before deleting
+    val collectionCheckQuery = """
+        select ?collection where {
+            graph m-graph:Cluster {
+                ?collection a mms:Collection ;
+                    mms:collects morl: .
+            }
+        }
+    """
+
+    val checkResults = executeSparqlSelectOrAsk(collectionCheckQuery) {
+        prefixes(prefixes)
+    }
+    val bindings = parseSparqlResultsJsonSelect(checkResults)
+    if (bindings.isNotEmpty()) {
+        val collectionIris = bindings.mapNotNull { binding ->
+            binding["collection"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+        }
+        throw HttpException(
+            "Cannot delete lock <${prefixes["morl"]}>: it is referenced by collection(s) ${collectionIris.joinToString(", ") { "<$it>" }}",
+            HttpStatusCode.Conflict
+        )
+    }
+
+    // Step 2: Query model graph IRI before deletion (needed for cleanup)
+    val modelGraphQuery = """
+        select ?modelGraph where {
+            graph mor-graph:Metadata {
+                morl: mms:snapshot ?snapshot .
+                ?snapshot mms:graph ?modelGraph .
+            }
+        }
+    """
+
+    val modelGraphResults = executeSparqlSelectOrAsk(modelGraphQuery) {
+        prefixes(prefixes)
+    }
+    val modelGraphBindings = parseSparqlResultsJsonSelect(modelGraphResults)
+    val modelGraphIri = modelGraphBindings.firstOrNull()?.let { binding ->
+        binding["modelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+    }
+
+    // Step 3: Execute the delete
+    val localConditions = LOCK_DELETE_CONDITIONS
 
     val updateString = buildSparqlUpdate {
         compose {
@@ -22,8 +65,9 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
     }
 
     log.info(updateString)
+    executeSparqlUpdate(updateString)
 
-    // fetch transaction
+    // Step 4: Validate the transaction
     val constructString = buildSparqlQuery {
         construct {
             txn()
@@ -34,6 +78,21 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
     }
 
     val constructResponseText = executeSparqlConstructOrDescribe(constructString)
+    validateTransaction(constructResponseText, localConditions, null, "morl")
 
-    call.respondText(constructResponseText, contentType=RdfContentTypes.Turtle)
+    // Step 5: Respond with the transaction result
+    call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
+
+    // Step 6: Clean up - drop model graph and transaction
+    if (modelGraphIri != null) {
+        executeSparqlUpdate("drop silent graph <$modelGraphIri>")
+    }
+
+    executeSparqlUpdate("""
+        delete where {
+            graph m-graph:Transactions {
+                mt: ?p ?o .
+            }
+        }
+    """)
 }

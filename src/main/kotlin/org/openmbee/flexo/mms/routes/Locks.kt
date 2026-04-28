@@ -2,7 +2,6 @@ package org.openmbee.flexo.mms.routes
 
 import io.ktor.server.routing.*
 import org.openmbee.flexo.mms.LOCK_UPDATE_CONDITIONS
-import org.openmbee.flexo.mms.NotImplementedException
 import org.openmbee.flexo.mms.guardedPatch
 import org.openmbee.flexo.mms.reindent
 import org.openmbee.flexo.mms.routes.ldp.createLock
@@ -103,8 +102,7 @@ fun Route.crudLocks() {
 
         // delete a lock
         delete {
-//            deleteLock()
-            throw NotImplementedException("DELETE Lock")
+            deleteLock()
         }
 
         // method not allowed
