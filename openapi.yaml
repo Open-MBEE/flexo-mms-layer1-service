@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Flexo MMS Layer 1 Service API
   description: >
@@ -9,7 +9,7 @@ info:
   version: 1.0.0
   license:
     name: Apache 2.0
-    identifier: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
 
 servers:
   - url: http://localhost:8080
@@ -243,7 +243,7 @@ components:
         '*/*':
           schema:
             type: string
-            contentEncoding: base64
+            format: binary
 
 paths:
   # ──────────────────────────── Organizations ────────────────────────────
@@ -1162,7 +1162,7 @@ paths:
             '*/*':
               schema:
                 type: string
-                contentEncoding: base64
+                format: binary
 
   # ──────────────────────────── Groups ────────────────────────────
   /groups:
