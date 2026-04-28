@@ -6,7 +6,7 @@ info:
     repositories, branches, locks, commits, diffs, scratches, collections,
     artifacts, groups, and policies. Backed by a SPARQL 1.1 quad-store.
     Uses Linked Data Platform (LDP) and Graph Store Protocol (GSP) conventions.
-  version: 1.0.0
+  version: 0.3.0
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -161,6 +161,12 @@ components:
         text/turtle:
           schema:
             type: string
+    SparqlQueryInspectResponse:
+      description: Successful SPARQL query inspection response.
+      content:
+        application/sparql-query:
+          schema:
+            type: string
     SparqlResultsJsonResponse:
       description: Successful SPARQL query response in JSON format.
       content:
@@ -206,6 +212,8 @@ components:
         text/turtle:
           schema:
             type: string
+          example: |
+            <> dct:title "my-resource" .
     SparqlUpdateBody:
       description: SPARQL Update request.
       required: true
@@ -213,6 +221,11 @@ components:
         application/sparql-update:
           schema:
             type: string
+          example: |
+            prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            insert data {
+              <urn:some:uri> rdf:type <urn:my:type> .
+            }
     SparqlQueryBody:
       description: SPARQL Query request.
       required: true
@@ -220,6 +233,11 @@ components:
         application/sparql-query:
           schema:
             type: string
+          example: |
+            prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            select * where {
+              ?s ?p ?o .
+            } limit 10
     RdfBody:
       description: RDF document (Turtle, JSON-LD, RDF/XML, N-Triples, etc.)
       required: true
@@ -227,6 +245,22 @@ components:
         text/turtle:
           schema:
             type: string
+          example: |
+            # This is a comment
+            @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            @prefix : <http://example.org/data/> .
+
+            # A triple: subject, predicate, and object
+            :alice a foaf:Person ;               # 'a' is a shorthand for rdf:type
+                foaf:name "Alice Smith" ;        # Use ';' to add more properties to the same subject
+                foaf:mbox <mailto:alice@example.org> ;
+                foaf:age 30 ;                    # Automatically inferred as xsd:integer
+                foaf:knows :bob .
+  
+            :bob a foaf:Person ;
+                foaf:name "Bob Jones" ;
+                foaf:knows :alice .
         application/ld+json:
           schema:
             type: string
@@ -317,8 +351,7 @@ paths:
             schema:
               type: string
             example: |
-              <> dct:title "My Organization"@en ;
-                  .
+              <> dct:title "My Organization"@en .
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
@@ -389,8 +422,7 @@ paths:
             schema:
               type: string
             example: |
-              <> dct:title "My Repository"@en ;
-                  .
+              <> dct:title "My Repository"@en .
       responses:
         '201':
           $ref: '#/components/responses/CreatedResponse'
@@ -424,8 +456,7 @@ paths:
             schema:
               type: string
             example: |
-              <> dct:title "My Repository"@en ;
-                  .
+              <> dct:title "My Repository"@en .
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
@@ -512,9 +543,8 @@ paths:
             schema:
               type: string
             example: |
-              <> mms:ref <./branches/main> ;
-                  dct:title "Feature Branch"@en ;
-                  .
+              <> mms:ref <./branches/master> ;
+                  dct:title "Feature Branch"@en .
       responses:
         '201':
           $ref: '#/components/responses/CreatedResponse'
@@ -549,9 +579,8 @@ paths:
             schema:
               type: string
             example: |
-              <> mms:ref <./branches/main> ;
-                  dct:title "Feature Branch"@en ;
-                  .
+              <> mms:ref <./branches/master> ;
+                  dct:title "Feature Branch"@en .
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
@@ -624,9 +653,8 @@ paths:
             schema:
               type: string
             example: |
-              <> mms:ref <./branches/main> ;
-                  dct:title "Release v1.0 Lock"@en ;
-                  .
+              <> mms:ref <./branches/master> ;
+                  dct:title "Release v1.0 Lock"@en .
       responses:
         '201':
           $ref: '#/components/responses/CreatedResponse'
@@ -661,9 +689,8 @@ paths:
             schema:
               type: string
             example: |
-              <> mms:ref <./branches/main> ;
-                  dct:title "Release v1.0 Lock"@en ;
-                  .
+              <> mms:ref <./branches/master> ;
+                  dct:title "Release v1.0 Lock"@en .
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
@@ -778,37 +805,35 @@ paths:
               type: string
             example: |
               prefix dct: <http://purl.org/dc/terms/>
-
-              insert {
+              insert data {
                   <> dct:description "Hotfix for issue #42"@en .
               }
-              where {}
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
 
   # ──────────────────────────── Diffs ────────────────────────────
-  /orgs/{orgId}/repos/{repoId}/diffs:
-    parameters:
-      - $ref: '#/components/parameters/orgId'
-      - $ref: '#/components/parameters/repoId'
-    post:
-      tags: [Diffs]
-      summary: Create a new diff between two refs
-      operationId: createDiff
-      requestBody:
-        required: true
-        content:
-          text/turtle:
-            schema:
-              type: string
-            example: |
-              <> mms:srcRef <./locks/lock-a> ;
-                  mms:dstRef <./locks/lock-b> ;
-                  .
-      responses:
-        '200':
-          $ref: '#/components/responses/TurtleResponse'
+  #/orgs/{orgId}/repos/{repoId}/diffs:
+  #  parameters:
+  #    - $ref: '#/components/parameters/orgId'
+  #    - $ref: '#/components/parameters/repoId'
+  #  post:
+  #    tags: [Diffs]
+  #    summary: Create a new diff between two refs
+  #    operationId: createDiff
+  #    requestBody:
+  #      required: true
+  #      content:
+  #        text/turtle:
+  #          schema:
+  #            type: string
+  #          example: |
+  #            <> mms:srcRef <./locks/lock-a> ;
+  #                mms:dstRef <./locks/lock-b> ;
+  #                .
+  #    responses:
+  #      '200':
+  #        $ref: '#/components/responses/TurtleResponse'
 
   # ──────────────────────────── Squash ────────────────────────────
   /orgs/{orgId}/repos/{repoId}/squash:
@@ -906,8 +931,7 @@ paths:
             schema:
               type: string
             example: |
-              <> dct:title "My Scratch Space"@en ;
-                  .
+              <> dct:title "My Scratch Space"@en .
       responses:
         '201':
           $ref: '#/components/responses/CreatedResponse'
@@ -942,8 +966,7 @@ paths:
             schema:
               type: string
             example: |
-              <> dct:title "My Scratch Space"@en ;
-                  .
+              <> dct:title "My Scratch Space"@en .
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
@@ -1250,8 +1273,9 @@ paths:
             schema:
               type: string
             example: |
+              prefix mms-object: <https://mms.openmbee.org/rdf/objects/>
               <> mms:subject <../groups/engineering> ;
-                  mms:role mms-object:Role.AdminAccessControl ;
+                  mms:role mms-object:Role.AdminOrg ;
                   mms:scope <../orgs/my-org> ;
                   .
       responses:
@@ -1272,8 +1296,9 @@ paths:
             schema:
               type: string
             example: |
+              prefix mms-object: <https://mms.openmbee.org/rdf/objects/>
               <> mms:subject <../groups/engineering> ;
-                  mms:role mms-object:Role.AdminAccessControl ;
+                  mms:role mms-object:Role.AdminOrg ;
                   mms:scope <../orgs/my-org> ;
                   .
       responses:
@@ -1313,7 +1338,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
 
   /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query:
     parameters:
@@ -1343,7 +1368,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
 
   #/orgs/{orgId}/repos/{repoId}/diff/{diffId}/query:
   #  parameters:
@@ -1403,7 +1428,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
 
   /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query:
     parameters:
@@ -1433,7 +1458,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
 
   /orgs/{orgId}/collections/{collectionId}/query:
     parameters:
@@ -1461,7 +1486,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
 
   # ──────────────────────────── SPARQL Update ────────────────────────────
   /orgs/{orgId}/repos/{repoId}/branches/{branchId}/update:
