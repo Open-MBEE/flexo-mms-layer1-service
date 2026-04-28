@@ -34,24 +34,20 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
         )
     }
 
-    // Step 2: Query model graph IRIs that are exclusive to this lock (not shared by other locks)
-    val exclusiveGraphQuery = """
+    // Step 2: Save model graph IRIs before deletion (metadata will be removed)
+    val modelGraphQuery = """
         select ?modelGraph where {
             graph mor-graph:Metadata {
                 morl: mms:snapshot ?snapshot .
                 ?snapshot mms:graph ?modelGraph .
-                filter not exists {
-                    ?otherLock mms:snapshot ?snapshot .
-                    filter(?otherLock != morl:)
-                }
             }
         }
     """
 
-    val graphResults = executeSparqlSelectOrAsk(exclusiveGraphQuery) {
+    val modelGraphResults = executeSparqlSelectOrAsk(modelGraphQuery) {
         prefixes(prefixes)
     }
-    val exclusiveGraphIris = parseSparqlResultsJsonSelect(graphResults).mapNotNull { binding ->
+    val candidateGraphIris = parseSparqlResultsJsonSelect(modelGraphResults).mapNotNull { binding ->
         binding["modelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
     }
 
@@ -76,7 +72,7 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
             txn()
         }
         where {
-            txn()
+            txnOrInspections(null, localConditions) {}
         }
     }
 
@@ -86,9 +82,21 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
     // Step 5: Respond with the transaction result
     call.respondText(constructResponseText, contentType = RdfContentTypes.Turtle)
 
-    // Step 6: Clean up - drop exclusive model graphs and transaction
-    for (graphIri in exclusiveGraphIris) {
-        executeSparqlUpdate("drop silent graph <$graphIri>")
+    // Step 6: Clean up - drop model graphs no longer referenced by any snapshot
+    for (graphIri in candidateGraphIris) {
+        val stillReferencedQuery = """
+            ask where {
+                graph mor-graph:Metadata {
+                    ?snapshot mms:graph <$graphIri> .
+                }
+            }
+        """
+        val stillReferenced = parseSparqlResultsJsonAsk(
+            executeSparqlSelectOrAsk(stillReferencedQuery) { prefixes(prefixes) }
+        )
+        if (!stillReferenced) {
+            executeSparqlUpdate("drop silent graph <$graphIri>")
+        }
     }
 
     executeSparqlUpdate("""
