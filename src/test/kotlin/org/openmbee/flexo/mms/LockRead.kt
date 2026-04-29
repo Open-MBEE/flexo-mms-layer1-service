@@ -16,7 +16,7 @@ class LockRead : LockAny() {
             "head",
             "get",
             "patch",
-//            "delete",
+            "delete",
         ).forEach { method ->
             "$method non-existent lock" {
                 testApplication {
