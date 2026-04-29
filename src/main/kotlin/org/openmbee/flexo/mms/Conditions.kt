@@ -171,6 +171,19 @@ val LOCK_UPDATE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
 
 val LOCK_DELETE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
     permit(Permission.DELETE_LOCK, Scope.LOCK)
+
+    require("lockNotCollected") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it is referenced by a collection." to HttpStatusCode.Conflict }
+
+        """
+            filter not exists {
+                graph m-graph:Cluster {
+                    ?_collection a mms:Collection ;
+                        mms:collects morl: .
+                }
+            }
+        """
+    }
 }
 
 val SCRATCH_DELETE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
