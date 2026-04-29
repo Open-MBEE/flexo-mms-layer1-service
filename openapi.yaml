@@ -1317,7 +1317,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Repositories]
       summary: SPARQL query against a repository (via body)
       operationId: queryRepoPost
       requestBody:
@@ -1331,7 +1331,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Repositories]
       summary: SPARQL query against a repository with inspection (via body)
       operationId: queryRepoInspectPost
       requestBody:
@@ -1346,7 +1346,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/lockId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Locks]
       summary: SPARQL query against a lock (via body)
       operationId: queryLockPost
       requestBody:
@@ -1361,7 +1361,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/lockId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Locks]
       summary: SPARQL query against a lock with inspection (via body)
       operationId: queryLockInspectPost
       requestBody:
@@ -1406,7 +1406,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/branchId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Branches]
       summary: SPARQL query against a branch's model (via body)
       operationId: queryModelPost
       requestBody:
@@ -1421,7 +1421,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/branchId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Branches]
       summary: SPARQL query against a branch's model with inspection (via body)
       operationId: queryModelInspectPost
       requestBody:
@@ -1436,7 +1436,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/scratchId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Scratches]
       summary: SPARQL query against a scratch (via body)
       operationId: queryScratchPost
       requestBody:
@@ -1451,7 +1451,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/scratchId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Scratches]
       summary: SPARQL query against a scratch with inspection (via body)
       operationId: queryScratchInspectPost
       requestBody:
@@ -1465,7 +1465,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/collectionId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Collections]
       summary: SPARQL query against a collection (via body)
       operationId: queryCollectionPost
       requestBody:
@@ -1479,7 +1479,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/collectionId'
     post:
-      tags: [SPARQL Query]
+      tags: [SPARQL Query, Collections]
       summary: SPARQL query against a collection with inspection (via body)
       operationId: queryCollectionInspectPost
       requestBody:
@@ -1495,7 +1495,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/branchId'
     post:
-      tags: [SPARQL Update]
+      tags: [SPARQL Update, Branches]
       summary: Commit a SPARQL Update to a branch's model
       operationId: commitModel
       description: >
@@ -1515,7 +1515,7 @@ paths:
       - $ref: '#/components/parameters/repoId'
       - $ref: '#/components/parameters/scratchId'
     post:
-      tags: [SPARQL Update]
+      tags: [SPARQL Update, Scratches]
       summary: Apply a SPARQL Update to a scratch graph
       operationId: updateScratch
       requestBody:
