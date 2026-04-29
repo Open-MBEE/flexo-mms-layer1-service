@@ -60,6 +60,9 @@ jobs:
     working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
       - checkout
+      - run:
+          name: Fetch full git history for SonarCloud blame
+          command: git fetch --unshallow || true
       - attach_workspace:
           at: /home/circleci/flexo-mms-layer1-service
       - sonarcloud/scan
