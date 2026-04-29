@@ -655,6 +655,13 @@ suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
             )
             if (!stillReferenced) {
                 executeSparqlUpdate("drop silent graph <$modelGraphIri>")
+                executeSparqlUpdate("""
+                    delete data {
+                        graph m-graph:Graphs {
+                            <$modelGraphIri> a mms:ModelGraph .
+                        }
+                    }
+                """) { prefixes(prefixes) }
             }
         }
     }
