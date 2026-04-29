@@ -102,6 +102,23 @@ class LockDelete : LockAny() {
             }
         }
 
+        "delete auto-created commit lock that is branch model returns 409" {
+            testApplication {
+                val commitResponse = commitModel(masterBranchPath, """
+                    insert data {
+                        <urn:mms:s> <urn:mms:p> <urn:mms:o> .
+                    }
+                """.trimIndent())
+
+                val commitEtag = commitResponse.headers[HttpHeaders.ETag]!!
+                val autoLockPath = "$basePathLocks/Commit.$commitEtag"
+
+                httpDelete(autoLockPath) {}.apply {
+                    this shouldHaveStatus HttpStatusCode.Conflict
+                }
+            }
+        }
+
         "get deleted lock returns 404" {
             testApplication {
                 createLock(demoRepoPath, masterBranchPath, demoLockId)

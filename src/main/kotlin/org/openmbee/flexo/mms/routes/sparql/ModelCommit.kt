@@ -1,6 +1,8 @@
 package org.openmbee.flexo.mms.routes.sparql
 
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.apache.jena.rdf.model.Property
@@ -78,6 +80,15 @@ fun Route.commitModel() {
                 status = HttpStatusCode.Created,
                 contentType = RdfContentTypes.Turtle,
             )
+            /*
+            call.application.launch(Dispatchers.IO) {
+                try {
+                    cleanupPreviousCommitLock(baseCommitIri)
+                } catch (e: Exception) {
+                    log.warn("Failed to cleanup previous commit lock for $baseCommitIri: ${e.message}")
+                }
+            }
+            */
         } finally {
             deleteTransaction()
         }
