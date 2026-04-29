@@ -59,7 +59,61 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
             txn()
             conditions(localConditions)
 
-            raw(dropLock())
+            delete {
+                graph("mor-graph:Metadata") {
+                    raw("""
+                        morl: ?morl_p ?morl_o .
+                    """)
+                }
+                graph("mor-graph:Metadata") {
+                    raw("""
+                        ?snapshot ?snapshot_p ?snapshot_o .
+                    """)
+                }
+                graph("m-graph:AccessControl.Policies") {
+                    raw("""
+                        ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
+                    """)
+                }
+                this
+            }
+
+            insert {
+                graph("m-graph:Transactions") {
+                    raw("""
+                        mt: mms-txn:droppedObject morl: .
+                    """)
+                }
+                this
+            }
+
+            where {
+                raw("""
+                    graph mor-graph:Metadata {
+                        morl: ?morl_p ?morl_o .
+                        
+                        optional {
+                            morl: mms:snapshot ?snapshot .
+                            ?snapshot ?snapshot_p ?snapshot_o .
+                            
+                            filter not exists {
+                                ?otherLock mms:snapshot ?snapshot .
+                                filter(?otherLock != morl:)
+                            }
+                        }
+                    }
+                    
+                    optional {
+                        graph m-graph:AccessControl.Policies {
+                            ?lockPolicy mms:scope morl: ;
+                                ?lockPolicy_p ?lockPolicy_o .
+                        }
+                    }
+                """)
+                this
+            }
+
+            this
         }
     }
 
