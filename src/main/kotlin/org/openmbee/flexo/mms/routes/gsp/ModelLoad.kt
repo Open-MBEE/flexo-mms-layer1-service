@@ -1,4 +1,7 @@
 import io.ktor.client.request.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -94,6 +97,14 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
         executeSparqlUpdate("""
             drop graph <$stagingGraphIri>;
         """)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                cleanupPreviousCommitLock(baseCommitIri)
+            } catch (e: Exception) {
+                log.warn("Failed to cleanup previous commit lock for $baseCommitIri: ${e.message}")
+            }
+        }
     } catch(e: Exception) {
         // finally is not used here since deleteTransaction is manually called before graph deletion in the try block
         deleteTransaction()

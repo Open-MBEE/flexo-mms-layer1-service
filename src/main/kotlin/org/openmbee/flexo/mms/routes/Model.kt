@@ -8,6 +8,8 @@ import io.ktor.server.routing.*
 import loadModel
 import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.server.graphStoreProtocol
@@ -561,8 +563,94 @@ suspend fun AnyLayer1Context.diffAndFinalizeCommit(dstGraphIri: String, srcGraph
             }
         }
     """)
-    // TODO delete previous commit lock and model graph if no other lock is on the commit
     return constructCommitResponseText
+}
+
+/**
+ *   Best-effort cleanup of auto-created commit locks from a previous commit.
+ *   Finds locks whose IRI matches the mor-lock:Commit.* pattern and that reference the given base commit,
+ *   then deletes lock/snapshot metadata and drops the model graph if no longer referenced.
+ */
+suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
+    // Find auto-created commit locks for the previous commit that are safe to clean up
+    val findLocksQuery = """
+        select ?prevLock ?snapshot ?modelGraph where {
+            graph mor-graph:Metadata {
+                ?prevLock a mms:Lock ;
+                    mms:commit <$baseCommitIri> .
+                filter(strstarts(str(?prevLock), concat(str(mor-lock:), "Commit.")))
+
+                optional {
+                    ?prevLock mms:snapshot ?snapshot .
+                    ?snapshot mms:graph ?modelGraph .
+                }
+            }
+
+            filter not exists {
+                graph m-graph:Cluster {
+                    ?_collection a mms:Collection ;
+                        mms:collects ?prevLock .
+                }
+            }
+        }
+    """
+
+    val results = executeSparqlSelectOrAsk(findLocksQuery) {
+        prefixes(prefixes)
+    }
+    val bindings = parseSparqlResultsJsonSelect(results)
+
+    if (bindings.isEmpty()) return
+
+    for (binding in bindings) {
+        val prevLockIri = binding["prevLock"]?.jsonObject?.get("value")?.jsonPrimitive?.content ?: continue
+        val modelGraphIri = binding["modelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+
+        // Delete lock metadata and snapshot metadata (snapshot only if no other lock references it)
+        executeSparqlUpdate("""
+            delete {
+                graph mor-graph:Metadata {
+                    <$prevLockIri> ?lock_p ?lock_o .
+                }
+                graph mor-graph:Metadata {
+                    ?snapshot ?snapshot_p ?snapshot_o .
+                }
+            }
+            where {
+                graph mor-graph:Metadata {
+                    <$prevLockIri> ?lock_p ?lock_o .
+
+                    optional {
+                        <$prevLockIri> mms:snapshot ?snapshot .
+                        ?snapshot ?snapshot_p ?snapshot_o .
+
+                        filter not exists {
+                            ?otherLock mms:snapshot ?snapshot .
+                            filter(?otherLock != <$prevLockIri>)
+                        }
+                    }
+                }
+            }
+        """) {
+            prefixes(prefixes)
+        }
+
+        // Drop the model graph if no other snapshot still references it
+        if (modelGraphIri != null) {
+            val stillReferenced = parseSparqlResultsJsonAsk(
+                executeSparqlSelectOrAsk("""
+                    ask where {
+                        graph mor-graph:Metadata {
+                            ?snapshot mms:graph <$modelGraphIri> .
+                        }
+                    }
+                """) { prefixes(prefixes) }
+            )
+            if (!stillReferenced) {
+                executeSparqlUpdate("drop silent graph <$modelGraphIri>")
+            }
+        }
+    }
 }
 
 fun parseModelStripPrefixes(contentType: ContentType, body: String): KModel {
