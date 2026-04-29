@@ -586,6 +586,13 @@ suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
                 }
             }
 
+            # exclude user-created locks (they have mms:etag; auto-created commit locks do not)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    ?prevLock mms:etag ?_etag .
+                }
+            }
+
             filter not exists {
                 graph m-graph:Cluster {
                     ?_collection a mms:Collection ;

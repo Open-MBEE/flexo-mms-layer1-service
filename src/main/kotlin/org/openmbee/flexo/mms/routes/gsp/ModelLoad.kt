@@ -1,5 +1,4 @@
 import io.ktor.client.request.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import io.ktor.client.statement.*
@@ -98,7 +97,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             drop graph <$stagingGraphIri>;
         """)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        call.application.launch(Dispatchers.IO) {
             try {
                 cleanupPreviousCommitLock(baseCommitIri)
             } catch (e: Exception) {

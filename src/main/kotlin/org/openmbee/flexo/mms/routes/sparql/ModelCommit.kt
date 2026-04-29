@@ -1,7 +1,6 @@
 package org.openmbee.flexo.mms.routes.sparql
 
 import io.ktor.http.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import io.ktor.server.response.*
@@ -82,7 +81,7 @@ fun Route.commitModel() {
                 contentType = RdfContentTypes.Turtle,
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
+            call.application.launch(Dispatchers.IO) {
                 try {
                     cleanupPreviousCommitLock(baseCommitIri)
                 } catch (e: Exception) {
