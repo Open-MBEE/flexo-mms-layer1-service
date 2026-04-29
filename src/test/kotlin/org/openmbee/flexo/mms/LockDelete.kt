@@ -67,11 +67,13 @@ class LockDelete : LockAny() {
             }
         }
 
-        "delete one of two locks on same commit leaves other intact" {
+        "delete one of two locks on same commit leaves other intact with model graph" {
             val otherLockId = "other-lock"
             val otherLockPath = "$basePathLocks/$otherLockId"
 
             testApplication {
+                loadModel(masterBranchPath, loadAliceRex)
+
                 createLock(demoRepoPath, masterBranchPath, demoLockId)
                 val otherEtag = createLock(demoRepoPath, masterBranchPath, otherLockId).headers[HttpHeaders.ETag]
 
@@ -83,6 +85,18 @@ class LockDelete : LockAny() {
                     this shouldHaveStatus HttpStatusCode.OK
                     this includesTriples {
                         validateLockTriples(otherLockId, otherEtag!!)
+                    }
+                }
+
+                httpGet("$otherLockPath/graph") {}.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
+                        subjectTerse(":Alice") {
+                            ignoreAll()
+                        }
+                        subjectTerse(":Rex") {
+                            ignoreAll()
+                        }
                     }
                 }
             }
