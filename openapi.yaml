@@ -1,0 +1,1529 @@
+openapi: 3.0.3
+info:
+  title: Flexo MMS Layer 1 Service API
+  description: >
+    RESTful API for the Flexo MMS Layer 1 Service. Manages organizations,
+    repositories, branches, locks, commits, diffs, scratches, collections,
+    artifacts, groups, and policies. Backed by a SPARQL 1.1 quad-store.
+    Uses Linked Data Platform (LDP) and Graph Store Protocol (GSP) conventions.
+  version: 0.3.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Organizations
+  - name: Repositories
+  - name: Branches
+  - name: Locks
+  - name: Commits
+  - name: Diffs
+  - name: Squash
+  - name: Model Graph
+  - name: Scratches
+  - name: Scratch Graph
+  - name: Collections
+  - name: Collection Graph
+  - name: Artifacts
+  - name: Groups
+  - name: Policies
+  - name: SPARQL Query
+  - name: SPARQL Update
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    orgId:
+      name: orgId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-org
+    repoId:
+      name: repoId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-repo
+    branchId:
+      name: branchId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: main
+    lockId:
+      name: lockId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-lock
+    commitId:
+      name: commitId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: abc123
+    #diffId:
+    #  name: diffId
+    #  in: path
+    #  required: true
+    #  schema:
+    #    type: string
+    #  example: diff-001
+    scratchId:
+      name: scratchId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-scratch
+    collectionId:
+      name: collectionId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-collection
+    artifactId:
+      name: artifactId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-artifact
+    groupId:
+      name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-group
+    policyId:
+      name: policyId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: my-policy
+    slugHeader:
+      name: Slug
+      in: header
+      required: false
+      description: >
+        LDP Slug header. Becomes the new resource's identifier.
+        If omitted, a UUID is generated.
+      schema:
+        type: string
+      example: my-resource-id
+    ifMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: ETag precondition for conditional requests.
+      schema:
+        type: string
+
+  headers:
+    ETag:
+      description: Entity tag for the resource.
+      schema:
+        type: string
+    Location:
+      description: URI of the newly created resource.
+      schema:
+        type: string
+        format: uri
+
+  responses:
+    TurtleResponse:
+      description: Successful response in Turtle RDF format.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+      content:
+        text/turtle:
+          schema:
+            type: string
+    SparqlQueryInspectResponse:
+      description: Successful SPARQL query inspection response.
+      content:
+        application/sparql-query:
+          schema:
+            type: string
+    SparqlResultsJsonResponse:
+      description: Successful SPARQL query response in JSON format.
+      content:
+        application/sparql-results+json:
+          schema:
+            type: object
+    HeadResponse:
+      description: Metadata-only response (no body).
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+    CreatedResponse:
+      description: Resource created.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+        Location:
+          $ref: '#/components/headers/Location'
+      content:
+        text/turtle:
+          schema:
+            type: string
+    NoContent:
+      description: No content.
+    NotAllowed:
+      description: Method not allowed.
+    NotFound:
+      description: Resource not found.
+    Forbidden:
+      description: Forbidden — insufficient permissions.
+    BadRequest:
+      description: Bad request.
+    Conflict:
+      description: Conflict — another transaction is in progress.
+    NotImplemented:
+      description: Not implemented.
+
+  requestBodies:
+    TurtleBody:
+      description: RDF Turtle document describing the resource.
+      required: true
+      content:
+        text/turtle:
+          schema:
+            type: string
+          example: |
+            <> dct:title "my-resource" .
+    SparqlUpdateBody:
+      description: SPARQL Update request.
+      required: true
+      content:
+        application/sparql-update:
+          schema:
+            type: string
+          example: |
+            prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            insert data {
+              <urn:some:uri> rdf:type <urn:my:type> .
+            }
+    SparqlQueryBody:
+      description: SPARQL Query request.
+      required: true
+      content:
+        application/sparql-query:
+          schema:
+            type: string
+          example: |
+            prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            select * where {
+              ?s ?p ?o .
+            } limit 10
+    RdfBody:
+      description: RDF document (Turtle, JSON-LD, RDF/XML, N-Triples, etc.)
+      required: true
+      content:
+        text/turtle:
+          schema:
+            type: string
+          example: |
+            # This is a comment
+            @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+            @prefix : <http://example.org/data/> .
+
+            # A triple: subject, predicate, and object
+            :alice a foaf:Person ;               # 'a' is a shorthand for rdf:type
+                foaf:name "Alice Smith" ;        # Use ';' to add more properties to the same subject
+                foaf:mbox <mailto:alice@example.org> ;
+                foaf:age 30 ;                    # Automatically inferred as xsd:integer
+                foaf:knows :bob .
+  
+            :bob a foaf:Person ;
+                foaf:name "Bob Jones" ;
+                foaf:knows :alice .
+        application/ld+json:
+          schema:
+            type: string
+        application/rdf+xml:
+          schema:
+            type: string
+        application/n-triples:
+          schema:
+            type: string
+    AnyBody:
+      description: Arbitrary content (binary or text).
+      required: true
+      content:
+        '*/*':
+          schema:
+            type: string
+            format: binary
+
+paths:
+  # ──────────────────────────── Organizations ────────────────────────────
+  /orgs:
+    head:
+      tags: [Organizations]
+      summary: State of all organizations
+      operationId: headOrgs
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Organizations]
+      summary: List all organizations
+      operationId: getOrgs
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Organizations]
+      summary: Create a new organization
+      operationId: createOrg
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Organization"@en ;
+                  .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+    head:
+      tags: [Organizations]
+      summary: State of an organization
+      operationId: headOrg
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Organizations]
+      summary: Read an organization
+      operationId: getOrg
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Organizations]
+      summary: Create or replace an organization
+      operationId: createOrReplaceOrg
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Organization"@en .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+    patch:
+      tags: [Organizations]
+      summary: Update an organization
+      operationId: updateOrg
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix foaf: <http://xmlns.com/foaf/0.1/>
+
+              delete {
+                  <> foaf:homepage ?homepage .
+              }
+              insert {
+                  <> foaf:homepage <https://www.openmbee.org/> .
+              }
+              where {
+                  optional {
+                      <> foaf:homepage ?homepage .
+                  }
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ──────────────────────────── Repositories ────────────────────────────
+  /orgs/{orgId}/repos:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+    head:
+      tags: [Repositories]
+      summary: State of all repositories
+      operationId: headRepos
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Repositories]
+      summary: List all repositories
+      operationId: getRepos
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Repositories]
+      summary: Create a new repository
+      operationId: createRepo
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Repository"@en .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/repos/{repoId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Repositories]
+      summary: State of a repository
+      operationId: headRepo
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Repositories]
+      summary: Read a repository
+      operationId: getRepo
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Repositories]
+      summary: Create or replace a repository
+      operationId: createOrReplaceRepo
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Repository"@en .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+    patch:
+      tags: [Repositories]
+      summary: Update a repository
+      operationId: updateRepo
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix foaf: <http://xmlns.com/foaf/0.1/>
+
+              delete {
+                  <> foaf:homepage ?homepage .
+              }
+              insert {
+                  <> foaf:homepage <https://www.openmbee.org/> .
+              }
+              where {
+                  optional {
+                      <> foaf:homepage ?homepage .
+                  }
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/graph:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Repositories]
+      summary: State of repository metadata graph
+      operationId: headRepoGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Repositories]
+      summary: Read repository metadata graph
+      operationId: getRepoGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Branches ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/branches:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Branches]
+      summary: State of all branches
+      operationId: headBranches
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Branches]
+      summary: List all branches
+      operationId: getBranches
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Branches]
+      summary: Create a new branch
+      operationId: createBranchViaPost
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> mms:ref <./branches/master> ;
+                  dct:title "Feature Branch"@en .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+    head:
+      tags: [Branches]
+      summary: State of a branch
+      operationId: headBranch
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Branches]
+      summary: Read a branch
+      operationId: getBranch
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Branches]
+      summary: Create a branch
+      operationId: createBranch
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> mms:ref <./branches/master> ;
+                  dct:title "Feature Branch"@en .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+    patch:
+      tags: [Branches]
+      summary: Update branch metadata
+      operationId: updateBranch
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix dct: <http://purl.org/dc/terms/>
+
+              delete {
+                  <> dct:title ?oldTitle .
+              }
+              insert {
+                  <> dct:title "Renamed Branch"@en .
+              }
+              where {
+                  optional { <> dct:title ?oldTitle . }
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    delete:
+      tags: [Branches]
+      summary: Delete a branch (not implemented)
+      operationId: deleteBranch
+      responses:
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+
+  # ──────────────────────────── Locks ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/locks:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Locks]
+      summary: State of all locks
+      operationId: headLocks
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Locks]
+      summary: List all locks
+      operationId: getLocks
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Locks]
+      summary: Create a new lock
+      operationId: createLockViaPost
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> mms:ref <./branches/master> ;
+                  dct:title "Release v1.0 Lock"@en .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/lockId'
+    head:
+      tags: [Locks]
+      summary: State of a lock
+      operationId: headLock
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Locks]
+      summary: Read a lock
+      operationId: getLock
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Locks]
+      summary: Create a lock
+      operationId: createLock
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> mms:ref <./branches/master> ;
+                  dct:title "Release v1.0 Lock"@en .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+    patch:
+      tags: [Locks]
+      summary: Update lock metadata
+      operationId: updateLock
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix dct: <http://purl.org/dc/terms/>
+
+              delete {
+                  <> dct:title ?oldTitle .
+              }
+              insert {
+                  <> dct:title "Renamed Lock"@en .
+              }
+              where {
+                  optional { <> dct:title ?oldTitle . }
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    delete:
+      tags: [Locks]
+      summary: Delete a lock (not implemented)
+      operationId: deleteLock
+      responses:
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+
+  # ──────────────────────────── Lock Model Graph ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/graph:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/lockId'
+    head:
+      tags: [Model Graph]
+      summary: State of a lock's model graph
+      operationId: headLockGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Model Graph]
+      summary: Read a lock's model graph
+      operationId: getLockGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Commits ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/commits:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Commits]
+      summary: State of all commits
+      operationId: headCommits
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Commits]
+      summary: List all commits
+      operationId: getCommits
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/commits/{commitId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/commitId'
+    head:
+      tags: [Commits]
+      summary: State of a commit
+      operationId: headCommit
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Commits]
+      summary: Read a commit
+      operationId: getCommit
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    patch:
+      tags: [Commits]
+      summary: Update commit metadata
+      operationId: updateCommit
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix dct: <http://purl.org/dc/terms/>
+              insert data {
+                  <> dct:description "Hotfix for issue #42"@en .
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Diffs ────────────────────────────
+  #/orgs/{orgId}/repos/{repoId}/diffs:
+  #  parameters:
+  #    - $ref: '#/components/parameters/orgId'
+  #    - $ref: '#/components/parameters/repoId'
+  #  post:
+  #    tags: [Diffs]
+  #    summary: Create a new diff between two refs
+  #    operationId: createDiff
+  #    requestBody:
+  #      required: true
+  #      content:
+  #        text/turtle:
+  #          schema:
+  #            type: string
+  #          example: |
+  #            <> mms:srcRef <./locks/lock-a> ;
+  #                mms:dstRef <./locks/lock-b> ;
+  #                .
+  #    responses:
+  #      '200':
+  #        $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Squash ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/squash:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    post:
+      tags: [Squash]
+      summary: Squash a linear commit range between two locks
+      operationId: squashCommits
+      description: >
+        Accepts a Turtle RDF body with two lock references (mms:srcRef and
+        mms:dstRef), verifies a linear commit path between the two locks'
+        commits, removes intermediate commits, and replaces the newer lock's
+        commit data patch with a single squashed diff.
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> mms:srcRef <./locks/older-lock> ;
+                  mms:dstRef <./locks/newer-lock> ;
+                  .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ──────────────────────────── Model Graph (Branch) ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/graph:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+    head:
+      tags: [Model Graph]
+      summary: State of a branch's model graph
+      operationId: headBranchGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Model Graph]
+      summary: Read a branch's model graph
+      operationId: getBranchGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Model Graph]
+      summary: Load (overwrite) a branch's model graph
+      operationId: loadBranchGraph
+      requestBody:
+        $ref: '#/components/requestBodies/RdfBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ──────────────────────────── Scratches ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/scratches:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Scratches]
+      summary: State of all scratches
+      operationId: headScratches
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Scratches]
+      summary: List all scratches
+      operationId: getScratches
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Scratches]
+      summary: Create a new scratch
+      operationId: createScratch
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Scratch Space"@en .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+    head:
+      tags: [Scratches]
+      summary: State of a scratch
+      operationId: headScratch
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Scratches]
+      summary: Read a scratch
+      operationId: getScratch
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Scratches]
+      summary: Create or replace a scratch
+      operationId: createOrReplaceScratch
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Scratch Space"@en .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+    patch:
+      tags: [Scratches]
+      summary: Update scratch metadata
+      operationId: updateScratchMetadata
+      parameters:
+        - $ref: '#/components/parameters/ifMatch'
+      requestBody:
+        required: true
+        content:
+          application/sparql-update:
+            schema:
+              type: string
+            example: |
+              prefix dct: <http://purl.org/dc/terms/>
+
+              delete {
+                  <> dct:title ?oldTitle .
+              }
+              insert {
+                  <> dct:title "Renamed Scratch"@en .
+              }
+              where {
+                  optional { <> dct:title ?oldTitle . }
+              }
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Scratch Graph ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/graph:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+    head:
+      tags: [Scratch Graph]
+      summary: State of a scratch graph
+      operationId: headScratchGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Scratch Graph]
+      summary: Read a scratch graph
+      operationId: getScratchGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Scratch Graph]
+      summary: Load (overwrite) a scratch graph
+      operationId: loadScratchGraph
+      requestBody:
+        $ref: '#/components/requestBodies/RdfBody'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+
+  # ──────────────────────────── Collections ────────────────────────────
+  /orgs/{orgId}/collections:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+    head:
+      tags: [Collections]
+      summary: State of all collections
+      operationId: headCollections
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Collections]
+      summary: List all collections
+      operationId: getCollections
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Collections]
+      summary: Create a new collection
+      operationId: createCollection
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Collection"@en ;
+                  mms:collects <../repos/my-repo/branches/master>, 
+                               <../repos/my-repo/scratches/ontology>,
+                               <../repos/my-repo2/locks/2026-03-19> ;
+                  .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/collections/{collectionId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/collectionId'
+    head:
+      tags: [Collections]
+      summary: State of a collection
+      operationId: headCollection
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Collections]
+      summary: Read a collection
+      operationId: getCollection
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Collections]
+      summary: Create or replace a collection
+      operationId: createOrReplaceCollection
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "My Collection"@en ;
+                  mms:collects <../repos/my-repo/branches/master>, 
+                               <../repos/my-repo/scratches/ontology>,
+                               <../repos/my-repo2/locks/2026-03-19> ;
+                  .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  # ──────────────────────────── Collection Graph ────────────────────────────
+  /orgs/{orgId}/collections/{collectionId}/graph:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/collectionId'
+    head:
+      tags: [Collection Graph]
+      summary: State of the collection's union graph
+      operationId: headCollectionGraph
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Collection Graph]
+      summary: Read the collection's union graph
+      operationId: getCollectionGraph
+      description: >
+        Returns the union of all model graphs from the refs collected
+        by this collection.
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+
+  # ──────────────────────────── Artifacts ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/artifacts:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    head:
+      tags: [Artifacts]
+      summary: State of all artifacts
+      operationId: headArtifacts
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Artifacts]
+      summary: List all artifacts
+      operationId: getArtifacts
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Artifacts]
+      summary: Upload a new artifact
+      operationId: createArtifact
+      requestBody:
+        $ref: '#/components/requestBodies/AnyBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /orgs/{orgId}/repos/{repoId}/artifacts/{artifactId}:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/artifactId'
+    head:
+      tags: [Artifacts]
+      summary: State of an artifact
+      operationId: headArtifact
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Artifacts]
+      summary: Read an artifact
+      operationId: getArtifact
+      responses:
+        '200':
+          description: Artifact content.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+
+  # ──────────────────────────── Groups ────────────────────────────
+  /groups:
+    head:
+      tags: [Groups]
+      summary: State of all groups
+      operationId: headGroups
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Groups]
+      summary: List all groups
+      operationId: getGroups
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    post:
+      tags: [Groups]
+      summary: Create a new group
+      operationId: createGroup
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "Engineering Team"@en ;
+                  .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /groups/{groupId}:
+    parameters:
+      - $ref: '#/components/parameters/groupId'
+    head:
+      tags: [Groups]
+      summary: State of a group
+      operationId: headGroup
+      responses:
+        '200':
+          $ref: '#/components/responses/HeadResponse'
+    get:
+      tags: [Groups]
+      summary: Read a group
+      operationId: getGroup
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+    put:
+      tags: [Groups]
+      summary: Create or replace a group
+      operationId: createOrReplaceGroup
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              <> dct:title "Engineering Team"@en ;
+                  .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  # ──────────────────────────── Policies ────────────────────────────
+  /policies:
+    post:
+      tags: [Policies]
+      summary: Create a new policy
+      operationId: createPolicy
+      parameters:
+        - $ref: '#/components/parameters/slugHeader'
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              prefix mms-object: <https://mms.openmbee.org/rdf/objects/>
+              <> mms:subject <../groups/engineering> ;
+                  mms:role mms-object:Role.AdminOrg ;
+                  mms:scope <../orgs/my-org> ;
+                  .
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  /policies/{policyId}:
+    parameters:
+      - $ref: '#/components/parameters/policyId'
+    put:
+      tags: [Policies]
+      summary: Create or replace a policy
+      operationId: createOrReplacePolicy
+      requestBody:
+        required: true
+        content:
+          text/turtle:
+            schema:
+              type: string
+            example: |
+              prefix mms-object: <https://mms.openmbee.org/rdf/objects/>
+              <> mms:subject <../groups/engineering> ;
+                  mms:role mms-object:Role.AdminOrg ;
+                  mms:scope <../orgs/my-org> ;
+                  .
+      responses:
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+
+  # ──────────────────────────── SPARQL Query ────────────────────────────
+  # Each query endpoint is split into two paths because {inspect} is optional
+  # in the Ktor routes ({inspect?}), and OpenAPI 3.0 requires path params to
+  # be required: true.
+
+  /orgs/{orgId}/repos/{repoId}/query:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    post:
+      tags: [SPARQL Query, Repositories]
+      summary: SPARQL query against a repository (via body)
+      operationId: queryRepoPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlResultsJsonResponse'
+
+  /orgs/{orgId}/repos/{repoId}/query/inspect:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+    post:
+      tags: [SPARQL Query, Repositories]
+      summary: SPARQL query against a repository with inspection (via body)
+      operationId: queryRepoInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
+
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/lockId'
+    post:
+      tags: [SPARQL Query, Locks]
+      summary: SPARQL query against a lock (via body)
+      operationId: queryLockPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlResultsJsonResponse'
+
+  /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query/inspect:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/lockId'
+    post:
+      tags: [SPARQL Query, Locks]
+      summary: SPARQL query against a lock with inspection (via body)
+      operationId: queryLockInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
+
+  #/orgs/{orgId}/repos/{repoId}/diff/{diffId}/query:
+  #  parameters:
+  #    - $ref: '#/components/parameters/orgId'
+  #    - $ref: '#/components/parameters/repoId'
+  #    - $ref: '#/components/parameters/diffId'
+  #  post:
+  #    tags: [SPARQL Query]
+  #    summary: SPARQL query against a diff (via body)
+  #    operationId: queryDiffPost
+  #    requestBody:
+  #      $ref: '#/components/requestBodies/SparqlQueryBody'
+  #    responses:
+  #      '200':
+  #        $ref: '#/components/responses/TurtleResponse'
+
+  #/orgs/{orgId}/repos/{repoId}/diff/{diffId}/query/inspect:
+  #  parameters:
+  #    - $ref: '#/components/parameters/orgId'
+  #    - $ref: '#/components/parameters/repoId'
+  #    - $ref: '#/components/parameters/diffId'
+  #  post:
+  #    tags: [SPARQL Query]
+  #    summary: SPARQL query against a diff with inspection (via body)
+  #    operationId: queryDiffInspectPost
+  #    requestBody:
+  #      $ref: '#/components/requestBodies/SparqlQueryBody'
+  #    responses:
+  #      '200':
+  #        $ref: '#/components/responses/TurtleResponse'
+
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+    post:
+      tags: [SPARQL Query, Branches]
+      summary: SPARQL query against a branch's model (via body)
+      operationId: queryModelPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlResultsJsonResponse'
+
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/inspect:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+    post:
+      tags: [SPARQL Query, Branches]
+      summary: SPARQL query against a branch's model with inspection (via body)
+      operationId: queryModelInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
+
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+    post:
+      tags: [SPARQL Query, Scratches]
+      summary: SPARQL query against a scratch (via body)
+      operationId: queryScratchPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlResultsJsonResponse'
+
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query/inspect:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+    post:
+      tags: [SPARQL Query, Scratches]
+      summary: SPARQL query against a scratch with inspection (via body)
+      operationId: queryScratchInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
+
+  /orgs/{orgId}/collections/{collectionId}/query:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/collectionId'
+    post:
+      tags: [SPARQL Query, Collections]
+      summary: SPARQL query against a collection (via body)
+      operationId: queryCollectionPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlResultsJsonResponse'
+
+  /orgs/{orgId}/collections/{collectionId}/query/inspect:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/collectionId'
+    post:
+      tags: [SPARQL Query, Collections]
+      summary: SPARQL query against a collection with inspection (via body)
+      operationId: queryCollectionInspectPost
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlQueryBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/SparqlQueryInspectResponse'
+
+  # ──────────────────────────── SPARQL Update ────────────────────────────
+  /orgs/{orgId}/repos/{repoId}/branches/{branchId}/update:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/branchId'
+    post:
+      tags: [SPARQL Update, Branches]
+      summary: Commit a SPARQL Update to a branch's model
+      operationId: commitModel
+      description: >
+        Applies a SPARQL Update to the branch's staging graph, computes
+        the diff against the current model, and creates a new commit.
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlUpdateBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/update:
+    parameters:
+      - $ref: '#/components/parameters/orgId'
+      - $ref: '#/components/parameters/repoId'
+      - $ref: '#/components/parameters/scratchId'
+    post:
+      tags: [SPARQL Update, Scratches]
+      summary: Apply a SPARQL Update to a scratch graph
+      operationId: updateScratch
+      requestBody:
+        $ref: '#/components/requestBodies/SparqlUpdateBody'
+      responses:
+        '200':
+          description: Update applied successfully.
+          content:
+            text/plain:
+              schema:
+                type: string

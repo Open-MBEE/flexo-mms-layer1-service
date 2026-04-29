@@ -561,6 +561,7 @@ suspend fun AnyLayer1Context.diffAndFinalizeCommit(dstGraphIri: String, srcGraph
             }
         }
     """)
+    // TODO delete previous commit lock and model graph if no other lock is on the commit
     return constructCommitResponseText
 }
 
