@@ -80,7 +80,7 @@ fun Route.commitModel() {
                 status = HttpStatusCode.Created,
                 contentType = RdfContentTypes.Turtle,
             )
-
+            /*
             call.application.launch(Dispatchers.IO) {
                 try {
                     cleanupPreviousCommitLock(baseCommitIri)
@@ -88,6 +88,7 @@ fun Route.commitModel() {
                     log.warn("Failed to cleanup previous commit lock for $baseCommitIri: ${e.message}")
                 }
             }
+            */
         } finally {
             deleteTransaction()
         }

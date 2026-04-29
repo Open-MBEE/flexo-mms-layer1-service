@@ -97,6 +97,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
             drop graph <$stagingGraphIri>;
         """)
 
+        /*
         call.application.launch(Dispatchers.IO) {
             try {
                 cleanupPreviousCommitLock(baseCommitIri)
@@ -104,6 +105,7 @@ suspend fun GspLayer1Context<GspMutateResponse>.loadModel() {
                 log.warn("Failed to cleanup previous commit lock for $baseCommitIri: ${e.message}")
             }
         }
+        */
     } catch(e: Exception) {
         // finally is not used here since deleteTransaction is manually called before graph deletion in the try block
         deleteTransaction()
