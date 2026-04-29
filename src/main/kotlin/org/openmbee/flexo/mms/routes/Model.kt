@@ -599,6 +599,14 @@ suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
                         mms:collects ?prevLock .
                 }
             }
+
+            # skip if any branch still points to this commit (lock is needed for model materialization)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    ?_anyBranch a mms:Branch ;
+                        mms:commit <$baseCommitIri> .
+                }
+            }
         }
     """
 

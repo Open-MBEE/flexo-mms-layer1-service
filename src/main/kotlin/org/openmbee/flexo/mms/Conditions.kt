@@ -184,6 +184,33 @@ val LOCK_DELETE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
             }
         """
     }
+
+    require("autoLockNotBranchModel") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it is an auto-created commit lock currently used as a branch model." to HttpStatusCode.Conflict }
+
+        """
+            filter(
+                # pass if lock has etag (user-created, not auto-created)
+                exists {
+                    graph mor-graph:Metadata {
+                        morl: mms:etag ?_anyEtag .
+                    }
+                }
+                ||
+                # pass if lock IRI does not match auto-created commit lock pattern
+                !strstarts(str(morl:), concat(str(mor-lock:), "Commit."))
+                ||
+                # pass if no branch currently points to the same commit as this lock
+                !exists {
+                    graph mor-graph:Metadata {
+                        morl: mms:commit ?_branchCheckCommit .
+                        ?_branchCheckBranch a mms:Branch ;
+                            mms:commit ?_branchCheckCommit .
+                    }
+                }
+            )
+        """
+    }
 }
 
 val SCRATCH_DELETE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
