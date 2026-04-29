@@ -199,6 +199,20 @@ val LOCK_DELETE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
             }
         """
     }
+
+    require("lockNotOnRootCommit") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it references the root commit." to HttpStatusCode.Conflict }
+
+        """
+            filter not exists {
+                graph mor-graph:Metadata {
+                    morl: mms:commit ?_rootCommit .
+                    filter(strstarts(str(morl:), concat(str(mor-lock:), "Commit.")))
+                    ?_rootCommit mms:parent rdf:nil .
+                }
+            }
+        """
+    }
 }
 
 val SCRATCH_DELETE_CONDITIONS = REPO_CRUD_CONDITIONS.append {

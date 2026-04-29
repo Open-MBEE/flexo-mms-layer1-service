@@ -607,6 +607,13 @@ suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
                         mms:commit <$baseCommitIri> .
                 }
             }
+
+            # skip if this is the root commit (created by repo create, has no real parent)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    <$baseCommitIri> mms:parent rdf:nil .
+                }
+            }
         }
     """
 
