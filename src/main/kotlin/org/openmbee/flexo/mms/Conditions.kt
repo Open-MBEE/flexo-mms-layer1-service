@@ -193,7 +193,6 @@ val LOCK_DELETE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
                 graph mor-graph:Metadata {
                     morl: mms:commit ?_bmCommit .
                     filter(strstarts(str(morl:), concat(str(mor-lock:), "Commit.")))
-                    filter not exists { morl: mms:etag ?_bmEtag . }
                     ?_bmBranch a mms:Branch ;
                         mms:commit ?_bmCommit .
                 }
