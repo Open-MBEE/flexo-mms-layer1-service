@@ -67,6 +67,27 @@ class LockDelete : LockAny() {
             }
         }
 
+        "delete one of two locks on same commit leaves other intact" {
+            val otherLockId = "other-lock"
+            val otherLockPath = "$basePathLocks/$otherLockId"
+
+            testApplication {
+                createLock(demoRepoPath, masterBranchPath, demoLockId)
+                val otherEtag = createLock(demoRepoPath, masterBranchPath, otherLockId).headers[HttpHeaders.ETag]
+
+                httpDelete(demoLockPath) {}.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                }
+
+                httpGet(otherLockPath) {}.apply {
+                    this shouldHaveStatus HttpStatusCode.OK
+                    this includesTriples {
+                        validateLockTriples(otherLockId, otherEtag!!)
+                    }
+                }
+            }
+        }
+
         "get deleted lock returns 404" {
             testApplication {
                 createLock(demoRepoPath, masterBranchPath, demoLockId)
