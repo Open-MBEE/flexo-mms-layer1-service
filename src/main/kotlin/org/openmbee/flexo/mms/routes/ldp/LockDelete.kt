@@ -55,65 +55,55 @@ suspend fun LdpDcLayer1Context<LdpDeleteResponse>.deleteLock() {
     val localConditions = LOCK_DELETE_CONDITIONS
 
     val updateString = buildSparqlUpdate {
-        compose {
-            txn()
-            conditions(localConditions)
-
-            delete {
-                graph("mor-graph:Metadata") {
-                    raw("""
-                        morl: ?morl_p ?morl_o .
-                    """)
-                }
-                graph("mor-graph:Metadata") {
-                    raw("""
-                        ?snapshot ?snapshot_p ?snapshot_o .
-                    """)
-                }
-                graph("m-graph:AccessControl.Policies") {
-                    raw("""
-                        ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
-                    """)
-                }
-                this
-            }
-
-            insert {
-                graph("m-graph:Transactions") {
-                    raw("""
-                        mt: mms-txn:droppedObject morl: .
-                    """)
-                }
-                this
-            }
-
-            where {
+        delete {
+            graph("mor-graph:Metadata") {
                 raw("""
-                    graph mor-graph:Metadata {
-                        morl: ?morl_p ?morl_o .
-                        
-                        optional {
-                            morl: mms:snapshot ?snapshot .
-                            ?snapshot ?snapshot_p ?snapshot_o .
-                            
-                            filter not exists {
-                                ?otherLock mms:snapshot ?snapshot .
-                                filter(?otherLock != morl:)
-                            }
-                        }
-                    }
+                    morl: ?morl_p ?morl_o .
+                """)
+            }
+            graph("mor-graph:Metadata") {
+                raw("""
+                    ?snapshot ?snapshot_p ?snapshot_o .
+                """)
+            }
+            graph("m-graph:AccessControl.Policies") {
+                raw("""
+                    ?lockPolicy ?lockPolicy_p ?lockPolicy_o .
+                """)
+            }
+        }
+        insert {
+            txn()
+            graph("m-graph:Transactions") {
+                raw("""
+                    mt: mms-txn:droppedObject morl: .
+                """)
+            }
+        }
+        where {
+            raw("""
+                graph mor-graph:Metadata {
+                    morl: ?morl_p ?morl_o .
                     
                     optional {
-                        graph m-graph:AccessControl.Policies {
-                            ?lockPolicy mms:scope morl: ;
-                                ?lockPolicy_p ?lockPolicy_o .
+                        morl: mms:snapshot ?snapshot .
+                        ?snapshot ?snapshot_p ?snapshot_o .
+                        
+                        filter not exists {
+                            ?otherLock mms:snapshot ?snapshot .
+                            filter(?otherLock != morl:)
                         }
                     }
-                """)
-                this
-            }
-
-            this
+                }
+                
+                optional {
+                    graph m-graph:AccessControl.Policies {
+                        ?lockPolicy mms:scope morl: ;
+                            ?lockPolicy_p ?lockPolicy_o .
+                    }
+                }
+            """)
+            raw(*localConditions.requiredPatterns())
         }
     }
 
