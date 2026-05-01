@@ -472,16 +472,17 @@ fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
  * Rewrites a user update so it includes the correct graph to update, and to reject unauthorized graph access
  * caller should replace ?__mms_model by the graph to be updated
  */
-fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): MutableList<String>  {
+fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): Pair<MutableList<String>, PrefixMapBuilder> {
     val updates = mutableListOf<String>()
-    withPrefixMap(prefixMap) {
+    val prefixBuilder = withPrefixMap(prefixMap) {
+        val mapping = toPrefixMappings()
         for (update in sparqlUpdateAst.operations) {
             when (update) {
                 is UpdateDataDelete -> updates.add(
                     """
                      DELETE DATA {
                          graph ?__mms_model {
-                             ${asSparqlGroup(update.quads)}
+                             ${asSparqlGroup(mapping, update.quads)}
                          }
                      }
                      """.trimIndent()
@@ -491,7 +492,7 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     """
                     INSERT DATA {
                         graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
+                            ${asSparqlGroup(mapping, update.quads)}
                         }
                     }
                     """.trimIndent()
@@ -501,40 +502,42 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     """
                     DELETE WHERE {
                         graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
+                            ${asSparqlGroup(mapping, update.quads)}
                         }
                     }
                     """.trimIndent()
                 )
 
                 is UpdateModify -> {
-                    var modify = "WITH ?__mms_model\n"
-                    if (update.hasDeleteClause()) {
-                        modify += """
+                    val modify = buildString {
+                        append("WITH ?__mms_model\n")
+                        if (update.hasDeleteClause()) {
+                            append("""
                                 DELETE {
-                                    ${asSparqlGroup(update.deleteQuads)}
+                                    ${asSparqlGroup(mapping, update.deleteQuads)}
                                 }
-                                """.trimIndent()
-                    }
-                    if (update.hasInsertClause()) {
-                        modify += """
+                                """.trimIndent())
+                        }
+                        if (update.hasInsertClause()) {
+                            append("""
                                 INSERT {
-                                    ${asSparqlGroup(update.insertQuads)}
+                                    ${asSparqlGroup(mapping, update.insertQuads)}
                                 }
-                                """.trimIndent()
-                    }
-                    modify += """
+                                """.trimIndent())
+                        }
+                        append("""
                             WHERE {
-                                ${asSparqlGroup(update.wherePattern.apply {
+                                ${asSparqlGroup(mapping, update.wherePattern.apply {
                                     visit(NoQuadsElementVisitor)
                                 })}
                             }
-                            """.trimIndent()
+                            """.trimIndent())
+                    }
                     updates.add(modify)
                 }
                 else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
         }
     }
-    return updates
+    return Pair(updates, prefixBuilder)
 }

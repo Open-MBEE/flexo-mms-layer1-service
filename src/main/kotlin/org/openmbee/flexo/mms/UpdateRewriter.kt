@@ -24,6 +24,8 @@ class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToStrin
 
 class Non200Response(val body: String, val status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
 
+private val ASK_WRAPPER_REGEX = """^\s*(PREFIX.*\s*)*\s*ASK\s+WHERE\s*\{|}$""".toRegex()
+private val MISSING_DOT_REGEX = "([^.])$".toRegex()
 
 object NoQuadsElementVisitor: ElementVisitor {
     // triples block cannot contain quads
@@ -119,8 +121,8 @@ fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): Strin
                 addElement(element)
             }
         }
-    }.serialize().replace("""^\s*(PREFIX.*\s*)*\s*ASK\s+WHERE\s*\{|}$""".toRegex(), "")
-        .trim().replace("([^.])$".toRegex(), "$1 .")
+    }.serialize().replace(ASK_WRAPPER_REGEX, "")
+        .trim().replace(MISSING_DOT_REGEX, "$1 .")
 }
 
 fun asSparqlGroup(

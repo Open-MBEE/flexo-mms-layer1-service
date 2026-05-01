@@ -26,6 +26,9 @@ fun Route.commitModel() {
         } catch(parse: Exception) {
             throw UpdateSyntaxException(parse)
         }
+        // Fail fast: reject named graphs in user update before creating a transaction
+        rejectGraphInUserUpdate(sparqlUpdateAst)
+
         val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
             assertPreconditions(this) {
                 """
@@ -39,19 +42,19 @@ fun Route.commitModel() {
         createBranchModifyingTransaction(localConditions)
         try {
             val txnModel = validateBranchModifyingTransaction(localConditions)
+            val localPrefixes = prefixes
+            val mtResource = txnModel.createResource(localPrefixes["mt"])
             val stagingGraphIri = txnModel.listObjectsOfProperty(
-                txnModel.createResource(prefixes["mt"]), MMS.TXN.stagingGraph)
+                mtResource, MMS.TXN.stagingGraph)
                 .next().asResource().uri
             val modelGraphIri = txnModel.listObjectsOfProperty(
-                txnModel.createResource(prefixes["mt"]), MMS.TXN.baseModelGraph)
+                mtResource, MMS.TXN.baseModelGraph)
                 .next().asResource().uri
             val baseCommitIri = txnModel.listObjectsOfProperty(
-                txnModel.createResource(prefixes["mt"]), MMS.TXN.baseCommit)
+                mtResource, MMS.TXN.baseCommit)
                 .next().asResource().uri
             val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
-            val updates = prepareUserUpdate(sparqlUpdateAst, prefixMap)
-            val userPrefixes = PrefixMapBuilder()
-            userPrefixes.map = prefixMap
+            val (updates, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap)
             val updateString = updates.joinToString(";\n")
             //run update, will throw error if triplestore response is not 2xx
             executeSparqlUpdate(updateString) {
@@ -72,7 +75,7 @@ fun Route.commitModel() {
             // set etag header
             call.response.header(HttpHeaders.ETag, transactionId)
             // provide location of new resource
-            call.response.header(HttpHeaders.Location, prefixes["morc"]!!)
+            call.response.header(HttpHeaders.Location, localPrefixes["morc"]!!)
 
             // forward response to client
             call.respondText(
