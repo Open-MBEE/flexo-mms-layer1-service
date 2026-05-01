@@ -54,8 +54,7 @@ fun Route.commitModel() {
                 mtResource, MMS.TXN.baseCommit)
                 .next().asResource().uri
             val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
-            val (updates, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap)
-            val updateString = updates.joinToString(";\n")
+            val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap)
             //run update, will throw error if triplestore response is not 2xx
             executeSparqlUpdate(updateString) {
                 prefixes(userPrefixes)
