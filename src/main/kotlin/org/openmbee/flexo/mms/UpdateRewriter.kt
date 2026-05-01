@@ -25,6 +25,7 @@ class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToStrin
 
 class Non200Response(val body: String, val status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
 
+private val OUTER_BRACES_REGEX = """^\s*\{(.*)\}\s*$""".toRegex(RegexOption.DOT_MATCHES_ALL)
 private val MISSING_DOT_REGEX = "([^.])$".toRegex()
 
 object NoQuadsElementVisitor: ElementVisitor {
@@ -122,7 +123,9 @@ fun asSparqlGroup(sCxt: SerializationContext, vararg elements: Element): String 
     val out = IndentedWriter(baos)
     FormatterElement.format(out, sCxt, group)
     out.flush()
-    return baos.toString(Charsets.UTF_8).trim().replace(MISSING_DOT_REGEX, "$1 .")
+    val raw = baos.toString(Charsets.UTF_8)
+    val inner = OUTER_BRACES_REGEX.matchEntire(raw)?.groupValues?.get(1) ?: raw
+    return inner.trim().replace(MISSING_DOT_REGEX, "$1 .")
 }
 
 fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): String {
