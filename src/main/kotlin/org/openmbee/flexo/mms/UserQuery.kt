@@ -12,6 +12,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.apache.jena.atlas.io.IndentedWriter
+import org.apache.jena.graph.Node
+import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
@@ -470,7 +472,7 @@ fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
 /**
  * Re-graphs quads from the default graph onto the given graph node.
  */
-private fun regraphQuads(quads: List<Quad>, graphNode: Var): List<Quad> {
+private fun regraphQuads(quads: List<Quad>, graphNode: Node): List<Quad> {
     return quads.map { quad ->
         if (quad.graph != null && !quad.isDefaultGraph) {
             throw QuadsNotAllowedException(quad.graph.toString())
@@ -480,11 +482,10 @@ private fun regraphQuads(quads: List<Quad>, graphNode: Var): List<Quad> {
 }
 
 /**
- * Rewrites a user update so it targets the ?__mms_model graph, using Jena's native AST.
- * Caller should substitute ?__mms_model with the actual graph IRI via ParameterizedSparqlString.
+ * Rewrites a user update so it targets the given graph IRI, using Jena's native AST.
  */
-fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): Pair<String, PrefixMapBuilder> {
-    val graphVar = Var.alloc("__mms_model")
+fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>, graphIri: String): Pair<String, PrefixMapBuilder> {
+    val graphNode = NodeFactory.createURI(graphIri)
     val rewritten = UpdateRequest()
     var updateString = ""
     val prefixBuilder = withPrefixMap(prefixMap) {
@@ -492,17 +493,17 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
         for (update in sparqlUpdateAst.operations) {
             when (update) {
                 is UpdateDataDelete -> {
-                    rewritten.add(UpdateDataDelete(QuadDataAcc(regraphQuads(update.quads, graphVar))))
+                    rewritten.add(UpdateDataDelete(QuadDataAcc(regraphQuads(update.quads, graphNode))))
                 }
                 is UpdateDataInsert -> {
-                    rewritten.add(UpdateDataInsert(QuadDataAcc(regraphQuads(update.quads, graphVar))))
+                    rewritten.add(UpdateDataInsert(QuadDataAcc(regraphQuads(update.quads, graphNode))))
                 }
                 is UpdateDeleteWhere -> {
-                    rewritten.add(UpdateDeleteWhere(QuadAcc(regraphQuads(update.quads, graphVar))))
+                    rewritten.add(UpdateDeleteWhere(QuadAcc(regraphQuads(update.quads, graphNode))))
                 }
                 is UpdateModify -> {
                     val mod = UpdateModify()
-                    mod.setWithIRI(graphVar)
+                    mod.setWithIRI(graphNode)
                     if (update.hasDeleteClause()) {
                         mod.setHasDeleteClause(true)
                         for (quad in update.deleteQuads) {

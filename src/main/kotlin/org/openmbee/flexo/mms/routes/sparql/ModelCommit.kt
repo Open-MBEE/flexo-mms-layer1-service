@@ -54,11 +54,10 @@ fun Route.commitModel() {
                 mtResource, MMS.TXN.baseCommit)
                 .next().asResource().uri
             val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
-            val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap)
+            val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap, stagingGraphIri)
             //run update, will throw error if triplestore response is not 2xx
             executeSparqlUpdate(updateString) {
                 prefixes(userPrefixes)
-                iri("__mms_model" to stagingGraphIri)
             }
             val commitUpdateString = genCommitUpdate()
             val constructResponseText = diffAndFinalizeCommit(
