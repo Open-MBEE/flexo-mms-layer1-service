@@ -27,6 +27,7 @@ fun Route.updateScratch() {
         // Fail fast: reject named graphs in user update before checking conditions
         rejectGraphInUserUpdate(sparqlUpdateAst)
 
+        val localPrefixes = prefixes
         val localConditions = SCRATCH_UPDATE_CONDITIONS.append {
             assertPreconditions(this) {
                 """
@@ -37,7 +38,7 @@ fun Route.updateScratch() {
                 """
             }
         }
-        val scratchGraph = checkModelQueryConditions(targetGraphIri="${prefixes["mor-graph"]}Scratch.$scratchId", conditions=localConditions)
+        val scratchGraph = checkModelQueryConditions(targetGraphIri="${localPrefixes["mor-graph"]}Scratch.$scratchId", conditions=localConditions)
         val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
         val (updates, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap)
         val updateString = updates.joinToString(";\n")

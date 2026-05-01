@@ -475,14 +475,14 @@ fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
 fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): Pair<MutableList<String>, PrefixMapBuilder> {
     val updates = mutableListOf<String>()
     val prefixBuilder = withPrefixMap(prefixMap) {
-        val mapping = toPrefixMappings()
+        val sCxt = toSerializationContext()
         for (update in sparqlUpdateAst.operations) {
             when (update) {
                 is UpdateDataDelete -> updates.add(
                     """
                      DELETE DATA {
                          graph ?__mms_model {
-                             ${asSparqlGroup(mapping, update.quads)}
+                             ${asSparqlGroup(sCxt, update.quads)}
                          }
                      }
                      """.trimIndent()
@@ -492,7 +492,7 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     """
                     INSERT DATA {
                         graph ?__mms_model {
-                            ${asSparqlGroup(mapping, update.quads)}
+                            ${asSparqlGroup(sCxt, update.quads)}
                         }
                     }
                     """.trimIndent()
@@ -502,7 +502,7 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     """
                     DELETE WHERE {
                         graph ?__mms_model {
-                            ${asSparqlGroup(mapping, update.quads)}
+                            ${asSparqlGroup(sCxt, update.quads)}
                         }
                     }
                     """.trimIndent()
@@ -514,20 +514,20 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                         if (update.hasDeleteClause()) {
                             append("""
                                 DELETE {
-                                    ${asSparqlGroup(mapping, update.deleteQuads)}
+                                    ${asSparqlGroup(sCxt, update.deleteQuads)}
                                 }
                                 """.trimIndent())
                         }
                         if (update.hasInsertClause()) {
                             append("""
                                 INSERT {
-                                    ${asSparqlGroup(mapping, update.insertQuads)}
+                                    ${asSparqlGroup(sCxt, update.insertQuads)}
                                 }
                                 """.trimIndent())
                         }
                         append("""
                             WHERE {
-                                ${asSparqlGroup(mapping, update.wherePattern.apply {
+                                ${asSparqlGroup(sCxt, update.wherePattern.apply {
                                     visit(NoQuadsElementVisitor)
                                 })}
                             }

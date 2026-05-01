@@ -62,25 +62,25 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     mergedPrefixMap.putAll(prefixes.map)
 
     val mergedPrefixes = withPrefixMap(mergedPrefixMap) {
-        val mapping = toPrefixMappings()
+        val sCxt = toSerializationContext()
         for(update in sparqlUpdateAst.operations) {
             when(update) {
-                is UpdateDataDelete -> deleteBgpString = asSparqlGroup(mapping, update.quads, patternFilter)
-                is UpdateDataInsert -> insertBgpString = asSparqlGroup(mapping, update.quads, patternFilter)
+                is UpdateDataDelete -> deleteBgpString = asSparqlGroup(sCxt, update.quads, patternFilter)
+                is UpdateDataInsert -> insertBgpString = asSparqlGroup(sCxt, update.quads, patternFilter)
                 is UpdateDeleteWhere -> {
-                    deleteBgpString = asSparqlGroup(mapping, update.quads, patternFilter)
+                    deleteBgpString = asSparqlGroup(sCxt, update.quads, patternFilter)
                     whereString = deleteBgpString
                 }
                 is UpdateModify -> {
                     if(update.hasDeleteClause()) {
-                        deleteBgpString = asSparqlGroup(mapping, update.deleteQuads, patternFilter)
+                        deleteBgpString = asSparqlGroup(sCxt, update.deleteQuads, patternFilter)
                     }
 
                     if(update.hasInsertClause()) {
-                        insertBgpString = asSparqlGroup(mapping, update.insertQuads, patternFilter)
+                        insertBgpString = asSparqlGroup(sCxt, update.insertQuads, patternFilter)
                     }
 
-                    whereString = asSparqlGroup(mapping, update.wherePattern.apply {
+                    whereString = asSparqlGroup(sCxt, update.wherePattern.apply {
                         visit(NoQuadsElementVisitor)
                     })
                 }

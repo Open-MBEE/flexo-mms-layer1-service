@@ -5,6 +5,7 @@ import org.apache.jena.rdf.model.Property
 import org.apache.jena.rdf.model.Resource
 import org.apache.jena.rdf.model.ResourceFactory
 import org.apache.jena.shared.PrefixMapping
+import org.apache.jena.sparql.serializer.SerializationContext
 import java.net.URLEncoder
 
 val OPENMBEE_MMS_RDF = "https://mms.openmbee.org/rdf"
@@ -50,6 +51,10 @@ class PrefixMapBuilder(other: PrefixMapBuilder?=null, setup: (PrefixMapBuilder.(
         return PrefixMapping.Factory.create().run {
             setNsPrefixes(map)
         }
+    }
+
+    fun toSerializationContext(): SerializationContext {
+        return SerializationContext(toPrefixMappings())
     }
 }
 
