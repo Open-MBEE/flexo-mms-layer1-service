@@ -25,7 +25,8 @@ fun Route.updateScratch() {
             throw UpdateSyntaxException(parse)
         }
         // Fail fast: reject named graphs in user update before checking conditions
-        rejectGraphInUserUpdate(sparqlUpdateAst)
+        // exception is thrown during rewriting, prevent iterating 2 times
+        //rejectGraphInUserUpdate(sparqlUpdateAst)
 
         val localPrefixes = prefixes
         val localConditions = SCRATCH_UPDATE_CONDITIONS.append {

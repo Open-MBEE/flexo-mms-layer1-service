@@ -27,7 +27,8 @@ fun Route.commitModel() {
             throw UpdateSyntaxException(parse)
         }
         // Fail fast: reject named graphs in user update before creating a transaction
-        rejectGraphInUserUpdate(sparqlUpdateAst)
+        // exception is thrown during rewriting, prevent iterating 2 times
+        //rejectGraphInUserUpdate(sparqlUpdateAst)
 
         val localConditions = DEFAULT_UPDATE_CONDITIONS.append {
             assertPreconditions(this) {

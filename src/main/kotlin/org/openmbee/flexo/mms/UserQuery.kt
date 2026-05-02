@@ -502,6 +502,7 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     rewritten.add(UpdateDeleteWhere(QuadAcc(regraphQuads(update.quads, graphNode))))
                 }
                 is UpdateModify -> {
+                    //update.setWithIRI(graphNode)
                     val mod = UpdateModify()
                     mod.setWithIRI(graphNode)
                     if (update.hasDeleteClause()) {
