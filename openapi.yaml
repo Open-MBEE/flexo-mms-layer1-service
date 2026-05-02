@@ -167,12 +167,19 @@ components:
         application/sparql-query:
           schema:
             type: string
-    SparqlResultsJsonResponse:
-      description: Successful SPARQL query response in JSON format.
+    SparqlQueryResponse:
+      description: >
+        Successful SPARQL query response. The response content type depends
+        on the query form: SELECT and ASK queries return SPARQL Results
+        JSON (`application/sparql-results+json`); CONSTRUCT and DESCRIBE
+        queries return RDF Turtle (`text/turtle`).
       content:
         application/sparql-results+json:
           schema:
             type: object
+        text/turtle:
+          schema:
+            type: string
     HeadResponse:
       description: Metadata-only response (no body).
       headers:
@@ -1340,7 +1347,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryResponse'
 
   /orgs/{orgId}/repos/{repoId}/query/inspect:
     parameters:
@@ -1369,7 +1376,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryResponse'
 
   /orgs/{orgId}/repos/{repoId}/locks/{lockId}/query/inspect:
     parameters:
@@ -1429,7 +1436,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryResponse'
 
   /orgs/{orgId}/repos/{repoId}/branches/{branchId}/query/inspect:
     parameters:
@@ -1459,7 +1466,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryResponse'
 
   /orgs/{orgId}/repos/{repoId}/scratches/{scratchId}/query/inspect:
     parameters:
@@ -1488,7 +1495,7 @@ paths:
         $ref: '#/components/requestBodies/SparqlQueryBody'
       responses:
         '200':
-          $ref: '#/components/responses/SparqlResultsJsonResponse'
+          $ref: '#/components/responses/SparqlQueryResponse'
 
   /orgs/{orgId}/collections/{collectionId}/query/inspect:
     parameters:
