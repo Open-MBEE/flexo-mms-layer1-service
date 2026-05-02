@@ -725,11 +725,24 @@ paths:
           $ref: '#/components/responses/TurtleResponse'
     delete:
       tags: [Locks]
-      summary: Delete a lock (not implemented)
+      summary: Delete a lock
       operationId: deleteLock
+      description: >
+        Deletes the lock and its associated metadata. Dangling snapshots
+        (not referenced by any other lock) and their model graphs are
+        cleaned up automatically. The request is rejected with 409 if the
+        lock is still referenced by a collection, is an auto-created commit
+        lock currently serving as a branch model, or references the root
+        commit.
       responses:
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+        '200':
+          $ref: '#/components/responses/TurtleResponse'
+        '403':
+          description: User does not have permission to delete this lock.
+        '404':
+          description: The specified lock does not exist.
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   # ──────────────────────────── Lock Model Graph ────────────────────────────
   /orgs/{orgId}/repos/{repoId}/locks/{lockId}/graph:
