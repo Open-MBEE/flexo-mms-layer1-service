@@ -508,12 +508,18 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                     if (update.hasDeleteClause()) {
                         mod.setHasDeleteClause(true)
                         for (quad in update.deleteQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
+                            }
                             mod.deleteAcc.addTriple(quad.asTriple())
                         }
                     }
                     if (update.hasInsertClause()) {
                         mod.setHasInsertClause(true)
                         for (quad in update.insertQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
+                            }
                             mod.insertAcc.addTriple(quad.asTriple())
                         }
                     }
