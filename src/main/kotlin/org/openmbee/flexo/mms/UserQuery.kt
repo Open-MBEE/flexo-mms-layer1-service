@@ -11,20 +11,21 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.apache.jena.atlas.io.IndentedWriter
+import org.apache.jena.graph.Node
+import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
 import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.modify.request.UpdateDataDelete
-import org.apache.jena.sparql.modify.request.UpdateDataInsert
-import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
-import org.apache.jena.sparql.modify.request.UpdateModify
+import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
 import org.apache.jena.update.UpdateRequest
+import java.io.ByteArrayOutputStream
 import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
@@ -469,72 +470,72 @@ fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
     }
 }
 /**
- * Rewrites a user update so it includes the correct graph to update, and to reject unauthorized graph access
- * caller should replace ?__mms_model by the graph to be updated
+ * Re-graphs quads from the default graph onto the given graph node.
  */
-fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): MutableList<String>  {
-    val updates = mutableListOf<String>()
-    withPrefixMap(prefixMap) {
+private fun regraphQuads(quads: List<Quad>, graphNode: Node): List<Quad> {
+    return quads.map { quad ->
+        if (quad.graph != null && !quad.isDefaultGraph) {
+            throw QuadsNotAllowedException(quad.graph.toString())
+        }
+        Quad.create(graphNode, quad.asTriple())
+    }
+}
+
+/**
+ * Rewrites a user update so it targets the given graph IRI, using Jena's native AST.
+ */
+fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>, graphIri: String): Pair<String, PrefixMapBuilder> {
+    val graphNode = NodeFactory.createURI(graphIri)
+    val rewritten = UpdateRequest()
+    var updateString = ""
+    val prefixBuilder = withPrefixMap(prefixMap) {
+        val sCxt = toSerializationContext()
         for (update in sparqlUpdateAst.operations) {
             when (update) {
-                is UpdateDataDelete -> updates.add(
-                    """
-                     DELETE DATA {
-                         graph ?__mms_model {
-                             ${asSparqlGroup(update.quads)}
-                         }
-                     }
-                     """.trimIndent()
-                )
-
-                is UpdateDataInsert -> updates.add(
-                    """
-                    INSERT DATA {
-                        graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
-                        }
-                    }
-                    """.trimIndent()
-                )
-
-                is UpdateDeleteWhere -> updates.add(
-                    """
-                    DELETE WHERE {
-                        graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
-                        }
-                    }
-                    """.trimIndent()
-                )
-
+                is UpdateDataDelete -> {
+                    rewritten.add(UpdateDataDelete(QuadDataAcc(regraphQuads(update.quads, graphNode))))
+                }
+                is UpdateDataInsert -> {
+                    rewritten.add(UpdateDataInsert(QuadDataAcc(regraphQuads(update.quads, graphNode))))
+                }
+                is UpdateDeleteWhere -> {
+                    rewritten.add(UpdateDeleteWhere(QuadAcc(regraphQuads(update.quads, graphNode))))
+                }
                 is UpdateModify -> {
-                    var modify = "WITH ?__mms_model\n"
+                    //update.setWithIRI(graphNode)
+                    val mod = UpdateModify()
+                    mod.setWithIRI(graphNode)
                     if (update.hasDeleteClause()) {
-                        modify += """
-                                DELETE {
-                                    ${asSparqlGroup(update.deleteQuads)}
-                                }
-                                """.trimIndent()
+                        mod.setHasDeleteClause(true)
+                        for (quad in update.deleteQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
+                            }
+                            mod.deleteAcc.addTriple(quad.asTriple())
+                        }
                     }
                     if (update.hasInsertClause()) {
-                        modify += """
-                                INSERT {
-                                    ${asSparqlGroup(update.insertQuads)}
-                                }
-                                """.trimIndent()
-                    }
-                    modify += """
-                            WHERE {
-                                ${asSparqlGroup(update.wherePattern.apply {
-                                    visit(NoQuadsElementVisitor)
-                                })}
+                        mod.setHasInsertClause(true)
+                        for (quad in update.insertQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
                             }
-                            """.trimIndent()
-                    updates.add(modify)
+                            mod.insertAcc.addTriple(quad.asTriple())
+                        }
+                    }
+                    mod.setElement(update.wherePattern.apply {
+                        visit(NoQuadsElementVisitor)
+                    })
+                    rewritten.add(mod)
                 }
                 else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
         }
+        val baos = ByteArrayOutputStream()
+        val out = IndentedWriter(baos)
+        UpdateWriter.output(rewritten, out, sCxt)
+        out.flush()
+        updateString = baos.toString(Charsets.UTF_8)
     }
-    return updates
+    return Pair(updateString, prefixBuilder)
 }

@@ -1,13 +1,14 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.http.*
+import org.apache.jena.atlas.io.IndentedWriter
 import org.apache.jena.graph.Triple
-import org.apache.jena.query.QueryFactory
-import org.apache.jena.riot.system.PrefixMap
 import org.apache.jena.shared.PrefixMapping
-import org.apache.jena.shared.impl.PrefixMappingImpl
 import org.apache.jena.sparql.core.Quad
+import org.apache.jena.sparql.serializer.FormatterElement
+import org.apache.jena.sparql.serializer.SerializationContext
 import org.apache.jena.sparql.syntax.*
+import java.io.ByteArrayOutputStream
 
 class RequirementsNotMetException(conditions: List<String>): Http400Exception("The following conditions failed after the transaction attempt:\n"
     +conditions.mapIndexed { i, v -> "${i}. $v" }.joinToString("\n"))
@@ -24,6 +25,8 @@ class UpdateSyntaxException(parse: Exception): Exception(parse.stackTraceToStrin
 
 class Non200Response(val body: String, val status: HttpStatusCode): Exception("Quadstore responded with a ${status.value} HTTP status code and the text:\n${body}")
 
+private val OUTER_BRACES_REGEX = """^\s*\{(.*)\}\s*$""".toRegex(RegexOption.DOT_MATCHES_ALL)
+private val MISSING_DOT_REGEX = "([^.])$".toRegex()
 
 object NoQuadsElementVisitor: ElementVisitor {
     // triples block cannot contain quads
@@ -110,25 +113,32 @@ fun assertNoQuads(elements: List<Element>?) {
 }
 
 
-fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): String {
-    return QueryFactory.create().apply {
-        setQueryAskType()
-        if(mapping != null) prefixMapping = mapping
-        queryPattern = ElementGroup().apply {
-            for(element in elements) {
-                addElement(element)
-            }
+fun asSparqlGroup(sCxt: SerializationContext, vararg elements: Element): String {
+    val group = ElementGroup().apply {
+        for(element in elements) {
+            addElement(element)
         }
-    }.serialize().replace("""^\s*(PREFIX.*\s*)*\s*ASK\s+WHERE\s*\{|}$""".toRegex(), "")
-        .trim().replace("([^.])$".toRegex(), "$1 .")
+    }
+    val baos = ByteArrayOutputStream()
+    val out = IndentedWriter(baos)
+    FormatterElement.format(out, sCxt, group)
+    out.flush()
+    val raw = baos.toString(Charsets.UTF_8)
+    val inner = OUTER_BRACES_REGEX.matchEntire(raw)?.groupValues?.get(1) ?: raw
+    return inner.trim().replace(MISSING_DOT_REGEX, "$1 .")
+}
+
+fun asSparqlGroup(mapping: PrefixMapping?=null, vararg elements: Element): String {
+    val sCxt = if (mapping != null) SerializationContext(mapping) else SerializationContext()
+    return asSparqlGroup(sCxt, *elements)
 }
 
 fun asSparqlGroup(
-    mapping: PrefixMapping?=null,
+    sCxt: SerializationContext,
     quads: List<Quad>,
     quadFilter: ((Quad)->Boolean)?=null
 ): String {
-    return asSparqlGroup(mapping, ElementTriplesBlock().apply {
+    return asSparqlGroup(sCxt, ElementTriplesBlock().apply {
         for(quad in quads) {
             if(quad.graph != null && !quad.isDefaultGraph) {
                 throw QuadsNotAllowedException(quad.graph.toString())
@@ -139,6 +149,15 @@ fun asSparqlGroup(
             addTriple(Triple.create(quad.subject, quad.predicate, quad.`object`))
         }
     })
+}
+
+fun asSparqlGroup(
+    mapping: PrefixMapping?=null,
+    quads: List<Quad>,
+    quadFilter: ((Quad)->Boolean)?=null
+): String {
+    val sCxt = if (mapping != null) SerializationContext(mapping) else SerializationContext()
+    return asSparqlGroup(sCxt, quads, quadFilter)
 }
 
 fun withPrefixMap(prefixMap: HashMap<String, String>, setup: PrefixMapBuilder.()->Unit): PrefixMapBuilder {
