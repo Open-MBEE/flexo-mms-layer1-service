@@ -742,7 +742,10 @@ paths:
         '404':
           description: The specified lock does not exist.
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: >
+            Conflict — the lock is still referenced by a collection, is an
+            auto-created commit lock currently serving as a branch model,
+            or references the root commit.
 
   # ──────────────────────────── Lock Model Graph ────────────────────────────
   /orgs/{orgId}/repos/{repoId}/locks/{lockId}/graph:
