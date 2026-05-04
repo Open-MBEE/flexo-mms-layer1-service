@@ -2,8 +2,8 @@ openapi: 3.0.3
 info:
   title: Flexo MMS Layer 1 Service API
   description: >
-    RESTful API for the Flexo MMS Layer 1 Service. Manages organizations,
-    repositories, branches, locks, commits, diffs, scratches, collections,
+    RESTful API for the Flexo MMS Layer 1 Service. Manages Orgs,
+    Repos, branches, locks, commits, diffs, scratches, collections,
     artifacts, groups, and policies. Backed by a SPARQL 1.1 quad-store.
     Uses Linked Data Platform (LDP) and Graph Store Protocol (GSP) conventions.
   version: 0.3.0
@@ -19,8 +19,8 @@ security:
   - bearerAuth: []
 
 tags:
-  - name: Organizations
-  - name: Repositories
+  - name: Orgs
+  - name: Repos
   - name: Branches
   - name: Locks
   - name: Commits
@@ -287,24 +287,24 @@ components:
             format: binary
 
 paths:
-  # ──────────────────────────── Organizations ────────────────────────────
+  # ──────────────────────────── Orgs ────────────────────────────
   /orgs:
     head:
-      tags: [Organizations]
-      summary: State of all organizations
+      tags: [Orgs]
+      summary: State of all Orgs
       operationId: headOrgs
       responses:
         '200':
           $ref: '#/components/responses/HeadResponse'
     get:
-      tags: [Organizations]
-      summary: List all organizations
+      tags: [Orgs]
+      summary: List all Orgs
       operationId: getOrgs
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
     post:
-      tags: [Organizations]
+      tags: [Orgs]
       summary: Create a new organization
       operationId: createOrg
       parameters:
@@ -326,7 +326,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/orgId'
     head:
-      tags: [Organizations]
+      tags: [Orgs]
       summary: State of an organization
       operationId: headOrg
       parameters:
@@ -337,7 +337,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     get:
-      tags: [Organizations]
+      tags: [Orgs]
       summary: Read an organization
       operationId: getOrg
       parameters:
@@ -348,7 +348,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     put:
-      tags: [Organizations]
+      tags: [Orgs]
       summary: Create or replace an organization
       operationId: createOrReplaceOrg
       requestBody:
@@ -365,7 +365,7 @@ paths:
         '201':
           $ref: '#/components/responses/CreatedResponse'
     patch:
-      tags: [Organizations]
+      tags: [Orgs]
       summary: Update an organization
       operationId: updateOrg
       parameters:
@@ -398,26 +398,26 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  # ──────────────────────────── Repositories ────────────────────────────
+  # ──────────────────────────── Repos ────────────────────────────
   /orgs/{orgId}/repos:
     parameters:
       - $ref: '#/components/parameters/orgId'
     head:
-      tags: [Repositories]
-      summary: State of all repositories
+      tags: [Repos]
+      summary: State of all Repos
       operationId: headRepos
       responses:
         '200':
           $ref: '#/components/responses/HeadResponse'
     get:
-      tags: [Repositories]
-      summary: List all repositories
+      tags: [Repos]
+      summary: List all Repos
       operationId: getRepos
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
     post:
-      tags: [Repositories]
+      tags: [Repos]
       summary: Create a new repository
       operationId: createRepo
       parameters:
@@ -439,21 +439,21 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     head:
-      tags: [Repositories]
+      tags: [Repos]
       summary: State of a repository
       operationId: headRepo
       responses:
         '200':
           $ref: '#/components/responses/HeadResponse'
     get:
-      tags: [Repositories]
+      tags: [Repos]
       summary: Read a repository
       operationId: getRepo
       responses:
         '200':
           $ref: '#/components/responses/TurtleResponse'
     put:
-      tags: [Repositories]
+      tags: [Repos]
       summary: Create or replace a repository
       operationId: createOrReplaceRepo
       requestBody:
@@ -470,7 +470,7 @@ paths:
         '201':
           $ref: '#/components/responses/CreatedResponse'
     patch:
-      tags: [Repositories]
+      tags: [Repos]
       summary: Update a repository
       operationId: updateRepo
       parameters:
@@ -504,14 +504,14 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     head:
-      tags: [Repositories]
+      tags: [Repos]
       summary: State of repository metadata graph
       operationId: headRepoGraph
       responses:
         '200':
           $ref: '#/components/responses/HeadResponse'
     get:
-      tags: [Repositories]
+      tags: [Repos]
       summary: Read repository metadata graph
       operationId: getRepoGraph
       responses:
@@ -1340,7 +1340,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     post:
-      tags: [SPARQL Query, Repositories]
+      tags: [SPARQL Query, Repos]
       summary: SPARQL query against a repository (via body)
       operationId: queryRepoPost
       requestBody:
@@ -1354,7 +1354,7 @@ paths:
       - $ref: '#/components/parameters/orgId'
       - $ref: '#/components/parameters/repoId'
     post:
-      tags: [SPARQL Query, Repositories]
+      tags: [SPARQL Query, Repos]
       summary: SPARQL query against a repository with inspection (via body)
       operationId: queryRepoInspectPost
       requestBody:

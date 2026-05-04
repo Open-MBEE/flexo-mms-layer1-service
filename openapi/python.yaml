@@ -1,0 +1,5 @@
+additionalProperties:
+  packageName: flexo_mms_layer1
+  packageVersion: 0.3.0
+  projectName: flexo-mms-layer1
+  disallowAdditionalPropertiesIfNotPresent: "false"
