@@ -115,9 +115,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
     val clusterUri = prefixes["m"]!!
     val refPermissionValues = foundRefTypes.entries.joinToString("\n") { (ref, refType) ->
         val requiredPerm = when {
-            refType.endsWith("Branch") -> "mms-object:Permission.UpdateBranch"
-            refType.endsWith("Lock") -> "mms-object:Permission.UpdateLock"
-            refType.endsWith("Scratch") -> "mms-object:Permission.UpdateScratch"
+            refType.endsWith("Branch") -> "mms-object:Permission.DeleteBranch"
+            refType.endsWith("Lock") -> "mms-object:Permission.DeleteLock"
+            refType.endsWith("Scratch") -> "mms-object:Permission.DeleteScratch"
             else -> throw Http400Exception("Unknown ref type: $refType")
         }
         val repoUri = ref.replace(Regex("/(branches|locks|scratches)/.*$"), "")
