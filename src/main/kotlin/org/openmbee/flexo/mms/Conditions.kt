@@ -235,12 +235,17 @@ class Condition(val type: ConditionType, val key: String) {
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
     /**
      * Adds a requirement to the query conditions that the current user has the given permission within the given scope.
+     *
+     * When [scopeUris] is non-null, the SPARQL `values ?__mms_scope { ... }` clause is bound to those explicit IRIs
+     * instead of being derived from the active request prefix chain (`scope.values()`). Use this when the resource
+     * being checked is not the resource implied by the request path — e.g. a policy whose target scope is supplied
+     * by the request body.
      */
-    fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
+    fun permit(permission: Permission, scope: Scope, scopeUris: List<String>?=null): ConditionsBuilder {
         return require(permission.id) {
             handler = { layer1 -> "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${layer1.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
 
-            permittedActionSparqlBgp(permission, scope)
+            permittedActionSparqlBgp(permission, scope, scopeUris=scopeUris)
         }
     }
 

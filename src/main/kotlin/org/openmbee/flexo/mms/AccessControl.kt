@@ -112,7 +112,23 @@ enum class Role(val id: String) {
 }
 
 @JvmOverloads
-fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=null, replace: String?=null): String {
+fun permittedActionSparqlBgp(
+    permission: Permission,
+    scope: Scope,
+    find: Regex?=null,
+    replace: String?=null,
+    scopeUris: List<String>?=null,
+): String {
+    // when explicit scope URIs are supplied, emit them as full IRIs; otherwise fall back to the
+    // prefix-based scope chain derived from the active request context (`scope.values()`).
+    val scopeValuesClause = if(scopeUris != null) {
+        scopeUris.joinToString(" ") { "<$it>" }
+    } else {
+        scope.values().joinToString(" ") { it.run {
+            if(find != null && replace != null) this.replace(find, replace) else this
+        } }
+    }
+
     return """
         # some policy exists
         graph m-graph:AccessControl.Policies {
@@ -159,9 +175,7 @@ fun permittedActionSparqlBgp(permission: Permission, scope: Scope, find: Regex?=
 
         # intersect scopes relevant to context
         values ?__mms_scope {
-            ${scope.values().joinToString(" ") { it.run {
-                if(find != null && replace != null) this.replace(find, replace) else this
-            } } }
+            $scopeValuesClause
         }
     
         # lookup scope's class
