@@ -33,11 +33,184 @@ private fun PatternBuilder<*>.existingPolicy() {
     }
 }
 
+// resolved scope information for a policy's target
+private data class PolicyScopeAuthorization(
+    val permission: Permission,
+    val scope: Scope,
+    val ancestorScopeUris: List<String>,
+)
+
+// inspect the policy's target scope URI and resolve which DELETE permission and ancestor scopes apply.
+// the prefixes for a policy creation request only include cluster/user/policy, so we cannot rely on
+// `Scope.values()` (which expects e.g. `mo:`/`mor:` to be defined) and instead supply explicit URIs.
+private fun resolvePolicyScopeAuthorization(scopeUri: String, clusterUri: String): PolicyScopeAuthorization {
+    val rest = if(scopeUri.startsWith(clusterUri)) scopeUri.substring(clusterUri.length) else null
+
+    if(scopeUri == clusterUri || rest == "") {
+        // cluster-scoped policies still require cluster-level admin (UPDATE_POLICY) as before
+        return PolicyScopeAuthorization(Permission.UPDATE_POLICY, Scope.CLUSTER, listOf(clusterUri))
+    }
+
+    if(rest == null) {
+        throw Http400Exception("Invalid policy scope <$scopeUri>: not a recognized resource under <$clusterUri>")
+    }
+
+    val branchMatch = Regex("""^orgs/([^/]+)/repos/([^/]+)/branches/([^/]+)$""").matchEntire(rest)
+    if(branchMatch != null) {
+        val (orgId, repoId, _) = branchMatch.destructured
+        return PolicyScopeAuthorization(
+            Permission.DELETE_BRANCH, Scope.BRANCH,
+            listOf(clusterUri, "${clusterUri}orgs/$orgId", "${clusterUri}orgs/$orgId/repos/$repoId", scopeUri),
+        )
+    }
+
+    val lockMatch = Regex("""^orgs/([^/]+)/repos/([^/]+)/locks/([^/]+)$""").matchEntire(rest)
+    if(lockMatch != null) {
+        val (orgId, repoId, _) = lockMatch.destructured
+        return PolicyScopeAuthorization(
+            Permission.DELETE_LOCK, Scope.LOCK,
+            listOf(clusterUri, "${clusterUri}orgs/$orgId", "${clusterUri}orgs/$orgId/repos/$repoId", scopeUri),
+        )
+    }
+
+    val scratchMatch = Regex("""^orgs/([^/]+)/repos/([^/]+)/scratches/([^/]+)$""").matchEntire(rest)
+    if(scratchMatch != null) {
+        val (orgId, repoId, _) = scratchMatch.destructured
+        return PolicyScopeAuthorization(
+            Permission.DELETE_SCRATCH, Scope.SCRATCH,
+            listOf(clusterUri, "${clusterUri}orgs/$orgId", "${clusterUri}orgs/$orgId/repos/$repoId", scopeUri),
+        )
+    }
+
+    val repoMatch = Regex("""^orgs/([^/]+)/repos/([^/]+)$""").matchEntire(rest)
+    if(repoMatch != null) {
+        val (orgId, _) = repoMatch.destructured
+        return PolicyScopeAuthorization(
+            Permission.DELETE_REPO, Scope.REPO,
+            listOf(clusterUri, "${clusterUri}orgs/$orgId", scopeUri),
+        )
+    }
+
+    val collectionMatch = Regex("""^orgs/([^/]+)/collections/([^/]+)$""").matchEntire(rest)
+    if(collectionMatch != null) {
+        val (orgId, _) = collectionMatch.destructured
+        return PolicyScopeAuthorization(
+            Permission.DELETE_COLLECTION, Scope.COLLECTION,
+            listOf(clusterUri, "${clusterUri}orgs/$orgId", scopeUri),
+        )
+    }
+
+    val orgMatch = Regex("""^orgs/([^/]+)$""").matchEntire(rest)
+    if(orgMatch != null) {
+        return PolicyScopeAuthorization(
+            Permission.DELETE_ORG, Scope.ORG,
+            listOf(clusterUri, scopeUri),
+        )
+    }
+
+    throw Http400Exception("Invalid policy scope <$scopeUri>: does not match any known scope pattern")
+}
+
+// like `permittedActionSparqlBgp`, but binds `?__mms_scope` to an explicit list of ancestor URIs of the
+// policy's target scope rather than relying on prefix-based scope resolution. used because policy create/
+// update requests only have cluster/user/policy prefixes available.
+private fun permittedActionForScopeUrisSparqlBgp(
+    permission: Permission,
+    scope: Scope,
+    scopeUris: List<String>,
+): String {
+    return """
+        # some policy exists
+        graph m-graph:AccessControl.Policies {
+            ?__mms_policy a mms:Policy ;
+                mms:scope ?__mms_scope ;
+                mms:role ?__mms_role ;
+                ?__mms_policy_p ?__mms_policy_o ;
+                .
+        }
+
+        # deduce `?__mms_authMethod`
+        {
+            # the policy applies to this user within an appropriate scope
+            graph m-graph:AccessControl.Policies {
+                # policy about user
+                ?__mms_policy mms:subject mu: .
+            }
+
+            # indicate method for authentication was against user
+            bind("user" as ?__mms_authMethod)
+        } union {
+            # user belongs to some group
+            graph m-graph:AccessControl.Agents {
+                ?__mms_group a mms:Group ;
+                    mms:id ?__mms_groupId ;
+                    .
+
+                values ?__mms_groupId {
+                    # @values groupId
+                }
+            }
+
+            # a policy exists that applies to this group within an appropriate scope
+            graph m-graph:AccessControl.Policies {
+                # or policy about group user belongs to
+                ?__mms_policy mms:subject ?__mms_group .
+            }
+
+            # indicate method for authentication was against group
+            bind("group" as ?__mms_authMethod)
+        }
+
+        # constrain `?__mms_scope` to ancestors of the policy's target scope
+        values ?__mms_scope {
+            ${scopeUris.joinToString(" ") { "<$it>" }}
+        }
+
+        # lookup scope's class
+        graph m-graph:Cluster {
+            ?__mms_scope rdf:type ?__mms_scopeType .
+        }
+
+        # lookup scope class, role, and permissions
+        graph m-graph:AccessControl.Definitions {
+            ?__mms_scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
+
+            ?__mms_role a mms:Role ;
+                mms:permits ?__mms_directRolePermissions ;
+                .
+
+            ?__mms_directRolePermissions a mms:Permission ;
+                mms:implies* mms-object:Permission.${permission.id} ;
+                .
+        }
+    """
+}
+
+// require that the user has admin (DELETE) authority on the policy's target scope
+private fun ConditionsBuilder.permitForPolicyScope(
+    permission: Permission,
+    scope: Scope,
+    scopeUri: String,
+    scopeUris: List<String>,
+) {
+    require(permission.id) {
+        handler = { layer1 ->
+            "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id} on policy scope <$scopeUri>. Observed LDAP groups include: ${layer1.groups.joinToString(", ")}" to HttpStatusCode.Forbidden
+        }
+
+        permittedActionForScopeUrisSparqlBgp(permission, scope, scopeUris)
+    }
+}
+
 suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplacePolicy() {
     // parse the path params
     parsePathParams {
         policy(legal=true)
     }
+
+    // captured for use after the body is parsed; the policy's target scope URI determines which
+    // admin role the requesting user must hold to create/update this policy.
+    lateinit var scopeUri: String
 
     // process RDF body from user about this new policy
     val policyTriples = filterIncomingStatements("mp") {
@@ -48,6 +221,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
 
             // expect exactly 1 scope node
             val scopeNode = extractExactly1Uri(MMS.scope)
+            scopeUri = scopeNode.uri
 
             // expect 1 or more roles
             val roleNodes = extract1OrMoreUris(MMS.role)
@@ -118,16 +292,11 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
             }
         }
 
-        // intent is ambiguous or resource is definitely being replaced
-        if(replaceExisting) {
-            // require that the user has the ability to update orgs on a cluster-level scope (necessarily implies ability to create)
-            permit(Permission.UPDATE_POLICY, Scope.CLUSTER)
-        }
-        // resource is being created
-        else {
-            // require that the user has the ability to create orgs on a cluster-level scope
-            permit(Permission.CREATE_POLICY, Scope.CLUSTER)
-        }
+        // require that the user has Admin role (i.e. DELETE permission) on the policy's target scope.
+        // the same check applies to both create and update — anyone authorized to grant access at this
+        // scope must already be an admin of it.
+        val auth = resolvePolicyScopeAuthorization(scopeUri, prefixes["m"]!!)
+        permitForPolicyScope(auth.permission, auth.scope, scopeUri, auth.ancestorScopeUris)
     }
 
     // prep SPARQL UPDATE string
