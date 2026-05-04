@@ -42,7 +42,8 @@ private data class PolicyScopeAuthorization(
 
 // inspect the policy's target scope URI and resolve which DELETE permission and ancestor scopes apply.
 // the prefixes for a policy creation request only include cluster/user/policy, so we cannot rely on
-// `Scope.values()` (which expects e.g. `mo:`/`mor:` to be defined) and instead supply explicit URIs.
+// `Scope.values()` (which expects e.g. `mo:`/`mor:` to be defined) and instead pass explicit URIs to
+// `permit(...)` via its `scopeUris` parameter.
 private fun resolvePolicyScopeAuthorization(scopeUri: String, clusterUri: String): PolicyScopeAuthorization {
     val rest = if(scopeUri.startsWith(clusterUri)) scopeUri.substring(clusterUri.length) else null
 
@@ -109,97 +110,6 @@ private fun resolvePolicyScopeAuthorization(scopeUri: String, clusterUri: String
     }
 
     throw Http400Exception("Invalid policy scope <$scopeUri>: does not match any known scope pattern")
-}
-
-// like `permittedActionSparqlBgp`, but binds `?__mms_scope` to an explicit list of ancestor URIs of the
-// policy's target scope rather than relying on prefix-based scope resolution. used because policy create/
-// update requests only have cluster/user/policy prefixes available.
-private fun permittedActionForScopeUrisSparqlBgp(
-    permission: Permission,
-    scope: Scope,
-    scopeUris: List<String>,
-): String {
-    return """
-        # some policy exists
-        graph m-graph:AccessControl.Policies {
-            ?__mms_policy a mms:Policy ;
-                mms:scope ?__mms_scope ;
-                mms:role ?__mms_role ;
-                ?__mms_policy_p ?__mms_policy_o ;
-                .
-        }
-
-        # deduce `?__mms_authMethod`
-        {
-            # the policy applies to this user within an appropriate scope
-            graph m-graph:AccessControl.Policies {
-                # policy about user
-                ?__mms_policy mms:subject mu: .
-            }
-
-            # indicate method for authentication was against user
-            bind("user" as ?__mms_authMethod)
-        } union {
-            # user belongs to some group
-            graph m-graph:AccessControl.Agents {
-                ?__mms_group a mms:Group ;
-                    mms:id ?__mms_groupId ;
-                    .
-
-                values ?__mms_groupId {
-                    # @values groupId
-                }
-            }
-
-            # a policy exists that applies to this group within an appropriate scope
-            graph m-graph:AccessControl.Policies {
-                # or policy about group user belongs to
-                ?__mms_policy mms:subject ?__mms_group .
-            }
-
-            # indicate method for authentication was against group
-            bind("group" as ?__mms_authMethod)
-        }
-
-        # constrain `?__mms_scope` to ancestors of the policy's target scope
-        values ?__mms_scope {
-            ${scopeUris.joinToString(" ") { "<$it>" }}
-        }
-
-        # lookup scope's class
-        graph m-graph:Cluster {
-            ?__mms_scope rdf:type ?__mms_scopeType .
-        }
-
-        # lookup scope class, role, and permissions
-        graph m-graph:AccessControl.Definitions {
-            ?__mms_scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
-
-            ?__mms_role a mms:Role ;
-                mms:permits ?__mms_directRolePermissions ;
-                .
-
-            ?__mms_directRolePermissions a mms:Permission ;
-                mms:implies* mms-object:Permission.${permission.id} ;
-                .
-        }
-    """
-}
-
-// require that the user has admin (DELETE) authority on the policy's target scope
-private fun ConditionsBuilder.permitForPolicyScope(
-    permission: Permission,
-    scope: Scope,
-    scopeUri: String,
-    scopeUris: List<String>,
-) {
-    require(permission.id) {
-        handler = { layer1 ->
-            "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id} on policy scope <$scopeUri>. Observed LDAP groups include: ${layer1.groups.joinToString(", ")}" to HttpStatusCode.Forbidden
-        }
-
-        permittedActionForScopeUrisSparqlBgp(permission, scope, scopeUris)
-    }
 }
 
 suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseContext>.createOrReplacePolicy() {
@@ -296,7 +206,7 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
         // the same check applies to both create and update — anyone authorized to grant access at this
         // scope must already be an admin of it.
         val auth = resolvePolicyScopeAuthorization(scopeUri, prefixes["m"]!!)
-        permitForPolicyScope(auth.permission, auth.scope, scopeUri, auth.ancestorScopeUris)
+        permit(auth.permission, auth.scope, auth.ancestorScopeUris)
     }
 
     // prep SPARQL UPDATE string
