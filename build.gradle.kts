@@ -104,12 +104,12 @@ tasks {
         this.testLogging {
             this.showStandardStreams = true
         }
-        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT"))
-        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL"))
-        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL"))
-        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
+        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT") ?: "http://layer1-service")
+        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL") ?: "http://localhost:3030/ds/sparql")
+        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL") ?: "http://localhost:3030/ds/update")
+        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL") ?: "http://localhost:3030/ds/data")
         if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
-            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
+            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL") ?: "http://localhost:8081/store")
     }
 }
 tasks.test {
