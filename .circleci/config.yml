@@ -9,7 +9,8 @@ jobs:
       name: node/default
     working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
-      - checkout
+      - checkout:
+          depth: null
       - restore_cache:
           name: Restore NPM package Cache
           keys:

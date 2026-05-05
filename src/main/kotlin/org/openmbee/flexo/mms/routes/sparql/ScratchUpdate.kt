@@ -44,9 +44,7 @@ fun Route.updateScratch() {
         val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap, scratchGraph)
         // execute the SPARQL UPDATE
         // construct the scratch's named graph IRI
-        val responseText = executeSparqlUpdate(updateString) {
-            prefixes(userPrefixes)
-        }
+        val responseText = executeSparqlUpdate(updateString) { this }
 
         // forward response to client
         call.respondText(responseText, status = HttpStatusCode.OK)
