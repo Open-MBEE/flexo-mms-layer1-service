@@ -57,9 +57,7 @@ fun Route.commitModel() {
             val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
             val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap, stagingGraphIri)
             //run update, will throw error if triplestore response is not 2xx
-            executeSparqlUpdate(updateString) {
-                prefixes(userPrefixes)
-            }
+            executeSparqlUpdate(updateString) {this}
             val commitUpdateString = genCommitUpdate()
             val constructResponseText = diffAndFinalizeCommit(
                 stagingGraphIri,
