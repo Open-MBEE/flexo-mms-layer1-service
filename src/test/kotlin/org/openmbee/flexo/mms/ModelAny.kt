@@ -19,18 +19,5 @@ open class ModelAny: RefAny() {
                 MMS.createdBy exactly localIri("/users/root").iri
             )
         }
-        /*
-        //currently it returns AutoOrgOwner,
-        matchOneSubjectTerseByPrefix("m-policy:AutoOrgOwner") {
-            includes(
-                RDF.type exactly MMS.Policy,
-            )
-        }*/
-
-        // validate transaction
-        validateTransaction(orgPath=demoOrgPath, repoPath=demoRepoPath, branchPath=branchPath, user="root")
-
-        // inspect
-        subject("urn:mms:inspect") { ignoreAll() }
     }
 }

@@ -3,14 +3,14 @@ import java.net.URI
 
 plugins {
     application
-    kotlin("jvm") version "2.1.21"
-    kotlin("plugin.serialization") version "2.1.21"
+    kotlin("jvm") version "2.3.20"
+    kotlin("plugin.serialization") version "2.3.20"
     jacoco
     id("org.sonarqube") version "6.2.0.5505"
 }
 
 group = "org.openmbee.flexo.mms"
-version = "0.2.0"
+version = "0.3.0"
 
 sonar {
     properties {
@@ -28,6 +28,10 @@ repositories {
     mavenCentral()
 }
 
+jacoco {
+    toolVersion = "0.8.12"
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
@@ -37,7 +41,7 @@ val testFuseki: Configuration by configurations.creating
 dependencies {
     implementation(kotlin("stdlib"))
 
-    val kotestVersion = "5.9.1"
+    val kotestVersion = "6.1.11"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-json-jvm:$kotestVersion")
@@ -46,15 +50,15 @@ dependencies {
     val commonsCliVersion = "1.9.0"
     implementation("commons-cli:commons-cli:$commonsCliVersion")
 
-    val kotlinxJsonVersion = "1.8.1"
+    val kotlinxJsonVersion = "1.9.0"
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxJsonVersion")
 
-    val jenaVersion = "4.10.0"
+    val jenaVersion = "6.0.0"
     implementation("org.apache.jena:jena-arq:${jenaVersion}")
     testImplementation("org.apache.jena:jena-rdfconnection:${jenaVersion}");
     testFuseki("org.apache.jena:jena-fuseki-server:$jenaVersion")
 
-    val ktorVersion = "2.3.4"
+    val ktorVersion = "3.4.2"
     implementation("io.ktor:ktor-client-core:${ktorVersion}")
     implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
     implementation("io.ktor:ktor-client-cio:${ktorVersion}")
@@ -67,11 +71,10 @@ dependencies {
     implementation("io.ktor:ktor-server-default-headers:$ktorVersion")
     implementation("io.ktor:ktor-server-forwarded-header:$ktorVersion")
     implementation("io.ktor:ktor-server-host-common:$ktorVersion")
-    implementation("io.ktor:ktor-server-locations:$ktorVersion")
     implementation("io.ktor:ktor-server-netty:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
-    testImplementation("io.ktor:ktor-server-tests:$ktorVersion")
-    testImplementation("io.kotest.extensions:kotest-assertions-ktor:2.0.0")
+    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
+    testImplementation("io.kotest:kotest-assertions-ktor:$kotestVersion")
 
     val logbackVersion = "1.5.18"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
@@ -101,12 +104,12 @@ tasks {
         this.testLogging {
             this.showStandardStreams = true
         }
-        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT"))
-        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL"))
-        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL"))
-        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL"))
+        environment("FLEXO_MMS_ROOT_CONTEXT", System.getenv("FLEXO_MMS_ROOT_CONTEXT") ?: "http://layer1-service")
+        environment("FLEXO_MMS_QUERY_URL", System.getenv("FLEXO_MMS_QUERY_URL") ?: "http://localhost:3030/ds/sparql")
+        environment("FLEXO_MMS_UPDATE_URL", System.getenv("FLEXO_MMS_UPDATE_URL") ?: "http://localhost:3030/ds/update")
+        environment("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL", System.getenv("FLEXO_MMS_GRAPH_STORE_PROTOCOL_URL") ?: "http://localhost:3030/ds/data")
         if (System.getenv("FLEXO_MMS_STORE_SERVICE_URL") != null)
-            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL"))
+            environment("FLEXO_MMS_STORE_SERVICE_URL", System.getenv("FLEXO_MMS_STORE_SERVICE_URL") ?: "http://localhost:8081/store")
     }
 }
 tasks.test {
@@ -119,7 +122,7 @@ tasks.jacocoTestReport {
     }
 }
 tasks.register("generateBuildInfo") {
-    val buildInfoFile = file("$buildDir/resources/main/build-info.properties")
+    val buildInfoFile = layout.buildDirectory.file("resources/main/build-info.properties").get().asFile
     outputs.file(buildInfoFile)
     doLast {
         buildInfoFile.writeText(
@@ -134,11 +137,15 @@ tasks.named("processResources") {
     finalizedBy("generateBuildInfo")
 }
 
+tasks.named("jar") {
+    dependsOn("generateBuildInfo")
+}
+
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.compilerOptions {
     freeCompilerArgs.add("-Xdebug")
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }

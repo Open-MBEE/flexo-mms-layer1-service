@@ -4,7 +4,7 @@ import io.kotest.core.test.TestCase
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.apache.jena.vocabulary.DCTerms
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
@@ -68,7 +68,7 @@ open class RefAny : RepoAny() {
             validateTransaction(demoOrgPath, demoRepoPath, demoBranchPath, "root")
 
             // inspect
-            subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
+            //subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
         }
     }
 }

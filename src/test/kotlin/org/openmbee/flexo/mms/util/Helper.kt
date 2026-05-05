@@ -5,7 +5,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.openmbee.flexo.mms.*
 import java.net.URLEncoder
 
@@ -55,6 +55,35 @@ suspend fun ApplicationTestBuilder.createLock(repoPath: String, refPath: String,
         setTurtleBody("""
            <> mms:ref <$refPath> .
         """.trimIndent())
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
+suspend fun ApplicationTestBuilder.createBranchFromCommit(repoPath: String, commitIri: String, branchId: String, branchName: String): HttpResponse {
+    val response = httpPut("$repoPath/branches/$branchId") {
+        setTurtleBody(withAllTestPrefixes("""
+            <> dct:title "$branchName"@en .
+            <> mms:commit <$commitIri> .
+        """.trimIndent()))
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
+suspend fun ApplicationTestBuilder.createLockFromCommit(repoPath: String, commitIri: String, lockId: String): HttpResponse {
+    val response = httpPut("$repoPath/locks/$lockId") {
+        setTurtleBody(withAllTestPrefixes("""
+           <> mms:commit <$commitIri> .
+        """.trimIndent()))
+    }
+    response shouldHaveStatus HttpStatusCode.Created
+    return response
+}
+
+suspend fun ApplicationTestBuilder.createCollection(orgPath: String, collectionId: String, body: String): HttpResponse {
+    val response = httpPut("$orgPath/collections/$collectionId") {
+        setTurtleBody(body)
     }
     response shouldHaveStatus HttpStatusCode.Created
     return response
@@ -136,6 +165,68 @@ fun withAllTestPrefixes(body: String): String {
         
         $body
     """.trimIndent()
+}
+
+/**
+ * Deletes all auto-created locks (mor-lock:Commit.*) from the metadata graph.
+ * Model commits and loads automatically create a lock on each commit with lockId = Commit.<etag>.
+ * These must be removed before squash tests to avoid the branch-point safety check rejecting
+ * the squash due to locks referencing intermediate commits.
+ */
+suspend fun deleteAutoCreatedLocks(updateUrl: String, repoPath: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        // Use full IRI string literal instead of prefixed name for the filter.
+        // SPARQL prefixed names cannot end with a dot (it is parsed as a statement
+        // terminator), so "mor-lock:Commit." would cause a parse error.
+        parameter("update", """
+             prefix mor-graph: <$ROOT_CONTEXT$repoPath/graphs/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             delete {
+                 graph mor-graph:Metadata {
+                     ?lock ?p ?o .
+                 }
+             }
+             where {
+                 graph mor-graph:Metadata {
+                     ?lock a mms:Lock ;
+                         ?p ?o .
+                     filter(strstarts(str(?lock), "$ROOT_CONTEXT$repoPath/locks/Commit."))
+                 }
+             }
+        """.trimIndent())
+    }
+}
+
+/**
+ * Deletes the auto-created lock for a specific commit from the metadata graph.
+ * This forces the materialization codepath for that commit while preserving
+ * ancestor locks needed by materializeModelGraph to find an origin model graph.
+ */
+suspend fun deleteAutoCreatedLockForCommit(updateUrl: String, repoPath: String, commitId: String) {
+    val client = HttpClient()
+    client.post(updateUrl) {
+        contentType(ContentType.Application.FormUrlEncoded)
+        parameter("update", """
+             prefix mor-graph: <$ROOT_CONTEXT$repoPath/graphs/>
+             prefix mor-lock: <$ROOT_CONTEXT$repoPath/locks/>
+             prefix mor-commit: <$ROOT_CONTEXT$repoPath/commits/>
+             prefix mms: <https://mms.openmbee.org/rdf/ontology/>
+             delete {
+                 graph mor-graph:Metadata {
+                     ?lock ?p ?o .
+                 }
+             }
+             where {
+                 graph mor-graph:Metadata {
+                     ?lock a mms:Lock ;
+                         mms:commit mor-commit:$commitId ;
+                         ?p ?o .
+                 }
+             }
+        """.trimIndent())
+    }
 }
 
 suspend fun addDummyTransaction(updateUrl: String, branchPath: String) {

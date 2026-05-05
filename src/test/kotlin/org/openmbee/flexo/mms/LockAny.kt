@@ -2,7 +2,7 @@ package org.openmbee.flexo.mms
 
 import io.kotest.matchers.string.shouldNotBeBlank
 import io.ktor.http.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.apache.jena.vocabulary.RDF
 import org.openmbee.flexo.mms.util.*
 import org.slf4j.LoggerFactory
@@ -47,7 +47,7 @@ fun TriplesAsserter.validateCreatedLockTriples(
     validateTransaction(orgPath=orgPath)
 
     // inspect
-    subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
+    //subject(MMS_URNS.SUBJECT.inspect) { ignoreAll() }
 }
 
 open class LockAny : RefAny() {

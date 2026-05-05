@@ -86,7 +86,7 @@ suspend fun <TRequestContext: GenericRequest> Layer1Context<TRequestContext, Sto
                     }
                 }
             }
-            val bytes = response.readBytes()
+            val bytes = response.readRawBytes()
             DecodedArtifact(contentType, bodyBinary = bytes)
         }
         else -> {

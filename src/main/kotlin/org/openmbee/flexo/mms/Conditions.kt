@@ -44,6 +44,17 @@ val ORG_UPDATE_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_ORG, Scope.CLUSTER)
 }
 
+// starting conditions for any operation that depends on parent collection existing
+val COLLECTION_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    collectionExists()
+}
+
+// collection query conditions
+val COLLECTION_QUERY_CONDITIONS = ORG_CRUD_CONDITIONS.append {
+    collectionExists()
+    permit(Permission.READ_COLLECTION, Scope.COLLECTION)
+}
+
 // starting conditions for any operation that depends on parent repo existing
 val REPO_CRUD_CONDITIONS = ORG_CRUD_CONDITIONS.append {
     repoExists()
@@ -69,8 +80,8 @@ val BRANCH_UPDATE_CONDITIONS = BRANCH_CRUD_CONDITIONS.append {
 val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_BRANCH, Scope.BRANCH)
 
-    require("stagingExists") {
-        handler = { layer1 -> "The destination branch <${layer1.prefixes["morb"]}> is corrupt. No staging snapshot found." to HttpStatusCode.InternalServerError }
+    require("stagingExists and modelExists") {
+        handler = { layer1 -> "The destination branch <${layer1.prefixes["morb"]}> is corrupt. No staging snapshot and model found." to HttpStatusCode.InternalServerError }
 
         """
             graph mor-graph:Metadata {
@@ -83,6 +94,11 @@ val BRANCH_COMMIT_CONDITIONS = REPO_CRUD_CONDITIONS.append {
                 morb: mms:snapshot ?staging .
                 ?staging a mms:Staging ;
                     mms:graph ?stagingGraph .
+                   
+                ?lock mms:commit ?baseCommit ;
+                    mms:snapshot ?snapshot .
+                ?snapshot a mms:Model ;
+                    mms:graph ?modelGraph .
             }
         """
     }
@@ -153,6 +169,52 @@ val LOCK_UPDATE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
     permit(Permission.UPDATE_LOCK, Scope.LOCK)
 }
 
+val LOCK_DELETE_CONDITIONS = LOCK_CRUD_CONDITIONS.append {
+    permit(Permission.DELETE_LOCK, Scope.LOCK)
+
+    require("lockNotCollected") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it is referenced by a collection." to HttpStatusCode.Conflict }
+
+        """
+            filter not exists {
+                graph m-graph:Cluster {
+                    ?_collection a mms:Collection ;
+                        mms:collects morl: .
+                }
+            }
+        """
+    }
+
+    require("autoLockNotBranchModel") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it is an auto-created commit lock currently used as a branch model." to HttpStatusCode.Conflict }
+
+        """
+            filter not exists {
+                graph mor-graph:Metadata {
+                    morl: mms:commit ?_bmCommit .
+                    filter(strstarts(str(morl:), concat(str(mor-lock:), "Commit.")))
+                    ?_bmBranch a mms:Branch ;
+                        mms:commit ?_bmCommit .
+                }
+            }
+        """
+    }
+
+    require("lockNotOnRootCommit") {
+        handler = { layer1 -> "Cannot delete lock <${layer1.prefixes["morl"]}>: it references the root commit." to HttpStatusCode.Conflict }
+
+        """
+            filter not exists {
+                graph mor-graph:Metadata {
+                    morl: mms:commit ?_rootCommit .
+                    filter(strstarts(str(morl:), concat(str(mor-lock:), "Commit.")))
+                    ?_rootCommit mms:parent rdf:nil .
+                }
+            }
+        """
+    }
+}
+
 val SCRATCH_DELETE_CONDITIONS = REPO_CRUD_CONDITIONS.append {
     permit(Permission.DELETE_SCRATCH, Scope.SCRATCH)
 }
@@ -173,12 +235,17 @@ class Condition(val type: ConditionType, val key: String) {
 class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) {
     /**
      * Adds a requirement to the query conditions that the current user has the given permission within the given scope.
+     *
+     * When [scopeUris] is non-null, the SPARQL `values ?__mms_scope { ... }` clause is bound to those explicit IRIs
+     * instead of being derived from the active request prefix chain (`scope.values()`). Use this when the resource
+     * being checked is not the resource implied by the request path — e.g. a policy whose target scope is supplied
+     * by the request body.
      */
-    fun permit(permission: Permission, scope: Scope): ConditionsBuilder {
+    fun permit(permission: Permission, scope: Scope, scopeUris: List<String>?=null): ConditionsBuilder {
         return require(permission.id) {
             handler = { layer1 -> "User <${layer1.prefixes["mu"]}> is not permitted to ${permission.id}. Observed LDAP groups include: ${layer1.groups.joinToString(", ")}" to HttpStatusCode.Forbidden }
 
-            permittedActionSparqlBgp(permission, scope)
+            permittedActionSparqlBgp(permission, scope, scopeUris=scopeUris)
         }
     }
 
@@ -250,6 +317,21 @@ class ConditionsBuilder(val conditions: MutableList<Condition> = arrayListOf()) 
                 graph m-graph:AccessControl.Policies {
                     mp: a mms:Policy ;
                         ?policyExisting_p ?policyExisting_o .
+                }
+            """
+        }
+    }
+
+    fun collectionExists() {
+        require("collectionExists") {
+            handler = { layer1 -> "Collection <${layer1.prefixes["moc"]}> does not exist." to
+                    if(null != layer1.ifMatch) HttpStatusCode.PreconditionFailed else HttpStatusCode.NotFound }
+
+            """
+                # collection must exist
+                graph m-graph:Cluster {
+                    moc: a mms:Collection ;
+                        ?collectionExisting_p ?collectionExisting_o .
                 }
             """
         }

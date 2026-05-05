@@ -43,7 +43,7 @@ fun Route.crudBranches() {
             branchId = slug
 
             // create new branch
-            createBranch(usedPost=true)
+            createBranch()
         }
 
         // method not allowed

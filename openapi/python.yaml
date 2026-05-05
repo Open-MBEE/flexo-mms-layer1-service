@@ -1,0 +1,6 @@
+additionalProperties:
+  packageName: flexo_layer1
+  packageVersion: 0.3.0
+  projectName: flexo-layer1
+  disallowAdditionalPropertiesIfNotPresent: "false"
+  packageUrl: https://github.com/Open-MBEE/flexo-mms-layer1-service

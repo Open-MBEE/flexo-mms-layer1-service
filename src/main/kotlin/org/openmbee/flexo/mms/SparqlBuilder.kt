@@ -101,6 +101,7 @@ fun serializePairs(node: Resource): String {
 abstract class SparqlBuilder<out Instance: SparqlBuilder<Instance>>(private val indentLevel: Int=1) {
     protected val sparqlString = StringBuilder()
 
+    @Suppress("UNCHECKED_CAST")
     fun raw(vararg sparql: String): Instance {
         sparqlString.append(sparql.joinToString("\n") { it.trimIndent()+"\n" })
 
@@ -309,7 +310,7 @@ class InsertBuilder(
 
     fun subtxn(subTxnId: String, extras: Map<String, String>?=null, setup: (TxnBuilder.() -> Unit)?=null): InsertBuilder {
         val properties = extras?.toMutableMap()?: mutableMapOf()
-        if(null != layer1.userId) properties["mms:user"] = "mu:"
+        properties["mms:user"] = "mu:"
         if(null != layer1.orgId) properties["mms:org"] = "mo:"
         if(null != layer1.repoId) properties["mms:repo"] = "mor:"
         if(null != layer1.branchId) properties["mms:branch"] = "morb:"
@@ -550,7 +551,7 @@ class UpdateBuilder(
             // prefixes(mms.prefixes)
 
             literal(
-                "_userId" to (layer1.userId?: ""),
+                "_userId" to layer1.userId,
                 "_orgId" to (layer1.orgId?: ""),
                 "_repoId" to (layer1.repoId?: ""),
                 "_branchId" to (layer1.branchId?: ""),

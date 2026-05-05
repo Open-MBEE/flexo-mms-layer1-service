@@ -6,6 +6,10 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import loadModel
+import org.apache.jena.rdf.model.Property
+import org.apache.jena.rdf.model.Resource
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.openmbee.flexo.mms.*
 import org.openmbee.flexo.mms.routes.gsp.RefType
 import org.openmbee.flexo.mms.server.graphStoreProtocol
@@ -73,13 +77,14 @@ fun Route.crudModel() {
  *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb: triple
  *   and all the conditions pass
  *
- *   ?baseCommit and ?stagingGraph should be part of the conditions pattern
+ *   ?baseCommit and ?stagingGraph, ?modelGraph should be part of the conditions pattern
 */
 suspend fun AnyLayer1Context.createBranchModifyingTransaction(conditions: ConditionsGroup): String {
     val update = buildSparqlUpdate {
         insert {
             txn("mms-txn:stagingGraph" to "?stagingGraph",
                 "mms-txn:baseCommit" to "?baseCommit",
+                "mms-txn:baseModelGraph" to "?modelGraph",
                 "mms-txn:mutex" to "morb:")
         }
         where {
@@ -114,6 +119,80 @@ suspend fun AnyLayer1Context.validateBranchModifyingTransaction(conditions: Cond
         }
     }
     val result = executeSparqlConstructOrDescribe(query)
+    try {
+        return validateTransaction(result, conditions)
+    } catch (ex: ServerBugException) {
+        // the conditions passed but there's no transaction, means some other transaction is in progress
+        // throw 409
+        throw HttpException("Another transaction is in progress", HttpStatusCode.Conflict)
+    }
+}
+
+/**
+ *   Used by BranchWrite and LockWrite
+ *   Only add a transaction if there's no other transaction that have mms-txn:mutex morb or morl
+ *   and all the conditions pass
+ *
+ *   ?__mms_commitSource or ?_refSource should be part of the conditions pattern
+ */
+suspend fun AnyLayer1Context.createRefCreatingTransaction(conditions: ConditionsGroup, ref: String, updateSetup: (SparqlParameterizer.() -> SparqlParameterizer)? = null): String {
+    val update = buildSparqlUpdate {
+        insert {
+            txn(
+                "mms-txn:commitSource" to "?__mms_commitSource",
+                "mms-txn:mutex" to "${ref}:"
+            )
+        }
+        where {
+            raw(
+                """
+                    filter not exists {
+                        graph m-graph:Transactions { 
+                            ?t a mms:Transaction ;
+                                mms-txn:mutex ${ref}: .
+                        }    
+                    }
+                """
+            )
+            raw(conditions.requiredPatterns().joinToString("\n"))
+        }
+    }
+    return executeSparqlUpdate(update) {
+        prefixes(prefixes)
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if (refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
+}
+
+/**
+ *   Used by BranchWrite and LockWrite
+ *   Get back the transaction added in createRefCreatingTransaction - if transaction doesn't exist, check conditions
+ *   validateTransaction will throw ServerBugException if no transaction is returned but all conditions pass -
+ *     the only way this can happen is if there's another transaction that prevented the create function from inserting
+ *     a transaction in the first place
+ */
+suspend fun AnyLayer1Context.validateRefCreatingTransaction(conditions: ConditionsGroup): KModel {
+    val query = buildSparqlQuery {
+        construct {
+            txn()
+        }
+        where {
+            txnOrInspections(null, conditions) {}
+        }
+    }
+    val result = executeSparqlConstructOrDescribe(query) {
+        prefixes(prefixes)
+        // replace IRI substitution variables
+        iri(
+            // user specified either ref or commit
+            if (refSource != null) "_refSource" to refSource!!
+            else "__mms_commitSource" to commitSource!!,
+        )
+    }
     try {
         return validateTransaction(result, conditions)
     } catch (ex: ServerBugException) {
@@ -187,9 +266,9 @@ fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where
             
                     # commit data
                     morc-data: a mms:Update ;
-                        mms:body ?_updateBody ;
                         mms:patch ?_patchString ;
-                        mms:where ?_whereString ;
+                        mms:insGraph ?_insGraph ;
+                        mms:delGraph ?_delGraph ;
                         .
             
                     # update branch pointer and etag
@@ -304,6 +383,301 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
                     }
                 } union {}
             """)
+        }
+    }
+}
+suspend fun AnyLayer1Context.diffAndFinalizeCommit(dstGraphIri: String, srcGraphIri: String, srcCommitIri: String, localConditions: ConditionsGroup, commitUpdateString: String): String {
+    // compute the delta
+    val updateString = genDiffUpdate()
+    executeSparqlUpdate(updateString) {
+        prefixes(prefixes)
+        iri(
+            // use current branch as ref source
+            "srcRef" to prefixes["morb"]!!,
+            // set dst graph
+            "dstGraph" to dstGraphIri,
+            // set dst commit (this commit)
+            "dstCommit" to prefixes["morc"]!!,
+            // use explicit srcGraph
+            "srcGraph" to srcGraphIri,
+            // use explicit srcCommit
+            "srcCommit" to srcCommitIri,
+        )
+    }
+    // validate diff creation
+    lateinit var diffConstructResponseText: String
+    val diffConstructModel = run {
+        val diffConstructString = buildSparqlQuery {
+            construct {
+                txn("diff")
+                etag("morb:")
+            }
+            where {
+                group {
+                    txn("diff", true)
+                    etag("morb:")
+                }
+            }
+        }
+        diffConstructResponseText = executeSparqlConstructOrDescribe(diffConstructString)
+        log("Diff construct response:\n$diffConstructResponseText")
+
+        validateTransaction(diffConstructResponseText, localConditions, "diff")
+    }
+
+    // shortcut lambda for fetching properties in returned model
+    val propertyUriAt = { res: Resource, prop: Property ->
+        diffConstructModel.listObjectsOfProperty(res, prop).let {
+            if (it.hasNext()) it.next().asResource().uri else null
+        }
+    }
+
+    // locate transaction node
+    val transactionNode = diffConstructModel.createResource(prefixes["mt"] + "diff")
+
+    // get ins/del graphs
+    val diffInsGraph = propertyUriAt(transactionNode, MMS.TXN.insGraph)
+    val diffDelGraph = propertyUriAt(transactionNode, MMS.TXN.delGraph)
+
+    //for some reason, on fuseki, even if the construct is empty, it still returns prefixes...
+    val deleteDataResponseText = executeSparqlConstructOrDescribe("""
+        construct {
+            ?del_s ?del_p ?del_o .
+        }
+        where {                    
+            graph ?_delGraph {
+                ?del_s ?del_p ?del_o .
+            }
+        }
+    """) {
+        iri(
+            "_delGraph" to diffDelGraph!!,
+        )
+    }
+
+    val insertDataResponseText = executeSparqlConstructOrDescribe("""
+        construct {
+            ?ins_s ?ins_p ?ins_o .
+        }
+        where {                    
+            graph ?_insGraph {
+                ?ins_s ?ins_p ?ins_o .
+            }
+        }
+    """) {
+        iri(
+            "_insGraph" to diffInsGraph!!,
+        )
+    }
+    val insertModel = parseModelStripPrefixes(RdfContentTypes.Turtle, insertDataResponseText)
+    val deleteModel = parseModelStripPrefixes(RdfContentTypes.Turtle, deleteDataResponseText)
+    // empty delta (no changes)
+    if (insertModel.isEmpty && deleteModel.isEmpty) {
+        // locate branch node
+        val branchNode = diffConstructModel.createResource(prefixes["morb"])
+        // get its etag value
+        val branchFormerEtagValue = branchNode.getProperty(MMS.etag).`object`!!.asLiteral().string
+        // set etag header
+        call.response.header(HttpHeaders.ETag, branchFormerEtagValue)
+        // sanity check
+        log.info("Sending data-less construct response text to client: \n$prefixes")
+        // respond
+        call.respondText("$prefixes", RdfContentTypes.Turtle)
+        // should this be some other response code to indicate no change..,
+        return ""
+    }
+
+    //create patch string to get from previous commit to loaded graph
+    // ?__mms_model will be replaced with graph to apply to during branch/lock graph materialization
+    var patchString = """
+        delete {
+            graph ?__mms_model {
+                ?s ?p ?o .
+            }
+        } where {
+            graph <$diffDelGraph> {
+                ?s ?p ?o .
+            }
+        };
+        insert {
+            graph ?__mms_model {
+                ?s ?p ?o .
+            }
+        } where {
+            graph <$diffInsGraph> {
+                ?s ?p ?o .
+            }
+        } 
+    """.trimIndent()
+
+    log("Prepared commit update string:")
+    executeSparqlUpdate(commitUpdateString) {
+        prefixes(prefixes)
+
+        iri(
+            "_insGraph" to (diffInsGraph ?: "mms:voidInsGraph"),
+            "_delGraph" to (diffDelGraph ?: "mms:voidDelGraph")
+        )
+
+        datatyped(
+            "_patchString" to (patchString to MMS_DATATYPE.sparql),
+        )
+
+        literal(
+            "_txnId" to transactionId,
+        )
+    }
+
+    val constructCommitString = buildSparqlQuery {
+        construct {
+            raw("""
+                morc: ?commit_p ?commit_o .
+            """)
+        }
+        where {
+            raw("""
+                graph mor-graph:Metadata {
+                   morc: ?commit_p ?commit_o .
+                }
+            """)
+        }
+    }
+    val constructCommitResponseText = executeSparqlConstructOrDescribe(constructCommitString)
+    // start copying staging to new model
+    executeSparqlUpdate("""
+        copy graph <$dstGraphIri> to graph mor-graph:Model.$transactionId ;
+
+        insert data {
+            graph m-graph:Graphs {
+                mor-graph:Model.$transactionId a mms:ModelGraph .
+            }
+
+            graph mor-graph:Metadata {
+                mor-lock:Commit.$transactionId a mms:Lock ;
+                    mms:snapshot mor-snapshot:Model.$transactionId ;
+                    mms:commit morc: ;
+                    .
+                mor-snapshot:Model.$transactionId a mms:Model ;
+                    mms:graph mor-graph:Model.$transactionId ;
+                    .
+            }
+        }
+    """)
+    return constructCommitResponseText
+}
+
+/**
+ *   Best-effort cleanup of auto-created commit locks from a previous commit.
+ *   Finds locks whose IRI matches the mor-lock:Commit.* pattern and that reference the given base commit,
+ *   then deletes lock/snapshot metadata and drops the model graph if no longer referenced.
+ */
+suspend fun AnyLayer1Context.cleanupPreviousCommitLock(baseCommitIri: String) {
+    // Find auto-created commit locks for the previous commit that are safe to clean up
+    val findLocksQuery = """
+        select ?prevLock ?snapshot ?modelGraph where {
+            graph mor-graph:Metadata {
+                ?prevLock a mms:Lock ;
+                    mms:commit <$baseCommitIri> .
+                filter(strstarts(str(?prevLock), concat(str(mor-lock:), "Commit.")))
+
+                optional {
+                    ?prevLock mms:snapshot ?snapshot .
+                    ?snapshot mms:graph ?modelGraph .
+                }
+            }
+
+            # exclude user-created locks (they have mms:etag; auto-created commit locks do not)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    ?prevLock mms:etag ?_etag .
+                }
+            }
+
+            filter not exists {
+                graph m-graph:Cluster {
+                    ?_collection a mms:Collection ;
+                        mms:collects ?prevLock .
+                }
+            }
+
+            # skip if any branch still points to this commit (lock is needed for model materialization)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    ?_anyBranch a mms:Branch ;
+                        mms:commit <$baseCommitIri> .
+                }
+            }
+
+            # skip if this is the root commit (created by repo create, has no real parent)
+            filter not exists {
+                graph mor-graph:Metadata {
+                    <$baseCommitIri> mms:parent rdf:nil .
+                }
+            }
+        }
+    """
+
+    val results = executeSparqlSelectOrAsk(findLocksQuery) {
+        prefixes(prefixes)
+    }
+    val bindings = parseSparqlResultsJsonSelect(results)
+
+    if (bindings.isEmpty()) return
+
+    for (binding in bindings) {
+        val prevLockIri = binding["prevLock"]?.jsonObject?.get("value")?.jsonPrimitive?.content ?: continue
+        val modelGraphIri = binding["modelGraph"]?.jsonObject?.get("value")?.jsonPrimitive?.content
+
+        // Delete lock metadata and snapshot metadata (snapshot only if no other lock references it)
+        executeSparqlUpdate("""
+            delete {
+                graph mor-graph:Metadata {
+                    <$prevLockIri> ?lock_p ?lock_o .
+                }
+                graph mor-graph:Metadata {
+                    ?snapshot ?snapshot_p ?snapshot_o .
+                }
+            }
+            where {
+                graph mor-graph:Metadata {
+                    <$prevLockIri> ?lock_p ?lock_o .
+
+                    optional {
+                        <$prevLockIri> mms:snapshot ?snapshot .
+                        ?snapshot ?snapshot_p ?snapshot_o .
+
+                        filter not exists {
+                            ?otherLock mms:snapshot ?snapshot .
+                            filter(?otherLock != <$prevLockIri>)
+                        }
+                    }
+                }
+            }
+        """) {
+            prefixes(prefixes)
+        }
+
+        // Drop the model graph if no other snapshot still references it
+        if (modelGraphIri != null) {
+            val stillReferenced = parseSparqlResultsJsonAsk(
+                executeSparqlSelectOrAsk("""
+                    ask where {
+                        graph mor-graph:Metadata {
+                            ?snapshot mms:graph <$modelGraphIri> .
+                        }
+                    }
+                """) { prefixes(prefixes) }
+            )
+            if (!stillReferenced) {
+                executeSparqlUpdate("drop silent graph <$modelGraphIri>")
+                executeSparqlUpdate("""
+                    delete data {
+                        graph m-graph:Graphs {
+                            <$modelGraphIri> a mms:ModelGraph .
+                        }
+                    }
+                """) { prefixes(prefixes) }
+            }
         }
     }
 }

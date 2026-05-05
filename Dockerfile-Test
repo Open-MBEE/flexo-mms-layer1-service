@@ -1,4 +1,4 @@
-FROM openjdk:17.0.2-jdk-slim as build
+FROM eclipse-temurin:21-jdk as build
 WORKDIR application
 ENV FLEXO_MMS_ROOT_CONTEXT http://layer1-service
 ENV FLEXO_MMS_QUERY_URL http://quad-server:3030/ds/sparql

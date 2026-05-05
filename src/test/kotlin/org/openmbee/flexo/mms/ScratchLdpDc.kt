@@ -1,7 +1,7 @@
 package org.openmbee.flexo.mms
 
 import io.ktor.client.statement.*
-import io.ktor.server.testing.*
+import io.ktor.server.testing.ApplicationTestBuilder
 import org.openmbee.flexo.mms.util.*
 
 // for ldp endpoints in scratches.kt

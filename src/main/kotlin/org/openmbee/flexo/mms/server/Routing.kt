@@ -8,13 +8,11 @@ import io.ktor.http.content.*
 import io.ktor.serialization.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.locations.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import io.ktor.util.reflect.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
-import io.ktor.utils.io.jvm.javaio.*
 import org.openmbee.flexo.mms.Layer1Context
 import org.openmbee.flexo.mms.RdfContentTypes
 import org.openmbee.flexo.mms.requestTimeout
@@ -55,10 +53,10 @@ class TextConverter: ContentConverter {
     }
 
     override suspend fun deserialize(charset: Charset, typeInfo: TypeInfo, content: ByteReadChannel): Any? {
-        return content.toInputStream().bufferedReader().use { it.readText() }
+        return String(content.toByteArray(), charset)
     }
 
-    override suspend fun serializeNullable(
+    override suspend fun serialize(
         contentType: ContentType,
         charset: Charset,
         typeInfo: TypeInfo,
@@ -82,9 +80,7 @@ class TextConverter: ContentConverter {
 }
 
 
-@OptIn(InternalAPI::class)
 fun Application.configureRouting() {
-    install(Locations) {}
     // install(AutoHeadResponse)
 
     routing {
@@ -95,6 +91,7 @@ fun Application.configureRouting() {
             crudLocks()
             crudCommits()
             crudDiffs()
+            squashCommits()
 
             storeArtifacts()
 //            queryArtifacts()

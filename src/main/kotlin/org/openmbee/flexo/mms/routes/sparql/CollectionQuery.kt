@@ -1,38 +1,27 @@
 package org.openmbee.flexo.mms.routes.sparql
 
 import io.ktor.server.routing.*
+import org.openmbee.flexo.mms.*
+import org.openmbee.flexo.mms.routes.COLLECTIONS_PATH
+import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.server.sparqlQuery
 
 
-private val SPARQL_SUBSELECT_QUERY = """
-    {
-        select ?__mms_graph {
-            graph m-graph:Cluster {
-                moc: mms:ref ?__mms_graph .
-            }
-        }
-    }
-"""
-
 /**
- * User submitted SPARQL Query to a specific collection
+ * User submitted SPARQL Query to a specific collection.
+ *
+ * Resolves all collected refs to their model graph IRIs, then delegates to
+ * [processAndSubmitUserQuery] which injects FROM / FROM NAMED clauses into
+ * the user's query so it queries across the union of all collected graphs.
  */
 fun Route.queryCollection() {
-    sparqlQuery("/orgs/{orgId}/collections/{collectionId}/query/{inspect?}") {
+    sparqlQuery("$COLLECTIONS_PATH/{collectionId}/query/{inspect?}") {
         parsePathParams {
             org()
             collection()
+            inspect()
         }
 
-//            val (rewriter, outputQuery) = sanitizeUserQuery(requestBody)
-//
-//            // outputQuery.graphURIs.
-//
-//            // TODO construct query that joins
-//            outputQuery.apply {
-//                // set default graph
-//                graphURIs.clear()
-//                // graphURIs.addAll()
-//            }.queryPattern.toString()
+        processAndSubmitUserQuery(requestContext, prefixes["moc"]!!, COLLECTION_QUERY_CONDITIONS, true)
     }
 }

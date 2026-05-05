@@ -1,0 +1,1 @@
+openapi-generator generate -g python -i openapi.yaml -o flexo-layer1 -c python.yaml --openapi-normalizer SET_TAGS_FOR_ALL_OPERATIONS=FlexoLayer1

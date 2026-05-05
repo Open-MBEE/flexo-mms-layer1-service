@@ -320,7 +320,6 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     /**
      * Execute a SPARQL Query string against Layer 0
      */
-    @OptIn(InternalAPI::class)
     suspend fun executeSparqlQuery(pattern: String, acceptType: ContentType, setup: (SparqlParameterizer.() -> Unit)?=null): String {
         // apply the optional parameterizer setup, default to using the built-in prefixes
         val params = SparqlParameterizer(pattern).apply {
@@ -347,7 +346,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 append(HttpHeaders.Accept, acceptType)
             }
             contentType(RdfContentTypes.SparqlQuery)
-            body=sparql
+            setBody(sparql)
         })
     }
 
@@ -368,17 +367,14 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
     /**
      * Execute a SPARQL Update string against Layer 0
      */
-    @OptIn(InternalAPI::class)
     suspend fun executeSparqlUpdate(pattern: String, setup: (SparqlParameterizer.() -> SparqlParameterizer)?=null): String {
         var sparql = SparqlParameterizer(pattern.trimIndent()).apply {
-            if(setup != null) setup()
+            if (setup != null) setup()
             else prefixes(prefixes)
         }.toString()
-
         sparql = replaceValuesDirectives(sparql,
-            "groupId" to groups,
-        )
-
+            "groupId" to groups
+            )
         log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
         return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
@@ -387,7 +383,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
                 append(HttpHeaders.Accept, ContentType.Any)
             }
             contentType(RdfContentTypes.SparqlUpdate)
-            body=sparql
+            setBody(sparql)
         })
     }
 

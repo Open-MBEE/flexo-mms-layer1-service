@@ -1,23 +1,29 @@
 package org.openmbee.flexo.mms.util
 
 import com.typesafe.config.ConfigFactory
-import io.kotest.core.test.TestScope
-import io.kotest.extensions.system.withSystemProperties
 import io.ktor.server.config.*
-import io.ktor.server.engine.*
 import io.ktor.server.testing.*
-import java.io.InputStreamReader
+
+private val cachedConfig: HoconApplicationConfig by lazy {
+    HoconApplicationConfig(ConfigFactory.parseResources("application.conf.test").resolve())
+}
 
 /**
- * Load test environment from application.conf.example resource
+ * Load test environment from application.conf.test resource
  */
-fun testEnv(): ApplicationEngineEnvironment {
-    return createTestEnvironment {
-        javaClass.classLoader.getResourceAsStream("application.conf.test")?.let { it ->
-            InputStreamReader(it).use { iit ->
-                config = HoconApplicationConfig(ConfigFactory.parseReader(iit).resolve())
-            }
+fun testEnv(): ApplicationConfig = cachedConfig
+
+/**
+ * Wrapper around Ktor's testApplication that automatically loads the
+ * application.conf.test configuration file. In Ktor 3, testApplication
+ * no longer auto-loads modules from config files.
+ */
+fun testApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
+    io.ktor.server.testing.testApplication {
+        environment {
+            config = cachedConfig
         }
+        block()
     }
 }
 

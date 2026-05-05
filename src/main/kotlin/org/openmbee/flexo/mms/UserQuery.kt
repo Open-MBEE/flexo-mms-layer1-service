@@ -11,19 +11,22 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.apache.jena.atlas.io.IndentedWriter
+import org.apache.jena.graph.Node
+import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.core.Var
 import org.apache.jena.sparql.engine.binding.BindingBuilder
-import org.apache.jena.sparql.modify.request.UpdateDataDelete
-import org.apache.jena.sparql.modify.request.UpdateDataInsert
-import org.apache.jena.sparql.modify.request.UpdateDeleteWhere
-import org.apache.jena.sparql.modify.request.UpdateModify
+import org.apache.jena.sparql.modify.request.*
 import org.apache.jena.sparql.syntax.ElementData
 import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
 import org.apache.jena.update.UpdateRequest
+import java.io.ByteArrayOutputStream
+import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
 import org.openmbee.flexo.mms.server.SparqlQueryRequest
@@ -128,27 +131,36 @@ suspend fun AnyLayer1Context.checkModelQueryConditions(
  * a user's SPARQL query by adding patterns that constrain what graph(s) it will select from. It then submits the
  * transformed user query, handling any condition failures, and returns the results to the client.
  */
-suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, addPrefix: Boolean=false, baseIri: String?=null) {
+suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQueryRequest, refIri: String, conditions: ConditionsGroup, isCollection: Boolean=false, addPrefix: Boolean=false, baseIri: String?=null) {
     // for certain sparql, point user query at a predetermined graph
-    var targetGraphIri = when(refIri) {
-        prefixes["mor"] -> {
-            "${prefixes["mor-graph"]}Metadata"
+    val targetGraphIri = if (!isCollection) {
+        when(refIri) {
+            prefixes["mor"] -> {
+                "${prefixes["mor-graph"]}Metadata"
+            }
+            prefixes["mors"] -> {
+                "${prefixes["mor-graph"]}Scratch.$scratchId"
+            }
+            else -> {
+                null
+            }
         }
-        prefixes["mors"] -> {
-            "${prefixes["mor-graph"]}Scratch.$scratchId"
-        }
-        else -> {
-            null
-        }
-    }
+    }  else "urn:mms:collection:query:placeholder"
 
     val targetGraphIriResult = checkModelQueryConditions(targetGraphIri, refIri, conditions)
 
     // extract the target graph iri from query results
-    if(targetGraphIri == null) {
-        targetGraphIri = targetGraphIriResult
+    val graphIris = mutableListOf<String>()
+    if (targetGraphIri == null) {
+        graphIris.add(targetGraphIriResult)
+    } else if (isCollection) {
+        graphIris.addAll(resolveCollectionGraphIris())
+    } else {
+        graphIris.add(targetGraphIri)
     }
-
+    if (graphIris.isEmpty()) {
+        //TODO return empty, otherwise user query will be made against triple store's default graph
+    }
     // parse user query
     val userQuery = try {
         if(baseIri != null) {
@@ -220,11 +232,11 @@ suspend fun AnyLayer1Context.processAndSubmitUserQuery(queryRequest: SparqlQuery
             throw Http403Exception(this@processAndSubmitUserQuery, "graph parameter(s)")
         }
 
-        // set default graph
-        graphURIs.add(targetGraphIri)
-
-        // set named graph(s)
-        namedGraphURIs.add(targetGraphIri)
+        // inject FROM and FROM NAMED for each resolved graph IRI
+        for(graphIri in graphIris) {
+            graphURIs.add(graphIri)
+            namedGraphURIs.add(graphIri)
+        }
     }
 
     // serialize user query
@@ -430,74 +442,100 @@ suspend fun Layer1Context<GspRequest, *>.deleteGraph(deleteGraphUri: String, whe
     // execute update
     executeSparqlUpdate(deleteUpdateString)
 }
+fun rejectGraphInQuads(quads: List<Quad>) {
+    for(quad in quads) {
+        if (quad.graph != null && !quad.isDefaultGraph) {
+            throw QuadsNotAllowedException(quad.graph.toString())
+        }
+    }
+}
+fun rejectGraphInUserUpdate(sparqlUpdateAst: UpdateRequest) {
+    for (update in sparqlUpdateAst.operations) {
+        when (update) {
+            is UpdateDataDelete, is UpdateDataInsert -> {
+                rejectGraphInQuads(update.quads)
+            }
+            is UpdateDeleteWhere -> {
+                rejectGraphInQuads(update.quads)
+            }
+            is UpdateModify -> {
+                if (update.hasDeleteClause()) rejectGraphInQuads(update.deleteQuads)
+                if (update.hasInsertClause()) rejectGraphInQuads(update.insertQuads)
+                update.wherePattern.apply {
+                    visit(NoQuadsElementVisitor)
+                }
+            }
+            else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
+        }
+    }
+}
+/**
+ * Re-graphs quads from the default graph onto the given graph node.
+ */
+private fun regraphQuads(quads: List<Quad>, graphNode: Node): List<Quad> {
+    return quads.map { quad ->
+        if (quad.graph != null && !quad.isDefaultGraph) {
+            throw QuadsNotAllowedException(quad.graph.toString())
+        }
+        Quad.create(graphNode, quad.asTriple())
+    }
+}
 
 /**
- * Rewrites a user update so it includes the correct graph to update, and to reject unauthorized graph access
- * caller should replace ?__mms_model by the graph to be updated
+ * Rewrites a user update so it targets the given graph IRI, using Jena's native AST.
  */
-fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>): MutableList<String>  {
-    val updates = mutableListOf<String>()
-    withPrefixMap(prefixMap) {
+fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>, graphIri: String): Pair<String, PrefixMapBuilder> {
+    val graphNode = NodeFactory.createURI(graphIri)
+    val rewritten = UpdateRequest()
+    var updateString = ""
+    val prefixBuilder = withPrefixMap(prefixMap) {
+        val sCxt = toSerializationContext()
         for (update in sparqlUpdateAst.operations) {
             when (update) {
-                is UpdateDataDelete -> updates.add(
-                    """
-                     DELETE DATA {
-                         graph ?__mms_model {
-                             ${asSparqlGroup(update.quads)}
-                         }
-                     }
-                     """.trimIndent()
-                )
-
-                is UpdateDataInsert -> updates.add(
-                    """
-                    INSERT DATA {
-                        graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
-                        }
-                    }
-                    """.trimIndent()
-                )
-
-                is UpdateDeleteWhere -> updates.add(
-                    """
-                    DELETE WHERE {
-                        graph ?__mms_model {
-                            ${asSparqlGroup(update.quads)}
-                        }
-                    }
-                    """.trimIndent()
-                )
-
+                is UpdateDataDelete -> {
+                    rewritten.add(UpdateDataDelete(QuadDataAcc(regraphQuads(update.quads, graphNode))))
+                }
+                is UpdateDataInsert -> {
+                    rewritten.add(UpdateDataInsert(QuadDataAcc(regraphQuads(update.quads, graphNode))))
+                }
+                is UpdateDeleteWhere -> {
+                    rewritten.add(UpdateDeleteWhere(QuadAcc(regraphQuads(update.quads, graphNode))))
+                }
                 is UpdateModify -> {
-                    var modify = "WITH ?__mms_model\n"
+                    //update.setWithIRI(graphNode)
+                    val mod = UpdateModify()
+                    mod.setWithIRI(graphNode)
                     if (update.hasDeleteClause()) {
-                        modify += """
-                                DELETE {
-                                    ${asSparqlGroup(update.deleteQuads)}
-                                }
-                                """.trimIndent()
+                        mod.setHasDeleteClause(true)
+                        for (quad in update.deleteQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
+                            }
+                            mod.deleteAcc.addTriple(quad.asTriple())
+                        }
                     }
                     if (update.hasInsertClause()) {
-                        modify += """
-                                INSERT {
-                                    ${asSparqlGroup(update.insertQuads)}
-                                }
-                                """.trimIndent()
-                    }
-                    modify += """
-                            WHERE {
-                                ${asSparqlGroup(update.wherePattern.apply {
-                                    visit(NoQuadsElementVisitor)
-                                })}
+                        mod.setHasInsertClause(true)
+                        for (quad in update.insertQuads) {
+                            if (quad.graph != null && !quad.isDefaultGraph) {
+                                throw QuadsNotAllowedException(quad.graph.toString())
                             }
-                            """.trimIndent()
-                    updates.add(modify)
+                            mod.insertAcc.addTriple(quad.asTriple())
+                        }
+                    }
+                    mod.setElement(update.wherePattern.apply {
+                        visit(NoQuadsElementVisitor)
+                    })
+                    rewritten.add(mod)
                 }
                 else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
         }
+        val baos = ByteArrayOutputStream()
+        val out = IndentedWriter(baos)
+        UpdateWriter.output(rewritten, out, sCxt)
+        out.flush()
+        updateString = baos.toString(Charsets.UTF_8)
     }
-    return updates
+    return Pair(updateString, prefixBuilder)
 }

@@ -3,7 +3,7 @@ package org.openmbee.flexo.mms.util
 import io.kotest.core.spec.Spec
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.core.test.TestCase
-import io.kotest.core.test.TestResult
+import io.kotest.engine.test.TestResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.jena.rdfconnection.RDFConnection
@@ -44,7 +44,7 @@ open class CommonSpec : StringSpec() {
         super.afterEach(testCase, result)
 
         // prep output file
-        val exportFile = File("build/reports/tests/trig/${escapeFileName(testCase.name.testName)}.trig")
+        /*val exportFile = File("build/reports/tests/trig/${escapeFileName(testCase.name.name)}.trig")
 
         if (!exportFile.parentFile.exists())
             exportFile.parentFile.mkdirs()
@@ -61,7 +61,7 @@ open class CommonSpec : StringSpec() {
         // dump all graphs
         RDFConnection.connect(backend.getGspUrl()).use {
             RDFDataMgr.write(out, it.fetchDataset(), RDFFormat.TRIG)
-        }
+        }*/
     }
 
     override suspend fun afterSpec(spec: Spec) {
