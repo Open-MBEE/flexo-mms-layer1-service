@@ -30,8 +30,7 @@ private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData ->
     }
     
     ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER,
-        if(allOrgs) "^mo:?$".toRegex() else null,
-        if(allOrgs) "" else null)}
+        scopeJoinVars = if(allOrgs) listOf(SPARQL_VAR_NAME_ORG) else null)}
 """ }
 
 // construct graph of all relevant org metadata
