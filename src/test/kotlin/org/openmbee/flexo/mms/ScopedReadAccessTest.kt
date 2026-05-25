@@ -36,6 +36,9 @@ class ScopedReadAccessTest : OrgAny() {
     private val repoBId = "repo-b"
     private val repoBName = "Repo B"
 
+    private val collectionAId = "collection-a"
+    private val collectionBId = "collection-b"
+
     /**
      * Insert a user into the AccessControl.Agents graph via direct SPARQL Update.
      */
@@ -97,6 +100,19 @@ class ScopedReadAccessTest : OrgAny() {
         parseTurtle(response.bodyAsText(), model, "http://test")
         val orgType = model.createResource(MMS.Org.uri)
         return model.listSubjectsWithProperty(RDF.type, orgType)
+            .toList()
+            .map { it.uri }
+            .toSet()
+    }
+
+    /**
+     * Count the number of collection resources (subjects with rdf:type mms:Collection) in a Turtle response.
+     */
+    private suspend fun countCollectionsInResponse(response: HttpResponse): Set<String> {
+        val model = ModelFactory.createDefaultModel()
+        parseTurtle(response.bodyAsText(), model, "http://test")
+        val collectionType = model.createResource(MMS.Collection.uri)
+        return model.listSubjectsWithProperty(RDF.type, collectionType)
             .toList()
             .map { it.uri }
             .toSet()
@@ -313,6 +329,134 @@ class ScopedReadAccessTest : OrgAny() {
                 }
                 withClue("Bob should see repo-b") {
                     bobRepos.contains(localIri(repoBPath)) shouldBe true
+                }
+            }
+        }
+
+        "list all collections - user with collection-scoped ReadCollection sees only that collection" {
+            insertUser(testUsername)
+
+            testApplication {
+                // create org + repo (collections need a branch to collect)
+                createOrg(orgAId, orgAName)
+                createRepo(orgAPath, repoAId, repoAName)
+
+                val branchRef = "$orgAPath/repos/$repoAId/branches/master"
+                val collectionAPath = "$orgAPath/collections/$collectionAId"
+                val collectionBPath = "$orgAPath/collections/$collectionBId"
+
+                // create two collections as root
+                createCollection(orgAPath, collectionAId, withAllTestPrefixes("""
+                    <> dct:title "Collection A"@en .
+                    <> mms:collects <${localIri(branchRef)}> .
+                """.trimIndent()))
+                createCollection(orgAPath, collectionBId, withAllTestPrefixes("""
+                    <> dct:title "Collection B"@en .
+                    <> mms:collects <${localIri(branchRef)}> .
+                """.trimIndent()))
+
+                // grant bob ReadCollection on collection-a only
+                createScopedPolicy(
+                    policyId = "BobReadCollectionA",
+                    userPath = "/users/$testUsername",
+                    scopePath = collectionAPath,
+                    roles = listOf(MMS_OBJECT.ROLE.ReadCollection),
+                )
+
+                // bob lists all collections — should see only collection-a
+                val bobResponse = httpGetAs(testUserAuth, "$orgAPath/collections")
+                bobResponse shouldHaveStatus HttpStatusCode.OK
+
+                val bobCollections = countCollectionsInResponse(bobResponse)
+                withClue("Bob should see exactly 1 collection (collection-a)") {
+                    bobCollections.size shouldBe 1
+                }
+                withClue("Bob's visible collection should be collection-a") {
+                    bobCollections.first() shouldBe localIri(collectionAPath)
+                }
+
+                // root still sees both collections (regression)
+                val rootResponse = httpGetAs(rootAuth, "$orgAPath/collections")
+                rootResponse shouldHaveStatus HttpStatusCode.OK
+
+                val rootCollections = countCollectionsInResponse(rootResponse)
+                withClue("Root should see at least 2 collections") {
+                    (rootCollections.size >= 2) shouldBe true
+                }
+                withClue("Root should see collection-a") {
+                    rootCollections.contains(localIri(collectionAPath)) shouldBe true
+                }
+                withClue("Root should see collection-b") {
+                    rootCollections.contains(localIri(collectionBPath)) shouldBe true
+                }
+            }
+        }
+
+        "list all collections - user with no ReadCollection sees no collections" {
+            insertUser(testUsername)
+
+            testApplication {
+                createOrg(orgAId, orgAName)
+                createRepo(orgAPath, repoAId, repoAName)
+
+                val branchRef = "$orgAPath/repos/$repoAId/branches/master"
+
+                createCollection(orgAPath, collectionAId, withAllTestPrefixes("""
+                    <> dct:title "Collection A"@en .
+                    <> mms:collects <${localIri(branchRef)}> .
+                """.trimIndent()))
+
+                // bob has no ReadCollection policy — should see no collections
+                val bobResponse = httpGetAs(testUserAuth, "$orgAPath/collections")
+                if (bobResponse.status == HttpStatusCode.OK) {
+                    val bobCollections = countCollectionsInResponse(bobResponse)
+                    withClue("Bob should see 0 collections") {
+                        bobCollections.size shouldBe 0
+                    }
+                }
+            }
+        }
+
+        "list all collections - user with org-scoped ReadCollection sees all collections in that org" {
+            insertUser(testUsername)
+
+            testApplication {
+                createOrg(orgAId, orgAName)
+                createRepo(orgAPath, repoAId, repoAName)
+
+                val branchRef = "$orgAPath/repos/$repoAId/branches/master"
+                val collectionAPath = "$orgAPath/collections/$collectionAId"
+                val collectionBPath = "$orgAPath/collections/$collectionBId"
+
+                createCollection(orgAPath, collectionAId, withAllTestPrefixes("""
+                    <> dct:title "Collection A"@en .
+                    <> mms:collects <${localIri(branchRef)}> .
+                """.trimIndent()))
+                createCollection(orgAPath, collectionBId, withAllTestPrefixes("""
+                    <> dct:title "Collection B"@en .
+                    <> mms:collects <${localIri(branchRef)}> .
+                """.trimIndent()))
+
+                // grant bob org-level ReadCollection
+                createScopedPolicy(
+                    policyId = "BobReadCollectionOrgA",
+                    userPath = "/users/$testUsername",
+                    scopePath = orgAPath,
+                    roles = listOf(MMS_OBJECT.ROLE.ReadCollection),
+                )
+
+                val bobResponse = httpGetAs(testUserAuth, "$orgAPath/collections")
+                bobResponse shouldHaveStatus HttpStatusCode.OK
+
+                val bobCollections = countCollectionsInResponse(bobResponse)
+                withClue("Bob should see both collections with org-level ReadCollection") {
+                    (bobCollections.size >= 2) shouldBe true
+                }
+                withClue("Bob should see collection-a") {
+                    bobCollections.contains(localIri(collectionAPath)) shouldBe true
+                }
+                withClue("Bob should see collection-b") {
+                    bobCollections.contains(localIri(collectionBPath)) shouldBe true
                 }
             }
         }
