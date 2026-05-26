@@ -24,7 +24,8 @@ private val SPARQL_BGP_REPO: (Boolean, Boolean) -> String = { allRepos, allData 
     }
     ${permittedActionSparqlBgp(Permission.READ_REPO, Scope.REPO,
         if(allRepos) "^mor:?$".toRegex() else null,
-        if(allRepos) "" else null)}
+        if(allRepos) "" else null,
+        scopeJoinVars = if(allRepos) listOf(SPARQL_VAR_NAME_REPO) else null)}
 """ }
 
 

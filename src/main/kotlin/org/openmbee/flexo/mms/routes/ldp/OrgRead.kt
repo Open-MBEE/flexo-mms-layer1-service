@@ -19,19 +19,10 @@ private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData ->
                 .
         """.reindent(if(allOrgs) 3 else 2)}
         ${"}" iff allOrgs}
-        
-        ${"""
-            optional {
-                ?thing mms:org ?$SPARQL_VAR_NAME_ORG ;
-                    ?thing_p ?thing_o ;
-                    .
-            }
-        """.reindent(2) iff allData}
     }
     
     ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER,
-        if(allOrgs) "^mo:?$".toRegex() else null,
-        if(allOrgs) "" else null)}
+        scopeJoinVars = if(allOrgs) listOf(SPARQL_VAR_NAME_ORG) else null)}
 """ }
 
 // construct graph of all relevant org metadata
@@ -39,10 +30,7 @@ private val SPARQL_CONSTRUCT_ORG: (Boolean, Boolean) -> String = { allOrgs, allD
     construct {
         ?$SPARQL_VAR_NAME_ORG ?org_p ?org_o ;
             mms:etag ?__mms_etag ;
-            .
-        
-        ?thing ?thing_p ?thing_o .
-        
+            .        
         ${generateReadContextBgp(Permission.READ_ORG).reindent(2)}
     } where {
         ${SPARQL_BGP_ORG(allOrgs, allData).reindent(2)}

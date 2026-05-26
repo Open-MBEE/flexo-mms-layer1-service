@@ -118,6 +118,7 @@ fun permittedActionSparqlBgp(
     find: Regex?=null,
     replace: String?=null,
     scopeUris: List<String>?=null,
+    scopeJoinVars: List<String>?=null,
 ): String {
     // when explicit scope URIs are supplied, emit them as full IRIs; otherwise fall back to the
     // prefix-based scope chain derived from the active request context (`scope.values()`).
@@ -127,6 +128,25 @@ fun permittedActionSparqlBgp(
         scope.values().joinToString(" ") { it.run {
             if(find != null && replace != null) this.replace(find, replace) else this
         } }
+    }
+
+    // when scopeJoinVars is provided, use a UNION pattern so that ?__mms_scope can match
+    // either the fixed scope values OR the resource variable(s) from the main query pattern.
+    val scopePattern = if(scopeJoinVars != null) {
+        val unionBranches = mutableListOf("""
+            values ?__mms_scope {
+                $scopeValuesClause
+            }""")
+        for(varName in scopeJoinVars) {
+            unionBranches.add("""
+            bind(?$varName as ?__mms_scope)""")
+        }
+        unionBranches.joinToString("\n        } union {")
+            .let { "{\n        $it\n        }" }
+    } else {
+        """values ?__mms_scope {
+            $scopeValuesClause
+        }"""
     }
 
     return """
@@ -174,9 +194,7 @@ fun permittedActionSparqlBgp(
 
 
         # intersect scopes relevant to context
-        values ?__mms_scope {
-            $scopeValuesClause
-        }
+        $scopePattern
     
         # lookup scope's class
         graph m-graph:Cluster {
@@ -208,6 +226,6 @@ fun generateReadContextBgp(permission: Permission, id: String?=null): String {
             .
 
         # details the policy that was applied
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
     """
 }
