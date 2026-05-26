@@ -226,6 +226,6 @@ fun generateReadContextBgp(permission: Permission, id: String?=null): String {
             .
 
         # details the policy that was applied
-        ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
+        #?__mms_policy ?__mms_policy_p ?__mms_policy_o .
     """
 }
