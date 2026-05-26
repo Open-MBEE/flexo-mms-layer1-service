@@ -26,7 +26,7 @@ private val SPARQL_BGP_ORG: (Boolean, Boolean) -> String = { allOrgs, allData ->
                     ?thing_p ?thing_o ;
                     .
             }
-        """.reindent(2) iff allData}
+        """.reindent(2) iff (allData && !allOrgs)}
     }
     
     ${permittedActionSparqlBgp(Permission.READ_ORG, Scope.CLUSTER,
