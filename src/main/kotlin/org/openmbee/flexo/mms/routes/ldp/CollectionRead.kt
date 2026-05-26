@@ -26,7 +26,8 @@ private val SPARQL_BGP_COLLECTION: (Boolean, Boolean) -> String = { allCollectio
     
     ${permittedActionSparqlBgp(Permission.READ_COLLECTION, Scope.COLLECTION,
         if(allCollections) "^moc:?$".toRegex() else null,
-        if(allCollections) "" else null)}
+        if(allCollections) "" else null,
+        scopeJoinVars = if(allCollections) listOf(SPARQL_VAR_NAME_COLLECTION) else null)}
 """ }
 
 // construct graph of all relevant collection metadata
