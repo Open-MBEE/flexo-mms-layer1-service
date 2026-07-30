@@ -65,9 +65,7 @@ jobs:
       - run:
           name: Fetch full git history for SonarCloud blame
           command: |
-            if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-              git fetch --unshallow
-            fi
+            git fetch --no-filter --refetch
       - sonarcloud/scan
 
   deploy_snapshot:
