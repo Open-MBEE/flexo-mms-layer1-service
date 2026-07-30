@@ -65,7 +65,7 @@ jobs:
       - run:
           name: Fetch full git history for SonarCloud blame
           command: |
-            git fetch --no-filter --refetch
+            git fetch --no-filter
       - sonarcloud/scan
 
   deploy_snapshot:
