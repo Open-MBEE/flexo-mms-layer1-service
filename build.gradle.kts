@@ -78,7 +78,7 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation("io.kotest:kotest-assertions-ktor:$kotestVersion")
 
-    val logbackVersion = "1.5.18"
+    val logbackVersion = "1.6.3"
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
 
     val systemLambdaVersion = "1.2.1"
