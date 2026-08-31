@@ -3,7 +3,7 @@ version: '3.8'
 services:
 
   quad-store-server:
-    image: atomgraph/fuseki:4.7
+    image: atomgraph/fuseki:6.1
     hostname: quad-server
     container_name: quad-server
     command: --mem --update /ds
