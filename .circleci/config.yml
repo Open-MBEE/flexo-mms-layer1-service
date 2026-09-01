@@ -96,15 +96,12 @@ jobs:
       tag: "2026.08"
     working_directory: /home/circleci/flexo-mms-layer1-service
     steps:
-      - checkout
+      # SonarCloud blames every file with jgit, which cannot lazy-fetch the
+      # blobs a blobless (default) checkout leaves behind.
+      - checkout:
+          method: full
       - attach_workspace:
           at: ~/
-      - run:
-          name: Re-fetch all git objects for SonarCloud blame
-          command: |
-            # SonarCloud's jgit blame fails on blobs missing from the CircleCI
-            # checkout; --refetch re-downloads every object (needs git >= 2.38).
-            git fetch --refetch
       - sonarcloud/scan
 
   deploy_image:
