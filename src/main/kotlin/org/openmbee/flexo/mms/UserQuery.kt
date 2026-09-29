@@ -7,11 +7,15 @@ import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
+import io.ktor.util.cio.readChannel
+import io.ktor.utils.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.apache.jena.atlas.io.IndentedWriter
 import org.apache.jena.graph.Node
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
@@ -25,7 +29,6 @@ import org.apache.jena.sparql.syntax.ElementGroup
 import org.apache.jena.sparql.syntax.ElementTriplesBlock
 import org.apache.jena.sparql.syntax.ElementUnion
 import org.apache.jena.update.UpdateRequest
-import java.io.ByteArrayOutputStream
 import org.openmbee.flexo.mms.routes.resolveCollectionGraphIris
 import org.openmbee.flexo.mms.routes.sparql.parseModelStripPrefixes
 import org.openmbee.flexo.mms.server.GspRequest
@@ -368,39 +371,67 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String, storeSe
             throw UnsupportedMediaType("GSP backend does not support loading ${requestContext.responseContentType}")
         }
 
-        // submit a PUT request to the quad-store's GSP endpoint
-        val response: HttpResponse = defaultHttpClient.put(call.application.quadStoreGraphStoreProtocolUrl!!) {
-            // add the graph query parameter per the GSP specification
-            parameter("graph", loadGraphUri)
-
-            // some GSP implementations (e.g., Virtuoso) silently ignore a chunked request body and
-            // respond with success after storing nothing, so the body must be sent with a Content-Length
-            val requestContentLength = call.request.contentLength()
-            if(requestContentLength != null) {
-                // stream request body from client to GSP endpoint
-                setBody(object : OutgoingContent.WriteChannelContent() {
-                    // forward the header for the content type, or default to turtle
-                    override val contentType = requestContext.requestContentType
-
-                    override val contentLength = requestContentLength
-
-                    override suspend fun writeTo(channel: ByteWriteChannel) {
-                        call.request.receiveChannel().copyTo(channel)
+        // some GSP implementations (e.g., Virtuoso) silently ignore a chunked request body and respond with
+        // success after storing nothing, so the body must be sent with a Content-Length. When the client did not
+        // declare one, spool the body to a temporary file to measure it without holding it in memory.
+        val requestContentLength = call.request.contentLength()
+        val spoolFile = if(requestContentLength == null) {
+            withContext(Dispatchers.IO) {
+                File.createTempFile("flexo-gsp-load-", ".rdf").also { file ->
+                    try {
+                        call.request.receiveChannel().toInputStream().use { input ->
+                            file.outputStream().use { output -> input.copyTo(output) }
+                        }
                     }
-                })
+                    catch(error: Throwable) {
+                        file.delete()
+                        throw error
+                    }
+                }
             }
-            // client did not declare a length; buffer the body to determine it
-            else {
-                setBody(ByteArrayContent(call.receive<ByteArray>(), requestContext.requestContentType))
+        } else null
+
+        try {
+            // submit a PUT request to the quad-store's GSP endpoint
+            val response: HttpResponse = defaultHttpClient.put(call.application.quadStoreGraphStoreProtocolUrl!!) {
+                // add the graph query parameter per the GSP specification
+                parameter("graph", loadGraphUri)
+
+                if(spoolFile == null) {
+                    // stream request body from client to GSP endpoint
+                    setBody(object : OutgoingContent.WriteChannelContent() {
+                        // forward the header for the content type, or default to turtle
+                        override val contentType = requestContext.requestContentType
+
+                        override val contentLength = requestContentLength
+
+                        override suspend fun writeTo(channel: ByteWriteChannel) {
+                            call.request.receiveChannel().copyTo(channel)
+                        }
+                    })
+                }
+                else {
+                    // stream the spooled body from disk
+                    setBody(object : OutgoingContent.ReadChannelContent() {
+                        override val contentType = requestContext.requestContentType
+
+                        override val contentLength = spoolFile.length()
+
+                        override fun readFrom() = spoolFile.readChannel()
+                    })
+                }
+            }
+
+            // read response body
+            val responseText = response.bodyAsText()
+
+            // non-200
+            if (!response.status.isSuccess()) {
+                throw Non200Response(responseText, response.status)
             }
         }
-
-        // read response body
-        val responseText = response.bodyAsText()
-
-        // non-200
-        if (!response.status.isSuccess()) {
-            throw Non200Response(responseText, response.status)
+        finally {
+            spoolFile?.delete()
         }
     }
     // fallback to SPARQL UPDATE string
@@ -496,11 +527,34 @@ private fun regraphQuads(quads: List<Quad>, graphNode: Node): List<Quad> {
  * Rewrites a user update so it targets the given graph IRI, using Jena's native AST.
  */
 fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>, graphIri: String): Pair<String, PrefixMapBuilder> {
+    val (rewritten, prefixBuilder) = rewriteUserUpdate(sparqlUpdateAst, prefixMap, graphIri)
+    return Pair(serializeUpdate(rewritten.operations, prefixBuilder.toSerializationContext()), prefixBuilder)
+}
+
+/**
+ * Same as [prepareUserUpdate], but split into one or more update strings that respect the given limits
+ * (see [splitUpdateOperations] and [batchUpdateOperations]). The strings must be executed in order.
+ */
+fun prepareChunkedUserUpdate(
+    sparqlUpdateAst: UpdateRequest,
+    prefixMap: HashMap<String, String>,
+    graphIri: String,
+    maxTriplesPerBlock: Int?,
+    maxRequestBytes: Long?,
+): List<String> {
+    val (rewritten, prefixBuilder) = rewriteUserUpdate(sparqlUpdateAst, prefixMap, graphIri)
+    val operations = if(maxTriplesPerBlock != null) splitUpdateOperations(rewritten.operations, maxTriplesPerBlock)
+        else rewritten.operations
+    return batchUpdateOperations(operations, prefixBuilder.toSerializationContext(), maxRequestBytes)
+}
+
+/**
+ * Rewrites the operations of a user update so that they apply to the given graph.
+ */
+fun rewriteUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String, String>, graphIri: String): Pair<UpdateRequest, PrefixMapBuilder> {
     val graphNode = NodeFactory.createURI(graphIri)
     val rewritten = UpdateRequest()
-    var updateString = ""
     val prefixBuilder = withPrefixMap(prefixMap) {
-        val sCxt = toSerializationContext()
         for (update in sparqlUpdateAst.operations) {
             when (update) {
                 is UpdateDataDelete -> {
@@ -542,11 +596,6 @@ fun prepareUserUpdate(sparqlUpdateAst: UpdateRequest, prefixMap: HashMap<String,
                 else -> throw UpdateOperationNotAllowedException("SPARQL ${update.javaClass.simpleName} not allowed here")
             }
         }
-        val baos = ByteArrayOutputStream()
-        val out = IndentedWriter(baos)
-        UpdateWriter.output(rewritten, out, sCxt)
-        out.flush()
-        updateString = baos.toString(Charsets.UTF_8)
     }
-    return Pair(updateString, prefixBuilder)
+    return Pair(rewritten, prefixBuilder)
 }

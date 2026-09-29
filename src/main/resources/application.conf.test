@@ -6,6 +6,8 @@ mms {
         maximum-literal-size-kib = ${?FLEXO_MMS_MAXIMUM_LITERAL_SIZE_KIB}
         gzip-literals-larger-than-kib = 512
         gzip-literals-larger-than-kib = ${?FLEXO_MMS_GZIP_LITERALS_LARGER_THAN_KIB}
+        max-triples-per-update-block = ${?FLEXO_MMS_MAX_TRIPLES_PER_UPDATE_BLOCK}
+        max-update-request-kib = ${?FLEXO_MMS_MAX_UPDATE_REQUEST_KIB}
         request-timeout = 1800
         request-timeout = ${?FLEXO_MMS_SPARQL_REQUEST_TIMEOUT}
     }

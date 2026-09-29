@@ -80,6 +80,22 @@ val Application.gzipLiteralsLargerThanKib: Long?
     get() = environment.config.propertyOrNull("mms.application.gzip-literals-larger-than-kib")?.getString()?.toLongOrNull()
 
 /**
+ * Maximum number of triples in one `INSERT DATA` / `DELETE DATA` block (or rows in a splittable VALUES table) of a
+ * user update sent to the triplestore. Larger blocks are split. Unset: user updates are sent as written.
+ */
+val Application.maxTriplesPerUpdateBlock: Int?
+    get() = environment.config.propertyOrNull("mms.application.max-triples-per-update-block")?.getString()?.toIntOrNull()
+        ?.takeIf { it > 0 }
+
+/**
+ * Maximum size of one SPARQL update request sent to the triplestore for a user update, in KiB. Larger updates are
+ * applied in several requests to a scratch copy of the target graph, which then replaces it. Unset: no limit.
+ */
+val Application.maxUpdateRequestKib: Long?
+    get() = environment.config.propertyOrNull("mms.application.max-update-request-kib")?.getString()?.toLongOrNull()
+        ?.takeIf { it > 0 }
+
+/**
  * Timeout per request sent to the triplestore, in seconds.
  */
 val Application.requestTimeout: Long?

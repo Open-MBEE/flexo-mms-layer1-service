@@ -58,9 +58,16 @@ fun Route.commitModel() {
                 mtResource, MMS.TXN.baseCommit)
                 .next().asResource().uri
             val prefixMap = HashMap(sparqlUpdateAst.prefixMapping.nsPrefixMap)
-            val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap, stagingGraphIri)
-            //run update, will throw error if triplestore response is not 2xx
-            executeSparqlUpdate(updateString) {this}
+            val maxTriplesPerBlock = call.application.maxTriplesPerUpdateBlock
+            val maxRequestBytes = call.application.maxUpdateRequestKib?.let { it * 1024 }
+            if(maxTriplesPerBlock == null && maxRequestBytes == null) {
+                val (updateString, userPrefixes) = prepareUserUpdate(sparqlUpdateAst, prefixMap, stagingGraphIri)
+                //run update, will throw error if triplestore response is not 2xx
+                executeSparqlUpdate(updateString) {this}
+            }
+            else {
+                executeChunkedUserUpdate(sparqlUpdateAst, prefixMap, stagingGraphIri, maxTriplesPerBlock, maxRequestBytes)
+            }
             val commitUpdateString = genCommitUpdate()
             val constructResponseText = diffAndFinalizeCommit(
                 stagingGraphIri,

@@ -12,6 +12,10 @@ mms {
         gzip-literals-larger-than-kib = 512
         gzip-literals-larger-than-kib = ${?FLEXO_MMS_GZIP_LITERALS_LARGER_THAN_KIB}
 
+        # split large user updates for stores with request limits (e.g., Virtuoso: 2000 triples per block, 8192 KiB per request). unset: send updates as written
+        max-triples-per-update-block = ${?FLEXO_MMS_MAX_TRIPLES_PER_UPDATE_BLOCK}
+        max-update-request-kib = ${?FLEXO_MMS_MAX_UPDATE_REQUEST_KIB}
+
         # commit finalization mode: "auto" (default) probes the quad-store once for transactional
         # multi-operation update support and uses a single atomic request when supported;
         # "always" forces the single-request path; "never" always uses two sequential requests
