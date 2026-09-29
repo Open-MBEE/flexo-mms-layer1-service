@@ -29,7 +29,7 @@ private const val UPDATE_DEADLOCK_BACKOFF_MILLIS = 250L
 
 private val DEADLOCK_RESPONSE_REGEX = """\b40001\b|\bSR172\b|[Tt]ransaction deadlocked""".toRegex()
 
-private fun isRolledBackDeadlock(error: Non200Response): Boolean {
+internal fun isRolledBackDeadlock(error: Non200Response): Boolean {
     return error.status.value >= 500 && DEADLOCK_RESPONSE_REGEX.containsMatchIn(error.body)
 }
 

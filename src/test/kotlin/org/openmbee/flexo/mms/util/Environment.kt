@@ -27,3 +27,20 @@ fun testApplication(block: suspend ApplicationTestBuilder.() -> Unit) {
     }
 }
 
+
+/**
+ * Same as [testApplication], with the given `mms.application.*`-style keys overriding application.conf.test.
+ */
+fun testApplicationWith(overrides: Map<String, Any>, block: suspend ApplicationTestBuilder.() -> Unit) {
+    val config = HoconApplicationConfig(
+        ConfigFactory.parseMap(overrides)
+            .withFallback(ConfigFactory.parseResources("application.conf.test"))
+            .resolve()
+    )
+    io.ktor.server.testing.testApplication {
+        environment {
+            this.config = config
+        }
+        block()
+    }
+}
