@@ -214,25 +214,29 @@ open class WhereBuilder(
                 mt:${subTxnId?: ""} ?mt_p ?mt_o${" ;" iff !noAccessControl}
                     ${"mms:appliedPolicy ?__mms_policy" iff !noAccessControl}
                     .
-                
-                # a policy might have been created during this transaction
-                optional {
-                    mt:${subTxnId?: ""} mms:createdPolicy ?__mms_createdPolicy .
-                }
             }
-            
+
             ${"""
                 # include the applied policy details
                 graph m-graph:AccessControl.Policies {
                     ?__mms_policy ?__mms_policy_p ?__mms_policy_o .
-                    
-                    # in case a policy was also created during this transaction
-                    optional {
-                        ?__mms_createdPolicy ?__mms_createdPolicy_p ?__mms_createdPolicy_o .
-                    }
                 }
             """.reindent(3) iff !noAccessControl}
-            
+
+            # a policy might have been created during this transaction; keep the link and the
+            # policy details in the same optional group so ?__mms_createdPolicy is bound when its
+            # details are matched (otherwise the details pattern would match every policy triple)
+            optional {
+                graph m-graph:Transactions {
+                    mt:${subTxnId?: ""} mms:createdPolicy ?__mms_createdPolicy .
+                }
+                ${"""
+                    graph m-graph:AccessControl.Policies {
+                        ?__mms_createdPolicy ?__mms_createdPolicy_p ?__mms_createdPolicy_o .
+                    }
+                """.reindent(4) iff !noAccessControl}
+            }
+
         """)
     }
 

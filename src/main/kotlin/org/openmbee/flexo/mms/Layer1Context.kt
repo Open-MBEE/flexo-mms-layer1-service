@@ -334,6 +334,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         sparql = replaceValuesDirectives(sparql,
             "groupId" to groups,
         )
+        sparql = replaceIrisDirectives(sparql)
 
         // if the query caller accepts replica lag, use the more optimal query URL; otherwise use master
         val endpoint = if(params.acceptReplicaLag) call.application.quadStoreQueryUrl
@@ -375,6 +376,7 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         sparql = replaceValuesDirectives(sparql,
             "groupId" to groups
             )
+        sparql = replaceIrisDirectives(sparql)
         log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
         return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {

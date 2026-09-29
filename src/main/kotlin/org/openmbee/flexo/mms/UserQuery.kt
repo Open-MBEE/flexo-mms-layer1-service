@@ -373,15 +373,26 @@ suspend fun Layer1Context<GspRequest, *>.loadGraph(loadGraphUri: String, storeSe
             // add the graph query parameter per the GSP specification
             parameter("graph", loadGraphUri)
 
-            // stream request body from client to GSP endpoint
-            setBody(object : OutgoingContent.WriteChannelContent() {
-                // forward the header for the content type, or default to turtle
-                override val contentType = requestContext.requestContentType
+            // some GSP implementations (e.g., Virtuoso) silently ignore a chunked request body and
+            // respond with success after storing nothing, so the body must be sent with a Content-Length
+            val requestContentLength = call.request.contentLength()
+            if(requestContentLength != null) {
+                // stream request body from client to GSP endpoint
+                setBody(object : OutgoingContent.WriteChannelContent() {
+                    // forward the header for the content type, or default to turtle
+                    override val contentType = requestContext.requestContentType
 
-                override suspend fun writeTo(channel: ByteWriteChannel) {
-                    call.request.receiveChannel().copyTo(channel)
-                }
-            })
+                    override val contentLength = requestContentLength
+
+                    override suspend fun writeTo(channel: ByteWriteChannel) {
+                        call.request.receiveChannel().copyTo(channel)
+                    }
+                })
+            }
+            // client did not declare a length; buffer the body to determine it
+            else {
+                setBody(ByteArrayContent(call.receive<ByteArray>(), requestContext.requestContentType))
+            }
         }
 
         // read response body

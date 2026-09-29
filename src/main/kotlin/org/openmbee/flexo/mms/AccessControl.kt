@@ -202,19 +202,18 @@ fun permittedActionSparqlBgp(
         } }
     }
 
-    // when scopeJoinVars is provided, use a UNION pattern so that ?__mms_scope can match
+    // when scopeJoinVars is provided, filter the policy-bound ?__mms_scope so that it can match
     // either the fixed scope values OR the resource variable(s) from the main query pattern.
+    // This must not be a UNION of `bind(?var as ?__mms_scope)` branches: under SPARQL's bottom-up
+    // evaluation the joined variable is unbound inside an independent union branch. Jena happens
+    // to substitute it, but spec-conformant stores (e.g., Virtuoso) do not and return no results.
     val scopePattern = if(scopeJoinVars != null) {
-        val unionBranches = mutableListOf("""
-            values ?__mms_scope {
-                $scopeValuesClause
-            }""")
-        for(varName in scopeJoinVars) {
-            unionBranches.add("""
-            bind(?$varName as ?__mms_scope)""")
-        }
-        unionBranches.joinToString("\n        } union {")
-            .let { "{\n        $it\n        }" }
+        val scopeInClause = scopeValuesClause.split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(", ")
+        val joinDisjuncts = scopeJoinVars.joinToString(" || ") { "sameTerm(?__mms_scope, ?$it)" }
+        if(scopeInClause.isEmpty()) "filter($joinDisjuncts)"
+        else "filter(?__mms_scope in ($scopeInClause) || $joinDisjuncts)"
     } else {
         """values ?__mms_scope {
             $scopeValuesClause
@@ -268,15 +267,11 @@ fun permittedActionSparqlBgp(
         # lookup scope's class
         ${scopeTypeLookup(scope, scopeValuesClause)}
 
-        # lookup scope class, role, and permissions
-        graph m-graph:AccessControl.Definitions {
-            ?__mms_scopeType rdfs:subClassOf*/mms:implies*/^rdfs:subClassOf* mms:${scope.type} .
-
-            ?__mms_role a mms:Role ;
-                mms:permits ?__mms_directRolePermissions .
-            ?__mms_directRolePermissions a mms:Permission ;
-                mms:implies* mms-object:Permission.${permission.id} .
-        }
+        # scope classes whose scope covers `mms:${scope.type}` and roles granting the permission; both are
+        # resolved from the static access control definitions (see AccessControlDefinitions.kt) because the
+        # equivalent property paths are costly and not evaluated correctly by every quad-store
+        # @iris ?__mms_scopeType in scopeTypes:${scope.type}
+        # @iris ?__mms_role in rolesGranting:${permission.id}
     """
 }
 

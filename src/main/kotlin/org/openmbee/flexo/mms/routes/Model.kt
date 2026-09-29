@@ -339,6 +339,11 @@ fun AnyLayer1Context.genCommitUpdate(delete: String="", insert: String="", where
  *   Used by ModelLoad to get difference between current staging graph and newly loaded graph in the form of delete/insert graphs
  */
 fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: ConditionsGroup?=null, rawWhere: String?=null, explicitDiffIri: String?=null): String {
+    // the diff id expression is repeated in each bind below instead of referencing ?diffId, since some
+    // stores (e.g., Virtuoso) evaluate a variable assigned by a preceding BIND as empty inside another
+    // BIND expression, which would give every diff the same IRI and ins/del graphs
+    val diffIdExpr = """sha256(concat(str(?dstCommit), "\n", str(?srcCommit)))"""
+
     return buildSparqlUpdate {
         insert {
             subtxn("diff", mapOf(
@@ -379,31 +384,27 @@ fun AnyLayer1Context.genDiffUpdate(diffTriples: String="", conditions: Condition
 
                 ${rawWhere?: ""}
 
-                bind(
-                    sha256(
-                        concat(str(?dstCommit), "\n", str(?srcCommit))
-                    ) as ?diffId
-                )
+                bind($diffIdExpr as ?diffId)
 
                 ${if(explicitDiffIri != null) """
                     bind(<$explicitDiffIri> as ?diff)
                 """ else """
                     bind(
                         iri(
-                            concat(str(?dstCommit), "/diffs/", ?diffId)
+                            concat(str(?dstCommit), "/diffs/", $diffIdExpr)
                         ) as ?diff
                     )
                 """}
 
                 bind(
                     iri(
-                        concat(str(mor-graph:), "Diff.Ins.", ?diffId)
+                        concat(str(mor-graph:), "Diff.Ins.", $diffIdExpr)
                     ) as ?insGraph
                 )
                 
                 bind(
                     iri(
-                        concat(str(mor-graph:), "Diff.Del.", ?diffId)
+                        concat(str(mor-graph:), "Diff.Del.", $diffIdExpr)
                     ) as ?delGraph
                 )
 
