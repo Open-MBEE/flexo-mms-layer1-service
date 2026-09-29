@@ -17,7 +17,8 @@ services:
       start_period: 10s
 
   minio-server:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # quay.io/minio/minio and docker.io/minio/minio no longer serve public pulls
+    image: cgr.dev/chainguard/minio:latest
     hostname: minio-server
     container_name: minio-server
     env_file:
@@ -29,7 +30,8 @@ services:
     ports:
       - 9000:9000
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      # the image ships bash but neither curl nor wget
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000"]
       interval: 5s
       timeout: 5s
       retries: 12
