@@ -7,7 +7,9 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.util.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlin.random.Random
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -20,6 +22,16 @@ import org.openmbee.flexo.mms.server.httpClient
 import java.util.*
 
 val DEFAULT_BRANCH_ID = "master"
+
+// how often, and with what base delay, an update rolled back to resolve a deadlock is resent
+private const val UPDATE_DEADLOCK_RETRIES = 5
+private const val UPDATE_DEADLOCK_BACKOFF_MILLIS = 250L
+
+private val DEADLOCK_RESPONSE_REGEX = """\b40001\b|\bSR172\b|[Tt]ransaction deadlocked""".toRegex()
+
+private fun isRolledBackDeadlock(error: Non200Response): Boolean {
+    return error.status.value >= 500 && DEADLOCK_RESPONSE_REGEX.containsMatchIn(error.body)
+}
 
 
 /**
@@ -379,14 +391,27 @@ class Layer1Context<TRequestContext: GenericRequest, out TResponseContext: Gener
         sparql = replaceIrisDirectives(sparql)
         log("Executing SPARQL Update:\n ${if (sparql.length > 10000) "Update String too big to log, truncated:\n" + sparql.substring(0, 10000) else sparql}")
 
-        return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
-            headers {
-                // no expectation on response content type
-                append(HttpHeaders.Accept, ContentType.Any)
+        var attempt = 0
+        while(true) {
+            try {
+                return handleSparqlResponse(defaultHttpClient.post(call.application.quadStoreUpdateUrl) {
+                    headers {
+                        // no expectation on response content type
+                        append(HttpHeaders.Accept, ContentType.Any)
+                    }
+                    contentType(RdfContentTypes.SparqlUpdate)
+                    setBody(sparql)
+                })
             }
-            contentType(RdfContentTypes.SparqlUpdate)
-            setBody(sparql)
-        })
+            catch(error: Non200Response) {
+                // the store rolled the whole update back to resolve a deadlock with a concurrent transaction
+                // (SQLSTATE 40001, e.g. Virtuoso "SR172: Transaction deadlocked"); resending it is safe
+                if(attempt >= UPDATE_DEADLOCK_RETRIES || !isRolledBackDeadlock(error)) throw error
+                attempt += 1
+                log("Update was rolled back by a deadlock; retrying ($attempt/$UPDATE_DEADLOCK_RETRIES)")
+                delay(UPDATE_DEADLOCK_BACKOFF_MILLIS * attempt + Random.nextLong(UPDATE_DEADLOCK_BACKOFF_MILLIS))
+            }
+        }
     }
 
 

@@ -136,8 +136,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 """)
             }
 
-            graph(graph) {
-                if(deleteBgpString.isNotEmpty()) {
+            // omit the block when empty: some stores (e.g., Virtuoso) reject an empty graph block in an update template
+            if(deleteBgpString.isNotBlank()) {
+                graph(graph) {
                     raw(deleteBgpString)
                 }
             }
@@ -152,8 +153,9 @@ suspend fun <TResponseContext: LdpMutateResponse> LdpDcLayer1Context<TResponseCo
                 """)
             }
 
-            graph(graph) {
-                if(insertBgpString.isNotEmpty()) {
+            // omit the block when empty: some stores (e.g., Virtuoso) reject an empty graph block in an update template
+            if(insertBgpString.isNotBlank()) {
+                graph(graph) {
                     raw(insertBgpString)
                 }
             }
